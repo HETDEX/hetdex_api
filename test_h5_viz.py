@@ -6,19 +6,13 @@ Created on Wed Jan 16 16:11:17 2019
 """
 
 import argparse as ap
-from input_utils import setup_logging
-from tables import open_file
 import numpy as np
+import os.path as op
 import pyds9
 
+from input_utils import setup_logging
+from tables import open_file
 
-h5file = open_file('/work/03730/gregz/maverick/test.h5', mode='r')
-table = h5file.root.Info.Fibers
-spec = np.array(table.cols.spectrum[:])
-ds9 = pyds9.DS9()
-ds9.set_np2arr(spec)
-raw_input('Done Inspecting?')
-h5file.close()
 
 def main(argv=None):
     ''' Main Function '''
@@ -26,24 +20,47 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create HDF5 file.""",
                                add_help=True)
 
-    parser.add_argument("-d", "--date",
-                        help='''Date, e.g., 20170321, YYYYMMDD''',
+    parser.add_argument("hdf5_file", type=str,
+                        help='''Name of h5/hdf5 file''')
+
+    parser.add_argument("-e", "--extension",
+                        help='''Extension or extensions''',
                         type=str, default=None)
 
-    parser.add_argument("-o", "--observation",
-                        help='''Observation number, "00000007" or "7"''',
+    parser.add_argument("-q", "--query",
+                        help='''Query to be applied''',
                         type=str, default=None)
 
-    parser.add_argument("-r", "--rootdir",
-                        help='''Root Directory for Reductions''',
-                        type=str, default='/work/03946/hetdex/maverick')
-
-    parser.add_argument('-of', '--outfilename', type=str,
-                        help='''Relative or absolute path for output HDF5
-                        file.''', default=None)
-    parser.add_argument('-a', '--append',
-                        help='''Appending to existing file.''',
+    parser.add_argument('-s', '--show',
+                        help='''Show tables/extensions within file''',
                         action="count", default=0)
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
+    try:
+        h5file = open_file(args.hdf5_file, mode='r')
+    except:
+        if not op.exists(args.hdf5_file):
+            args.log.error('%s does not exist' % args.hdf5_file)
+            return None
+        else:
+            args.log.error('File exists but ould not open %s' % args.hdf5_file)
+            return None
+    if args.show:
+        print(h5file)
+        for node in h5file.walk_nodes("/"):
+            if type(node) == tables.array.Array:
+                print(node.name, node.dtype)
+        return None
+    if args.extension is None:
+        args.log.error('No extension provided to display in ds9')
+
+    table = h5file.root.Info.Fibers
+    spec = np.array(table.cols.spectrum[:])
+    ds9 = pyds9.DS9()
+    ds9.set_np2arr(spec)
+    raw_input('Done Inspecting?')
+    h5file.close()
+
+if __name__ == '__main__':
+    main()
