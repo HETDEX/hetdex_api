@@ -21,7 +21,7 @@ class Survey:
         '''
         survey_options = {'dr1': '/work/05350/ecooper/maverick/gettar/survey_test.h5',
                           'parallel': 'PATHNAME'}
-        if survey.lower not in survey_options:
+        if survey.lower() not in survey_options:
             print('survey not in survey options')
             print(survey_options)
             return None
