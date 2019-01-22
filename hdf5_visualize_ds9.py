@@ -12,7 +12,6 @@ import pyds9
 
 from input_utils import setup_logging
 from tables import open_file
-import tables as tb
 
 
 def main(argv=None):
@@ -49,11 +48,9 @@ def main(argv=None):
                            % args.hdf5_file)
             return None
     if args.show:
-        print(h5file.root.Info.Fibers.cols)
-        for array in h5file.root.Info.Fibers.cols:
-            print(array)
-        print(h5file.root.Info.Shot.cols)
-        print(h5file.root.Info.Images.cols)
+        print(h5file.root.Info.Fibers..colnames)
+        print(h5file.root.Info.Shot.colnames)
+        print(h5file.root.Info.Images.colnames)
         return None
 
     if args.extension is None:
