@@ -49,7 +49,9 @@ def main(argv=None):
                            % args.hdf5_file)
             return None
     if args.show:
-        print(h5file.root.Info)
+        print(h5file.root.Info.Fibers)
+        print(h5file.root.Info.Shot)
+        print(h5file.root.Info.Images)
         return None
 
     if args.extension is None:
