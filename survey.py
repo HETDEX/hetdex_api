@@ -27,6 +27,7 @@ class Survey:
             return None
         self.filename = survey_options[survey]
         self.hdfile = tb.open_file(self.filename, mode='r')
-        colnames = self.hdfile.root.Survey.colnames
+        colnames = self.hdfile.root.Info.Survey.colnames
         for name in colnames:
-            setattr(self, name, getattr(self.hdfile.root.Survey.cols, name)[:])
+            setattr(self, name,
+                    getattr(self.hdfile.root.Info.Survey.cols, name)[:])
