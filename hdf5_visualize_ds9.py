@@ -48,7 +48,7 @@ def main(argv=None):
                            % args.hdf5_file)
             return None
     if args.show:
-        print(h5file.root.Info.Fibers..colnames)
+        print(h5file.root.Info.Fibers.colnames)
         print(h5file.root.Info.Shot.colnames)
         print(h5file.root.Info.Images.colnames)
         return None
