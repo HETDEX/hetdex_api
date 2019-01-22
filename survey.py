@@ -6,7 +6,6 @@ Created on Tue Jan 22 11:02:53 2019
 """
 
 import tables as tb
-import sys
 
 
 class Survey:
@@ -24,7 +23,8 @@ class Survey:
                           'parallel': 'PATHNAME'}
         if survey.lower not in survey_options:
             print('survey not in survey options')
-            sys.exit(1)
+            print(survey_options)
+            return None
         self.filename = survey_options[survey]
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Survey.colnames
