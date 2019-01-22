@@ -49,10 +49,7 @@ def main(argv=None):
                            % args.hdf5_file)
             return None
     if args.show:
-        print(h5file)
-        for node in h5file.walk_nodes("/root/Info"):
-            if type(node) == tb.array.Array:
-                print(node.name, node.dtype)
+        print(h5file.root.Info)
         return None
 
     if args.extension is None:
