@@ -50,7 +50,7 @@ def main(argv=None):
             return None
     if args.show:
         print(h5file.root.Info.Fibers.cols)
-        for array in h5file.walk_nodes("/Info.Fibers", "Array"):
+        for array in h5file.root.Info.Fibers.cols:
             print(array)
         print(h5file.root.Info.Shot.cols)
         print(h5file.root.Info.Images.cols)
