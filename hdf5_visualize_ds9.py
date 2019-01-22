@@ -48,9 +48,14 @@ def main(argv=None):
                            % args.hdf5_file)
             return None
     if args.show:
-        print(h5file.root.Info.Fibers.colnames)
-        print(h5file.root.Info.Shot.colnames)
-        print(h5file.root.Info.Images.colnames)
+        table_names = ['Shot', 'Fibers', 'Images']
+        for kind in table_names:
+            print('%s column names:\n' % kind)
+            b = getattr(h5file.root.Info, kind)
+            for name in b.colnames:
+                base = getattr(b.cols, name)
+                shape = str(base.shape)
+                print('\t%s: %s %s\n' % (name, base.type, shape))
         return None
 
     if args.extension is None:
