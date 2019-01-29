@@ -5,8 +5,7 @@ Created: 2019/01/23
 @author: Erin Mentuch Cooper
 
 Note: requires makemaster.sh to collect info from Karl's
-/work/00115/gebhardt/maverick/gettar
-database and from other lookup tables
+/work/00115/gebhardt/maverick/gettar database
 
 """
 
@@ -25,13 +24,10 @@ from astropy.io import fits
 #
 
 path_astrometry = "/work/00115/gebhardt/maverick/vdrp/shifts/"
-path_gpinfo = '/work/05350/ecooper/maverick/gettar/master_fwhm_DR1'
+path_gpinfo = '/work/00115/gebhardt/maverick/getgp/fwhm_and_fluxes_better.txt'
 mastersci_file = "/work/05350/ecooper/maverick/gettar/mastersci_DR1"
-mastertp_file = '/work/05350/ecooper/maverick/gettar/master_tp'
 path_radec = "/work/00115/gebhardt/maverick/getfib/radec.all"
-path_fplane = "/work/00115/gebhardt/maverick/vdrp/shifts/"
 path_throughput = "/work/00115/gebhardt/maverick/detect/tp/"
-path_amp2amp = "/work/00115/gebhardt/maverick/getampnorm/all/"
 
 
 class Survey(tb.IsDescription):
@@ -47,7 +43,6 @@ class Survey(tb.IsDescription):
     trajcpa = tb.Float32Col()
     fwhm = tb.Float32Col()
     response_4540 = tb.Float32Col()  # normalized for 360s
-    twi_shotid = tb.Int64Col()
 
 
 class Exp(tb.IsDescription):
@@ -59,19 +54,23 @@ class Exp(tb.IsDescription):
     mjd = tb.Float32Col()
     exptime = tb.Float32Col(7)
     darktime = tb.Float32Col()
-    cofits = tb.Float32Col((1300, 1300))
 
 
-fileh = tb.open_file("survey_test_new.h5", mode="w", title="Survey test file ")
+fileh = tb.open_file("survey_test.h5", mode="w", title="Survey test file ")
 
 group = fileh.create_group(fileh.root, 'Info', 'HETDEX Survey Info')
 tableMain = fileh.create_table(group, 'Survey', Survey, 'Main Survey Info')
 tableExp = fileh.create_table(group, 'Exp', Exp, 'Exposure Specific Info')
 
 master_sci = ascii.read(mastersci_file)
-master_fwhm = ascii.read(path_gpinfo)
+
+master_fwhm = ascii.read(path_gpinfo, data_start=2,
+                         names=('datevshot', 'survey', 'fwhm', 'fwhm_mof',
+                                'beta', 'n', 'rflux1gc1', 'rflux2gc1',
+                                'rflux3gc1', 'rflux1g2', 'rflux2gc2',
+                                'rflux3gc2'))
+
 master_astrometry = ascii.read(path_radec)
-master_tp = ascii.read(mastertp_file)
 
 shotarray = np.unique(master_sci['SHOT'])
 
@@ -104,28 +103,29 @@ for idx in np.arange(np.size(shotarray)):
         row['dec'] = np.nan
         row['pa'] = np.nan
 
-    sel1 = np.where(master_fwhm['SHOT'] == row['shotid'])
+    datevshot = str(row['date'])+'v'+str(row['obsid']).zfill(3)
+    sel1 = np.where(master_fwhm['datevshot'] == datevshot)
 
     if np.size(sel1) == 1:
-        row['fwhm'] = np.float(master_fwhm['FWHM'][sel1])
+        row['fwhm'] = np.float(master_fwhm['fwhm_mof'][sel1])
     elif np.size(sel1) > 1:
         print "Weird: More than one FWHM value for", row['shotid']
         print "Saving the first FWHM value only. Make sure this is ok."
-        row['fwhm'] = np.float(master_fwhm['FWHM'][sel1][0])
+        row['fwhm'] = np.float(master_fwhm['fwhm_mof'][sel1][0])
     else:
         row['fwhm'] = np.nan
 
     if row['fwhm'] < 0:
         row['fwhm'] = np.nan
 
-    sel2 = np.where((master_tp['DATE'] == row['date'])
-                    * (master_tp['OBSID'] == row['obsid']))
+    tpfile = op.join(path_throughput, str(row['date']) + 'v'
+                     + str(row['obsid']).zfill(3)+'sedtp_f.dat')
 
-    if np.size(sel2) == 1:
-        row['response_4540'] = master_tp['TP'][sel2]
-    elif np.size(sel2) > 1:
-        print "Weird: More than two TPs found for", row['shotid']
-        row['response_4540'] = master_tp['TP'][sel2][0]
+    if os.path.isfile(tpfile):
+        for line in open(tpfile):
+            if '4540' in line:
+                tp_4540 = (line.split()[1])
+                row['response_4540'] = tp_4540
     else:
         row['response_4540'] = np.nan
 
@@ -146,15 +146,6 @@ for idx in np.arange(np.size(master_sci['SHOT'])):
     row['mjd'] = master_sci['MJD'][idx]
     row['exptime'] = master_sci['EXPTIME'][idx]
     row['darktime'] = master_sci['DARKTIME'][idx]
-
-    fitsfile = op.join(path_astrometry,
-                       str(row['date']) + 'v' + str(row['obsid']).zfill(3),
-                       str(row['date']) + 'v' + str(row['obsid']).zfill(3)
-                       + 'fp_' + row['expn'] + '.fits')
-
-    if os.path.exists(fitsfile):
-        F = fits.open(fitsfile)
-        row['cofits'] = F[0].data * 1.
 
     row.append()
 
