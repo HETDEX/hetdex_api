@@ -28,39 +28,47 @@ path_gpinfo = '/work/00115/gebhardt/maverick/getgp/fwhm_and_fluxes_better.txt'
 mastersci_file = "/work/05350/ecooper/maverick/gettar/mastersci_DR1"
 path_radec = "/work/00115/gebhardt/maverick/getfib/radec.all"
 path_throughput = "/work/00115/gebhardt/maverick/detect/tp/"
+path_dithers = '/work/00115/gebhardt/maverick/vdrp/shifts/dithoff/dithall.dat'
 
 
 class Survey(tb.IsDescription):
-    shotid = tb.Int64Col()
-    date = tb.Time32Col()
-    obsid = tb.Int32Col()
-    objid = tb.StringCol(18)
-    ra = tb.Float32Col()
-    dec = tb.Float32Col()
-    pa = tb.Float32Col()
+    shotid = tb.Int64Col(pos=0)
+    date = tb.Time32Col(pos=1)
+    obsid = tb.Int32Col(pos=2)
+    objid = tb.StringCol((18), pos=3)
+    ra = tb.Float32Col(pos=4)
+    dec = tb.Float32Col(pos=5)
+    pa = tb.Float32Col(pos=6)
     trajcra = tb.Float32Col()
     trajcdec = tb.Float32Col()
     trajcpa = tb.Float32Col()
-    fwhm = tb.Float32Col()
-    response_4540 = tb.Float32Col()  # normalized for 360s
+    fwhm = tb.Float32Col(pos=7)
+    response_4540 = tb.Float32Col(pos=8)  # normalized for 360s
+    x1 = tb.Float32Col()
+    y1 = tb.Float32Col()
+    x2 = tb.Float32Col()
+    y2 = tb.Float32Col()
+    x3 = tb.Float32Col()
+    y3 = tb.Float32Col()
 
 
 class Exp(tb.IsDescription):
-    shotid = tb.Int64Col()
-    date = tb.Time32Col()
-    obsid = tb.Int32Col()
-    expn = tb.StringCol(5)
-    timestamp = tb.StringCol(18)
-    mjd = tb.Float32Col()
-    exptime = tb.Float32Col(7)
-    darktime = tb.Float32Col()
+    shotid = tb.Int64Col(pos=0)
+    date = tb.Time32Col(pos=1)
+    obsid = tb.Int32Col(pos=2)
+    expn = tb.StringCol((5), pos=3)
+    timestamp = tb.StringCol((18), pos=4)
+    mjd = tb.Float32Col(pos=5)
+    exptime = tb.Float32Col((7), pos=6)
+    darktime = tb.Float32Col(pos=7)
 
 
 fileh = tb.open_file("survey_test.h5", mode="w", title="Survey test file ")
 
-group = fileh.create_group(fileh.root, 'Info', 'HETDEX Survey Info')
-tableMain = fileh.create_table(group, 'Survey', Survey, 'Main Survey Info')
-tableExp = fileh.create_table(group, 'Exp', Exp, 'Exposure Specific Info')
+tableMain = fileh.create_table(fileh.root, 'Survey', Survey,
+                               'Main Survey Info')
+tableExp = fileh.create_table(fileh.root, 'Exp', Exp,
+                              'Exposure Specific Info')
 
 master_sci = ascii.read(mastersci_file)
 
@@ -71,6 +79,8 @@ master_fwhm = ascii.read(path_gpinfo, data_start=2,
                                 'rflux3gc2'))
 
 master_astrometry = ascii.read(path_radec)
+master_dither = ascii.read(path_dithers, names=['x1', 'y1', 'x2', 'y2',
+                                                'x3', 'y3', 'date', 'obsid'])
 
 shotarray = np.unique(master_sci['SHOT'])
 
@@ -128,6 +138,18 @@ for idx in np.arange(np.size(shotarray)):
                 row['response_4540'] = tp_4540
     else:
         row['response_4540'] = np.nan
+
+    # add in dither info
+
+    sel = np.where((master_dither['date'] == row['date'])
+                   * (master_dither['obsid'] == row['obsid']))
+    dith_arr = ['x1', 'y1', 'x2', 'y2', 'x3', 'y3']
+    if np.size(sel) == 1:
+        for dith in dith_arr:
+            row[dith] = master_dither[dith][sel]
+    elif np.size(sel) == 0:
+        for dith in dith_arr:
+            row[dith] = np.nan
 
     row.append()
 
