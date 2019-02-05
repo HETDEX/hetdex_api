@@ -33,7 +33,7 @@ path_dithers = '/work/00115/gebhardt/maverick/vdrp/shifts/dithoff/dithall.dat'
 
 class Survey(tb.IsDescription):
     shotid = tb.Int64Col(pos=0)
-    date = tb.Time32Col(pos=1)
+    date = tb.Int32Col(pos=1)
     obsid = tb.Int32Col(pos=2)
     objid = tb.StringCol((18), pos=3)
     ra = tb.Float32Col(pos=4)
