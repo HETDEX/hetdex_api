@@ -4,7 +4,8 @@ Created: 2019/01/25
 
 @author: Erin Mentuch Cooper
 
-This file takes a list of shots and creates a HDF5 of all line detections
+This file contains all information related to the HETDEX line detections
+catalog
 
 """
 
@@ -12,6 +13,7 @@ import sys
 import os
 import os.path as op
 import re
+import glob
 import subprocess
 import numpy as np
 import tables as tb
@@ -19,81 +21,167 @@ import tables as tb
 from astropy.io import ascii
 from astropy.io import fits
 
-#
-# eventually get this from /work/00115/gebhardt/maverick/api/paths.cfg
-#
-path_detect = '/work/05178/cxliu/maverick/detect/'
-path_elixer = '/work/05350/ecooper/maverick/elixer/'
+path_detect = '/tmp/HETDEX'
+
+
+def build_spec_path(path_detects, date, obsid, detectID):
+    specf_str = str(date) + 'v' + str(obsid).zfill(3) + '_' + str(detectID) + 'specf.dat'
+    return op.join(path_detects, specf_str)
+
+
+def build_mcres_path(path_detects, date, obsid, detectID):
+    mcres_str = str(date) + 'v' + str(obsid).zfill(3) + '_' + str(detectID) + 'mc.res'
+    return op.join(path_detects, specf_str)
+
+
+def build_fiberinfo_path(path_detects, date, obsid, detectID):
+    info_str = str(date) + 'v' + str(obsid).zfill(3) + '_' + str(detectID) + '.info'
+    return op.join(path_detects, info_str)
 
 
 class Detections(tb.IsDescription):
-    shotid = tb.Int64Col()
-    date = tb.Time32Col()
-    obsid = tb.Int32Col()
-    detectid = tb.Int64Col()
-    ra = tb.Float32Col()
-    dec = tb.Float32Col()
-    wave = tb.Float32Col()
-    wave_err = tb.Float32Col()
-    flux = tb.Float32Col()
-    flux_err = tb.Float32Col()
-    linewidth = tb.Float32Col()
-    linewidth_err = tb.Float32Col()
-    continuum = tb.Float32Col()
-    continuum_err = tb.Float32Col()
-    sn = tb.Float32Col()
-    sn_err = tb.Float32Col()
-    chi2 = tb.Float32Col()
-    chi2_err = tb.Float32Col()
-    x_raw = tb.Int32Col()
-    y_raw = tb.Int32Col()
-    fiber_num = tb.Int32Col()
-    multiframe = tb.StringCol(20)
+    shotid = tb.Int64Col(pos=2)
+    date = tb.Time32Col(pos=3)
+    obsid = tb.Int32Col(pos=4)
+    detectid = tb.Int64Col(pos=1)
+    ra = tb.Float32Col(pos=5)
+    dec = tb.Float32Col(pos=6)
+    wave = tb.Float32Col(pos=7)
+    wave_err = tb.Float32Col(pos=8)
+    flux = tb.Float32Col(pos=9)
+    flux_err = tb.Float32Col(pos=10)
+    linewidth = tb.Float32Col(pos=11)
+    linewidth_err = tb.Float32Col(pos=12)
+    continuum = tb.Float32Col(pos=13)
+    continuum_err = tb.Float32Col(pos=14)
+    sn = tb.Float32Col(pos=15)
+    sn_err = tb.Float32Col(pos=16)
+    chi2 = tb.Float32Col(pos=17)
+    chi2_err = tb.Float32Col(pos=18)
+    x_raw = tb.Int32Col(pos=21)
+    y_raw = tb.Int32Col(pos=22)
+    fiber_num = tb.Int32Col(pos=20)
+    multiframe = tb.StringCol((20), pos=19)
 
 
-fileh = tb.open_file("detect_test.h5", mode="w", title="Detections test file ")
-group = fileh.create_group(fileh.root, 'Info', 'HETDEX Detect Catalog')
-tableMain = fileh.create_table(group, 'Detections', Detections,
-                               'Line Detection Catalog')
-detectfile = '/work/00115/gebhardt/maverick/detect/dexall/xypos/res2018all'
-
-os.system("grep -v '\*\*\*' /work/00115/gebhardt/maverick/detect/dexall/xypos/res2018all > tmp")
-
-detectcat = ascii.read('tmp')
+class Spectra(tb.IsDescription):
+    detectid = tb.Int32Col(pos=0)
+    wave1d = tb.Float32Col(1036, pos=1)
+    spec1d = tb.Float32Col(1036, pos=2)
+    spec1d_err = tb.Float32Col(1036, pos=3)
 
 
-for idx in np.arange(np.size(detectcat)):
+class Fibers(tb.IsDescription):
+    detectid = tb.Int64Col(pos=0)
+    ra = tb.Float32Col(pos=1)
+    dec = tb.Float32Col(pos=2)
+    x_ifu = tb.Float32Col(pos=5)
+    y_ifu = tb.Float32Col(pos=6)
+    multiframe = tb.StringCol((20), pos=3)
+    fiber_num = tb.Int32Col(pos=4)
+    expn = tb.StringCol((5), pos=9)
+    distance = tb.Float32Col(pos=10)
+    wavein = tb.Float32Col(pos=12)
+    timestamp = tb.StringCol((17), pos=11)
+    date = tb.Time32Col(pos=7)
+    obsid = tb.Int32Col(pos=8)
+    flag = tb.Int32Col(pos=13)
+    weight = tb.Float32Col(pos=14)
+    ADC = tb.Float32Col((5), pos=15)
 
-    row = tableMain.row
 
-    datevobs = detectcat['col16'][idx]
-    p = re.compile('v')
-    row['shotid'] = p.sub('', datevobs)
-    row['date'] = str(row['shotid'])[0:8]
-    row['obsid'] = str(row['shotid'])[8:11]
-    row['detectid'] = detectcat['col15'][idx]
-    row['ra'] = detectcat['col1'][idx]
-    row['dec'] = detectcat['col2'][idx]
-    row['wave'] = detectcat['col3'][idx]
-    row['wave_err'] = detectcat['col4'][idx]
-    row['flux'] = detectcat['col5'][idx]
-    row['flux_err'] = detectcat['col6'][idx]
-    row['linewidth'] = detectcat['col7'][idx]
-    row['linewidth_err'] = detectcat['col8'][idx]
-    row['continuum'] = detectcat['col9'][idx]
-    row['continuum_err'] = detectcat['col10'][idx]
-    row['sn'] = detectcat['col11'][idx]
-    row['sn_err'] = detectcat['col12'][idx]
-    row['chi2'] = detectcat['col13'][idx]
-    row['chi2_err'] = detectcat['col14'][idx]
-    row['x_raw'] = detectcat['col17'][idx]
-    row['y_raw'] = detectcat['col18'][idx]
-    row['fiber_num'] = detectcat['col19'][idx]
-    filemulti = detectcat['col20'][idx]
-    idx2 = filemulti.find('multi')
-    row['multiframe'] = filemulti[idx2:idx2+20]
-    row.append()
+fileh = tb.open_file("detect_test2.h5", mode="w", title="Detections test file ")
 
+tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
+                               'HETDEX Line Detection Catalog')
+
+tableFibers = fileh.create_table(fileh.root, 'Fibers', Fibers,
+                                 'Fiber info for each detection')
+
+tableSpectra = fileh.create_table(fileh.root, 'Spectra', Spectra,
+                                  '1D Spectra for each Line Detection')
+
+detectlist = glob.glob(op.join(path_detect, '2*mc.res'))
+
+for detectfile in detectlist:
+
+    if op.getsize(detectfile) > 0:
+        row = tableMain.row
+        detectcat = ascii.read(detectfile, delimiter=' ')
+        datevobs = detectcat['col16'][0]
+        p = re.compile('v')
+        row['shotid'] = p.sub('', datevobs)
+        row['date'] = str(row['shotid'])[0:8]
+        row['obsid'] = str(row['shotid'])[8:11]
+        row['detectid'] = detectcat['col15']
+        row['ra'] = detectcat['col1']
+        row['dec'] = detectcat['col2']
+        row['wave'] = detectcat['col3']
+        row['wave_err'] = detectcat['col4']
+        row['flux'] = detectcat['col5']
+        row['flux_err'] = detectcat['col6']
+        row['linewidth'] = detectcat['col7']
+        row['linewidth_err'] = detectcat['col8']
+        row['continuum'] = detectcat['col9']
+        row['continuum_err'] = detectcat['col10']
+        row['sn'] = detectcat['col11']
+        row['sn_err'] = detectcat['col12']
+        row['chi2'] = detectcat['col13']
+        row['chi2_err'] = detectcat['col14']
+        row['x_raw'] = detectcat['col17']
+        row['y_raw'] = detectcat['col18']
+        row['fiber_num'] = detectcat['col19']
+        filemulti = detectcat['col20'][0]
+        idx = filemulti.find('multi')
+        row['multiframe'] = filemulti[idx:idx+20]
+       
+        filespec = build_spec_path(path_detect, row['date'], row['obsid'], row['detectid'])
+        
+        if op.exists(filespec):
+            rowspectra = tableSpectra.row
+            dataspec = ascii.read(filespec)
+            rowspectra['detectid'] = row['detectid']
+            rowspectra['wave1d'] = dataspec['col1']
+            rowspectra['spec1d'] = dataspec['col2']
+            rowspectra['spec1d_err'] = dataspec['col3']
+            rowspectra.append()
+            
+        # now populate fiber table with additional info
+        filefiberinfo = build_fiberinfo_path(path_detect, row['date'],
+                                             row['obsid'], row['detectid'])
+        if op.exists(filefiberinfo):
+            datafiber = ascii.read(filefiberinfo, format='no_header', delimiter=' ')
+                
+            for ifiber in np.arange(np.size(datafiber)):
+                rowfiber = tableFibers.row
+                
+                rowfiber['detectid'] = row['detectid']
+                rowfiber['ra'] = datafiber['col1'][ifiber]
+                rowfiber['dec'] = datafiber['col2'][ifiber]
+                rowfiber['x_ifu'] = datafiber['col3'][ifiber]
+                rowfiber['y_ifu'] = datafiber['col4'][ifiber]
+                multiname = datafiber['col5'][ifiber]
+                rowfiber['multiframe'] = multiname[0:20]
+                rowfiber['fiber_num'] = multiname[21:22]
+                rowfiber['expn'] = datafiber['col6'][ifiber]
+                rowfiber['distance'] = datafiber['col7'][ifiber]
+                rowfiber['wavein'] = datafiber['col8'][ifiber]
+                rowfiber['timestamp'] = datafiber['col9'][ifiber]
+                rowfiber['date'] = datafiber['col10'][ifiber]
+                rowfiber['obsid'] = str(datafiber['col11'][ifiber])[0:3]
+                rowfiber['flag'] = datafiber['col12'][ifiber]
+                rowfiber['weight'] = datafiber['col13'][ifiber]
+                rowfiber['ADC'] = [datafiber['col14'][ifiber],
+                                   datafiber['col15'][ifiber],
+                                   datafiber['col16'][ifiber],
+                                   datafiber['col17'][ifiber], 
+                                   datafiber['col18'][ifiber]]
+        
+                rowfiber.append()
+        row.append()
+        
 tableMain.flush()
+tableFibers.flush()
+tableSpectra.flush()
 
 fileh.close()
