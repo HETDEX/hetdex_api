@@ -41,7 +41,7 @@ def build_fiberinfo_path(path_detects, date, obsid, detectID):
 
 class Detections(tb.IsDescription):
     shotid = tb.Int64Col(pos=2)
-    date = tb.Time32Col(pos=3)
+    date = tb.Int32Col(pos=3)
     obsid = tb.Int32Col(pos=4)
     detectid = tb.Int64Col(pos=1)
     ra = tb.Float32Col(pos=5)
@@ -69,6 +69,10 @@ class Spectra(tb.IsDescription):
     wave1d = tb.Float32Col(1036, pos=1)
     spec1d = tb.Float32Col(1036, pos=2)
     spec1d_err = tb.Float32Col(1036, pos=3)
+    counts1d = tb.Float32Col(1036, pos=4)
+    counts1derr = tb.Float32Col(1036, pos=5)
+    apsum_counts = tb.Float32Col(1036, pos=6)
+    apsum_counts_err = tb.Float32Col(1036, pos=7)
 
 
 class Fibers(tb.IsDescription):
@@ -83,7 +87,7 @@ class Fibers(tb.IsDescription):
     distance = tb.Float32Col(pos=10)
     wavein = tb.Float32Col(pos=12)
     timestamp = tb.StringCol((17), pos=11)
-    date = tb.Time32Col(pos=7)
+    date = tb.Int32Col(pos=7)
     obsid = tb.Int32Col(pos=8)
     flag = tb.Int32Col(pos=13)
     weight = tb.Float32Col(pos=14)
@@ -144,6 +148,10 @@ for detectfile in detectlist:
             rowspectra['wave1d'] = dataspec['col1']
             rowspectra['spec1d'] = dataspec['col2']
             rowspectra['spec1d_err'] = dataspec['col3']
+            rowspectra['counts1d'] = dataspec['col4']
+            rowspectra['counts1d_err'] = dataspec['col5']
+            rowspectra['apsum_counts'] = dataspec['col6']
+            rowspectra['apsum_counts_err'] = dataspec['col7']
             rowspectra.append()
             
         # now populate fiber table with additional info
