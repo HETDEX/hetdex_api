@@ -6,10 +6,13 @@ To access and contribute to the HETDEX_API, the code library may installed from 
 
 git clone https://github.com/grzeimann/HETDEX_API.git
 
+
 To contribute to a file or add a new file:
 
 git add filename
+
 git commit -m "Reason for update or file creation"
+
 git push
 
 The directory "notebooks" contains a list of jupyter notebooks to familiarize the user with HDF5 file access and querying. It also contains several case uses of API modules developed by the team for scientific analysis.
