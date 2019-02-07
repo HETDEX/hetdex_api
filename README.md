@@ -1,10 +1,12 @@
 # HETDEX_API
 
-This repository contains software developed for the HETDEX Data Release. The team has adopted the HDF5 data format for the release. This standard file format allows for hierarchically structured data to be flexibly delivered in a single container. For a basic briefing of HDF5 files, we suggest checking out the notebook tutorials at https://github.com/tomkooij/scipy2017.  This repository contains both the code to create HDF5 container files and also consists of a library of python modules to easily access data within the HDF5 files.   
+This repository contains software developed for the HETDEX Data Release. The team has adopted the HDF5 data format for the release. This standard file format allows for hierarchically structured data to be flexibly delivered in a single container. For a basic briefing of HDF5 files, we suggest checking out the notebook tutorials at https://github.com/tomkooij/scipy2017.  
 
-To access and contribute to the HETDEX_API, the code library may installed from github in a working directory on TACC by executing:
+This repository contains both the code to create HDF5 container files and also consists of a library of python modules to easily access data within the HDF5 files. To access and contribute to the HETDEX_API, the code library may be installed from github in a working directory on TACC by executing:
+
 
 git clone https://github.com/grzeimann/HETDEX_API.git
+
 
 
 To contribute to a file or add a new file:
