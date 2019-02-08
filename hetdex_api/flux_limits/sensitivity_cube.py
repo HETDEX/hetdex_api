@@ -87,34 +87,28 @@ def read_cube(fn, datascale=1e-17):
    """
 
    hdus = fits.open(fn)
-   f50s = datascale/(hdus[0].data)
-   header = hdus[0].header
+   f50s = datascale/(hdus[1].data)
+   header = hdus[1].header
 
-   # Fix issue with header
-   header["CD3_3"] = header["CDELT3"]
-   header["CD3_1"] = 0.0
-   header["CD3_2"] = 0.0
-   header["CD2_3"] = 0.0
-   header["CD1_3"] = 0.0
-
-   wcs = WCS(hdus[0].header)
-
-   return f50s, wcs 
+   return f50s, header
 
 
 class SensitivityCube(object):
     """
-    Read in a sensitivity cube
-    and Fleming parameters
-    for an IFU
+    Deals with flux limit cubes
 
     Parameters
     ----------
-    fn_sensitivity_cube : str
-        the file name of a cube
-        containing the limiting
-        magnitude
-
+    f50vals : array
+        3D datacube of datascale/flux_limit
+    wcs : astropy.wcs:WCS
+        world coordinate system to
+        convert between ra, dec, lambda
+        and pixel
+    header : dict
+        a dictionary of the header 
+        values to be stored in a
+        FITS file
     wavelengths, alphas : array
         arrays of the wavelength in
         Angstrom and the alpha parameter
@@ -127,23 +121,57 @@ class SensitivityCube(object):
         be used in the Fleming function,
         stored as lambda_, dec_, ra_
 
-    wcs : astropy.wcs.WCS
-        world coordinate system for
-        cube
-
     alpha_func : callable
         returns the Fleming alpha
         for an input wavelength
 
     """
-    def __init__(self, fn_sensitivity_cube, wavelengths, alphas, 
-                 datascale=1e-17):
+    def __init__(self, f50vals, header, wavelengths, alphas):
 
-        self.f50vals, self.wcs = read_cube(fn_sensitivity_cube, 
-                                        datascale=datascale)
+        self.f50vals = f50vals
 
+        # Fix issue with header
+        if not "CD3_3" in header:
+           header["CD3_3"] = header["CDELT3"]
+           header["CD3_1"] = 0.0
+           header["CD3_2"] = 0.0
+           header["CD2_3"] = 0.0
+           header["CD1_3"] = 0.0
+
+        self.wcs = WCS(header)
+        self.header = header
+
+        self.alphas = alphas
+        self.wavelengths = wavelengths
         self.alpha_func = interp1d(wavelengths, alphas, 
                                    fill_value="extrapolate")
+
+
+    @classmethod
+    def from_file(cls, fn_sensitivity_cube, wavelengths, alphas, 
+                 datascale=1e-17):
+
+        """
+        Read in a sensitivity cube
+        from a file
+    
+        Parameters
+        ----------
+        fn_sensitivity_cube : str
+            the file name of a cube
+            containing the limiting
+            magnitude
+    
+        wavelengths, alphas : array
+            arrays of the wavelength in
+            Angstrom and the alpha parameter
+            of the Fleming+ 1995 function
+        """
+
+        f50vals, header = read_cube(fn_sensitivity_cube, datascale=datascale)
+        print(cls)
+
+        return SensitivityCube(f50vals, header, wavelengths, alphas)
 
 
     def radecwltoxyz(self, ra, dec, lambda_):
