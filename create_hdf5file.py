@@ -227,6 +227,14 @@ def main(argv=None):
             fibtable.flush()
             imagetable.flush()
 
+    # create completely sorted index on the specid to make queries against that column much faster
+    # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
+    # for any given shot
+    fibtable.cols.specid.create_csindex()
+    imagetable.cols.specid.create_csindex()
+    fibtable.flush()
+    imagetable.flush()
+
     fileh.close()
 
 
