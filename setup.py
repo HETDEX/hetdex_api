@@ -32,6 +32,13 @@ setup(
                  "Programming Language :: Python :: 2.7",
                  "Topic :: Scientific/Engineering :: Astronomy",
                  "Topic :: Utilities",
-                 ]
-)
+                 ],
 
+    entry_points = {
+                    "console_scripts" : [
+                        'plot_completeness = hetdex_api.flux_limits.sensitivity_cube:plot_completeness',
+                        'plot_completeness_versus_wl = hetdex_api.flux_limits.sensitivity_cube:plot_completeness_versus_wl'
+                     ]
+                   },
+
+)

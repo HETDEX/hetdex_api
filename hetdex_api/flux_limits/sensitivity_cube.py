@@ -87,8 +87,8 @@ def read_cube(fn, datascale=1e-17):
    """
 
    hdus = fits.open(fn)
-   f50s = datascale/(hdus[1].data)
-   header = hdus[1].header
+   f50s = datascale/(hdus[0].data)
+   header = hdus[0].header
 
    return f50s, header
 
@@ -281,7 +281,7 @@ def plot_completeness(args=None):
 
     coord = SkyCoord(opts.ra, opts.dec)
 
-    scube = SensitivityCube(opts.filename, [3500.0, 5500.0], [opts.alpha, opts.alpha])
+    scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [opts.alpha, opts.alpha])
     f50 = scube.get_f50([coord.ra.deg], [coord.dec.deg], [opts.lambda_])
     print(f50)
 
@@ -321,7 +321,7 @@ def plot_completeness_versus_wl(args=None):
 
 
     coord = SkyCoord(opts.ra, opts.dec)
-    scube = SensitivityCube(opts.filename, [3500.0, 5500.0], [-3.1, -3.1])
+    scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [-3.1, -3.1])
 
     wls = linspace(3500, 5490.0, 1000)
     f50 = scube.get_f50(coord.ra.deg*ones(len(wls)), coord.dec.deg*ones(len(wls)), wls)
