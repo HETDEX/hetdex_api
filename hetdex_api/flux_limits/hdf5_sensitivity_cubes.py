@@ -1,5 +1,10 @@
 """
 
+Module that deals with storing and
+extracting sensitivity cubes in HDF5
+files
+
+Author: Daniel Farrow
 
 
 """

@@ -7,11 +7,13 @@ versus completeness
 AUTHOR: Daniel Farrow (MPE)
 
 """
+import logging
 import matplotlib.pyplot as plt
-from numpy import zeros_like, sum, inf, zeros, linspace, interp, array, nanmean, nanmax, isfinite, nanmedian
+from numpy import (ones_like, zeros_like, sum, inf, zeros, linspace, interp, array, 
+                   nanmean, nanmax, isfinite, nanmedian, isnan)
 from scipy.optimize import least_squares
 from astropy.table import Table
-from flux_limits.sensitivity_cube import fleming_function, SensitivityCube
+from hetdex_api.flux_limits.sensitivity_cube import fleming_function, SensitivityCube
 
 
 def fleming_diff(alpha, fluxes_in, compl_in, f50):
@@ -26,9 +28,17 @@ def plot_collapsed_cube(f50vals, alphas, lambda_, fluxes, combined_cube, fn_plot
     """
     Plot the results of collapsing a cube in the RA, DEC directions
     """
+
+    good_indices = (f50vals < 1.0)
+
     # Top panel flux at 50%
     plt.subplot(221)
-    plt.plot(lambda_, f50vals*1e16, 'k-')
+    plt.plot(lambda_[good_indices], f50vals[good_indices]*1e16, 'k.')
+
+    # Plot these as lower limits
+    plt.errorbar(lambda_[~good_indices], max(f50vals[good_indices]*1e16)*ones_like(lambda_[~good_indices]), 
+                 color='r', linestyle="", yerr=0.1, lolims=True)
+
     plt.xlabel("Wavelength (Angstrom)")
     plt.ylabel("Flux at 50% Completeness ($10^{-16}$ ergs/s/cm$^2$/A)")
 
@@ -37,6 +47,11 @@ def plot_collapsed_cube(f50vals, alphas, lambda_, fluxes, combined_cube, fn_plot
     for color, sample in zip(['r', 'g', 'b'], [100, 500, 800]):
         wl = lambda_[sample]
         compl_here = combined_cube[:, sample]
+
+        # If we hit a bad fit don't plot
+        if f50vals[sample] > 1.0:
+            continue
+
         plt.plot(fluxes*1e16, compl_here, marker="*", color=color, label=None)
         model = fleming_function(fluxes, f50vals[sample], alphas[sample])
         plt.plot(fluxes*1e16, model, linestyle="--", color=color, label="{:4.1f} A".format(wl))
@@ -44,12 +59,12 @@ def plot_collapsed_cube(f50vals, alphas, lambda_, fluxes, combined_cube, fn_plot
     plt.legend(frameon=False, loc="lower right")
     plt.xlabel("Flux ($10^{-16}$  erg/s/cm$^2$/A)")
     plt.ylabel("Detected Fraction")
-    plt.xlim(fluxes[0]*1e16, 0.25*fluxes[-1]*1e16)
+    plt.xlim(fluxes[0]*1e16, 0.3*fluxes[-1]*1e16)
     plt.ylim(0.0, 1.05)
 
     # Plot of alpha versus wavelength
     plt.subplot(223)
-    plt.plot(lambda_, alphas, 'k-')
+    plt.plot(lambda_[good_indices], alphas[good_indices], 'k.')
     plt.xlabel("Wavelength (Angstrom)")
     plt.ylabel(r"$\alpha$", fontsize=15.0)
 
@@ -162,7 +177,7 @@ def compute_new_fleming_fits(lambda_, fluxes, compls):
         Fleming+ (1995) parameterisation on
         completeness
    """
- 
+    warn = False
     f50vals = zeros_like(lambda_)
     alphas = zeros_like(lambda_)
 
@@ -172,9 +187,18 @@ def compute_new_fleming_fits(lambda_, fluxes, compls):
         # First index flux, second lambda
         f50vals[i] = interp(0.5, compls[:, i], fluxes)
 
-        # Refit the Fleming function to the combined completness
-        opr = least_squares(fleming_diff, [-3.5], args=(fluxes, compls[:, i], f50vals[i]))
-        alphas[i] = opr.x[0]
+        # Catch bad wavelength slices
+        if not all(isfinite(compls[:, i])):
+            warn = True
+            f50vals[i] = 999.9
+            alphas[i] = 999.9 
+        else:
+            # Refit the Fleming function to the combined completness
+            opr = least_squares(fleming_diff, [-3.5], args=(fluxes, compls[:, i], f50vals[i]))
+            alphas[i] = opr.x[0]
+
+    if warn:
+        logging.warning("At least some of the wavelength slices had invalid completeness measurements!")
 
     return f50vals, alphas
 
@@ -203,7 +227,7 @@ def collapse_datacubes_command(args=None):
 
     parser.add_argument("--fmax", help="""Maximum flux to consider when interpolating for 50% limit.
                                           Regions not 99% at this flux ignored!""",
-                        type=float, default=5e-16)
+                        type=float, default=1e-15)
 
     parser.add_argument("--nbins", help="Number of flux bin to use when interpolating to measure 50% limit",
                         type=int, default=100)
@@ -229,7 +253,7 @@ def collapse_datacubes_command(args=None):
     for cube_name in opts.scubes:
 
         # Currently fix the alpha versus wavelength
-        tscube = SensitivityCube(cube_name, [3500.0, 5500.0], [opts.alpha, opts.alpha])
+        tscube = SensitivityCube.from_file(cube_name, [3500.0, 5500.0], [opts.alpha, opts.alpha])
         lambda_, npix, compls = return_spatially_collapsed_cube(tscube, fluxes)
 
         compl_cube_list.append(compls)
@@ -240,7 +264,7 @@ def collapse_datacubes_command(args=None):
     combined_cube = compl_cube_list[0]*npixes_list[0]
     for npix, compl_cube in zip(npixes_list[1:], compl_cube_list[1:]):
         combined_cube += npix*compl_cube
-   
+  
     # This should give the correct completeness versus lambda and flux, ignoring empty pixels 
     combined_cube /= sum(array(npixes_list), axis=0)
 
@@ -253,3 +277,5 @@ def collapse_datacubes_command(args=None):
     # Write out
     table = Table([lambda_, f50vals, alphas], names=["wavelength", "f50", "alpha"])
     table.write(opts.output, format="ascii")
+
+
