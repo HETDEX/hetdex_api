@@ -234,4 +234,10 @@ tableMain.flush()
 tableFibers.flush()
 tableSpectra.flush()
 
+#create completely sorted index on the detectid to make queries against that column much faster
+tableFibers.cols.detectid.create_csindex()
+tableSpectra.cols.detectid.create_csindex()
+tableFibers.flush() #just to be safe
+tableSpectra.flush()
+
 fileh.close()
