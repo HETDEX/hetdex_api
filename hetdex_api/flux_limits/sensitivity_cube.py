@@ -140,7 +140,7 @@ class SensitivityCube(object):
 
         self.wcs = WCS(header)
         self.header = header
-
+        
         self.alphas = alphas
         self.wavelengths = wavelengths
         self.alpha_func = interp1d(wavelengths, alphas, 
@@ -169,7 +169,6 @@ class SensitivityCube(object):
         """
 
         f50vals, header = read_cube(fn_sensitivity_cube, datascale=datascale)
-        print(cls)
 
         return SensitivityCube(f50vals, header, wavelengths, alphas)
 
@@ -258,6 +257,25 @@ class SensitivityCube(object):
         alphas = self.alpha_func(lambda_)
 
         return fleming_function(flux, f50s, alphas)
+
+
+    def write(self, filename, datascale=1e-17, **kwargs):
+        """
+        Write the sensitivity cube to a FITS file
+
+        Parameters
+        ----------
+        filename : str 
+            Filename to write to
+        datascale : float
+           the scaling to apply to the
+           inverse of the cube values 
+           (Optional, default 1e-17)
+        **kwargs :
+            passed to the astropy.io.fits:writeto
+            function
+        """
+        fits.writeto(filename , datascale/self.f50vals, header=self.header, **kwargs)
 
 
 def plot_completeness(args=None):

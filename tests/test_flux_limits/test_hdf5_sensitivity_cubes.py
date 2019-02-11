@@ -7,8 +7,12 @@ AUTHOR: Daniel Farrow
 
 """
 
+from shutil import copy
+from os.path import isfile
 import pytest
-from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container 
+from hetdex_api.flux_limits.hdf5_sensitivity_cubes import (SensitivityCubeHDF5Container, 
+                                                           add_sensitivity_cube_to_hdf5,
+                                                           extract_sensitivity_cube) 
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
 @pytest.fixture(scope="function")
@@ -74,4 +78,42 @@ def test_hdf5_add_extract(hdf5_container, sensitivity_cube, flush):
     assert vals_new == pytest.approx(vals_old)
 
 
+def test_add_to_hdf5_cmd(tmpdir, datadir):
+    """
+    Test the command line tool to add
+    to HDF5 files
+    """
+    filename_original = datadir.join("test_sensitivity_cube.fits").strpath
+  
+    # Make some files to input
+    scube_fn1 = tmpdir.join("20181203v013_multi_324_062_055.fits").strpath
+    scube_fn2 = tmpdir.join("20181203v013_multi_013_103_019.fits").strpath
+    copy(filename_original, scube_fn1)
+    copy(filename_original, scube_fn2)
 
+    output = tmpdir.join("test_output.h5").strpath
+
+    # Run with command line arguments passed
+    args = [scube_fn1, scube_fn2, output] 
+    add_sensitivity_cube_to_hdf5(args=args)
+ 
+    assert isfile(output)
+
+@pytest.mark.parametrize("datevshot", [None, "20181203v013"])
+def test_extract_sensitivity_cube(tmpdir, datadir, datevshot):
+    """
+    Test the command to extract sensitivity cubes
+    from HDF5 containers
+    """
+    
+    h5fn = datadir.join("test_hdf.h5").strpath
+    outfn = tmpdir.join("test.fits").strpath 
+    
+    if datevshot:
+        args = [h5fn, "--datevshot", datevshot, "063", outfn]
+    else:
+        args = [h5fn, "063", outfn] 
+
+    extract_sensitivity_cube(args=args)
+     
+    assert isfile(outfn)
