@@ -22,6 +22,7 @@ https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 from __future__ import (absolute_import, print_function)
 from numpy import (rint, array, around, multiply, 
                    sqrt, divide, linspace, ones, log10)
+from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
 from astropy.wcs import WCS
@@ -212,7 +213,13 @@ class SensitivityCube(object):
         ra, dec : array
             right ascension and dec in degrees
         lambda_ : array
-            wavelength in Angstrom
+            wavelength in Angstroms
+
+        Returns
+        -------
+        f50s : array
+            flux limits. If outside
+            of cube return 999
 
         Raises
         ------
@@ -224,7 +231,24 @@ class SensitivityCube(object):
         """
 
         ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.f50vals.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.f50vals.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.f50vals.shape[0]) | (iz < 0) 
+ 
+        ix[(ix >= self.f50vals.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.f50vals.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.f50vals.shape[0]) | (iz < 0)] = 0
+
         f50s = self.f50vals[iz, iy, ix]
+
+        # Support arrays and floats
+        try:
+            f50s[bad_vals] = 999.0
+        except TypeError:
+            if nany(bad_vals):
+                f50s = 999.0
 
         return f50s
 
@@ -247,11 +271,18 @@ class SensitivityCube(object):
             fraction detected 
 
         """
- 
-        if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
 
-            raise WavelengthException("""Odd wavelength value. Are you
-                                         sure it's in Angstrom?""")
+        try: 
+            if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
+
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+        except TypeError as e:
+             if lambda_ < 3000.0 or lambda_ > 6000.0:
+
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+        
 
         f50s = self.get_f50(ra, dec, lambda_)
         alphas = self.alpha_func(lambda_)

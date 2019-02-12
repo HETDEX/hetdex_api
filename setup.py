@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy', 'tables']
+install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0', 'tables']
 
 extras = {}
 
