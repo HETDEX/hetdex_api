@@ -125,25 +125,27 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
             im[att] = F[att].data * 1.
     mname = op.basename(fn)[:-5]
     expn = op.basename(op.dirname(op.dirname(fn)))
-    sel = T['col8'] == (mname + '_001.ixy')
-    sel1 = T['col10'] == expn
-    loc = np.where(sel * sel1)[0]
+    if T is not None:
+        sel = T['col8'] == (mname + '_001.ixy')
+        sel1 = T['col10'] == expn
+        loc = np.where(sel * sel1)[0]
     for i in np.arange(n):
         fib['obsind'] = cnt
-        fib['multiframe'] = multiframe
         fib['fibnum'] = i
-        loci = loc + i
-        if len(loc):
-            if isinstance(T['col1'][loci], float):
-                fib['ra'] = T['col1'][loci]
-                fib['dec'] = T['col2'][loci]
-                fib['fpx'] = T['col6'][loci]
-                fib['fpy'] = T['col7'][loci]
-        else:
-            fib['ra'] = -999.0
-            fib['dec'] = -999.0
-            fib['fpx'] = -999.0
-            fib['fpy'] = -999.0
+        if T is not None:
+            fib['multiframe'] = multiframe
+            loci = loc + i
+            if len(loc):
+                if isinstance(T['col1'][loci], float):
+                    fib['ra'] = T['col1'][loci]
+                    fib['dec'] = T['col2'][loci]
+                    fib['fpx'] = T['col6'][loci]
+                    fib['fpy'] = T['col7'][loci]
+            else:
+                fib['ra'] = -999.0
+                fib['dec'] = -999.0
+                fib['fpx'] = -999.0
+                fib['fpy'] = -999.0
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
         for att in attr:
@@ -206,7 +208,10 @@ def main(argv=None):
     files = get_files(args)
     datestr = '%sv%03d' % (args.date, int(args.observation))
     filepath = '%s/%s/dithall.use' % (args.detect_path, datestr)
-    T = Table.read(filepath, format='ascii')
+    try:
+        T = Table.read(filepath, format='ascii')
+    except:
+        T = None
 
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
@@ -218,9 +223,9 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, 'w')
         group = fileh.create_group(fileh.root, 'Data',
                                    'VIRUS Fiber Data and Metadata')
-        table1 = fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
-        table2 = fileh.create_table(fileh.root, 'Shot', VIRUSShot, 'Shot Info')
-        table3 = fileh.create_table(group, 'Images', VIRUSImage, 'Image Info')
+        fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
+        fileh.create_table(fileh.root, 'Shot', VIRUSShot, 'Shot Info')
+        fileh.create_table(group, 'Images', VIRUSImage, 'Image Info')
 
     # Grab the fiber table and amplifier table for writing
     fibtable = fileh.root.Data.Fibers
