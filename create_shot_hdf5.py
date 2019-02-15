@@ -137,8 +137,8 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     for i in np.arange(n):
         fib['obsind'] = cnt
         fib['fibnum'] = i
+        fib['multiframe'] = multiframe
         if T is not None:
-            fib['multiframe'] = multiframe
             loci = loc + i
             if len(loc):
                 if isinstance(T['col1'][loci], float):
