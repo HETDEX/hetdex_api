@@ -86,17 +86,22 @@ def main(argv=None):
     filefplane = op.join(args.rootdir, str(args.date) + "v" + str(args.observation).zfill(3),
                          'fplane.txt')
     
-    f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
-                                      'specslot', 'ifuid', 'ifurot', 'platesc'])
-    fplanetable = fileh.create_table(groupAstrometry, 'fplane', f.as_array())
+    try:
+        f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
+                                          'specslot', 'ifuid', 'ifurot', 'platesc'])
+        fplanetable = fileh.create_table(groupAstrometry, 'fplane', f.as_array())
+    except:
+        args.log.warning('Could not include %s' % filefplane)
 
     file_stars = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                         'shout.ifustars')
+                         'shout.ifustars')    
     
-    f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
-                                            'u', 'g', 'r', 'i', 'z'])
-    starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array()) 
-
+    try:
+        f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
+                                                'u', 'g', 'r', 'i', 'z'])
+        starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array()) 
+    except:
+        args.log.warning('Could not include %s' % file_stars)
     
     for expn in ['exp01', 'exp02', 'exp03']:
         fitsfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
@@ -116,31 +121,40 @@ def main(argv=None):
             # populate offset info for catalog matches
             file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                           'getoff_' + expn + '.out')
-            f_getoff = ascii.read(file_getoff, names=['xoffset', 'yoffset', 'ra_dex',
-                                                      'dec_dex', 'ra_cat', 'dec_cat',
-                                                      'ifuslot'])
-            getoffinfo = fileh.create_table(groupOffsets, expn, f_getoff.as_array())
+            
+            try:
+                f_getoff = ascii.read(file_getoff, names=['xoffset', 'yoffset', 'ra_dex',
+                                                          'dec_dex', 'ra_cat', 'dec_cat',
+                                                          'ifuslot'])
+                getoffinfo = fileh.create_table(groupOffsets, expn, f_getoff.as_array())
+            except:
+                args.log.warning('Could not include %s' % file_getoff)
             
 
             # populate fiber astrometry data
             file_dith = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                                 'dith_' + expn + '.all')    
-            f_dith = ascii.read(file_dith)
-            dithinfo = fileh.create_table(groupDithall, expn, f_dith.as_array())
+            try:
+                f_dith = ascii.read(file_dith)
+                dithinfo = fileh.create_table(groupDithall, expn, f_dith.as_array())
+            except:
+                args.log.warning('Could not include %s' % file_dith)
 
             # populate median and rms in offsets for quality assessment purposes
             file_getoff2 = op.join(args.rootdir, str(args.date) + 'v'
                                    + str(args.observation).zfill(3), 'getoff2_' + expn + '.out')
-            f_getoff2 = ascii.read(file_getoff2)
-            row = tableQA.row
-            row['expnum'] = int(expn[3:5])
-            row['xoffset'] = f_getoff2['col1']
-            row['yoffset'] = f_getoff2['col2']
-            row['xrms'] = f_getoff2['col3']
-            row['yrms'] = f_getoff2['col4']
-            row['nstars'] = f_getoff2['col5']
-            row.append()
-
+            try:
+                f_getoff2 = ascii.read(file_getoff2)
+                row = tableQA.row
+                row['expnum'] = int(expn[3:5])
+                row['xoffset'] = f_getoff2['col1']
+                row['yoffset'] = f_getoff2['col2']
+                row['xrms'] = f_getoff2['col3']
+                row['yrms'] = f_getoff2['col4']
+                row['nstars'] = f_getoff2['col5']
+                row.append()
+            except:
+                args.log.warning('Could not include %s' % file_getoff2)
             tableQA.flush()
 
     fileh.close()
