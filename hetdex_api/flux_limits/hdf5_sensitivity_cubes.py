@@ -82,6 +82,55 @@ class SensitivityCubeHDF5Container(object):
         array.attrs.wavelengths = scube.wavelengths
         array.attrs.alphas = scube.alphas
 
+    def list_contents(self):
+        """ List the contents of the HDF5 file """
+        print(self.h5file)   
+      
+
+    def itercubes(self, datevshot=None):
+        """ 
+        Iterate over the IFUs 
+
+        Parameters
+        ----------
+        datevshot : str (Optional)
+            specify a datevshot or
+            just take the first shot in
+            the HDF5 file
+
+        Yields
+        ------
+        ifuslot : str
+           the IFU slot of the 
+           returned IFU
+        scube : SensitivityCube
+           a sensitivity cube
+           object
+
+        """
+        # Use first shot if dateshot not specified
+        if not datevshot:            
+            shots = self.h5file.list_nodes(self.h5file.root)
+            nshots = len(shots)
+            if nshots > 1:
+                _logger.warn("""Datevshot not specified but multiple shots in file!
+                                Using first in file.""")
+
+            shot = shots[0]
+        else:
+            shot = self.h5file.get_node(self.h5file.root, name=datevshot)
+
+ 
+        for ifu in shot:
+
+            # Extract the data we need for a sensitivity cube
+            header = ifu.attrs.header
+            wavelengths = ifu.attrs.wavelengths
+            alphas = ifu.attrs.alphas
+            f50vals = ifu.read()
+
+            yield ifu.name, SensitivityCube(f50vals, header, wavelengths, alphas)
+
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """

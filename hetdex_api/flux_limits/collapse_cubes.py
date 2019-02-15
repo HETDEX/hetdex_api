@@ -8,13 +8,15 @@ AUTHOR: Daniel Farrow (MPE)
 
 """
 import logging
+import argparse
 import matplotlib.pyplot as plt
 from numpy import (ones_like, zeros_like, sum, inf, zeros, linspace, interp, array, 
-                   nanmean, nanmax, isfinite, nanmedian, isnan)
+                   nanmean, nanmax, isfinite, nanmedian, isnan, sqrt)
 from scipy.optimize import least_squares
 from astropy.table import Table
+from astropy.stats import biweight_location, biweight_midvariance
 from hetdex_api.flux_limits.sensitivity_cube import fleming_function, SensitivityCube
-
+from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container
 
 def fleming_diff(alpha, fluxes_in, compl_in, f50):
     """ Compute residuals of a Fleming model fit """    
@@ -71,6 +73,96 @@ def plot_collapsed_cube(f50vals, alphas, lambda_, fluxes, combined_cube, fn_plot
     plt.gcf().set_size_inches(10, 10)
     plt.subplots_adjust(bottom = 0.07, left = 0.08, top = 0.98, right=0.97)
     plt.savefig(fn_plot)
+
+def return_flattened_slice(cube, lambda_):
+    """
+
+    Return a flattened slice at wavelength
+    lambda_ from sensitivity cube
+
+    Parameters
+    ----------
+    cube : pyhetdex.selfunc.sensitivity_cube:SensitivityCube
+        sensitivity cube to collapse 
+
+    """
+
+    # Look up the relevant iz for lambda
+    ix, iy, iz = cube.wcs.all_world2pix(0.0, 0.0, lambda_, 0)
+
+    # Grab a wavelength slice and collapse it
+    wavelength_slice = cube.f50vals[int(iz),:,:] 
+    slice_flattened = wavelength_slice.flatten()
+
+    return slice_flattened
+
+
+def return_biwt_cmd(args=None):
+    """
+    Command line tool to return the bi-weight
+    of the flux limit at a certain wavelength
+    from an HDF5 file
+
+    """
+
+    # Parse the arguments
+    parser = argparse.ArgumentParser(description="Compute biweight flux limits from HDF5 file")
+    parser.add_argument("--wl", default=4540, type=int, help="Wavelength to compute median for")
+    parser.add_argument("--hist", action="store_true", help="Plot histograms of flux limit")
+    parser.add_argument("--hist_all", action="store_true", help="Plot histograms flux limit for all inputs")
+    parser.add_argument("--fout", default=None, type=str, help="Ascii file to save results to")
+    parser.add_argument("--fn-shot-average", default=None, type=str, help="Ascii file to append shot average flim to")
+    parser.add_argument("files", help="HDF container(s) of sensitivity cubes", nargs='+')
+    opts = parser.parse_args(args=args)
+    
+    bins = linspace(0.0, 5e-16, 40)
+    bcens = 0.5*(bins[1:] + bins[:-1])
+    
+    print("Using wavelength {:f} AA".format(opts.wl))
+    
+    # Loop over the files producing median and percentiles
+    biwt_ls = []
+    biwt_vars = []
+    dateshot = []
+    ifu = []
+    flims_all = []
+
+    for fn in opts.files:
+
+        # Open the HDF5 container
+        with SensitivityCubeHDF5Container(fn) as hdfcont:
+
+            # Loop over shots
+            shots_groups = hdfcont.h5file.list_nodes(hdfcont.h5file.root) 
+            for shot_group in shots_groups:
+                str_datevshot = shot_group._v_name
+ 
+                # Loop over sensitivity cubes
+                for ifu_name, scube in hdfcont.itercubes(datevshot=str_datevshot):
+                    flims = return_flattened_slice(scube, opts.wl) 
+                    flims = flims[isfinite(flims)]
+
+                    # Compute statistics and save numbers
+                    # from this cube
+                    flims_all.extend(flims)    
+                    biwt_ls.append(biweight_location(flims))
+                    biwt_vars.append(biweight_midvariance(flims))
+
+                    # Save IFU and shot info
+                    ifu.append(ifu_name.strip("ifuslot_"))
+                    dateshot.append(str_datevshot.strip("/virus_"))
+
+        if opts.fn_shot_average:
+            with open(opts.fn_shot_average, 'a') as fn:
+                fn.write("{:s} {:e} {:e}\n".format(str_datevshot.strip("virus_"), biweight_location(flims_all), peak))
+
+    table = Table([dateshot, ifu, biwt_ls, sqrt(biwt_vars)], names=["dateshot", "ifu", "biwt_loc", "sqrt_biwt_mdvar"])
+        
+    # Output or save
+    if opts.fout:
+        table.write(opts.fout)
+    else:
+        table.pprint(max_lines=-1)   
 
 
 def return_spatially_collapsed_cube(cube, fluxes, min_compl=0.99):
