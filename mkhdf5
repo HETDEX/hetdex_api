@@ -1,0 +1,3 @@
+python /work/05350/ecooper/wrangler/HETDEX_API/create_shot_hdf5.py -d $1 -o $2 -of $1v$2.h5
+python /work/05350/ecooper/wrangler/HETDEX_API/create_astrometry_hdf5.py -d $1 -o $2 -of $1v$2.h5 --append
+python /work/05350/ecooper/wrangler/HETDEX_API/create_cal_hdf5.py -d $1 -o $2 -of $1v$2.h5 --append
