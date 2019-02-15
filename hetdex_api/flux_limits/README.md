@@ -39,13 +39,20 @@ you want to extract from using the `--datevshot` flag, e.g.
 extract_sensitivity_cube --datevshot 20181203v013 20181203v013_sensitivity_cubes.h5 087 outputfile2.fits
 ```
 
+You can also extract the biweight flux limits of all IFUs and shots, collapsed in ra and dec,
+in an HDF5 with the following command
+
+```
+biweight_fluxlims_hdf5 20181203v013_sensitivity_cubes.h5
+```
+
+using the ``--wl`` flag you can specify what wavelength you want. It is also possible to output these limits
+to a file, use the ``-h`` option on this command for details.
+
 ### Getting the flux limit in Python - the python API
 
 To access the flux limit an application programming interface (API) is provided for
 use in Python. An iPython notebook is provided in this repository which demonstrates
-how to do this [here](get_flux_limit_api_demo.ipynb)
+how to do this [here](../../notebooks/get_flux_limit_api_demo.ipynb)
 
-## Using the software in this package
-
-This package defines a ``SensitivityCube`` class, which handles the cubes. 
 
