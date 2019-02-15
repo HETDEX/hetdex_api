@@ -28,7 +28,7 @@ from astropy.io import ascii
 from input_utils import setup_logging
 
 class QualityAssessment(tb.IsDescription):
-    expn = tb.StringCol((5), pos=0)
+    expnum = tb.Int32Col(pos=0)
     xoffset = tb.Float32Col(pos=1)
     yoffset = tb.Float32Col(pos=2)
     xrms = tb.Float32Col(pos=3)
@@ -65,7 +65,7 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
-    
+
     # Creates a new file if the "--append" option is not set or the file                                              
     # does not already exist.
     does_exist = False
@@ -95,10 +95,10 @@ def main(argv=None):
     
     f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
                                             'u', 'g', 'r', 'i', 'z'])
-    starstable = fileh.create_table(groupAstrometry, 'StarCatalog',f_stars.as_array()) 
+    starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array()) 
 
     
-    for expn in ['exp01','exp02','exp03']:
+    for expn in ['exp01', 'exp02', 'exp03']:
         fitsfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            str(args.date) + 'v' + str(args.observation).zfill(3)
                            + 'fp_' + expn + '.fits')
@@ -116,8 +116,9 @@ def main(argv=None):
             # populate offset info for catalog matches
             file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                           'getoff_' + expn + '.out')
-            f_getoff = ascii.read(file_getoff, names=['xoffset', 'yoffset', 'ra_dex', 'dec_dex',
-                                                      'ra_cat','dec_cat','ifuslot'])
+            f_getoff = ascii.read(file_getoff, names=['xoffset', 'yoffset', 'ra_dex',
+                                                      'dec_dex', 'ra_cat', 'dec_cat',
+                                                      'ifuslot'])
             getoffinfo = fileh.create_table(groupOffsets, expn, f_getoff.as_array())
             
 
@@ -127,20 +128,21 @@ def main(argv=None):
             f_dith = ascii.read(file_dith)
             dithinfo = fileh.create_table(groupDithall, expn, f_dith.as_array())
 
-            #populate median and rms in offsets for quality assessment purposes
-            file_getoff2 = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                                   'getoff2_' + expn + '.out')
+            # populate median and rms in offsets for quality assessment purposes
+            file_getoff2 = op.join(args.rootdir, str(args.date) + 'v'
+                                   + str(args.observation).zfill(3), 'getoff2_' + expn + '.out')
             f_getoff2 = ascii.read(file_getoff2)
             row = tableQA.row
-            row['expn'] = expn
+            row['expnum'] = int(expn[3:5])
             row['xoffset'] = f_getoff2['col1']
             row['yoffset'] = f_getoff2['col2']
             row['xrms'] = f_getoff2['col3']
             row['yrms'] = f_getoff2['col4']
             row['nstars'] = f_getoff2['col5']
             row.append()
-            
+
             tableQA.flush()
+
     fileh.close()
 
 
