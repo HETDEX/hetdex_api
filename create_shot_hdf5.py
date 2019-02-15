@@ -47,6 +47,11 @@ class VIRUSFiber(tb.IsDescription):
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     error1Dfib = tb.Float32Col((1032,))
+    calfib = tb.Float32Col((1036,))
+    calfibe = tb.Float32Col((1036,))
+    Amp2Amp = tb.Float32Col((1036,))
+    Throughput = tb.Float32Col((1036,))
+
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
