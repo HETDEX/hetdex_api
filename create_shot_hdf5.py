@@ -156,8 +156,6 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         for att in attr:
             if att in F:
                 fib[att] = F[att].data[i, :]
-            else:
-                fib[att] = np.zeros((d,))
         fib['ifuslot'] = '%03d' % int(F[0].header['IFUSLOT'])
         fib['ifuid'] = '%03d' % int(F[0].header['IFUID'])
         fib['specid'] = '%03d' % int(F[0].header['SPECID'])
