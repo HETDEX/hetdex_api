@@ -81,16 +81,17 @@ def main(argv=None):
     does_exist = False
     if op.exists(args.outfilename) and args.append:
         fileh = tb.open_file(args.outfilename, 'a')
+
         does_exist = True
     else:
         fileh = tb.open_file(args.outfilename, 'w')
 
-        group = fileh.create_group(fileh.root, 'Calibration',
-                                   'HETDEX Calibration Info')
-        groupAmpToAmp = fileh.create_group(group, 'AmpToAmp',
-                                           'Amp to amp Fiber Normalization')
-        groupThroughput = fileh.create_group(group, 'Throughput',
-                                             'Throughput Curves')
+    group = fileh.create_group(fileh.root, 'Calibration',
+                               'HETDEX Calibration Info')
+    groupAmpToAmp = fileh.create_group(group, 'AmpToAmp',
+                                       'Amp to amp Fiber Normalization')
+    groupThroughput = fileh.create_group(group, 'Throughput',
+                                         'Throughput Curves')
 
     # populate the AmpToAmp group with normalization curves and metadata
 
@@ -104,7 +105,8 @@ def main(argv=None):
 
     # populate Throughput group with throughput curves
 
-    tpfile = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation.zfill(3)) + 'sedtp_f.dat')
+    tpfile = op.join(args.tpdir, str(args.date) + 'v' +
+                     str(args.observation.zfill(3)) + 'sedtp_f.dat')
 
     idx = tpfile.find('/20')
     datevshot = tpfile[idx+1:idx+13]
