@@ -43,7 +43,7 @@ extract_sensitivity_cube --datevshot 20181203v013 20181203v013_sensitivity_cubes
 
 To access the flux limit an application programming interface (API) is provided for
 use in Python. An iPython notebook is provided in this repository which demonstrates
-how to do this
+how to do this [here](get_flux_limit_api_demo.ipynb)
 
 ## Using the software in this package
 
