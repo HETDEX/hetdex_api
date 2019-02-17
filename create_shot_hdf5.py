@@ -256,8 +256,9 @@ def main(argv=None):
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.specid.create_csindex()
-    imagetable.cols.specid.create_csindex()
+    fibtable.cols.ra.create_csindex()
+    fibtable.cols.multiframe.create_csindex()
+    imagetable.cols.multiframe.create_csindex()
     fibtable.flush()
     imagetable.flush()
 
