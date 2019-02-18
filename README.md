@@ -25,15 +25,21 @@ the average flux limits across shots and IFUs
 
 ## Installation of flux limit tools
 
-The tools to deal with flux limits need to be installed, to do this, and install the binaries in your
-home directory
+The tools to deal with flux limits need to be installed, to do this, and install the library and binaries in your
+home directory, run this command in the top directory (the directory with setup.py)
 
 ```
 pip install --user .
 
 ```
 
-If you want to install them to a root directory, or an Anaconda environment, you can drop the ``user`` flag.
+If you want to install them to a root directory, or an Anaconda environment, you can drop the ``user`` flag. If you want to install the library and binaries in a particular location you can use the ``--prefix`` flag e.g.
+
+```
+pip install --user --prefix /path/to/install .
+```
+
+You will need to add the ``/bin/`` directory created by this command to your path.
 
 ## Instructions to contributors
 
