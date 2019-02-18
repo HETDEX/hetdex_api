@@ -13,7 +13,6 @@ import os.path as op
 import numpy as np
 
 from astropy.io import fits
-import fitsio
 from input_utils import setup_logging
 from astropy.table import Table
 
@@ -48,6 +47,11 @@ class VIRUSFiber(tb.IsDescription):
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     error1Dfib = tb.Float32Col((1032,))
+    calfib = tb.Float32Col((1036,))
+    calfibe = tb.Float32Col((1036,))
+    Amp2Amp = tb.Float32Col((1036,))
+    Throughput = tb.Float32Col((1036,))
+
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
@@ -116,7 +120,8 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
     attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-            'sky_subtracted', 'trace', 'error1Dfib']
+            'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
+            'Amp2Amp', 'Throughput']
     imattr = ['image', 'error', 'clean_image']
     for att in imattr:
         if att == 'image':
@@ -125,31 +130,32 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
             im[att] = F[att].data * 1.
     mname = op.basename(fn)[:-5]
     expn = op.basename(op.dirname(op.dirname(fn)))
-    sel = T['col8'] == (mname + '_001.ixy')
-    sel1 = T['col10'] == expn
-    loc = np.where(sel * sel1)[0]
+    if T is not None:
+        sel = T['col8'] == (mname + '_001.ixy')
+        sel1 = T['col10'] == expn
+        loc = np.where(sel * sel1)[0]
     for i in np.arange(n):
         fib['obsind'] = cnt
-        fib['multiframe'] = multiframe
         fib['fibnum'] = i
-        loci = loc + i
-        if len(loc):
-            fib['ra'] = T['col1'][loci]
-            fib['dec'] = T['col2'][loci]
-            fib['fpx'] = T['col6'][loci]
-            fib['fpy'] = T['col7'][loci]
-        else:
-            fib['ra'] = -999.0
-            fib['dec'] = -999.0
-            fib['fpx'] = -999.0
-            fib['fpy'] = -999.0
+        fib['multiframe'] = multiframe
+        if T is not None:
+            loci = loc + i
+            if len(loc):
+                if isinstance(T['col1'][loci], float):
+                    fib['ra'] = T['col1'][loci]
+                    fib['dec'] = T['col2'][loci]
+                    fib['fpx'] = T['col6'][loci]
+                    fib['fpy'] = T['col7'][loci]
+            else:
+                fib['ra'] = -999.0
+                fib['dec'] = -999.0
+                fib['fpx'] = -999.0
+                fib['fpy'] = -999.0
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
         for att in attr:
             if att in F:
                 fib[att] = F[att].data[i, :]
-            else:
-                fib[att] = np.zeros((d,))
         fib['ifuslot'] = '%03d' % int(F[0].header['IFUSLOT'])
         fib['ifuid'] = '%03d' % int(F[0].header['IFUID'])
         fib['specid'] = '%03d' % int(F[0].header['SPECID'])
@@ -189,9 +195,14 @@ def main(argv=None):
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5
                         file.''', default=None)
+    
     parser.add_argument('-a', '--append',
                         help='''Appending to existing file.''',
                         action="count", default=0)
+    
+    parser.add_argument("-dp", "--detect_path",
+                        help='''Path to detections''',
+                        type=str, default='/work/00115/gebhardt/maverick/detect')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -199,8 +210,11 @@ def main(argv=None):
     # Get the daterange over which reduced files will be collected
     files = get_files(args)
     datestr = '%sv%03d' % (args.date, int(args.observation))
-    filepath = '/work/00115/gebhardt/maverick/detect/%s/dithall.use' % datestr
-    T = Table.read(filepath, format='ascii')
+    filepath = '%s/%s/dithall.use' % (args.detect_path, datestr)
+    try:
+        T = Table.read(filepath, format='ascii')
+    except:
+        T = None
 
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
@@ -212,9 +226,9 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, 'w')
         group = fileh.create_group(fileh.root, 'Data',
                                    'VIRUS Fiber Data and Metadata')
-        table1 = fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
-        table2 = fileh.create_table(fileh.root, 'Shot', VIRUSShot, 'Shot Info')
-        table3 = fileh.create_table(group, 'Images', VIRUSImage, 'Image Info')
+        fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
+        fileh.create_table(fileh.root, 'Shot', VIRUSShot, 'Shot Info')
+        fileh.create_table(group, 'Images', VIRUSImage, 'Image Info')
 
     # Grab the fiber table and amplifier table for writing
     fibtable = fileh.root.Data.Fibers
@@ -242,8 +256,9 @@ def main(argv=None):
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.specid.create_csindex()
-    imagetable.cols.specid.create_csindex()
+    fibtable.cols.ra.create_csindex()
+    fibtable.cols.multiframe.create_csindex()
+    imagetable.cols.multiframe.create_csindex()
     fibtable.flush()
     imagetable.flush()
 

@@ -97,12 +97,14 @@ def main(argv=None):
 
     amptoampfiles = glob.glob(op.join(args.ampdir, 'multi*.norm'))
 
-    for file in amptoampfiles:
-        idx = file.find('multi_')
-        ampid = file[idx:idx+20]
-        data = ascii.read(file, names=['wave', 'norm'])
-        fileh.create_table(groupAmpToAmp, str(ampid), data.as_array())
-
+    for filen in amptoampfiles:
+        idx = filen.find('multi_')
+        ampid = filen[idx:idx+20]
+        try:
+            data = ascii.read(filen, names=['wave', 'norm'])
+            fileh.create_table(groupAmpToAmp, str(ampid), data.as_array())
+        except:
+            args.log.warning('Could not include %s' % filen)
     # populate Throughput group with throughput curves
 
     tpfile = op.join(args.tpdir, str(args.date) + 'v' +
@@ -110,10 +112,13 @@ def main(argv=None):
 
     idx = tpfile.find('/20')
     datevshot = tpfile[idx+1:idx+13]
-    tp_data = ascii.read(tpfile)
-    data = tp_data['col1', 'col2', 'col3']
-    data.names = ['waves', 'response', 'response_err']
-    fileh.create_table(groupThroughput, datevshot, data.as_array())
+    try:
+        tp_data = ascii.read(tpfile)
+        data = tp_data['col1', 'col2', 'col3']
+        data.names = ['waves', 'response', 'response_err']
+        fileh.create_table(groupThroughput, datevshot, data.as_array())
+    except:
+        args.log.warning('Could not include %s' % tpfile)
 
     fileh.close()
 
