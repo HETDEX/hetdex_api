@@ -38,8 +38,6 @@ class Survey:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
 
-        self.hdfile.close()
-
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
         """
@@ -91,6 +89,19 @@ class Survey:
                 print "Provide both width and height of sky region in degrees."
 
         return self.shotid[idx]
+
+
+    def close:
+        '''
+        Be sure to close the HDF5 file when you are done using
+        it to release anything that might be in memory
+
+        Example:
+
+        S.close()
+        '''
+        
+        self.hdfile.close()
 
 
 class Exp:
