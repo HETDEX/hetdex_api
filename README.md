@@ -16,9 +16,9 @@ The main code to create HDF5 files contained in the DR1 release are:
 
 * create_survey_hdf5.py - this creates the main survey info file which contains general shot and exposure info. A HETDEX shot always has 3 dithered exposures in it, while a parallel shot typically only has one.
 
-* create_hdf5file.py - this is the code to all info related to a single shot, including the raw fits image data from each exposure, flux calibrated fibers
+* create_shot_hdf5.py - this is the code to all info related to a single shot, including the raw fits image data from each exposure, flux calibrated fibers with their associated astrometric information, response curves, and other calibration information pertaining to an individual shot.
 
-* create_detect_hdf5.py
+* create_detect_hdf5.py - this is the code to encode the detections database into an HDF5 container. Included in the HDF5 file are 1d flux-calibrated, PSF-weighted spectra for each source detection.
 
 * hetdex_api/flux_lmits - deals with creating and accessing HDF5 containers for the datacubes that contain the flux limit. Also computes
 the average flux limits across shots and IFUs
