@@ -48,7 +48,11 @@ class SensitivityCubeHDF5Container(object):
         if (mode == "w") and isfile(filename):
             raise FileExists("Error! Output file {:s} exists!".format(filename))
 
-        self.h5file = tb.open_file(filename, mode=mode, **kwargs)
+        # Filter for compression, set complevel=4 as higher levels only
+        # give a few extra MB per file
+        # fletcher32 error checking and zlib
+        self.compress_filter = tb.Filters(complevel=4, fletcher32=True, complib='zlib')
+        self.h5file = tb.open_file(filename, mode=mode, filters=self.compress_filter, **kwargs)
         self.filename = filename
 
     def add_sensitivity_cube(self, datevshot, ifuslot, scube, flush = False):
