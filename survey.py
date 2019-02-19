@@ -91,7 +91,7 @@ class Survey:
         return self.shotid[idx]
 
 
-    def close:
+    def close():
         '''
         Be sure to close the HDF5 file when you are done using
         it to release anything that might be in memory
