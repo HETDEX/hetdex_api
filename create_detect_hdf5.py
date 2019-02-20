@@ -108,8 +108,8 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
                      tableFibers, tableSpectra):
     print("Ingesting Date=" + date + "  OBSID="+ obs + "  ID=" + det+"\n")
     detectfile = build_mcres_path(detect_path, date, obs, det)
-    datevobs_det = str(date) + 'v' + str(obs) + '_' + str(det)
-    datevobs = str(date) + 'v' + str(obs)
+    datevobs_det = str(date) + 'v' + str(obs).zfill(3) + '_' + str(det)
+    datevobs = str(date) + 'v' + str(obs).zfill(3)
     if op.exists(detectfile):
         
         row = tableMain.row
@@ -159,8 +159,8 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
             rowspectra['spec1d_err'] = dataspec['col3']
             rowspectra['counts1d'] = dataspec['col4']
             rowspectra['counts1d_err'] = dataspec['col5']
-            #rowspectra['apsum_counts'] = dataspec['col6']
-            #rowspectra['apsum_counts_err'] = dataspec['col7']
+            rowspectra['apsum_counts'] = dataspec['col6']
+            rowspectra['apsum_counts_err'] = dataspec['col7']
             rowspectra.append()
 
         # now populate fiber table with additional info
@@ -182,7 +182,7 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
                 rowfiber['ifuslot'] = multiframe[10:13]
                 rowfiber['ifuid'] = multiframe[14:17]
                 rowfiber['amp'] = multiframe[18:20]
-                rowfiber['fibnum'] = multiname[21:22]
+                rowfiber['fibnum'] = int(multiname[21:24])
                 rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
                 rowfiber['distance'] = datafiber['col7'][ifiber]
                 rowfiber['wavein'] = datafiber['col8'][ifiber]
