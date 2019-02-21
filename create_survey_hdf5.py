@@ -9,6 +9,7 @@ Note: requires makemaster.sh to collect info from Karl's
 
 """
 
+import re
 import sys
 import os
 import os.path as op
@@ -19,23 +20,39 @@ import tables as tb
 from astropy.io import ascii
 from astropy.io import fits
 
-#
-# eventually get this from /work/00115/gebhardt/maverick/api/paths.cfg
-#
-
 path_astrometry = "/work/00115/gebhardt/maverick/vdrp/shifts/"
-path_gpinfo = '/work/00115/gebhardt/maverick/getgp/fwhm_and_fluxes_better.txt'
+path_gpinfo = '/work/03946/hetdex/hdr1/calib/fwhm_and_fluxes_better.txt'
 mastersci_file = "/work/05350/ecooper/maverick/gettar/mastersci_DR1"
-path_radec = "/work/00115/gebhardt/maverick/getfib/radec.all"
+path_radec = "/work/03946/hetdex/hdr1/calib/radec.all"
 path_throughput = "/work/00115/gebhardt/maverick/detect/tp/"
 path_dithers = '/work/00115/gebhardt/maverick/vdrp/shifts/dithoff/dithall.dat'
 
 
+def define_field(objname):
+    if re.match('par', str(objname)):
+        field = 'parallel'
+    elif re.match('COS|cos|DEXcos', str(objname)):
+        field = 'cosmos'
+    elif re.match('EGS', str(objname)):
+        field = 'egs'
+    elif re.match('GN', str(objname)):
+        field = 'goods-n'
+    elif re.match('DEX0|DEXfl', str(objname)):
+        field = 'dex-fall'
+    elif re.match('HS|DEXsp', str(objname)):
+        field = 'dex-spring'
+    else:
+        field = 'other'
+
+    return field
+
+
 class Survey(tb.IsDescription):
-    shotid = tb.Int64Col(pos=0)
+    shotid = tb.Int64Col()
     date = tb.Int32Col(pos=1)
     obsid = tb.Int32Col(pos=2)
     objid = tb.StringCol((18), pos=3)
+    field = tb.StringCol((12), pos=0)
     ra = tb.Float32Col(pos=4)
     dec = tb.Float32Col(pos=5)
     pa = tb.Float32Col(pos=6)
@@ -48,15 +65,15 @@ class Survey(tb.IsDescription):
     y1 = tb.Float32Col()
     x2 = tb.Float32Col()
     y2 = tb.Float32Col()
-    x3 = tb.Float32Col()
+    x3 = tb.Float32Col() 
     y3 = tb.Float32Col()
-
+    datevobs = tb.StringCol((12))
 
 class Exp(tb.IsDescription):
     shotid = tb.Int64Col(pos=0)
-    date = tb.Time32Col(pos=1)
+    date = tb.Int32Col(pos=1)
     obsid = tb.Int32Col(pos=2)
-    expn = tb.StringCol((5), pos=3)
+    expnum = tb.Int32Col(pos=3)
     timestamp = tb.StringCol((18), pos=4)
     mjd = tb.Float32Col(pos=5)
     exptime = tb.Float32Col((7), pos=6)
@@ -91,9 +108,15 @@ for idx in np.arange(np.size(shotarray)):
     row['shotid'] = np.int(shotarray[idx])
     row['date'] = str(row['shotid'])[0:8]
     row['obsid'] = str(row['shotid'])[8:11]
-
+    row['datevshot'] = str(row['shotid'])[0:8] + 'v' + str(row['shotid'])[8:11]
+    
     sel = np.where(master_sci['SHOT'] == shotarray[idx])
     row['objid'] = master_sci['OBJECT'][sel][0]
+    row['field'] = define_field(row['objid'])
+
+    row['trajcra'] = master_sci['TRAJCRA'][idx]
+    row['trajcdec'] = master_sci['TRAJCDEC'][idx]
+    row['trajcpa'] = master_sci['PARANGLE'][idx]
 
     sel = np.where((master_astrometry['col1'] == np.int(row['date']))
                    * (master_astrometry['col2'] == np.int(row['obsid'])))
@@ -143,6 +166,7 @@ for idx in np.arange(np.size(shotarray)):
 
     sel = np.where((master_dither['date'] == row['date'])
                    * (master_dither['obsid'] == row['obsid']))
+    row['ditherpos'] = master_dither[sel]
     dith_arr = ['x1', 'y1', 'x2', 'y2', 'x3', 'y3']
     if np.size(sel) == 1:
         for dith in dith_arr:
@@ -161,9 +185,9 @@ for idx in np.arange(np.size(master_sci['SHOT'])):
     row = tableExp.row
 
     row['shotid'] = np.int(master_sci['SHOT'][idx])
-    row['date'] = str(row['shotid'])[0:8]
-    row['obsid'] = str(row['shotid'])[8:11]
-    row['expn'] = master_sci['DITHER'][idx]
+    row['date'] = int(str(row['shotid'])[0:8])
+    row['obsid'] = int(str(row['shotid'])[8:11])
+    row['expnum'] = int(str(master_sci['DITHER'][idx])[3:5])
     row['timestamp'] = master_sci['TIMESTAMP'][idx]
     row['mjd'] = master_sci['MJD'][idx]
     row['exptime'] = master_sci['EXPTIME'][idx]
