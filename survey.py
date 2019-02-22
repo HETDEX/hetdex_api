@@ -22,7 +22,7 @@ class Survey:
             Data release you would like to load, i.e., 'DR1' or 'Parallel'.
             This is case insensitive.
         '''
-        survey_options = {'hdr1': '/work/03946/hetdex/hdr1/survey/survey_test.h5',
+        survey_options = {'hdr1': '/Users/erin/Desktop/survey_test.h5',
                           'parallel': 'PATHNAME'}
         if survey.lower() not in survey_options:
             print('survey not in survey options')
@@ -70,16 +70,16 @@ class Survey:
         """
         
         try:
-            self.coord
+            self.coords
         except:
-            self.coord = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
+            self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
     
         if radius:
             try:
-                idx = self.coord.separation(coords) < radius
+                idx = self.coords.separation(coords) < radius
             except:
                 print "Assuming radius in degrees"
-                idx = self.coord.separation(coords) < radius * u.degree
+                idx = self.coords.separation(coords) < radius * u.degree
         else:
             try:
                 idx1 = (abs(self.ra  - coords.ra.value) < width/2.) 
