@@ -19,7 +19,7 @@ from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-path_data = '/users/erin/Desktop/'
+path_data = '/work/03946/hetdex/hdr1/reduction/data'
 
 
 def open_shot_file(shot):
