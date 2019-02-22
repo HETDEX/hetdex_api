@@ -12,10 +12,13 @@ import glob
 import re
 import tables as tb
 import numpy as np
+import matplotlib.pyplot as plt
+
+from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-path_data = '/work/05350/ecooper/hdr1/data'
+path_data = '/users/erin/Desktop/'
 
 
 def open_shot_file(shot):
@@ -90,12 +93,25 @@ class Fibers:
         
         return self.table[idx]
 
+    def plot_fibertable_spectra(self, xlim=None, ylim=None):
+        """
+        Plots up series of spectra in a fibertable
+        This could be messy if there are a lot of fibers!
+
+        Inputs
+        -----------
+        self - a fibers table object, either 
+               called by Fibers().table
+               or fileh.root.Data.Fibers
+        """
+       
+#        for row in self.table:
 
     def get_closest_fiber(self, coords):
         """
         Returns index to closest fiber to an RA/DEC
         """
-        return coords.match_to_catalog_sky(self.coords)
+        return coords.match_to_catalog_sky(self.coords)[0]
     
     
     def get_image_xy(self, idx, wave_obj):
@@ -111,10 +127,27 @@ class Fibers:
         trace_data = self.table[idx]['trace']
         
         y = int(round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
-        x = int(round(np.interp(x,range(len(trace_data)),trace_data)))
+        x = int(round(np.interp(y,range(len(trace_data)),trace_data)))
         return x, y
 
 
+    def plot_fiber_spectrum(self, idx, type='sky_subtracted', xlim=None, ylim=None):
+        plt.plot(self.table[idx]['wavelength'], self.table[idx]['sky_subtracted'])
+        if xlim is not None:
+            plt.xlim(xlim)
+        if ylim is not None:
+            plt.ylim(ylim)
+        plt.xlabel('wavelength')
+        plt.ylabel(type)
+
+         
+    def save_fiber_spectrum(self, idx, type='sky_subtracted', file='spec.dat'):
+        
+        spectab = Table()
+        spectab['wavelength'] = self.table[idx]['wavelength']
+        spectab[type] = self.table[idx][type] 
+        spectab.write(file, format='ascii')
+        
 
 def get_image2D_cutout(shot, coords, wave_obj, width = 40, height = 40, imtype='calfib'):    
     """
