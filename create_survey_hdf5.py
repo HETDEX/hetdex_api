@@ -166,17 +166,15 @@ for idx in np.arange(np.size(shotlist)):
         
         # add in dither info
 
-        sel3 = np.where((master_dither['date'] == row['date'])
-                        * (master_dither['obsid'] == row['obsid']))
-        dith_arr = ['x1', 'y1', 'x2', 'y2', 'x3', 'y3']
-        x1 = master_dither['x1'][sel3]
-        y1 = master_dither['y1'][sel3]
-        x2 = master_dither['x2'][sel3]
-        y2 = master_dither['y2'][sel3]
-        x3 = master_dither['x3'][sel3]
-        y3 = master_dither['y3'][sel3]
-        
-        if np.size(sel) == 1:
+        sel3 = np.where((master_dither['date'] == row['date']) & (master_dither['obsid'] == row['obsid']))
+
+        if np.size(sel3) == 1:
+            x1 = master_dither['x1'][sel3]
+            y1 = master_dither['y1'][sel3]
+            x2 = master_dither['x2'][sel3]
+            y2 = master_dither['y2'][sel3]
+            x3 = master_dither['x3'][sel3]
+            y3 = master_dither['y3'][sel3]        
             row['xditherpos'] = (x1, x2, x3)
             row['yditherpos'] = (y1, y2, y3)
         
