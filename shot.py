@@ -149,7 +149,7 @@ class Fibers:
         spectab.write(file, format='ascii')
         
 
-def get_image2D_cutout(shot, coords, wave_obj, width = 40, height = 40, imtype='calfib'):    
+def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='sky_subtracted'):    
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
@@ -166,15 +166,14 @@ def get_image2D_cutout(shot, coords, wave_obj, width = 40, height = 40, imtype='
     height - pixel height to be cutout (image size is 1032 pix)
 
     """
-    fileh = open_shot_file(shot)
     fibers = Fibers(shot)
 
-    idx = get_closest_fiber(fibers, coords)
-    multiframe_obj = fibers.table[idx]['multiframe']
-    fibnum_obj = fibers.table[idx]['fibnum']
-    x, y = get_image_xy(fibers, idx, wave_obj)
+    idx = fibers.get_closest_fiber(coords)
+    multiframe_obj = fibers.table.cols.multiframe[idx]
+    expnum_obj = fibers.table.cols.expnum[idx]
+    x, y = fibers.get_image_xy(idx, wave_obj)
 
-    im = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj) & (fibnum == fibnum_obj)")
+    im = fibers.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
     
     return im[x-int(width/2):x+int(width/2), y-int(height/2):y+int(height/2)][imtype]
 
