@@ -22,7 +22,7 @@ class Survey:
             Data release you would like to load, i.e., 'DR1' or 'Parallel'.
             This is case insensitive.
         '''
-        survey_options = {'hdr1': '/Users/erin/Desktop/survey_test.h5',
+        survey_options = {'hdr1': '/work/03946/hetdex/hdr1/survey/survey_test.h5',
                           'parallel': 'PATHNAME'}
         if survey.lower() not in survey_options:
             print('survey not in survey options')
@@ -103,27 +103,3 @@ class Survey:
         
         self.hdfile.close()
 
-
-class Exp:
-    def __init__(self, survey):
-        '''                                                                                    
-        Initialize the Survey class for a given data release                                   
-                                                                                               
-        Input                                                                                  
-        -----                                                                                  
-        survey : string                                                                        
-            Data release you would like to load, i.e., 'DR1' or 'Parallel'.
-            This is case insensitive.
-        '''
-        survey_options = {'hdr1': '/work/03946/hetdex/hdr1/survey/survey_test.h5',
-                          'parallel': 'PATHNAME'}
-        if survey.lower() not in survey_options:
-            print('survey not in survey options')
-            print(survey_options)
-            return None
-        self.filename = survey_options[survey]
-        self.hdfile = tb.open_file(self.filename, mode='r')
-        colnames = self.hdfile.root.Exp.colnames
-        for name in colnames:
-            setattr(self, name,
-                    getattr(self.hdfile.root.Exp.cols, name)[:])
