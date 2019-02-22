@@ -139,7 +139,7 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         fib['fibnum'] = i
         fib['multiframe'] = multiframe
         if T is not None:
-            loci = loc + i
+            loci = loc[0] + i
             if len(loc):
                 if isinstance(T['col1'][loci], float):
                     fib['ra'] = T['col1'][loci]
