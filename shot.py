@@ -93,6 +93,18 @@ class Fibers:
         
         return self.table[idx]
 
+    def query_region_idx(self, coords, radius=3./3600.):
+        """
+        Returns an index for a Fibers class object to
+        retrieve all fibers in the defined aperture
+
+        self   - Fibers class object
+        coords - astropy coordinate object
+        radius - astropy quantity object                                                  
+        """
+        idx = coords.separation(self.coords) < radius * u.degree
+        return idx
+
     def plot_fibertable_spectra(self, xlim=None, ylim=None):
         """
         Plots up series of spectra in a fibertable
@@ -147,7 +159,10 @@ class Fibers:
         spectab['wavelength'] = self.table[idx]['wavelength']
         spectab[type] = self.table[idx][type] 
         spectab.write(file, format='ascii')
-        
+
+    def close(self):
+        self.hdfile.close()
+
 
 def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='sky_subtracted'):    
     """
