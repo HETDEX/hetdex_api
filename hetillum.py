@@ -48,6 +48,3 @@ def hetillum_(tx,ty,tr,fx,fy,platform=False,plot=False):
 
     v = float(o.decode('ascii'))
     return v
-
-v = hetillum_(0,0,0,0,0)
-print (v)
