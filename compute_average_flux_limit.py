@@ -51,7 +51,7 @@ for fn in opts.files:
         continue
 
     try:
-        windex = (opts.wl - header["CRVAL3"])/header["CDELT3"] - 1
+        windex = int((opts.wl - header["CRVAL3"])/header["CDELT3"] - 1)
     except KeyError as e:
         print("{:s} failed!".format(fn))
         continue
@@ -61,8 +61,7 @@ for fn in opts.files:
     slice_flattened = wavelength_slice.flatten()
     ztrimmed_slice = slice_flattened[slice_flattened > 0.0]
 
-    # XXX Rescale as Karl got wrong SNR in old code version
-    flims = (6.0/8.0)*1.0e-17/ztrimmed_slice
+    flims = 1.0e-17/ztrimmed_slice
 
     flims_all.extend(flims)    
     biwt_ls.append(biweight_location(flims))
