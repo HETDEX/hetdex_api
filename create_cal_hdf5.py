@@ -116,7 +116,7 @@ def main(argv=None):
         tp_data = ascii.read(tpfile)
         data = tp_data['col1', 'col2', 'col3']
         data.names = ['waves', 'response', 'response_err']
-        fileh.create_table(groupThroughput, datevshot, data.as_array())
+        fileh.create_table(groupThroughput, 'throughput', data.as_array())
     except:
         args.log.warning('Could not include %s' % tpfile)
 

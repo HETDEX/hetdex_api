@@ -23,6 +23,7 @@ import argparse as ap
 import os.path as op
 import numpy as np
 
+import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
 from input_utils import setup_logging
@@ -79,7 +80,7 @@ def main(argv=None):
     groupCoadd = fileh.create_group(groupAstrometry, 'CoaddImages', 'Coadd Images')
     groupDithall = fileh.create_group(groupAstrometry, 'Dithall', 'Fiber Astrometry Info')
     groupOffsets = fileh.create_group(groupAstrometry, 'PositionOffsets', 
-                                      'Offset is star matches')
+                                      'Offset in star matches')
 
     tableQA = fileh.create_table(groupAstrometry, 'QA', QualityAssessment, 
                              'Qulity Assessment')
@@ -103,11 +104,21 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % file_stars)
     
+    
+    pngfiles = glob.glob(op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), '*.png'))
+    pngnum = 1
+
+    for pngfile in pngfiles:
+        plt_image = plt.imread(pngfile)                         
+        pngim = fileh.create_array(groupCoadd, 'png_exp' + str(pngnum).zfill(2), plt_image) 
+        pngim.attrs['CLASS'] = 'IMAGE'
+        pngnum += 1
+
     for expn in ['exp01', 'exp02', 'exp03']:
         fitsfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            str(args.date) + 'v' + str(args.observation).zfill(3)
                            + 'fp_' + expn + '.fits')
-        
+
         if op.exists(fitsfile):
             
             F = fits.open(fitsfile)

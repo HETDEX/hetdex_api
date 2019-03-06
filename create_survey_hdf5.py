@@ -9,6 +9,7 @@ Note: requires makemaster.sh to collect info from Karl's
 
 """
 
+import re
 import sys
 import os
 import os.path as op
@@ -19,23 +20,40 @@ import tables as tb
 from astropy.io import ascii
 from astropy.io import fits
 
-#
-# eventually get this from /work/00115/gebhardt/maverick/api/paths.cfg
-#
-
+survey_list = '/work/00115/gebhardt/maverick/gettar/hdr1.objlist' 
 path_astrometry = "/work/00115/gebhardt/maverick/vdrp/shifts/"
-path_gpinfo = '/work/00115/gebhardt/maverick/getgp/fwhm_and_fluxes_better.txt'
-mastersci_file = "/work/05350/ecooper/maverick/gettar/mastersci_DR1"
-path_radec = "/work/00115/gebhardt/maverick/getfib/radec.all"
+path_gpinfo = '/work/03946/hetdex/hdr1/calib/fwhm_and_fluxes_better.txt'
+mastersci_file = "/work/05350/ecooper/hdr1/survey/mastersci_DR1"
+path_radec = "/work/03946/hetdex/hdr1/calib/radec.all"
 path_throughput = "/work/00115/gebhardt/maverick/detect/tp/"
 path_dithers = '/work/00115/gebhardt/maverick/vdrp/shifts/dithoff/dithall.dat'
 
 
+def define_field(objname):
+    if re.match('par', str(objname)):
+        field = 'parallel'
+    elif re.match('COS|cos|DEXcos', str(objname)):
+        field = 'cosmos'
+    elif re.match('EGS', str(objname)):
+        field = 'egs'
+    elif re.match('GN', str(objname)):
+        field = 'goods-n'
+    elif re.match('DEX0|DEXfl', str(objname)):
+        field = 'dex-fall'
+    elif re.match('HS|DEXsp', str(objname)):
+        field = 'dex-spring'
+    else:
+        field = 'other'
+
+    return field
+
+
 class Survey(tb.IsDescription):
-    shotid = tb.Int64Col(pos=0)
+    shotid = tb.Int64Col()
     date = tb.Int32Col(pos=1)
     obsid = tb.Int32Col(pos=2)
     objid = tb.StringCol((18), pos=3)
+    field = tb.StringCol((12), pos=0)
     ra = tb.Float32Col(pos=4)
     dec = tb.Float32Col(pos=5)
     pa = tb.Float32Col(pos=6)
@@ -44,31 +62,25 @@ class Survey(tb.IsDescription):
     trajcpa = tb.Float32Col()
     fwhm = tb.Float32Col(pos=7)
     response_4540 = tb.Float32Col(pos=8)  # normalized for 360s
-    x1 = tb.Float32Col()
-    y1 = tb.Float32Col()
-    x2 = tb.Float32Col()
-    y2 = tb.Float32Col()
-    x3 = tb.Float32Col()
-    y3 = tb.Float32Col()
-
-
-class Exp(tb.IsDescription):
-    shotid = tb.Int64Col(pos=0)
-    date = tb.Time32Col(pos=1)
-    obsid = tb.Int32Col(pos=2)
-    expn = tb.StringCol((5), pos=3)
-    timestamp = tb.StringCol((18), pos=4)
-    mjd = tb.Float32Col(pos=5)
-    exptime = tb.Float32Col((7), pos=6)
-    darktime = tb.Float32Col(pos=7)
+    xditherpos = tb.Float32Col((3))
+    yditherpos = tb.Float32Col((3))
+    xoffset = tb.Float32Col((3))
+    yoffset = tb.Float32Col((3))
+    xrms = tb.Float32Col((3))
+    yrms = tb.Float32Col((3))
+    nstars_fit = tb.Int32Col((3))
+    datevobs = tb.StringCol((12))
+    expnum = tb.Int32Col((3))
+    timestamp = tb.StringCol((18),3)
+    mjd = tb.Float32Col((3))
+    exptime = tb.Float32Col((3))
+    darktime = tb.Float32Col((3))
 
 
 fileh = tb.open_file("survey_test.h5", mode="w", title="Survey test file ")
 
 tableMain = fileh.create_table(fileh.root, 'Survey', Survey,
                                'Main Survey Info')
-tableExp = fileh.create_table(fileh.root, 'Exp', Exp,
-                              'Exposure Specific Info')
 
 master_sci = ascii.read(mastersci_file)
 
@@ -82,32 +94,43 @@ master_astrometry = ascii.read(path_radec)
 master_dither = ascii.read(path_dithers, names=['x1', 'y1', 'x2', 'y2',
                                                 'x3', 'y3', 'date', 'obsid'])
 
-shotarray = np.unique(master_sci['SHOT'])
+shotlist = ascii.read(survey_list)
 
-for idx in np.arange(np.size(shotarray)):
+for idx in np.arange(np.size(shotlist)):
+    date = shotlist['col1'][idx]
+    obsid = shotlist['col2'][idx]
+    shotid = int(str(date)+str(obsid).zfill(3))
 
+    sel = np.where( (master_sci['DATE'] == date) & (master_sci['EXP'] == obsid) )
+    
     row = tableMain.row
 
-    row['shotid'] = np.int(shotarray[idx])
+    row['shotid'] = shotid
     row['date'] = str(row['shotid'])[0:8]
     row['obsid'] = str(row['shotid'])[8:11]
+    row['datevobs'] = str(row['shotid'])[0:8] + 'v' + str(row['shotid'])[8:11]
+   
 
-    sel = np.where(master_sci['SHOT'] == shotarray[idx])
     row['objid'] = master_sci['OBJECT'][sel][0]
+    row['field'] = define_field(row['objid'])
 
-    sel = np.where((master_astrometry['col1'] == np.int(row['date']))
+    row['trajcra'] = master_sci['TRAJCRA'][sel][0]
+    row['trajcdec'] = master_sci['TRAJCDEC'][sel][0]
+    row['trajcpa'] = master_sci['PARANGLE'][sel][0]
+
+    sel2 = np.where((master_astrometry['col1'] == np.int(row['date']))
                    * (master_astrometry['col2'] == np.int(row['obsid'])))
 
-    if np.size(sel) == 1:
-        row['ra'] = master_astrometry['col3'][sel]
-        row['dec'] = master_astrometry['col4'][sel]
-        row['pa'] = master_astrometry['col5'][sel]
-    elif np.size(sel) > 1:
+    if np.size(sel2) == 1:
+        row['ra'] = master_astrometry['col3'][sel2]
+        row['dec'] = master_astrometry['col4'][sel2]
+        row['pa'] = master_astrometry['col5'][sel2]
+    elif np.size(sel2) > 1:
         print "Weird: More than one RA/DEC/PA value for", row['shotid']
         print "Saving the first RA/DEC/PA value only. Make sure this is ok."
-        row['ra'] = master_astrometry['ra'][sel][0]
-        row['dec'] = master_astrometry['dec'][sel][0]
-        row['pa'] = master_astrometry['pa'][sel][0]
+        row['ra'] = master_astrometry['ra'][sel2][0]
+        row['dec'] = master_astrometry['dec'][sel2][0]
+        row['pa'] = master_astrometry['pa'][sel2][0]
     else:
         row['ra'] = np.nan
         row['dec'] = np.nan
@@ -139,38 +162,83 @@ for idx in np.arange(np.size(shotarray)):
     else:
         row['response_4540'] = np.nan
 
-    # add in dither info
+    if np.size(sel) == 3:
+        
+        # add in dither info
 
-    sel = np.where((master_dither['date'] == row['date'])
-                   * (master_dither['obsid'] == row['obsid']))
-    dith_arr = ['x1', 'y1', 'x2', 'y2', 'x3', 'y3']
-    if np.size(sel) == 1:
-        for dith in dith_arr:
-            row[dith] = master_dither[dith][sel]
-    elif np.size(sel) == 0:
-        for dith in dith_arr:
-            row[dith] = np.nan
+        sel3 = np.where((master_dither['date'] == row['date']) & (master_dither['obsid'] == row['obsid']))
 
+        if np.size(sel3) == 1:
+            x1 = master_dither['x1'][sel3]
+            y1 = master_dither['y1'][sel3]
+            x2 = master_dither['x2'][sel3]
+            y2 = master_dither['y2'][sel3]
+            x3 = master_dither['x3'][sel3]
+            y3 = master_dither['y3'][sel3]        
+            row['xditherpos'] = (x1, x2, x3)
+            row['yditherpos'] = (y1, y2, y3)
+        
+        # add in dither specific info as an array
+        expnum_arr = np.full(3, np.nan)
+        xoffset_arr = np.full(3, np.nan)
+        yoffset_arr = np.full(3, np.nan)
+        xrms_arr = np.full(3, np.nan)
+        yrms_arr = np.full(3, np.nan)
+        nstars_fit_arr = np.full(3, np.nan)
+        timestamp_arr = np.chararray(3, itemsize=18)
+        mjd_arr = np.full(3, np.nan)
+        exptime_arr = np.full(3, np.nan)
+        darktime_arr = np.full(3, np.nan)
+
+        for idx2, expn in enumerate(['exp01', 'exp02', 'exp03']):
+        
+            # add in astrometry offset values
+            file_getoff2 = op.join(path_astrometry, str(row['date']) + 'v'
+                                + str(row['obsid']).zfill(3), 'getoff2_' + expn + '.out')
+            if op.exists(file_getoff2):
+                try:
+                    f_getoff2 = ascii.read(file_getoff2)
+                    expnum_arr[idx2] = int(expn[3:5])
+                    xoffset_arr[idx2] = f_getoff2['col1']
+                    yoffset_arr[idx2] = f_getoff2['col2']
+                    xrms_arr[idx2] = f_getoff2['col3']
+                    yrms_arr[idx2] = f_getoff2['col4']
+                    nstars_fit_arr[idx2] = f_getoff2['col5'] 
+                except:
+                    print "Couldn't get data from:",file_getoff2
+                    expnum_arr = int(expn[3:5])
+                    xoffset_arr = np.full(3, np.nan)
+                    yoffset_arr = np.full(3, np.nan)
+                    xrms_arr = np.full(3, np.nan)
+                    yrms_arr = np.full(3, np.nan)
+                    nstars_fit_arr = np.full(3, np.nan)
+                    timestamp_arr = np.chararray(3, itemsize=18)
+                    mjd_arr = np.full(3, np.nan)
+                    exptime_arr = np.full(3, np.nan)
+                    darktime_arr = np.full(3, np.nan)
+
+            selexp = np.where( (master_sci['DITHER'] == expn) & 
+                               (master_sci['SHOT'] == shotid))
+
+            if np.size(selexp) == 1:
+                timestamp_arr[idx2] = master_sci['TIMESTAMP'][selexp][0]
+                mjd_arr[idx2] = master_sci['MJD'][selexp][0]
+                exptime_arr[idx2] = master_sci['EXPTIME'][selexp][0]
+                darktime_arr[idx2] = master_sci['DARKTIME'][selexp][0]
+               
+        row['expnum'] = expnum_arr
+        row['xoffset'] = xoffset_arr
+        row['yoffset'] = yoffset_arr
+        row['xrms'] = xrms_arr
+        row['yrms'] = yrms_arr
+        row['nstars_fit'] = nstars_fit_arr
+        
+        row['timestamp'] = timestamp_arr
+        row['mjd'] = mjd_arr
+        row['exptime'] = exptime_arr
+        row['darktime'] = darktime_arr
+                
     row.append()
 
 tableMain.flush()
-
-
-for idx in np.arange(np.size(master_sci['SHOT'])):
-
-    row = tableExp.row
-
-    row['shotid'] = np.int(master_sci['SHOT'][idx])
-    row['date'] = str(row['shotid'])[0:8]
-    row['obsid'] = str(row['shotid'])[8:11]
-    row['expn'] = master_sci['DITHER'][idx]
-    row['timestamp'] = master_sci['TIMESTAMP'][idx]
-    row['mjd'] = master_sci['MJD'][idx]
-    row['exptime'] = master_sci['EXPTIME'][idx]
-    row['darktime'] = master_sci['DARKTIME'][idx]
-
-    row.append()
-
-tableExp.flush()
-
 fileh.close()
