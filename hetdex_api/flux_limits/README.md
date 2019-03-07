@@ -53,6 +53,6 @@ to a file, use the ``-h`` option on this command for details.
 
 To access the flux limit an application programming interface (API) is provided for
 use in Python. An iPython notebook is provided in this repository which demonstrates
-how to do this [here](../../notebooks/get_flux_limit_api_demo.ipynb)
+how to do this [here](../../notebooks/04-Getting_Flux_Limits_from_the_HDF5_Files.ipynb)
 
 
