@@ -21,8 +21,47 @@ _logger.setLevel('INFO')
 hndlr = logging.StreamHandler()
 _logger.addHandler(hndlr)
 
+
 class FileExists(Exception):
     pass
+
+class NoFluxLimsAvailable(Exception):
+    pass
+
+def return_sensitivity_hdf_path(datevobs):
+    """
+    Return the full file path
+    to a HDF5 container of sensitivity     
+    cubes
+
+    Parameters
+    ----------
+    datevobs : str
+        the date of the observation
+
+    Returns
+    -------
+    path_to_hdf5 : str
+        the absolute path to
+        the file
+
+    Raises
+    ------
+    NoFluxLimsAvailable :
+        Returned when flux limits
+        not found for that shot
+
+    """
+
+    path_to_hdf5s = "/work/04120/dfarrow/wrangler/flims/hdr1/"
+    path_to_hdf5s += "{:s}_sensitivity_cube.h5".format(datevobs)
+
+    if isfile(path_to_hdf5s):
+        return path_to_hdf5s
+    else:
+        raise NoFluxLimsAvailable("Cannot find flux limits for that shot!"
+                                  " Tried here {:s}".format(path_to_hdf5s))
+
 
 class SensitivityCubeHDF5Container(object):
     """
