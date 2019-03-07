@@ -33,7 +33,7 @@ def get_files(args):
 class VIRUSFiber(tb.IsDescription):
     obsind = tb.Int32Col()
     multiframe = tb.StringCol((20), pos=0)
-    fibnum = tb.Int32Col()
+    fibidx = tb.Int32Col()
     ifux = tb.Float32Col()
     ifuy = tb.Float32Col()
     fpx = tb.Float32Col()
@@ -136,11 +136,11 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         loc = np.where(sel * sel1)[0]
     for i in np.arange(n):
         fib['obsind'] = cnt
-        fib['fibnum'] = i
+        fib['fibidx'] = i
         fib['multiframe'] = multiframe
         if T is not None:
-            loci = loc[0] + i
             if len(loc):
+                loci = loc[0] + i
                 if isinstance(T['col1'][loci], float):
                     fib['ra'] = T['col1'][loci]
                     fib['dec'] = T['col2'][loci]
