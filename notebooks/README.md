@@ -26,7 +26,7 @@ cd HETDEX_API
 pip install --user .
 ```
 
-5. goto [https://vis.tacc.utexas.edu/] 
+5. goto https://vis.tacc.utexas.edu/ 
 
 6. log onto stampede2 ipython jupyter notebook (normal queue worked for me)
 
