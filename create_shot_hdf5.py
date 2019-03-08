@@ -147,10 +147,10 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
                     fib['fpx'] = T['col6'][loci]
                     fib['fpy'] = T['col7'][loci]
             else:
-                fib['ra'] = -999.0
-                fib['dec'] = -999.0
-                fib['fpx'] = -999.0
-                fib['fpy'] = -999.0
+                fib['ra'] = np.nan
+                fib['dec'] = np.nan
+                fib['fpx'] = np.nan
+                fib['fpy'] = np.nan
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
         for att in attr:
@@ -256,7 +256,6 @@ def main(argv=None):
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.ra.create_csindex()
     fibtable.cols.multiframe.create_csindex()
     imagetable.cols.multiframe.create_csindex()
     fibtable.flush()
