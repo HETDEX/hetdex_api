@@ -36,5 +36,4 @@ for i, object_chunk in enumerate(object_chunks):
     f.close()
     sedcall = ('sed "s/rwrangler_shotfiles/%s/g" '
               '%s > %s' % (rname, spath, sname))
-    print(sedcall)
     subprocess.call([sedcall], shell=True)
