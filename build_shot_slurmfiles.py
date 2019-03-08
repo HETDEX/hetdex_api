@@ -19,7 +19,7 @@ object_table = [[_object[0], _object[1]] for _object in object_table
 
 N = len(object_table) / 20 + 1
 object_chunks = np.array_split(object_table, N)
-spath = op.join(config.software_dir, 'scripting', 'rwrangler_shofiles.slurm')
+spath = op.join(config.software_dir, 'scripting', 'rwrangler_shotfiles.slurm')
 for i, object_chunk in enumerate(object_chunks):
     rname = 'rwrangler_shotfiles_%i' % (i+1)
     name = op.join(config.software_dir, 'scripting', 'calls_to_run',
