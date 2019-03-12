@@ -114,10 +114,11 @@ def get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec, rac, decc):
     xc = dy + ifux[s[0]]
     return xx, yy, xc, yc
 
-def do_extraction(coord, fibers, ADRx, ADRy, radius=6.):
+def do_extraction(coord, fibers, ADRx, ADRy, radius=8.):
     ''' Grab fibers and do extraction '''
-    boxsize = radius*np.sqrt(2.)/2.
+    boxsize = radius*np.sqrt(2.) / 2. * 0.9
     idx = fibers.query_region_idx(coord, radius=radius/3600.)
+    fiber_lower_limit = 5
     if len(idx) < fiber_lower_limit:
         return None
     ifux = fibers.table.read_coordinates(idx, 'ifux')
@@ -160,7 +161,6 @@ log = input_utils.setup_logging('extraction')
 log.info('Getting HDF5 file')
 fibers = Fibers(shotv)
 
-fiber_lower_limit = 3
 log.info('Getting stars in astrometry catalog')
 ras = fibers.hdfile.root.Astrometry.StarCatalog.cols.ra_cat[:]
 decs = fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
@@ -168,7 +168,9 @@ coords = SkyCoord(ras*u.deg, decs*u.deg, frame='icrs')
 log.info('Number of stars to extract: %i' % len(coords))
 
 for i, coord in enumerate(coords):
-    log.info('Extracting %ith coordinate' % (i+1))
-    spectrum, cube, weights, xg, yg = do_extraction(coord, fibers, ADRx, ADRy)
-    log.info('Making cube for %ith coordinate' % (i+1))
-    write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
+    log.info('Extracting coordinate #%i' % (i+1))
+    result = do_extraction(coord, fibers, ADRx, ADRy)
+    if result is not None:
+        spectrum, cube, weights, xg, yg = result
+        log.info('Making cube for coordinate #%i' % (i+1))
+        write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
