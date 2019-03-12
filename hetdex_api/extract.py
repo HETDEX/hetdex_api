@@ -56,8 +56,8 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
                        for chunk in np.array_split(wave, chunks)])
     xc, yc, xs, ys = [i * wchunk for i in [0., 0., 0., 0.]]
 
-    A = np.zeros(chunks, len(xloc))
-    B = np.zeros(chunks, len(xloc))
+    A = np.zeros((chunks, len(xloc)))
+    B = np.zeros((chunks, len(xloc)))
     i = 0
     for chunk, maskchunk in zip(np.array_split(data, chunks, axis=0),
                                 np.array_split(mask, chunks, axis=0)):
