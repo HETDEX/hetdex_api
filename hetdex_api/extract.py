@@ -14,7 +14,9 @@ from astropy.io import fits
 from astropy import units as u
 from scipy.interpolate import griddata
 from shot import Fibers
-from ..input_utils import setup_logging
+import imp
+
+setup_logging = imp.load_source('setup_logging', '/work/03946/hetdex/hdr1/software/HETDEX_API/input_utils.py')
 #
 #import warnings
 ## astroquery emits warning for importing SDSS, ignore that
