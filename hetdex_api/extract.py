@@ -167,11 +167,14 @@ log.info('Getting stars in astrometry catalog')
 ras = fibers.hdfile.root.Astrometry.StarCatalog.cols.ra_cat[:]
 decs = fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
 gmag = fibers.hdfile.root.Astrometry.StarCatalog.cols.g[:]
-coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
+starid = fibers.hdfile.root.Astrometry.StarCatalog.cols.star_ID[:]
+flag = fibers.hdfile.root.Astrometry.StarCatalog.cols.ignore[:]
+
+coords = SkyCoord(ras[flag<1.]*u.deg, decs[flag<1.]*u.deg, frame='fk5')
 log.info('Number of stars to extract: %i' % len(coords))
 L, M = ([], [])
 for i, coord in enumerate(coords):
-    log.info("Star g' magnitude: %0.2f" % gmag[i])
+    log.info("Star %i, g' magnitude: %0.2f" % (starid[i], gmag[i]))
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
     if result is not None:
@@ -181,5 +184,5 @@ for i, coord in enumerate(coords):
         L.append(spectrum)
         M.append(weights)
 fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
-fits.PrimaryHDU(np.vstack(M)).writeto('allweights.fits', overwrite=True)
+fits.PrimaryHDU(np.hstack(M)).writeto('allweights.fits', overwrite=True)
 
