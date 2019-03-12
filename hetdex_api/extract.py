@@ -16,7 +16,7 @@ from scipy.interpolate import griddata
 from shot import Fibers
 import imp
 
-setup_logging = imp.load_source('setup_logging', '/work/03946/hetdex/hdr1/software/HETDEX_API/input_utils.py')
+input_utils = imp.load_source('input_utils', '/work/03946/hetdex/hdr1/software/HETDEX_API/input_utils.py')
 #
 #import warnings
 ## astroquery emits warning for importing SDSS, ignore that
@@ -155,7 +155,7 @@ def write_cube(wave, xgrid, ygrid, zgrid, outname):
 wave = get_wave()
 ADRx, ADRy = get_ADR(wave)
 shotv = '20190208v024'
-log = setup_logging('extraction')
+log = input_utils.setup_logging('extraction')
 
 log.info('Getting HDF5 file')
 fibers = Fibers(shotv)
