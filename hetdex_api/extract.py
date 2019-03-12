@@ -88,7 +88,7 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
         p = np.polyfit(wchunk, A[:, i], 3)
         smooth[i, :] = np.polyval(p, wave)
     
-    return data, mask, smooth, X, Y, xloc, yloc
+    return data, np.array(mask, dtype=float), smooth, X, Y, xloc, yloc
 
     
 
