@@ -83,15 +83,25 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
     X = np.polyval(np.polyfit(wchunk, xc, 3), wave)
     Y = np.polyval(np.polyfit(wchunk, yc, 3), wave)
 
-    smooth = data * 0.
+    weights = data * 0.
     for i in np.arange(A.shape[1]):
-        p = np.polyfit(wchunk, A[:, i], 3)
-        smooth[i, :] = np.polyval(p, wave)
+        sel = ~B[:, i]
+        if sel.sum() > 4:
+            p = np.polyfit(wchunk[sel], A[:, i][sel], 3)
+            weights[i, :] = np.polyval(p, wave)
+        else:
+            weights[i, :] = 0.0
     
-    return data, np.array(mask, dtype=float), smooth, X, Y, xloc, yloc
+    return data, np.array(mask, dtype=float), weights, X, Y, xloc, yloc
 
     
-
+def get_spectrum(data, mask, weights):
+    w = np.sum(mask * weights**2, axis=0)
+    sel = w > np.median(w)*0.1
+    spectrum = (np.sum(data * mask * weights, axis=0) /
+                np.sum(mask * weights**2, axis=0))
+    spectrum[~sel] = np.nan
+    return spectrum
 
 def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
                    scale=0.25, seeing_fac=1.8, fcor=1.,
@@ -227,6 +237,8 @@ for i, coord in enumerate(coords):
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
     if result is not None:
+        spectrum = get_spectrum(result[0], result[1], result[2])
+        L.append(spectrum)
         P = []
         for j in np.arange(len(result)):
             if j == 0:
@@ -241,6 +253,6 @@ for i, coord in enumerate(coords):
 #        write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
 #        L.append(spectrum)
 #        M.append(weights)
-#fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
+fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
 #fits.PrimaryHDU(np.hstack(M)).writeto('allweights.fits', overwrite=True)
 
