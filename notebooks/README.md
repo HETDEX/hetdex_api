@@ -26,8 +26,17 @@ cd HETDEX_API
 pip install --user .
 ```
 
-5. goto https://vis.tacc.utexas.edu/ 
+5. Also install other dependent python modules
 
-6. log onto stampede2 ipython jupyter notebook (normal queue worked for me)
+```
+pip install --user tables
+pip install --user astropy
+pip install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
+pip install --user /work/03946/hetdex/hdr1/software/vdrp
+```
 
-7. cd stampede2/path_to_HETDEX_API/notebooks
+6. goto https://vis.tacc.utexas.edu/ 
+
+7. log onto stampede2 ipython jupyter notebook (normal queue worked for me)
+
+8. cd stampede2/path_to_HETDEX_API/notebooks
