@@ -72,11 +72,12 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
         if sel.sum()>4:
             grid_z = (griddata(S[sel], data[sel, k], (xgrid, ygrid),
                                method='cubic') * scale**2 / area)
-            zgrid[k, :, :] = convolve(grid_z, G, boundary='extend')
-    ml = [np.median(chunk, axis=0)
+            zgrid[k, :, :] = convolve(grid_z, G, boundary='extend',
+                                      nan_treatment='interpolate')
+    ml = [np.nanmedian(chunk, axis=0)
           for chunk in np.array_split(zgrid, 11, axis=0)]
     model = np.sum(ml, axis=0) / np.sum(ml) * fcor
-    spec = (np.sum(zgrid * model[np.newaxis, :, :], axis=(1, 2)) /
+    spec = (np.nansum(zgrid * model[np.newaxis, :, :], axis=(1, 2)) /
             np.sum(model**2))
     return spec, zgrid, model, xgrid, ygrid
 
@@ -167,7 +168,7 @@ decs = fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
 gmag = fibers.hdfile.root.Astrometry.StarCatalog.cols.g[:]
 coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
 log.info('Number of stars to extract: %i' % len(coords))
-
+L, M = ([], [])
 for i, coord in enumerate(coords):
     log.info("Star g' magnitude: %0.2f" % gmag[i])
     log.info('Extracting coordinate #%i' % (i+1))
@@ -176,3 +177,8 @@ for i, coord in enumerate(coords):
         spectrum, cube, weights, xg, yg = result
         log.info('Making cube for coordinate #%i' % (i+1))
         write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
+        L.append(spectrum)
+        M.append(weights)
+fits.PrimaryHDU(np.vstack(spectrum)).writeto('allspec.fits', overwrite=True)
+fits.PrimaryHDU(np.vstack(weights)).writeto('allweights.fits', overwrite=True)
+
