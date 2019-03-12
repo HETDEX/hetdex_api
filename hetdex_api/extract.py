@@ -164,7 +164,7 @@ fibers = Fibers(shotv)
 log.info('Getting stars in astrometry catalog')
 ras = fibers.hdfile.root.Astrometry.StarCatalog.cols.ra_cat[:]
 decs = fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
-coords = SkyCoord(ras*u.deg, decs*u.deg, frame='icrs')
+coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
 log.info('Number of stars to extract: %i' % len(coords))
 
 for i, coord in enumerate(coords):
