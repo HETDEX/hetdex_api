@@ -86,7 +86,7 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
     smooth = data * 0.
     for i in np.arange(A.shape[1]):
         p = np.polyfit(wchunk, A[:, i], 3)
-        smooth[:, i] = np.polyval(p, wave)
+        smooth[i, :] = np.polyval(p, wave)
     
     return data, mask, smooth, X, Y, xloc, yloc
 
