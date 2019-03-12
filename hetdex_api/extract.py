@@ -179,6 +179,6 @@ for i, coord in enumerate(coords):
         write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
         L.append(spectrum)
         M.append(weights)
-fits.PrimaryHDU(np.vstack(spectrum)).writeto('allspec.fits', overwrite=True)
-fits.PrimaryHDU(np.vstack(weights)).writeto('allweights.fits', overwrite=True)
+fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
+fits.PrimaryHDU(np.vstack(M)).writeto('allweights.fits', overwrite=True)
 
