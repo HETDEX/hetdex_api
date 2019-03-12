@@ -218,14 +218,15 @@ for i, coord in enumerate(coords):
     log.info("Star %i, g' magnitude: %0.2f" % (starid[i], gmag[i]))
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
-    P = []
-    for i in np.arange(len(result)):
-        if i == 0:
-            f = fits.PrimaryHDU
-        else:
-            f = fits.ImageHDU
-        P.append(f(result[i]))
-    fits.HDUList(P).writeto('test_model_%i.fits' %(i+1))
+    if result is not None:
+        P = []
+        for j in np.arange(len(result)):
+            if j == 0:
+                f = fits.PrimaryHDU
+            else:
+                f = fits.ImageHDU
+            P.append(f(result[j]))
+        fits.HDUList(P).writeto('test_model_%i.fits' %(i+1))
 #    if result is not None:
 #        spectrum, cube, weights, xg, yg = result
 #        log.info('Making cube for coordinate #%i' % (i+1))
