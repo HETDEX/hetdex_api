@@ -219,7 +219,7 @@ for i, coord in enumerate(coords):
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
     P = []
-    for i in len(result):
+    for i in np.arange(len(result)):
         if i == 0:
             f = fits.PrimaryHDU
         else:
