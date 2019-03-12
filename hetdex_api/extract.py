@@ -127,7 +127,7 @@ def do_extraction(coord, fibers, ADRx, ADRy, radius=6.):
     spec = fibers.table.read_coordinates(idx, 'calfib')
     ftf = fibers.table.read_coordinates(idx, 'fiber_to_fiber')
     mask = fibers.table.read_coordinates(idx, 'Amp2Amp')
-    mask = (mask > 1e-8) * (ftf > 0.5)
+    mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
     expn = fibers.table.read_coordinates(idx, 'expnum')
     ifux, ifuy, xc, yc = get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec,
                                            coord.ra.deg, coord.dec.deg)
