@@ -169,6 +169,7 @@ decs = fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
 gmag = fibers.hdfile.root.Astrometry.StarCatalog.cols.g[:]
 starid = fibers.hdfile.root.Astrometry.StarCatalog.cols.star_ID[:]
 flag = fibers.hdfile.root.Astrometry.StarCatalog.cols.ignore[:]
+print(flag)
 
 coords = SkyCoord(ras[flag<1.]*u.deg, decs[flag<1.]*u.deg, frame='fk5')
 log.info('Number of stars to extract: %i' % len(coords))
