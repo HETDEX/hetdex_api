@@ -69,7 +69,7 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
         S[:, 0] = xloc - Dx[k]
         S[:, 1] = yloc - Dy[k]
         sel = np.isfinite(data[:, k]) * (mask[:, k] != 0.0)
-        if np.any(sel):
+        if sel.sum()>4:
             grid_z = (griddata(S[sel], data[sel, k], (xgrid, ygrid),
                                method='cubic') * scale**2 / area)
             zgrid[k, :, :] = convolve(grid_z, G, boundary='extend')
@@ -168,6 +168,7 @@ coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
 log.info('Number of stars to extract: %i' % len(coords))
 
 for i, coord in enumerate(coords):
+    log.info(coord)
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
     if result is not None:
