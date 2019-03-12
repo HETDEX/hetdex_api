@@ -14,7 +14,7 @@ from astropy.io import fits
 from astropy import units as u
 from scipy.interpolate import griddata
 from shot import Fibers
-from ..input_utils import setup_loggin()
+from ..input_utils import setup_logging
 #
 #import warnings
 ## astroquery emits warning for importing SDSS, ignore that
