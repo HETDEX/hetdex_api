@@ -226,7 +226,7 @@ for i, coord in enumerate(coords):
             else:
                 f = fits.ImageHDU
             P.append(f(result[j]))
-        fits.HDUList(P).writeto('test_model_%i.fits' %(i+1))
+        fits.HDUList(P).writeto('test_model_%i.fits' %(i+1), overwrite=True)
 #    if result is not None:
 #        spectrum, cube, weights, xg, yg = result
 #        log.info('Making cube for coordinate #%i' % (i+1))
