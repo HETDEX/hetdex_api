@@ -19,20 +19,7 @@ from shot import Fibers
 import imp
 
 input_utils = imp.load_source('input_utils', '/work/03946/hetdex/hdr1/software/HETDEX_API/input_utils.py')
-#
-#import warnings
-## astroquery emits warning for importing SDSS, ignore that
-#with warnings.catch_warnings():
-#    warnings.simplefilter("ignore")
-#    from astroquery.sdss import SDSS
-#
-#def querySDSS(ra, dec, radius):
-#    ''' Using astroquery sdss system '''
-#    pos = SkyCoord(ra*u.deg, dec*u.deg, frame='fk5')
-#    table = SDSS.query_region(pos, radius=radius*u.deg,
-#                              photoobj_fields=['ra', 'dec', 'objid', 'type',
-#                                               'u', 'g', 'r', 'i', 'z'])
-#    return table
+
 
 def get_wave():
     ''' Return implicit wavelength solution for calfib extension '''
@@ -49,7 +36,7 @@ def get_ADR(wave, angle=0.):
     return ADRx, ADRy
 
 
-def model_source(data, mask, xloc, yloc, wave, chunks=11):
+def model_source(data, error, mask, xloc, yloc, wave, chunks=11):
     G = Gaussian2D()
     fitter = LevMarLSQFitter()
     wchunk = np.array([np.mean(chunk)
@@ -92,18 +79,22 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
         else:
             weights[i, :] = 0.0
     
-    return data, np.array(mask, dtype=float), weights, X, Y, xloc, yloc
+    return data, error, np.array(mask, dtype=float), weights, X, Y, xloc, yloc
 
     
-def get_spectrum(data, mask, weights):
+def get_spectrum(data, error, mask, weights):
     w = np.sum(mask * weights**2, axis=0)
     sel = w > np.median(w)*0.1
     spectrum = (np.sum(data * mask * weights, axis=0) /
                 np.sum(mask * weights**2, axis=0))
+    spec_error = (np.sqrt(np.sum(data**2 * mask * weights, axis=0)) /
+                  np.sum(mask * weights**2, axis=0))
     spectrum[~sel] = np.nan
-    return spectrum
+    spec_error[~sel] = np.nan
 
-def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
+    return spectrum, spec_error
+
+def make_cube(xc, yc, xloc, yloc, data, mask, Dx, Dy,
                    scale=0.25, seeing_fac=1.8, fcor=1.,
                    boxsize=4.):
     ''' Extract a single source using rectification technique '''
@@ -130,13 +121,7 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
                                method='linear') * scale**2 / area)
             zgrid[k, :, :] = convolve(grid_z, G, boundary='extend',
                                       nan_treatment='interpolate')
-    ml = [np.nanmedian(chunk, axis=0)
-          for chunk in np.array_split(zgrid, 11, axis=0)]
-    model = np.nansum(ml, axis=0) / np.nansum(ml) * fcor
-    model[~np.isfinite(model)] = 0.
-    spec = (np.nansum(zgrid * model[np.newaxis, :, :], axis=(1, 2)) /
-            np.sum(model**2))
-    return spec, zgrid, model, xgrid, ygrid
+    return zgrid, xgrid, ygrid
 
 
 def get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec, rac, decc):
@@ -174,7 +159,6 @@ def get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec, rac, decc):
 
 def do_extraction(coord, fibers, ADRx, ADRy, radius=8.):
     ''' Grab fibers and do extraction '''
-    boxsize = radius*np.sqrt(2.) * 0.9
     idx = fibers.query_region_idx(coord, radius=radius/3600.)
     fiber_lower_limit = 5
     if len(idx) < fiber_lower_limit:
@@ -191,11 +175,7 @@ def do_extraction(coord, fibers, ADRx, ADRy, radius=8.):
     expn = fibers.table.read_coordinates(idx, 'expnum')
     ifux, ifuy, xc, yc = get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec,
                                            coord.ra.deg, coord.dec.deg)
-    #exspec, zgrid, model, xg, yg = extract_source(xc, yc, ifux, ifuy, spec,
-    #                                              mask, ADRx, ADRy,
-    #                                              boxsize=boxsize)
-    #return exspec, zgrid, model, xg, yg
-    result = model_source(spec, mask, ifux, ifuy, wave, chunks=11)
+    result = model_source(spec, spece, mask, ifux, ifuy, wave, chunks=11)
     return result
 
 def write_cube(wave, xgrid, ygrid, zgrid, outname):
@@ -237,8 +217,10 @@ for i, coord in enumerate(coords):
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
     if result is not None:
-        spectrum = get_spectrum(result[0], result[1], result[2])
+        spectrum, error = get_spectrum(result[0], result[1], result[2],
+                                       result[3])
         L.append(spectrum)
+        M.append(error)
         P = []
         for j in np.arange(len(result)):
             if j == 0:
@@ -247,12 +229,7 @@ for i, coord in enumerate(coords):
                 f = fits.ImageHDU
             P.append(f(result[j]))
         fits.HDUList(P).writeto('test_model_%i.fits' %(i+1), overwrite=True)
-#    if result is not None:
-#        spectrum, cube, weights, xg, yg = result
-#        log.info('Making cube for coordinate #%i' % (i+1))
-#        write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
-#        L.append(spectrum)
-#        M.append(weights)
+
 fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
-#fits.PrimaryHDU(np.hstack(M)).writeto('allweights.fits', overwrite=True)
+fits.PrimaryHDU(np.vstack(M)).writeto('allerror.fits', overwrite=True)
 
