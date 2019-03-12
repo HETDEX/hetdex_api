@@ -11,6 +11,8 @@ import numpy as np
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.modeling.models import Gaussian2D
+from astropy.modeling.fitting import LevMarLSQFitter
 from astropy import units as u
 from scipy.interpolate import griddata
 from shot import Fibers
@@ -45,6 +47,42 @@ def get_ADR(wave, angle=0.):
     ADRx = np.cos(np.deg2rad(angle)) * ADR
     ADRy = np.sin(np.deg2rad(angle)) * ADR
     return ADRx, ADRy
+
+
+def model_source(data, mask, xloc, yloc, wave, chunks=11):
+    G = Gaussian2D()
+    fitter = LevMarLSQFitter()
+    wchunk = np.array([np.mean(chunk)
+                       for chunk in np.array_split(wave, chunks)])
+    xc, yc, xs, ys = [i * wchunk for i in [0., 0., 0., 0.]]
+
+    A = np.zeros(chunks, len(xloc))
+    B = np.zeros(chunks, len(xloc))
+    i = 0
+    for chunk, maskchunk in zip(np.array_split(data, chunks, axis=0),
+                                np.array_split(mask, chunks, axis=0)):
+        c = np.ma.array(chunk, mask=maskchunk==0.)
+        image = np.ma.median(c, axis=1)
+        y = image.data
+        ind = np.ma.argmax(image)
+        dist = np.sqrt((xloc - xloc[ind])**2 + (yloc - yloc[ind])**2)
+        inds = (dist < 3.) * (~image.mask)
+        x_centroid = np.sum(y[inds] * xloc[inds]) / np.sum(y[inds])
+        y_centroid = np.sum(y[inds] * yloc[inds]) / np.sum(y[inds])
+        G.amplitude.value = y[ind]
+        G.x_mean.value = x_centroid
+        G.y_mean.value = y_centroid
+        fit = fitter(G, xloc[inds], yloc[inds], y[inds])
+        xc[i] = fit.x_mean.value * 1.
+        yc[i] = fit.y_mean.value * 1.
+        xs[i] = fit.x_stddev.value * 1.
+        ys[i] = fit.y_stddev.value * 1.
+        A[i] = image.data / np.ma.sum(image)
+        B[i] = image.mask
+        i += 1
+    return A, B, xc, yc, xs, ys, wchunk
+
+    
 
 
 def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
@@ -128,16 +166,19 @@ def do_extraction(coord, fibers, ADRx, ADRy, radius=8.):
     ra = fibers.table.read_coordinates(idx, 'ra')
     dec = fibers.table.read_coordinates(idx, 'dec')
     spec = fibers.table.read_coordinates(idx, 'calfib')
+    spece = fibers.table.read_coordinates(idx, 'calfibe')
     ftf = fibers.table.read_coordinates(idx, 'fiber_to_fiber')
     mask = fibers.table.read_coordinates(idx, 'Amp2Amp')
     mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
     expn = fibers.table.read_coordinates(idx, 'expnum')
     ifux, ifuy, xc, yc = get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec,
                                            coord.ra.deg, coord.dec.deg)
-    exspec, zgrid, model, xg, yg = extract_source(xc, yc, ifux, ifuy, spec,
-                                                  mask, ADRx, ADRy,
-                                                  boxsize=boxsize)
-    return exspec, zgrid, model, xg, yg
+    #exspec, zgrid, model, xg, yg = extract_source(xc, yc, ifux, ifuy, spec,
+    #                                              mask, ADRx, ADRy,
+    #                                              boxsize=boxsize)
+    #return exspec, zgrid, model, xg, yg
+    result = model_source(spec, mask, ifux, ifuy, wave, chunks=11)
+    return result
 
 def write_cube(wave, xgrid, ygrid, zgrid, outname):
     hdu = fits.PrimaryHDU(np.array(zgrid, dtype='float32'))
@@ -177,12 +218,20 @@ for i, coord in enumerate(coords):
     log.info("Star %i, g' magnitude: %0.2f" % (starid[i], gmag[i]))
     log.info('Extracting coordinate #%i' % (i+1))
     result = do_extraction(coord, fibers, ADRx, ADRy)
-    if result is not None:
-        spectrum, cube, weights, xg, yg = result
-        log.info('Making cube for coordinate #%i' % (i+1))
-        write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
-        L.append(spectrum)
-        M.append(weights)
-fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
-fits.PrimaryHDU(np.hstack(M)).writeto('allweights.fits', overwrite=True)
+    P = []
+    for i in len(result):
+        if i == 0:
+            f = fits.PrimaryHDU
+        else:
+            f = fits.ImageHDU
+        P.append(f(result[i]))
+    fits.HDUList(P).writeto('test_model_%i.fits' %(i+1))
+#    if result is not None:
+#        spectrum, cube, weights, xg, yg = result
+#        log.info('Making cube for coordinate #%i' % (i+1))
+#        write_cube(wave, xg, yg, cube, 'test_cube_%i.fits' % (i+1))
+#        L.append(spectrum)
+#        M.append(weights)
+#fits.PrimaryHDU(np.vstack(L)).writeto('allspec.fits', overwrite=True)
+#fits.PrimaryHDU(np.hstack(M)).writeto('allweights.fits', overwrite=True)
 
