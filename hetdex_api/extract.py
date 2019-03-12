@@ -80,7 +80,15 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
         A[i] = image.data / np.ma.sum(image)
         B[i] = image.mask
         i += 1
-    return A, B, xc, yc, xs, ys, wchunk
+    X = np.polyval(np.polyfit(wchunk, xc, 3), wave)
+    Y = np.polyval(np.polyfit(wchunk, yc, 3), wave)
+
+    smooth = A * 0.
+    for i in np.arange(A.shape[1]):
+        p = np.polyfit(wchunk, A[:, i], 3)
+        smooth[:, i] = np.polyval(p, wave)
+    
+    return smooth, X, Y, xloc, yloc
 
     
 
@@ -109,7 +117,7 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
         sel = np.isfinite(data[:, k]) * (mask[:, k] != 0.0)
         if sel.sum()>4:
             grid_z = (griddata(S[sel], data[sel, k], (xgrid, ygrid),
-                               method='cubic') * scale**2 / area)
+                               method='linear') * scale**2 / area)
             zgrid[k, :, :] = convolve(grid_z, G, boundary='extend',
                                       nan_treatment='interpolate')
     ml = [np.nanmedian(chunk, axis=0)
@@ -156,7 +164,7 @@ def get_new_ifux_ifuy(expn, ifux, ifuy, ra, dec, rac, decc):
 
 def do_extraction(coord, fibers, ADRx, ADRy, radius=8.):
     ''' Grab fibers and do extraction '''
-    boxsize = radius*np.sqrt(2.) / 2. * 0.9
+    boxsize = radius*np.sqrt(2.) * 0.9
     idx = fibers.query_region_idx(coord, radius=radius/3600.)
     fiber_lower_limit = 5
     if len(idx) < fiber_lower_limit:
