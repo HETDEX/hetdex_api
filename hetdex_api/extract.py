@@ -59,8 +59,8 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
     A = np.zeros((chunks, len(xloc)))
     B = np.zeros((chunks, len(xloc)))
     i = 0
-    for chunk, maskchunk in zip(np.array_split(data, chunks, axis=0),
-                                np.array_split(mask, chunks, axis=0)):
+    for chunk, maskchunk in zip(np.array_split(data, chunks, axis=1),
+                                np.array_split(mask, chunks, axis=1)):
         c = np.ma.array(chunk, mask=maskchunk==0.)
         image = np.ma.median(c, axis=1)
         y = image.data
