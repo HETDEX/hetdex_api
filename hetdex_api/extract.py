@@ -87,7 +87,7 @@ def get_spectrum(data, error, mask, weights):
     sel = w > np.median(w)*0.1
     spectrum = (np.sum(data * mask * weights, axis=0) /
                 np.sum(mask * weights**2, axis=0))
-    spec_error = (np.sqrt(np.sum(data**2 * mask * weights, axis=0)) /
+    spec_error = (np.sqrt(np.sum(error**2 * mask * weights, axis=0)) /
                   np.sum(mask * weights**2, axis=0))
     spectrum[~sel] = np.nan
     spec_error[~sel] = np.nan
