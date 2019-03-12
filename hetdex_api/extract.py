@@ -77,7 +77,7 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
     ml = [np.nanmedian(chunk, axis=0)
           for chunk in np.array_split(zgrid, 11, axis=0)]
     model = np.nansum(ml, axis=0) / np.nansum(ml) * fcor
-    model[~np.isfinite[model]] = 0.
+    model[~np.isfinite(model)] = 0.
     spec = (np.nansum(zgrid * model[np.newaxis, :, :], axis=(1, 2)) /
             np.sum(model**2))
     return spec, zgrid, model, xgrid, ygrid
