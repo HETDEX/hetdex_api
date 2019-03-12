@@ -85,7 +85,7 @@ def model_source(data, mask, xloc, yloc, wave, chunks=11):
 
     weights = data * 0.
     for i in np.arange(A.shape[1]):
-        sel = ~B[:, i]
+        sel = B[:, i] < 1
         if sel.sum() > 4:
             p = np.polyfit(wchunk[sel], A[:, i][sel], 3)
             weights[i, :] = np.polyval(p, wave)
