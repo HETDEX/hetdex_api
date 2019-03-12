@@ -54,9 +54,9 @@ def extract_source(xc, yc, xloc, yloc, data, mask, Dx, Dy,
     seeing = seeing_fac / scale
     a, b = data.shape
     xl = xc - boxsize / 2.
-    xh = xc - boxsize / 2. + scale
+    xh = xc + boxsize / 2. + scale
     yl = yc - boxsize / 2.
-    yh = yc - boxsize / 2. + scale
+    yh = yc + boxsize / 2. + scale
     x = np.arange(xl, xh, scale)
     y = np.arange(yl, yh, scale)
     xgrid, ygrid = np.meshgrid(x, y)
