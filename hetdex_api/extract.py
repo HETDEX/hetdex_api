@@ -13,7 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.modeling.models import Moffat2D
 from astropy import units as u
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, interp2d
 from shot import Fibers
 import imp
 
@@ -201,7 +201,6 @@ class Extract:
         zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
 
         return zarray
-        
 
     def model_psf(self, gmag_limit=21., radius=8., pixscale=0.25,
                   boundary=[-21., 21., -21., 21.]):
@@ -333,12 +332,66 @@ class Extract:
         big_array = np.array([image, xgrid-xc, ygrid-yc])
         return big_array
 
-    def characterize_psf(self, psf):
-        pass
+    def get_psf_curve_of_growth(self, psf):
+        '''
+        Analyse the curve of growth for an input psf
+        
+        Parameters
+        ----------
+        psf: numpy 3d array
+            zeroth dimension: psf image, xgrid, ygrid
+        
+        Returns
+        -------
+        r: numpy array
+            radius in arcseconds
+        cog: numpy array
+            curve of growth for psf
+        '''
+        r = np.sqrt(psf[1]**2 + psf[2]**2).ravel()
+        inds = np.argsort(r)
+        maxr = psf[1].max()
+        sel = r[inds] <= maxr
+        cog = (np.cumsum(psf[0].ravel()[inds][sel]) /
+               np.sum(psf[0].ravel()[inds][sel]))
+        return r, cog
+    
+    def build_weights(self, xc, yc, ifux, ifuy, psf):
+        '''
+        Build weight matrix for spectral extraction
+        
+        Parameters
+        ----------
+        xc: float
+            The ifu x-coordinate for the center of the collapse frame
+        yc: float 
+            The ifu y-coordinate for the center of the collapse frame
+        xloc: numpy array
+            The ifu x-coordinate for each fiber
+        yloc: numpy array
+            The ifu y-coordinate for each fiber
+        psf: numpy 3d array
+            zeroth dimension: psf image, xgrid, ygrid
+        
+        Returns
+        -------
+        weights: numpy 2d array (len of fibers by wavelength dimension)
+            Weights for each fiber as function of wavelength for extraction
+        '''
+        S = np.zeros((len(ifux), 2))
+        I = interp2d(psf[1].ravel(), psf[2].ravel(), psf[3].ravel(),
+                     bounds_error=False, fill_value=0.0, kind='linear')
+        weights = np.zeros((len(ifux), len(self.wave)))
+        for i in np.arange(len(self.wave)):
+            S[:, 0] = ifux - self.ADRx[i]
+            S[:, 1] = ifuy - self.ADRy[i]
+            weights[:, i] = I(S[:, 0], S[:, 1])
+
+        return weights
 
     def get_spectrum(self, data, error, mask, weights):
         '''
-        Optimal weighted spectral extraction
+        Weighted spectral extraction
         
         Parameters
         ----------
@@ -359,13 +412,14 @@ class Extract:
         spectrum_error: numpy 1d array
             Error for the flux calibrated extracted spectrum
         '''
-        w = np.sum(mask * weights**2, axis=0)
-        sel = w > np.median(w)*0.1
         spectrum = (np.sum(data * mask * weights, axis=0) /
                     np.sum(mask * weights**2, axis=0))
         spectrum_error = (np.sqrt(np.sum(error**2 * mask * weights, axis=0)) /
                           np.sum(mask * weights**2, axis=0))
-        spectrum[~sel] = np.nan
-        spectrum_error[~sel] = np.nan
+        # Only use wavelengths with enough weight to avoid large noise spikes
+        w = np.sum(mask * weights**2, axis=0)
+        sel = w < np.median(w)*0.1
+        spectrum[sel] = np.nan
+        spectrum_error[sel] = np.nan
         
         return spectrum, spectrum_error
