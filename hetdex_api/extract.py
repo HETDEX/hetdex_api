@@ -383,7 +383,7 @@ class Extract:
             Weights for each fiber as function of wavelength for extraction
         '''
         S = np.zeros((len(ifux), 2))
-        I = interp2d(psf[1].ravel(), psf[2].ravel(), psf[3].ravel(),
+        I = interp2d(psf[0].ravel(), psf[1].ravel(), psf[2].ravel(),
                      bounds_error=False, fill_value=0.0, kind='linear')
         weights = np.zeros((len(ifux), len(self.wave)))
         for i in np.arange(len(self.wave)):
