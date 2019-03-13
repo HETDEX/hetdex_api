@@ -256,6 +256,7 @@ class Extract:
             self.log.warning('Using default moffat PSF with 1.8" seeing')
             return self.moffat_psf(1.8, boxsize, pixscale)
         
+        self.log.warning('%i suitable stars for PSF' % len(psf_list))
         C = np.array(psf_list)
         avg_psf_image = np.median(C[:, 0, :, :], axis=0)
         zarray = np.array([avg_psf_image, C[0, 1], C[0, 2]])
