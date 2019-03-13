@@ -199,7 +199,7 @@ class Extract:
         x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
         xgrid, ygrid = np.meshgrid(x, y)
         zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
-
+        zarray[0] /= zarray[0].sum()
         return zarray
 
     def model_psf(self, gmag_limit=21., radius=8., pixscale=0.25,
