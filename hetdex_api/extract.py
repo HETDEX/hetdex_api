@@ -236,7 +236,9 @@ class Extract:
                 self.log.info('PSF model StarID: %i too faint: %0.2f' %
                               (starid[i], gmag[i]))
                 continue
-            result = self.get_fiberinfo_for_coord(coord, radius=10.)
+            result = self.get_fiberinfo_for_coord(coord, radius=radius)
+            if result is None:
+                continue
             xc, yc = [np.mean(x) for x in [result[0], result[1]]]
             in_bounds = ((xc > boundary[0]) * (xc < boundary[1]) *
                          (yc > boundary[2]) * (yc < boundary[3]))
