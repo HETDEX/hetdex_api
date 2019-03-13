@@ -322,6 +322,7 @@ class Extract:
                                 np.array_split(mask[:, sel], nchunks, axis=1)):
             marray = np.ma.array(chunk, mask=mchunk<1e-8)
             image = np.ma.median(marray, axis=1)
+            image = image / np.ma.sum(image)
             S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
             S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
             cnt += 1
