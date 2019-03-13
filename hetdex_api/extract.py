@@ -358,7 +358,7 @@ class Extract:
         sel = r[inds] <= maxr
         cog = (np.cumsum(psf[0].ravel()[inds][sel]) /
                np.sum(psf[0].ravel()[inds][sel]))
-        return r, cog
+        return r[inds][sel], cog
     
     def build_weights(self, xc, yc, ifux, ifuy, psf):
         '''
