@@ -13,7 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.modeling.models import Moffat2D
 from astropy import units as u
-from scipy.interpolate import griddata, interp2d
+from scipy.interpolate import griddata, LinearNDInterpolator
 from shot import Fibers
 import imp
 
@@ -383,8 +383,9 @@ class Extract:
             Weights for each fiber as function of wavelength for extraction
         '''
         S = np.zeros((len(ifux), 2))
-        I = interp2d(psf[0].ravel(), psf[1].ravel(), psf[2].ravel(),
-                     bounds_error=False, fill_value=0.0, kind='linear')
+        T = np.array([psf[0].ravel(), psf[1].ravel()]).swapaxes(0, 1)
+        I = LinearNDInterpolator(T, psf[2].ravel(),
+                                 fill_value=0.0)
         weights = np.zeros((len(ifux), len(self.wave)))
         for i in np.arange(len(self.wave)):
             S[:, 0] = ifux - self.ADRx[i]
