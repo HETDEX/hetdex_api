@@ -118,7 +118,7 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
     detectfile = build_mcres_path(detect_path, date, obs, det)
     datevobs_det = str(date) + 'v' + str(obs).zfill(3) + '_' + str(det)
     datevobs = str(date) + 'v' + str(obs).zfill(3)
-    print detectfile
+    
     if op.exists(detectfile) and op.getsize(detectfile) > 0:
         if "***" in open(detectfile).read():
             print("Found bad values in " + detectfile + '; not ingesting')
@@ -208,8 +208,8 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
                                        datafiber['col17'][ifiber],
                                        datafiber['col18'][ifiber]]                
                     rowfiber.append()
-                    row.append()
-                    detectidx += 1
+            row.append()
+            detectidx += 1
     else:
         print('File missing, did not ingest')
 
