@@ -146,11 +146,21 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
                     fib['dec'] = T['col2'][loci]
                     fib['fpx'] = T['col6'][loci]
                     fib['fpy'] = T['col7'][loci]
+                else:
+                    fib['ra'] = np.nan
+                    fib['dec'] = np.nan
+                    fib['fpx'] = np.nan
+                    fib['fpy'] = np.nan
             else:
                 fib['ra'] = np.nan
                 fib['dec'] = np.nan
                 fib['fpx'] = np.nan
                 fib['fpy'] = np.nan
+        else:
+            fib['ra'] = np.nan
+            fib['dec'] = np.nan
+            fib['fpx'] = np.nan
+            fib['fpy'] = np.nan
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
         for att in attr:
