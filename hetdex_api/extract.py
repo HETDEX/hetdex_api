@@ -242,7 +242,7 @@ class Extract:
                          (yc > boundary[2]) * (yc < boundary[3]))
             if not in_bounds:
                 self.log.info('PSF model StarID: %i on edge: %0.2f, %0.2f' %
-                              (xc, yc))
+                              (starid[i], xc, yc))
                 continue
             psfi = self.make_collapsed_image(xc, yc, result[0], result[1],
                                              result[4], result[6],
