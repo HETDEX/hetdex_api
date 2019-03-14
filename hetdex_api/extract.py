@@ -391,7 +391,7 @@ class Extract:
         for i in np.arange(len(self.wave)):
             S[:, 0] = ifux - self.ADRx[i] - xc
             S[:, 1] = ifuy - self.ADRy[i] - yc
-            weights[:, i] = I(S)
+            weights[:, i] = I(S[:, 0], S[:, 1])
 
         return weights
 
