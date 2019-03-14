@@ -213,8 +213,6 @@ class Extract:
             Size of image on a side for Moffat profile
         scale: float
             Pixel scale for image
-        alpha: float
-            Power index in Moffat profile function
         
         Returns
         -------
@@ -438,6 +436,11 @@ class Extract:
             A small wavelength may only need one chunk
         convolve_image: bool
             If true, the collapsed frame is smoothed at the seeing_fac scale
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
         '''
         a, b = data.shape
         xl, xh = (xc - boxsize / 2., xc + boxsize / 2. + scale)
@@ -471,8 +474,8 @@ class Extract:
                 grid_z = convolve(grid_z, G)
             image_list.append(grid_z)
         image = np.median(image_list, axis=0)
-        big_array = np.array([image, xgrid-xc, ygrid-yc])
-        return big_array
+        zarray = np.array([image, xgrid-xc, ygrid-yc])
+        return zarray
 
     def get_psf_curve_of_growth(self, psf):
         '''
