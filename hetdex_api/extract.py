@@ -385,13 +385,12 @@ class Extract:
         '''
         S = np.zeros((len(ifux), 2))
         T = np.array([psf[0].ravel(), psf[1].ravel()]).swapaxes(0, 1)
-        I = LinearNDInterpolator(T, psf[2].ravel(),
-                                 fill_value=0.0)
         weights = np.zeros((len(ifux), len(self.wave)))
         for i in np.arange(len(self.wave)):
             S[:, 0] = ifux - self.ADRx[i]
             S[:, 1] = ifuy - self.ADRy[i]
-            weights[:, i] = I(S[:, 0], S[:, 1])
+            weights[:, i] = griddata(T, psf[2].ravel(), S, method='linear',
+                                     fill_value = 0.0)
 
         return weights
 
