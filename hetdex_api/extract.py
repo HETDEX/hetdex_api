@@ -233,7 +233,7 @@ class Extract:
             xr.append(np.cos(t) * ri)
             yr.append(np.sin(t) * ri)
             zr.append(self.intersection_area(ri, radius, fibradius) *
-                      np.ones(t.shape))
+                      np.ones(t.shape) / (np.pi * fibradius**2))
         xr, yr, zr = [np.hstack(var) for var in [xr, yr, zr]]
         psf = griddata(np.array([xr, yr]).swapaxes(0,1), zr, (xgrid, ygrid),
                        method='linear')
