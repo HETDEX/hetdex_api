@@ -11,7 +11,7 @@ import numpy as np
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.modeling.models import Moffat2D
+from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
 from shot import Fibers
@@ -171,6 +171,34 @@ class Extract:
         coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
         return coords, gmag, starid
 
+    def intersection_area(self, d, R, r):
+        """
+        Return the area of intersection of two circles.
+        The circles have radii R and r, and their centers are separated by d.
+    
+        Parameters
+        ----------
+        d : float
+            separation of the two circles
+        R : float
+            Radius of the first circle
+        r : float
+            Radius of the second circle
+        """
+    
+        if d <= abs(R-r):
+            # One circle is entirely enclosed in the other.
+            return np.pi * min(R, r)**2
+        if d >= r + R:
+            # The circles don't overlap at all.
+            return 0
+    
+        r2, R2, d2 = r**2, R**2, d**2
+        alpha = np.arccos((d2 + r2 - R2) / (2*d*r))
+        beta = np.arccos((d2 + R2 - r2) / (2*d*R))
+        answer = (r2 * alpha + R2 * beta -
+                  0.5 * (r2 * np.sin(2*alpha) + R2 * np.sin(2*beta)))
+        return answer
 
     def tophat_psf(self, radius, boxsize, scale, fibradius=0.75):
         '''
@@ -198,16 +226,84 @@ class Extract:
         x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
         xgrid, ygrid = np.meshgrid(x, y)
         t = np.linspace(0., np.pi * 2., 360)
-        xr = np.hstack([np.cos(t) * (radius-fibradius), np.cos(t) * (radius),
-                        np.cos(t) * (radius+fibradius)])
-        yr = np.hstack([np.sin(t) * (radius-fibradius), np.sin(t) * (radius),
-                        np.sin(t) * (radius+fibradius)])
-        z = np.hstack([np.ones(t.shape), 0.5 * np.ones(t.shape),
-                       0.0 * np.ones(t.shape)])
-        psf = griddata(np.array([xr, yr]).swapaxes(0,1), z, (xgrid, ygrid),
+        r = np.arange(radius - fibradius, radius + fibradius * 7./6.,
+                      1. / 6. * fibradius)
+        xr, yr, zr = ([], [], [])
+        for i, ri in enumerate(r):
+            xr.append(np.cos(t) * ri)
+            yr.append(np.sin(t) * ri)
+            zr.append(self.intersection_area(ri, radius, fibradius))
+        xr, yr, zr = [np.hstack(var) for var in [xr, yr, zr]]
+        psf = griddata(np.array([xr, yr]).swapaxes(0,1), zr, (xgrid, ygrid),
                        method='linear')
         psf[np.isnan(psf)]=0.
         zarray = np.array([psf, xgrid, ygrid])
+        zarray[0] /= zarray[0].sum()
+        return zarray
+
+    def gaussian_psf(self, xstd, ystd, theta, boxsize, scale):
+        '''
+        Gaussian PSF profile image 
+        
+        Parameters
+        ----------
+        xstd: float
+            Standard deviation of the Gaussian in x before rotating by theta
+        ystd: float
+            Standard deviation of the Gaussian in y before rotating by theta
+        theta: float
+            Rotation angle in radians.
+            The rotation angle increases counterclockwise
+        boxsize: float
+            Size of image on a side for Moffat profile
+        scale: float
+            Pixel scale for image
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        '''
+        M = Gaussian2D()
+        M.x_stddev.value = xstd
+        M.y_stddev.value = ystd
+        M.theta.value = theta
+        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        xgrid, ygrid = np.meshgrid(x, y)
+        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
+        zarray[0] /= zarray[0].sum()
+        return zarray
+
+    def moffat_psf(self, seeing, boxsize, scale, alpha=3.5):
+        '''
+        Moffat PSF profile image
+        
+        Parameters
+        ----------
+        seeing: float
+            FWHM of the Moffat profile
+        boxsize: float
+            Size of image on a side for Moffat profile
+        scale: float
+            Pixel scale for image
+        alpha: float
+            Power index in Moffat profile function
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        '''
+        M = Moffat2D()
+        M.alpha.value = alpha
+        M.gamma.value = 0.5 * seeing / np.sqrt(2**(1./ M.alpha.value) - 1.)
+        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        xgrid, ygrid = np.meshgrid(x, y)
+        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
         zarray[0] /= zarray[0].sum()
         return zarray
 
