@@ -171,6 +171,46 @@ class Extract:
         coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
         return coords, gmag, starid
 
+
+    def tophat_psf(self, radius, boxsize, scale, fibradius=0.75):
+        '''
+        Tophat PSF profile image 
+        (taking fiber overlap with fixed radius into account)
+        
+        Parameters
+        ----------
+        radius: float
+            Radius of the tophat PSF
+        boxsize: float
+            Size of image on a side for Moffat profile
+        scale: float
+            Pixel scale for image
+        alpha: float
+            Power index in Moffat profile function
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        '''
+        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        xgrid, ygrid = np.meshgrid(x, y)
+        t = np.linspace(0., np.pi * 2., 360)
+        xr = np.hstack([np.cos(t) * (radius-fibradius), np.cos(t) * (radius),
+                        np.cos(t) * (radius+fibradius)])
+        yr = np.hstack([np.sin(t) * (radius-fibradius), np.sin(t) * (radius),
+                        np.sin(t) * (radius+fibradius)])
+        z = np.hstack([np.ones(t.shape), 0.5 * np.ones(t.shape),
+                       0.0 * np.ones(t.shape)])
+        psf = griddata(np.array([xr, yr]).swapaxes(0,1), z, (xgrid, ygrid),
+                       method='linear')
+        psf[np.isnan(psf)]=0.
+        zarray = np.array([psf, xgrid, ygrid])
+        zarray[0] /= zarray[0].sum()
+        return zarray
+
     def moffat_psf(self, seeing, boxsize, scale, alpha=3.5):
         '''
         Moffat PSF profile image
