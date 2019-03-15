@@ -33,7 +33,7 @@ def get_files(args):
 class VIRUSFiber(tb.IsDescription):
     obsind = tb.Int32Col()
     multiframe = tb.StringCol((20), pos=0)
-    fibnum = tb.Int32Col()
+    fibidx = tb.Int32Col()
     ifux = tb.Float32Col()
     ifuy = tb.Float32Col()
     fpx = tb.Float32Col()
@@ -136,21 +136,31 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         loc = np.where(sel * sel1)[0]
     for i in np.arange(n):
         fib['obsind'] = cnt
-        fib['fibnum'] = i
+        fib['fibidx'] = i
         fib['multiframe'] = multiframe
         if T is not None:
-            loci = loc + i
             if len(loc):
+                loci = loc[0] + i
                 if isinstance(T['col1'][loci], float):
                     fib['ra'] = T['col1'][loci]
                     fib['dec'] = T['col2'][loci]
                     fib['fpx'] = T['col6'][loci]
                     fib['fpy'] = T['col7'][loci]
+                else:
+                    fib['ra'] = np.nan
+                    fib['dec'] = np.nan
+                    fib['fpx'] = np.nan
+                    fib['fpy'] = np.nan
             else:
-                fib['ra'] = -999.0
-                fib['dec'] = -999.0
-                fib['fpx'] = -999.0
-                fib['fpy'] = -999.0
+                fib['ra'] = np.nan
+                fib['dec'] = np.nan
+                fib['fpx'] = np.nan
+                fib['fpy'] = np.nan
+        else:
+            fib['ra'] = np.nan
+            fib['dec'] = np.nan
+            fib['fpx'] = np.nan
+            fib['fpy'] = np.nan
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
         for att in attr:
@@ -256,7 +266,6 @@ def main(argv=None):
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.ra.create_csindex()
     fibtable.cols.multiframe.create_csindex()
     imagetable.cols.multiframe.create_csindex()
     fibtable.flush()

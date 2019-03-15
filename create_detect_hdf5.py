@@ -19,8 +19,10 @@ import subprocess
 import numpy as np
 import tables as tb
 
+from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from astropy.io import fits
+import astropy.units as u
 from input_utils import setup_logging
 
 
@@ -38,13 +40,19 @@ def build_fiberinfo_path(path_detects, date, obsid, detectID):
     info_str = str(date) + 'v' + str(obsid).zfill(3) + '_' + str(detectID) + '.info'
     return op.join(path_detects, info_str)
 
+def emission_line_to_IAU_string(coord, lambda_in_A):
+        """
+        convert ra,dec coordinates in the form of a astropy.skycoord object 
+        and a float wavelength in Angstroms to a IAU-style object name.
+        """
+        return 'HETDEX J{0}{1}w{2}'.format(coord.ra.to_string(unit=u.hourangle, sep='', precision=2, pad=True), coord.dec.to_string(sep='', precision=2, alwayssign=True, pad=True), '%+4.2f'%lambda_in_A)
 
 class Detections(tb.IsDescription):
-    shotid = tb.Int64Col(pos=2)
+    shotid = tb.Int64Col()
     date = tb.Int32Col(pos=3)
     obsid = tb.Int32Col(pos=4)
     detectid = tb.Int64Col(pos=0) 
-    detectname = tb.StringCol((20))  
+    detectname = tb.StringCol((40), pos=1)  
     ra = tb.Float32Col(pos=5)
     dec = tb.Float32Col(pos=6)
     wave = tb.Float32Col(pos=7)
@@ -110,95 +118,101 @@ def append_detection(detectidx, date, obs, det, detect_path, tableMain,
     detectfile = build_mcres_path(detect_path, date, obs, det)
     datevobs_det = str(date) + 'v' + str(obs).zfill(3) + '_' + str(det)
     datevobs = str(date) + 'v' + str(obs).zfill(3)
-    if op.exists(detectfile):
-        
-        row = tableMain.row
-        
-        detectcat = ascii.read(detectfile, delimiter=' ')
+    
+    if op.exists(detectfile) and op.getsize(detectfile) > 0:
+        if "***" in open(detectfile).read():
+            print("Found bad values in " + detectfile + '; not ingesting')
+        else:            
+            row = tableMain.row
+            detectcat = ascii.read(detectfile, delimiter=' ')
+            row['detectid'] = detectidx
+            p = re.compile('v')
+            row['shotid'] = p.sub('', datevobs)
+            row['date'] = date
+            row['obsid'] = obs
+            row['inputid'] = datevobs_det
+            row['ra'] = detectcat['col1']
+            row['dec'] = detectcat['col2']
+            row['wave'] = detectcat['col3']
+            row['wave_err'] = detectcat['col4']
+            coord = SkyCoord(row['ra'] * u.degree,row['dec'] * u.degree, frame='icrs')
+            row['detectname'] = emission_line_to_IAU_string(coord, row['wave'])
+            row['flux'] = detectcat['col5']
+            row['flux_err'] = detectcat['col6']
+            row['linewidth'] = detectcat['col7']
+            row['linewidth_err'] = detectcat['col8']
+            row['continuum'] = detectcat['col9']
+            row['continuum_err'] = detectcat['col10']
+            row['sn'] = detectcat['col11']
+            row['sn_err'] = detectcat['col12']
+            row['chi2'] = detectcat['col13']
+            row['chi2_err'] = detectcat['col14']
+            row['x_raw'] = detectcat['col17']
+            row['y_raw'] = detectcat['col18']
+            row['fibnum'] = detectcat['col19']
+            filemulti = detectcat['col20'][0]
+            idx = filemulti.find('multi')
+            multiframe = filemulti[idx:idx+20]
+            row['multiframe'] = multiframe
+            row['specid'] = multiframe[6:9]
+            row['ifuslot'] = multiframe[10:13]
+            row['ifuid'] = multiframe[14:17]
+            row['amp'] = multiframe[18:20]
 
-        row['detectid'] = detectidx
-        p = re.compile('v')
-        row['shotid'] = p.sub('', datevobs)
-        row['date'] = date
-        row['obsid'] = obs
-        row['inputid'] = datevobs_det
-        row['ra'] = detectcat['col1']
-        row['dec'] = detectcat['col2']
-        row['wave'] = detectcat['col3']
-        row['wave_err'] = detectcat['col4']
-        row['flux'] = detectcat['col5']
-        row['flux_err'] = detectcat['col6']
-        row['linewidth'] = detectcat['col7']
-        row['linewidth_err'] = detectcat['col8']
-        row['continuum'] = detectcat['col9']
-        row['continuum_err'] = detectcat['col10']
-        row['sn'] = detectcat['col11']
-        row['sn_err'] = detectcat['col12']
-        row['chi2'] = detectcat['col13']
-        row['chi2_err'] = detectcat['col14']
-        row['x_raw'] = detectcat['col17']
-        row['y_raw'] = detectcat['col18']
-        row['fibnum'] = detectcat['col19']
-        filemulti = detectcat['col20'][0]
-        idx = filemulti.find('multi')
-        multiframe = filemulti[idx:idx+20]
-        row['multiframe'] = multiframe
-        row['specid'] = multiframe[6:9]
-        row['ifuslot'] = multiframe[10:13]
-        row['ifuid'] = multiframe[14:17]
-        row['amp'] = multiframe[18:20]
+            # now populate table with 1D spectra, queried by detectid
+            filespec = build_spec_path(detect_path, date, obs, det)
+            if op.exists(filespec):
+                rowspectra = tableSpectra.row
+                dataspec = ascii.read(filespec)
+                rowspectra['detectid'] = detectidx
+                rowspectra['wave1d'] = dataspec['col1']
+                rowspectra['spec1d'] = dataspec['col2']
+                rowspectra['spec1d_err'] = dataspec['col3']
+                rowspectra['counts1d'] = dataspec['col4']
+                rowspectra['counts1d_err'] = dataspec['col5']
+                rowspectra['apsum_counts'] = dataspec['col6']
+                rowspectra['apsum_counts_err'] = dataspec['col7']
+                rowspectra.append()
+                
+                # now populate fiber table with additional info
+                filefiberinfo = build_fiberinfo_path(detect_path, date, obs, det)
+                if op.exists(filefiberinfo):
+                    datafiber = ascii.read(filefiberinfo, format='no_header', delimiter=' ')
+            
+                for ifiber in np.arange(np.size(datafiber)):
+                    rowfiber = tableFibers.row
+                    rowfiber['detectid'] = detectidx
+                    rowfiber['ra'] = datafiber['col1'][ifiber]
+                    rowfiber['dec'] = datafiber['col2'][ifiber]
+                    rowfiber['x_ifu'] = datafiber['col3'][ifiber]
+                    rowfiber['y_ifu'] = datafiber['col4'][ifiber]
+                    multiname = datafiber['col5'][ifiber]
+                    multiframe = multiname[0:20]
+                    rowfiber['multiframe'] = multiframe
+                    rowfiber['specid'] = multiframe[6:9]
+                    rowfiber['ifuslot'] = multiframe[10:13]
+                    rowfiber['ifuid'] = multiframe[14:17]
+                    rowfiber['amp'] = multiframe[18:20]
+                    rowfiber['fibnum'] = int(multiname[21:24])
+                    rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
+                    rowfiber['distance'] = datafiber['col7'][ifiber]
+                    rowfiber['wavein'] = datafiber['col8'][ifiber]
+                    rowfiber['timestamp'] = datafiber['col9'][ifiber]
+                    rowfiber['date'] = datafiber['col10'][ifiber]
+                    rowfiber['obsid'] = str(datafiber['col11'][ifiber])[0:3]
+                    rowfiber['flag'] = datafiber['col12'][ifiber]
+                    rowfiber['weight'] = datafiber['col13'][ifiber]
+                    rowfiber['ADC'] = [datafiber['col14'][ifiber],
+                                       datafiber['col15'][ifiber],
+                                       datafiber['col16'][ifiber],
+                                       datafiber['col17'][ifiber],
+                                       datafiber['col18'][ifiber]]                
+                    rowfiber.append()
+            row.append()
+            detectidx += 1
+    else:
+        print('File missing, did not ingest')
 
-        # now populate table with 1D spectra, queried by detectid
-        filespec = build_spec_path(detect_path, date, obs, det)
-        if op.exists(filespec):
-            rowspectra = tableSpectra.row
-            dataspec = ascii.read(filespec)
-            rowspectra['detectid'] = detectidx
-            rowspectra['wave1d'] = dataspec['col1']
-            rowspectra['spec1d'] = dataspec['col2']
-            rowspectra['spec1d_err'] = dataspec['col3']
-            rowspectra['counts1d'] = dataspec['col4']
-            rowspectra['counts1d_err'] = dataspec['col5']
-            rowspectra['apsum_counts'] = dataspec['col6']
-            rowspectra['apsum_counts_err'] = dataspec['col7']
-            rowspectra.append()
-
-        # now populate fiber table with additional info
-        filefiberinfo = build_fiberinfo_path(detect_path, date, obs, det)
-        if op.exists(filefiberinfo):
-            datafiber = ascii.read(filefiberinfo, format='no_header', delimiter=' ')
-
-            for ifiber in np.arange(np.size(datafiber)):
-                rowfiber = tableFibers.row
-                rowfiber['detectid'] = detectidx
-                rowfiber['ra'] = datafiber['col1'][ifiber]
-                rowfiber['dec'] = datafiber['col2'][ifiber]
-                rowfiber['x_ifu'] = datafiber['col3'][ifiber]
-                rowfiber['y_ifu'] = datafiber['col4'][ifiber]
-                multiname = datafiber['col5'][ifiber]
-                multiframe = multiname[0:20]
-                rowfiber['multiframe'] = multiframe
-                rowfiber['specid'] = multiframe[6:9]
-                rowfiber['ifuslot'] = multiframe[10:13]
-                rowfiber['ifuid'] = multiframe[14:17]
-                rowfiber['amp'] = multiframe[18:20]
-                rowfiber['fibnum'] = int(multiname[21:24])
-                rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
-                rowfiber['distance'] = datafiber['col7'][ifiber]
-                rowfiber['wavein'] = datafiber['col8'][ifiber]
-                rowfiber['timestamp'] = datafiber['col9'][ifiber]
-                rowfiber['date'] = datafiber['col10'][ifiber]
-                rowfiber['obsid'] = str(datafiber['col11'][ifiber])[0:3]
-                rowfiber['flag'] = datafiber['col12'][ifiber]
-                rowfiber['weight'] = datafiber['col13'][ifiber]
-                rowfiber['ADC'] = [datafiber['col14'][ifiber],
-                                   datafiber['col15'][ifiber],
-                                   datafiber['col16'][ifiber],
-                                   datafiber['col17'][ifiber],
-                                   datafiber['col18'][ifiber]]                
-                rowfiber.append()
-        row.append()
-        detectidx += 1
     return detectidx
 
 def main(argv=None):
@@ -233,7 +247,7 @@ def main(argv=None):
     
     parser.add_argument("-dp", "--detect_path",
                         help='''Path to detections''',
-                        type=str, default='/tmp/HETDEX')
+                        type=str, default='/scratch/05350/ecooper/detects/')
 
 
     args = parser.parse_args(argv)
@@ -261,7 +275,7 @@ def main(argv=None):
     tableFibers = fileh.root.Fibers
     tableSpectra = fileh.root.Spectra
 
-    if op.exists(args.dets):
+    if args.dets:
         f = open(args.dets,"r")
         print args.dets
         for line in f:
@@ -290,11 +304,18 @@ def main(argv=None):
     tableSpectra.flush()
 
     #create completely sorted index on the detectid to make queries against that column much faster
-    tableFibers.cols.detectid.create_csindex()
-    tableSpectra.cols.detectid.create_csindex()
-    tableFibers.flush() #just to be safe
-    tableSpectra.flush()
-                         
+    if (args.append):        
+        tableFibers.cols.detectid.reindex()
+        tableSpectra.cols.detectid.reindex()
+        tableFibers.flush() #just to be safe
+        tableSpectra.flush()
+    else:
+        tableFibers.cols.detectid.create_csindex()
+        tableSpectra.cols.detectid.create_csindex()
+        tableFibers.flush() #just to be safe                                                            
+        tableSpectra.flush()
+
+                 
     fileh.close()
 
 if __name__ == '__main__':
