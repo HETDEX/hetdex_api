@@ -1,7 +1,8 @@
 #
 #
 # Generate the HDF5 sensitivity cubes from
-# the flux limit FITs files
+# the flux limit FITs files. Also compute
+# the averages across a shot
 #
 # Daniel Farrow (MPE)
 #
