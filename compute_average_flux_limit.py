@@ -15,7 +15,6 @@ from __future__ import print_function
 import re
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
 from astropy.io.fits import getdata
 from astropy.stats import biweight_location, biweight_midvariance
 from astropy.table import Table
@@ -41,6 +40,9 @@ biwt_vars = []
 dateshot = []
 ifu = []
 flims_all = []
+
+if opts.hist:
+    import matplotlib.pyplot as plt
 
 for fn in opts.files:
      
@@ -78,15 +80,14 @@ for fn in opts.files:
         ifu.append(m.group(2))
         dateshot.append(m.group(1))
 
-
-n, b, p = plt.hist(flims_all, bins=bins, histtype='step')
-peak = bcens[np.argmax(n)]
-
 if opts.fn_shot_average:
     with open(opts.fn_shot_average, 'a') as fn:
-        fn.write("{:s} {:e} {:e}\n".format(dateshot[0], biweight_location(flims_all), peak))
+        fn.write("{:s} {:e} \n".format(dateshot[0], biweight_location(flims_all)))
 
 if opts.hist_all:
+    n, b, p = plt.hist(flims_all, bins=bins, histtype='step')
+    peak = bcens[np.argmax(n)]
+
     plt.axvline(biweight_location(flims_all), linestyle="--", color=p[0].get_edgecolor()) 
     plt.axvline(peak, linestyle=":", color=p[0].get_edgecolor())
 
