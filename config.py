@@ -15,8 +15,7 @@ tp_dir = op.join(red_dir, 'throughput')
 calib_dir = op.join(hdr_dir, 'calib')
 raw_dir = op.join(hdr_dir, 'raw')
 
-path_gpinfo = '/work/03030/grnagara/maverick/getgp2/MasterFWHM.txt'
-#path_gpinfo = op.join(calib_dir,'MasterFWHM.txt')
+path_gpinfo = op.join(calib_dir,'MasterFWHM.txt')
 path_acc_flags = op.join(red_dir, 'status_summary_hdr1.txt')
 path_radec = op.join(calib_dir, 'radec.all')
 
