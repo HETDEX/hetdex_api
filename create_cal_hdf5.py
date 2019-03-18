@@ -26,6 +26,7 @@ import argparse as ap
 import numpy as np
 import tables as tb
 
+import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
 from input_utils import setup_logging
@@ -57,7 +58,7 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/work/00115/gebhardt/maverick/detect/tp/')
+                        default='/work/03946/hetdex/hdr1/reduction/throughput')
 
     parser.add_argument("-am", "--ampdir",
                         help='''Directory for Amp to Amp''',
@@ -69,7 +70,7 @@ def main(argv=None):
                         file.''', default=None)
 
     parser.add_argument('-a', '--append',
-                        help='''Appending to existing file.''',
+                        help='''Appending to existing shot HDF5 file.''',
                         action="count", default=0)
 
     args = parser.parse_args(argv)
@@ -113,12 +114,23 @@ def main(argv=None):
     idx = tpfile.find('/20')
     datevshot = tpfile[idx+1:idx+13]
     try:
-        tp_data = ascii.read(tpfile)
-        data = tp_data['col1', 'col2', 'col3']
-        data.names = ['waves', 'response', 'response_err']
-        fileh.create_table(groupThroughput, 'throughput', data.as_array())
+        tp_data = ascii.read(tpfile, names=['wavelength','throughput','tp_low', 'tp_high', 
+                                            'rat_poly', 'tp_gband'])
+#        data = tp_data['col1', 'col2', 'col3']
+#        data.names = ['waves', 'response', 'response_err']
+        fileh.create_table(groupThroughput, 'throughput', tp_data.as_array())
     except:
         args.log.warning('Could not include %s' % tpfile)
+
+    tppngfile = op.join(args.tpdir, str(args.date) + 'v' +
+                     str(args.observation.zfill(3)) + 'sedtpa.png')
+
+    try:
+        pngimarr = plt.imread(tppngfile)
+        pngim = fileh.create_array(groupThroughput, 'tp_png', pngimarr)
+        pngim.attrs['CLASS'] = 'IMAGE'
+    except:
+        args.log.warning('Could not include %s' % tppngfile)
 
     fileh.close()
 
