@@ -63,7 +63,7 @@ for fn in opts.files:
     slice_flattened = wavelength_slice.flatten()
     ztrimmed_slice = slice_flattened[slice_flattened > 0.0]
 
-    flims = 1.0e-17/ztrimmed_slice
+    flims = header["APCOR"]*1.0e-17/ztrimmed_slice
 
     flims_all.extend(flims)    
     biwt_ls.append(biweight_location(flims))
