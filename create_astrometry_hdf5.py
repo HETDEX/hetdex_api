@@ -11,7 +11,7 @@ python create_astrometry_hdf5.py -d 20181111 -o 15 -of astrometry_20181111v015.h
 
 or 
 
-python create_astrometry_hdf5.py -d 20181111 -o 15 -of main_20181111v015.h5 --append
+python create_astrometry_hdf5.py -d 20181111 -o 15 -of 20181111v015.h5 --append
 
 """
 
@@ -28,6 +28,7 @@ from astropy.io import fits
 from astropy.io import ascii
 from input_utils import setup_logging
 
+
 class QualityAssessment(tb.IsDescription):
     expnum = tb.Int32Col(pos=0)
     xoffset = tb.Float32Col(pos=1)
@@ -35,6 +36,7 @@ class QualityAssessment(tb.IsDescription):
     xrms = tb.Float32Col(pos=3)
     yrms = tb.Float32Col(pos=4)
     nstars = tb.Float32Col(pos=5)
+
 
 class NominalVals(tb.IsDescription):
     expnum = tb.Int32Col(pos=0)
@@ -91,16 +93,17 @@ def main(argv=None):
     groupDithall = fileh.create_group(groupAstrometry, 'Dithall', 'Fiber Astrometry Info')
     groupOffsets = fileh.create_group(groupAstrometry, 'PositionOffsets', 
                                       'Offset in star matches')
-    groupMathes = fileh.create_group(groupAstrometry, 'CatalogMatches', 'Match Catalog Info')
+    groupMatches = fileh.create_group(groupAstrometry, 'CatalogMatches', 'Match Catalog Info')
 
     tableQA = fileh.create_table(groupAstrometry, 'QA', QualityAssessment, 
                              'Qulity Assessment')
     tableNV = fileh.create_table(groupAstrometry,'NominalVals', NominalVals,
                                  'Nominal Values')
 
-    # store shuffle.cfg and DATEvOBS.log files as simple text arrays
+    # store shuffle.cfg and DATEvOBS.log files
 
-    fileshuffle = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),'shuffle.cfg')
+    fileshuffle = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                          'shuffle.cfg')
     try:
         f = open(fileshuffle, 'r')
         shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read())
@@ -139,11 +142,11 @@ def main(argv=None):
         f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
                                                 'u', 'g', 'r', 'i', 'z'])
         starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array())
-        starstable.set_attr('filename',file_stars)
+        starstable.set_attr('filename', file_stars)
         if any(f_stars['z'] > 0):
-            starstable.set_attr('source','SDSS')
+            starstable.set_attr('catalog', 'SDSS')
         else:
-            starstable.set_attr('source','GAIA')
+            starstable.set_attr('catalog', 'GAIA')
     except:
         args.log.warning('Could not include %s' % file_stars)
     
@@ -174,22 +177,35 @@ def main(argv=None):
     for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
 
         radecfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                             'radec2_' + expn + 'dat')
+                             'radec2_' + expn + '.dat')
+        rowNV = tableNV.row
         try:
-            rowNV = tableNV.row
             radec = ascii.read(radecfile)
             rowNV['expnum'] = int(expn[3:5])
             rowNV['ra'] = radec['col1']
             rowNV['dec'] = radec['col2']
             rowNV['parangle'] = radec['col3']
-            rowNV['norm'] = filenorm[idx]
+        except:
+            args.log.warning('Could not include %s' % radecfile)
+
+        try:
+            if idx == 0:
+                rowNV['norm'] = norm['col1']
+            elif idx == 1:
+                rowNV['norm'] = norm['col2']
+            elif idx == 2:
+                rowNV['norm'] = norm['col3']
+        except:
+            args.log.warning('Could not include norm.dat')
+        
+        try:
             rowNV['x_dither_pos'] = allmch['col3'][idx]
             rowNV['y_dither_pos'] = allmch['col4'][idx]
             rowNV['als_filename'] = allmch['col1'][idx]
-            rowNV.append()
         except:
-            args.log.warning('Could not include NV table info for dither '+ expn)
-
+            args.log.warning('Could not include %s' % fileallmch)
+        
+        rowNV.append()
 
         fitsfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            str(args.date) + 'v' + str(args.observation).zfill(3)
@@ -252,7 +268,8 @@ def main(argv=None):
                           + str(args.observation).zfill(3), 'xy_' + expn + '.dat')
         try:
             xy_table = ascii.read(file_xy)
-            fileh.create_table(groupMatches, expn, xy.as_array())
+            tableXY = fileh.create_table(groupMatches, expn, xy_table.as_array())
+            tableXY.set_attr('filename',file_xy)
         except:
             args.log.warning('Could not include %s' % file_xy)
 
