@@ -116,9 +116,8 @@ def main(argv=None):
     try:
         tp_data = ascii.read(tpfile, names=['wavelength','throughput','tp_low', 'tp_high', 
                                             'rat_poly', 'tp_gband'])
-#        data = tp_data['col1', 'col2', 'col3']
-#        data.names = ['waves', 'response', 'response_err']
-        fileh.create_table(groupThroughput, 'throughput', tp_data.as_array())
+        tp_array = fileh.create_table(groupThroughput, 'throughput', tp_data.as_array())
+        tp_array.set_attr('filename', tpfile)
     except:
         args.log.warning('Could not include %s' % tpfile)
 
