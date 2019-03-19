@@ -12,7 +12,7 @@ import config
 import subprocess
 
 #filename = sys.argv[1]
-filename = op.join(config.red_dir, 'throughput/hdr1.scilist')
+filename = op.join(config.red_dir, 'hdr1.scilist')
 object_table = [line.rstrip('\n').split() for line in open(filename)]
 
 N = len(object_table) / 20 + 1
