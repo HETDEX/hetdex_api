@@ -383,7 +383,6 @@ class Extract:
             return self.moffat_psf(1.8, boxsize, pixscale)
         
         self.log.info('%i suitable stars for PSF' % len(psf_list))
-        return psf_list
         C = np.array(psf_list)
         avg_psf_image = np.median(C[:, 0, :, :], axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
@@ -435,9 +434,10 @@ class Extract:
             An array with length 3 for the first axis: PSF image, xgrid, ygrid
         '''
         a, b = data.shape
-        xl, xh = (xc - boxsize / 2., xc + boxsize / 2. + scale)
-        yl, yh = (yc - boxsize / 2., yc + boxsize / 2. + scale)
-        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        N = int(boxsize/scale)
+        xl, xh = (xc - boxsize / 2., xc + boxsize / 2.)
+        yl, yh = (yc - boxsize / 2., yc + boxsize / 2.)
+        x, y = (np.linspace(xl, xh, N), np.linspace(yl, yh, N))
         xgrid, ygrid = np.meshgrid(x, y)
         S = np.zeros((a, 2))
         area = np.pi * 0.75**2
