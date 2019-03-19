@@ -10,7 +10,6 @@ import numpy as np
 
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.coordinates import SkyCoord
-from astropy.io import fits
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
@@ -89,16 +88,38 @@ class Extract:
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
         
-    def set_coordinates(self, coords):
+    def convert_radec_to_ifux_ifuy(self, ifux, ifuy, ra, dec, rac, decc):
         '''
         Input SkyCoord object for sources to extract
         
         Parameters
         ----------
-        coords: SkyCoord object
-            e.g., coords = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
+        coord: SkyCoord object
+            single ra and dec to turn into ifux and ifuy coordinates
         '''
-        self.coords = coords
+        if len(ifuy) < 2:
+            return None, None
+        ifu_vect = np.array([ifuy[1] - ifuy[0], ifux[1] - ifux[0]])
+        radec_vect = np.array([(ra[1] - ra[0]) * np.cos(np.deg2rad(dec[0])),
+                              dec[1] - dec[0]])
+        V = np.sqrt(ifu_vect[0]**2 + ifu_vect[1]**2)
+        W = np.sqrt(radec_vect[0]**2 + radec_vect[1]**2)
+        scale_vect = np.array([3600., 3600.])
+        v = ifu_vect * np.array([1., 1.])
+        w = radec_vect * scale_vect
+        W =  np.sqrt(np.sum(w**2))
+        ang1 = np.arctan2(v[1] / V, v[0] / V)
+        ang2 = np.arctan2(w[1] / W, w[0] / W)
+        ang1 += (ang1 < 0.) * 2. * np.pi
+        ang2 += (ang2 < 0.) * 2. * np.pi
+        theta = ang1 - ang2
+        dra = (rac - ra[0]) * np.cos(np.deg2rad(dec[0])) * 3600.
+        ddec = (decc - dec[0]) * 3600.
+        dx = np.cos(theta) * dra - np.sin(theta) * ddec
+        dy = np.sin(theta) * dra + np.cos(theta) * ddec
+        yc = dx + ifuy[0]
+        xc = dy + ifux[0]
+        return xc, yc
 
     def get_fiberinfo_for_coord(self, coord, radius=8.):
         ''' 
@@ -145,7 +166,9 @@ class Extract:
                         dtype=int)
         ifux[:] = ifux + self.dither_pattern[expn-1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn-1, 1]
-        return ifux, ifuy, ra, dec, spec, spece, mask
+        xc, yc = self.convert_radec_to_ifux_ifuy(ifux, ifuy, ra, dec,
+                                                 coord.ra.deg, coord.dec.deg)
+        return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
 
     def get_starcatalog_params(self):
         '''
@@ -267,37 +290,6 @@ class Extract:
         M.x_stddev.value = xstd
         M.y_stddev.value = ystd
         M.theta.value = theta
-        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
-        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
-        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
-        xgrid, ygrid = np.meshgrid(x, y)
-        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
-        zarray[0] /= zarray[0].sum()
-        return zarray
-
-    def moffat_psf(self, seeing, boxsize, scale, alpha=3.5):
-        '''
-        Moffat PSF profile image
-        
-        Parameters
-        ----------
-        seeing: float
-            FWHM of the Moffat profile
-        boxsize: float
-            Size of image on a side for Moffat profile
-        scale: float
-            Pixel scale for image
-        alpha: float
-            Power index in Moffat profile function
-        
-        Returns
-        -------
-        zarray: numpy 3d array
-            An array with length 3 for the first axis: PSF image, xgrid, ygrid
-        '''
-        M = Moffat2D()
-        M.alpha.value = alpha
-        M.gamma.value = 0.5 * seeing / np.sqrt(2**(1./ M.alpha.value) - 1.)
         xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
         yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
         x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
