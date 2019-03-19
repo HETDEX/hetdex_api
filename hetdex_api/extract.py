@@ -366,15 +366,14 @@ class Extract:
             result = self.get_fiberinfo_for_coord(coord, radius=radius)
             if result is None:
                 continue
-            xc, yc = [np.mean(x) for x in [result[0], result[1]]]
+            ifux, ifuy, xc, yc, ra, dec, data, datae, mask = result
             in_bounds = ((xc > boundary[0]) * (xc < boundary[1]) *
                          (yc > boundary[2]) * (yc < boundary[3]))
             if not in_bounds:
                 self.log.info('PSF model StarID: %i on edge: %0.2f, %0.2f' %
                               (starid[i], xc, yc))
                 continue
-            psfi = self.make_collapsed_image(xc, yc, result[0], result[1],
-                                             result[4], result[6],
+            psfi = self.make_collapsed_image(xc, yc, ifux, ifuy, data, mask,
                                              boxsize=boxsize, scale=pixscale)
             psf_list.append(psfi)
         
