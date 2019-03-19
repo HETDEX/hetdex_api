@@ -92,7 +92,7 @@ class VIRUSShot(tb.IsDescription):
     exptime = tb.Float32Col()
 
 
-def append_shot_to_table(shot, fn, cnt):
+def append_shot_to_table(shot, shottable, fn, cnt):
     F = fits.open(fn)
     shot['obsind'] = cnt
     shot['date'] = int(''.join(F[0].header['DATE-OBS'].split('-')))
@@ -109,7 +109,7 @@ def append_shot_to_table(shot, fn, cnt):
     shot['pressure'] = F[0].header['BAROMPRE']
     shot['exptime'] = F[0].header['EXPTIME']
     shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
-    shot.attrs['HEADER'] = F[0].header
+    shottable.attrs['HEADER'] = F[0].header
     shot.append()
 
 
@@ -252,7 +252,7 @@ def main(argv=None):
         cnt = 1
 
     shot = shottable.row
-    success = append_shot_to_table(shot, files[0], cnt)
+    success = append_shot_to_table(shot, shottable, files[0], cnt)
     if success:
         shottable.flush()
     for fn in files:
