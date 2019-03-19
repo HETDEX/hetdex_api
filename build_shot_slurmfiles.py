@@ -16,6 +16,10 @@ import datetime
 filename = op.join(config.red_dir, 'hdr1.scilist')
 object_table = [line.rstrip('\n').split() for line in open(filename)]
 
+filename = op.join(config.red_dir, 'hdr1.callist')
+object_table2 = [line.rstrip('\n').split() for line in open(filename)]
+object_table = object_table + object_table2
+
 N = len(object_table) / 20 + 1
 object_chunks = np.array_split(object_table, N)
 spath = op.join(config.software_dir, 'scripting', 'rwrangler_shotfiles.slurm')
