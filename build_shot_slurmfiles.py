@@ -14,8 +14,6 @@ import subprocess
 #filename = sys.argv[1]
 filename = op.join(config.red_dir, 'throughput/hdr1.scilist')
 object_table = [line.rstrip('\n').split() for line in open(filename)]
-object_table = [[_object[0], _object[1]] for _object in object_table
-                if _object[0][:4] == '2019']
 
 N = len(object_table) / 20 + 1
 object_chunks = np.array_split(object_table, N)
