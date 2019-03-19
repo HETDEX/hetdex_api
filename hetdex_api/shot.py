@@ -19,8 +19,9 @@ from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-path_data = '/work/03946/hetdex/hdr1/reduction/data'
+import config
 
+path_data = config.data_dir
 
 def open_shot_file(shot):
     """
@@ -124,7 +125,7 @@ class Fibers:
         return x, y
 
 
-    def plot_fiber_spectrum(self, idx, type='sky_subtracted', xlim=None, ylim=None):
+    def plot_fiber_spectrum(self, idx, type='calfib', xlim=None, ylim=None):
         plt.plot(self.table[idx]['wavelength'], self.table[idx]['sky_subtracted'])
         if xlim is not None:
             plt.xlim(xlim)
@@ -134,7 +135,7 @@ class Fibers:
         plt.ylabel(type)
 
          
-    def save_fiber_spectrum(self, idx, type='sky_subtracted', file='spec.dat'):
+    def save_fiber_spectrum(self, idx, type='calfib', file='spec.dat'):
         
         spectab = Table()
         spectab['wavelength'] = self.table[idx]['wavelength']
