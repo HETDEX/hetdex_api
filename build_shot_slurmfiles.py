@@ -40,7 +40,7 @@ for i, object_chunk in enumerate(object_chunks):
     sedcall = ('sed "s/rwrangler_shotfiles/%s/g" '
               '%s > %s' % (rname, spath, sname))
     subprocess.call([sedcall], shell=True)
-    d1 = D + datetime.timedelta(0, 0, 600*(i+1))
+    d1 = D + datetime.timedelta(0, 600.*(i+1), 0)
     d2 = d1.strftime('%H:%M %B %d')
     atcalls.append('echo "source ~hetdex/.bashrc; sbatch %s" | at %s' % (sname, d2))
 G.write('\n'.join(atcalls))
