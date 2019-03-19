@@ -387,7 +387,8 @@ class Extract:
             C = np.array(psf_list)
         except:
             self.log.warning('WTF!!')
-        A = [psfi[0] for psfi in psf_list]
+        for psfi in psf_list:
+            print(psfi)
         avg_psf_image = np.nanmedian(A, axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
         zarray = np.array([avg_psf_image, C[0, 1], C[0, 2]])
