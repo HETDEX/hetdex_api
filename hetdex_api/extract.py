@@ -383,13 +383,9 @@ class Extract:
             return self.moffat_psf(1.8, boxsize, pixscale)
         
         self.log.info('%i suitable stars for PSF' % len(psf_list))
-        try:
-            C = np.array(psf_list)
-        except:
-            self.log.warning('WTF!!')
-        for psfi in psf_list:
-            print(psfi)
-        avg_psf_image = np.nanmedian(A, axis=0)
+        A = np.ma.array([np.ma.array(psfi[0], mask=np.isnan(psfi[0]))
+                         for psfi in psf_list])
+        avg_psf_image = np.ma.median(A, axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
         zarray = np.array([avg_psf_image, C[0, 1], C[0, 2]])
         return zarray
