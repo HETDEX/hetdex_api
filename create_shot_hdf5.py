@@ -109,6 +109,7 @@ def append_shot_to_table(shot, fn, cnt):
     shot['pressure'] = F[0].header['BAROMPRE']
     shot['exptime'] = F[0].header['EXPTIME']
     shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
+    shot.attrs['HEADER'] = F[0].header
     shot.append()
 
 
