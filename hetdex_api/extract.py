@@ -384,6 +384,7 @@ class Extract:
         
         self.log.warning('%i suitable stars for PSF' % len(psf_list))
         C = np.array(psf_list)
+        print(C.shape)
         avg_psf_image = np.nanmedian(C[:, 0, :, :], axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
         zarray = np.array([avg_psf_image, C[0, 1], C[0, 2]])
