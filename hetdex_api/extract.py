@@ -383,6 +383,7 @@ class Extract:
             return self.moffat_psf(1.8, boxsize, pixscale)
         
         self.log.info('%i suitable stars for PSF' % len(psf_list))
+        return psf_list
         C = np.array(psf_list)
         avg_psf_image = np.median(C[:, 0, :, :], axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
