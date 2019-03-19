@@ -22,7 +22,7 @@ spath = op.join(config.software_dir, 'scripting', 'rwrangler_shotfiles.slurm')
 G = open(op.join(config.software_dir, 'scripting/calls_to_run/at_calls.txt'),
          'w')
 atcalls = []
-d = datetime.datetime.now()
+D = datetime.datetime.now()
 for i, object_chunk in enumerate(object_chunks):
     rname = 'rwrangler_shotfiles_%i' % (i+1)
     name = op.join(config.software_dir, 'scripting', 'calls_to_run',
@@ -40,7 +40,7 @@ for i, object_chunk in enumerate(object_chunks):
     sedcall = ('sed "s/rwrangler_shotfiles/%s/g" '
               '%s > %s' % (rname, spath, sname))
     subprocess.call([sedcall], shell=True)
-    d1 = d + datetime.timedelta(0, 0, 600*(i+1))
+    d1 = D + datetime.timedelta(0, 0, 600*(i+1))
     d2 = d1.strftime('%H:%M %B %d')
     atcall.append('echo "source ~hetdex/.bashrc; sbatch %s" | at %s' % (sname, d2))
 G.write('\n'.join(atcalls))
