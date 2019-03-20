@@ -157,11 +157,10 @@ class Extract:
         ifuy = self.fibers.table.read_coordinates(idx, 'ifuy')
         ra = self.fibers.table.read_coordinates(idx, 'ra')
         dec = self.fibers.table.read_coordinates(idx, 'dec')
-        spec = self.fibers.table.read_coordinates(idx, 'calfib')
-        spece = self.fibers.table.read_coordinates(idx, 'calfibe')
+        spec = self.fibers.table.read_coordinates(idx, 'calfib') / 2.
+        spece = self.fibers.table.read_coordinates(idx, 'calfibe') / 2.
         ftf = self.fibers.table.read_coordinates(idx, 'fiber_to_fiber')
         mask = self.fibers.table.read_coordinates(idx, 'Amp2Amp')
-        thr = self.fibers.table.read_coordinates(idx, 'Throughput')
         mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
         expn = np.array(self.fibers.table.read_coordinates(idx, 'expnum'),
                         dtype=int)
