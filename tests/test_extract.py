@@ -94,14 +94,15 @@ ra, dec = xid['ra'], xid['dec']
 sp = SDSS.get_spectra(matches=xid)
 
 # Build aperture PSF for aperture extraction
-fixed_aperture = 2.
+fixed_aperture = 3.
 aperture = E.tophat_psf(fixed_aperture, 10.5, 0.25)
 
 # Get curve of growth from VIRUS PSF for the given loaded shot
 psf = E.model_psf(gmag_limit=22.)
 r, curve_of_growth = E.get_psf_curve_of_growth(psf)
 correction = 1. / np.interp(fixed_aperture, r, curve_of_growth)
-E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (3., correction))
+E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (fixed_aperture, 
+                                                             correction))
 
 coords = SkyCoord(ra * u.deg, dec * u.deg)
 L = []
@@ -136,6 +137,6 @@ for coord, S, xi in zip(coords, sp, xid):
     spectruma, spectrum_error = [res*1. for res in result]
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
     make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
-              [spectrum, data.sum(axis=0), S[1].data['flux']],
+              [spectruma, data.sum(axis=0), S[1].data['flux']],
               ['SteelBlue', 'RoyalBlue', 'Crimson'],
               ['VIRUS PSF', 'VIRUS 2"', 'SDSS'], image)
