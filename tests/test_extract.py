@@ -21,14 +21,16 @@ import numpy as np
 def make_plot(name, wavelength, spec_list, color_list, label_list, image):
     plot = figure(plot_height=300, plot_width=800,
                toolbar_location=None, x_axis_location="above",
-               background_fill_color="#efefef", x_range=(3470., 5540.),
-               y_axis_type="linear", y_range=(1., 10**5))
+               background_fill_color="#efefef", x_range=(4200., 4300.),
+               y_axis_type="linear")
 
-    imageplot = figure(plot_height=500, plot_width=500,
+    imageplot = figure(plot_height=430, plot_width=430,
                        tools="crosshair, pan, reset, save, wheel_zoom",
                        y_axis_location="right",
                        tooltips=[("x", "$x"), ("y", "$y"),
-                                 ("value", "@image")])
+                                 ("value", "@image")],
+                       x_range=(image[1].min(), image[1].max()),
+                       y_range=(image[2].min(), image[2].max()))
 
     select = figure(title=("Drag the selection "
                            "box to change the range above"),
@@ -44,20 +46,20 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
                   legend=label)
         select.line('wavelength', 'spectrum', source=source,
                     line_color=color)
-
-    plot.xaxis.major_label_text_font_size = "16pt"
-    plot.yaxis.major_label_text_font_size = "16pt"
-    plot.xaxis.axis_label = 'Wavelength'
-    plot.xaxis.axis_label_text_font_size = "20pt"
-    plot.yaxis.axis_label = r'$10^{-17}$ ergs / s / $cm^{2}$ / $\AA$'
-    plot.yaxis.axis_label_text_font_size = "20pt"
-    plot.xaxis.major_tick_line_color = "firebrick"
-    plot.xaxis.major_tick_line_width = 3
-    plot.xaxis.minor_tick_line_color = "orange"
-    plot.yaxis.major_tick_line_color = "firebrick"
-    plot.yaxis.major_tick_line_width = 3
-    plot.yaxis.minor_tick_line_color = "orange"
-    plot.yaxis[0].formatter = PrintfTickFormatter(format="%3.2f")
+    for p in [plot, select]:
+        p.xaxis.major_label_text_font_size = "16pt"
+        p.yaxis.major_label_text_font_size = "16pt"
+        p.xaxis.axis_label = 'Wavelength'
+        p.xaxis.axis_label_text_font_size = "20pt"
+        p.yaxis.axis_label = '10^-17 ergs / s / ^2 / A'
+        p.yaxis.axis_label_text_font_size = "20pt"
+        p.xaxis.major_tick_line_color = "firebrick"
+        p.xaxis.major_tick_line_width = 3
+        p.xaxis.minor_tick_line_color = "orange"
+        p.yaxis.major_tick_line_color = "firebrick"
+        p.yaxis.major_tick_line_width = 3
+        p.yaxis.minor_tick_line_color = "orange"
+        p.yaxis[0].formatter = PrintfTickFormatter(format="%3.2f")
     select.ygrid.grid_line_color = None
     range_tool = RangeTool(x_range=plot.x_range)
     range_tool.overlay.fill_color = "navy"
