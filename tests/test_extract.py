@@ -13,7 +13,6 @@ from astropy import units as u
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource, RangeTool, PrintfTickFormatter
 from bokeh.plotting import figure, save, output_file
-from bokeh.palettes import Greys as palette
 # Import Extract class
 from hetdex_api.extract import Extract
 import numpy as np
@@ -67,7 +66,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
     select.toolbar.active_multi = range_tool
     imageplot.image(image=[image[0]], x=image[1].min(), y=image[2].min(),
                     dw=image[1].max()-image[1].min(),
-                    dh=image[2].max()-image[2].min(), palette='Greys')
+                    dh=image[2].max()-image[2].min())
     output_file(name+".html", title=name)
     save(row(column(plot, select), imageplot))
 
