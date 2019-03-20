@@ -18,7 +18,6 @@ from bokeh.palettes import Greys as palette
 from hetdex_api.extract import Extract
 import numpy as np
 
-palette.reverse()
 
 def make_plot(name, wavelength, spec_list, color_list, label_list, image):
     plot = figure(plot_height=300, plot_width=800,
