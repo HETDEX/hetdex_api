@@ -46,7 +46,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
                   legend=label)
         select.line('wavelength', 'spectrum', source=source,
                     line_color=color)
-    plot.yaxis.axis_label = '10^-17 ergs / s / ^2 / A'
+    plot.yaxis.axis_label = '10^-17 ergs/s/cm^2/A'
     for p in [plot, select]:
         p.xaxis.major_label_text_font_size = "16pt"
         p.yaxis.major_label_text_font_size = "16pt"
@@ -108,7 +108,7 @@ for coord, S in zip(coords, sp):
         pn = '-'
     coord_tup = (coord.ra.hms.h, coord.ra.hms.m, coord.ra.hms.s, pn,
                  coord.dec.dms.d, coord.dec.dms.m, coord.dec.dms.s)
-    coord_str = '%02dh%02dm%02.2fs%s%02dd%02dm%02.1fs' % coord_tup
+    coord_str = '%02dh%02dm%02ds%s%02dd%02dm%02ds' % coord_tup
     E.log.info('Working on coordinate: %s' % coord_str)
     info_result = E.get_fiberinfo_for_coord(coord, radius=5.)
     if info_result is None:
