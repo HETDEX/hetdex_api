@@ -102,7 +102,7 @@ E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (3., correction))
 coords = SkyCoord(ra * u.deg, dec * u.deg)
 L = []
 for coord, S in zip(coords, sp):
-    if coords.dec.deg > 0.:
+    if coord.dec.deg > 0.:
         pn = '+'
     else:
         pn = '-'
