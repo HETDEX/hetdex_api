@@ -24,7 +24,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
                background_fill_color="#efefef", x_range=(4200., 4300.),
                y_axis_type="linear")
 
-    imageplot = figure(plot_height=430, plot_width=430,
+    imageplot = figure(plot_height=540, plot_width=430,
                        tools="crosshair, pan, reset, save, wheel_zoom",
                        y_axis_location="right",
                        tooltips=[("x", "$x"), ("y", "$y"),
@@ -34,7 +34,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
 
     select = figure(title=("Drag the selection "
                            "box to change the range above"),
-                    plot_height=130, plot_width=800, y_range=plot.y_range,
+                    plot_height=240, plot_width=800, y_range=plot.y_range,
                     y_axis_type="linear",
                     tools="", toolbar_location=None,
                     background_fill_color="#efefef")
@@ -46,12 +46,12 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
                   legend=label)
         select.line('wavelength', 'spectrum', source=source,
                     line_color=color)
+    plot.yaxis.axis_label = '10^-17 ergs / s / ^2 / A'
     for p in [plot, select]:
         p.xaxis.major_label_text_font_size = "16pt"
         p.yaxis.major_label_text_font_size = "16pt"
         p.xaxis.axis_label = 'Wavelength'
         p.xaxis.axis_label_text_font_size = "20pt"
-        p.yaxis.axis_label = '10^-17 ergs / s / ^2 / A'
         p.yaxis.axis_label_text_font_size = "20pt"
         p.xaxis.major_tick_line_color = "firebrick"
         p.xaxis.major_tick_line_width = 3
@@ -59,7 +59,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
         p.yaxis.major_tick_line_color = "firebrick"
         p.yaxis.major_tick_line_width = 3
         p.yaxis.minor_tick_line_color = "orange"
-        p.yaxis[0].formatter = PrintfTickFormatter(format="%3.2f")
+        p.yaxis[0].formatter = PrintfTickFormatter(format="%3.1f")
     select.ygrid.grid_line_color = None
     range_tool = RangeTool(x_range=plot.x_range)
     range_tool.overlay.fill_color = "navy"
