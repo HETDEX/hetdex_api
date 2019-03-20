@@ -18,7 +18,7 @@ from hetdex_api.extract import Extract
 import numpy as np
 
 
-def make_plot(name, wavelength, spec_list, color_list, label_list, image):
+def make_plot(name, wave_list, spec_list, color_list, label_list, image):
     plot = figure(plot_height=300, plot_width=800,
                toolbar_location=None, x_axis_location="above",
                background_fill_color="#efefef", x_range=(4200., 4300.),
@@ -38,7 +38,8 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
                     y_axis_type="linear",
                     tools="", toolbar_location=None,
                     background_fill_color="#efefef")
-    for spectrum, color, label in zip(spec_list, color_list, label_list):               
+    for wavelength, spectrum, color, label in zip(wave_list, spec_list, 
+                                                  color_list, label_list):               
         source = ColumnDataSource(data=dict(wavelength=wavelength, 
                                             spectrum=spectrum))
         plot.line('wavelength', 'spectrum', source=source, line_width=3,
@@ -93,7 +94,7 @@ ra, dec = xid['ra'], xid['dec']
 sp = SDSS.get_spectra(matches=xid)
 
 # Build aperture PSF for aperture extraction
-fixed_aperture = 3.
+fixed_aperture = 2.
 aperture = E.tophat_psf(fixed_aperture, 10.5, 0.25)
 
 # Get curve of growth from VIRUS PSF for the given loaded shot
@@ -129,6 +130,11 @@ for coord, S, xi in zip(coords, sp, xid):
     weights = E.build_weights(xc, yc, ifux, ifuy, psf)
     result = E.get_spectrum(data, error, mask, weights)
     spectrum, spectrum_error = [res*1. for res in result]
+    weights = E.build_weights(xc, yc, ifux, ifuy, aperture)
+    result = E.get_spectrum(data, error, mask, weights)
+    spectruma, spectrum_error = [res*1. for res in result]
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
-    make_plot(coord_str, E.wave, [spectrum, sdssspec],
-              ['SteelBlue', 'Crimson'], ['VIRUS', 'SDSS'], image)
+    make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
+              [spectrum, spectruma, S[1].data['flux']],
+              ['SteelBlue', 'RoyalBlue', 'Crimson'],
+              ['VIRUS PSF', 'VIRUS 2"', 'SDSS'], image)
