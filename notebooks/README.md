@@ -19,12 +19,14 @@ ln -s /work/magicnumber/username/stampede2/ stampede2
 git clone https://github.com/grzeimann/HETDEX_API.git
 ```
 
-4. Go into the HETDEX_API directory and install with pip. This will install the API & dependencies
+4. Go into the HETDEX_API directory and install with pip. This will install the API & dependencies NOT including the ELiXer API.
 
 ```
 cd HETDEX_API
 pip install --user .
 ```
+
+4.1 To use the ELiXer API, you will need to install or reference ELiXer. Please see /work/03946/hetdex/hdr1/software/elixer/docs/Elixer_readme.pdf (Installation section on page 3)
 
 5. Also install other dependent python modules
 
