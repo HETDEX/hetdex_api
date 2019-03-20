@@ -126,9 +126,9 @@ for coord, S, xi in zip(coords, sp, xid):
                                    convolve_image=True)
     flam = 10**(-0.4 * (xi['g']-23.9)) * 1e-29 * 3e18 / 5000.**2
     E.log.info('%s: %0.2e' % (coord_str, flam))
-    weights = E.build_weights(xc, yc, ifux, ifuy, aperture)
+    weights = E.build_weights(xc, yc, ifux, ifuy, psf)
     result = E.get_spectrum(data, error, mask, weights)
-    spectrum, spectrum_error = [res*correction for res in result]
+    spectrum, spectrum_error = [res*1. for res in result]
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
     make_plot(coord_str, E.wave, [spectrum, sdssspec],
               ['SteelBlue', 'Crimson'], ['VIRUS', 'SDSS'], image)
