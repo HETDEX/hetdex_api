@@ -130,11 +130,12 @@ for coord, S, xi in zip(coords, sp, xid):
     weights = E.build_weights(xc, yc, ifux, ifuy, psf)
     result = E.get_spectrum(data, error, mask, weights)
     spectrum, spectrum_error = [res*1. for res in result]
+    E.log.info('Average weight: %0.2f' % np.median(np.sum(weights, axis=0)))
     weights = E.build_weights(xc, yc, ifux, ifuy, aperture)
     result = E.get_spectrum(data, error, mask, weights)
     spectruma, spectrum_error = [res*1. for res in result]
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
     make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
-              [spectrum, spectruma, S[1].data['flux']],
+              [spectrum, data.sum(axis=0), S[1].data['flux']],
               ['SteelBlue', 'RoyalBlue', 'Crimson'],
               ['VIRUS PSF', 'VIRUS 2"', 'SDSS'], image)
