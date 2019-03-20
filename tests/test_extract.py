@@ -88,7 +88,7 @@ pos = coords.SkyCoord(RA * u.deg, Dec * u.deg, frame='fk5')
 xid = SDSS.query_region(pos, radius=11*u.arcmin, spectro=True,
                         photoobj_fields=['ra', 'dec', 'u', 'g', 'r', 'i', 'z'],
                         specobj_fields=['plate', 'mjd', 'fiberID', 'z',
-                                        'specobjid', 'run2d'])
+                                        'specobjid', 'run2d', 'instrument'])
 ra, dec = xid['ra'], xid['dec']
 sp = SDSS.get_spectra(matches=xid)
 
