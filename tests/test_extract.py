@@ -102,7 +102,13 @@ E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (3., correction))
 coords = SkyCoord(ra * u.deg, dec * u.deg)
 L = []
 for coord, S in zip(coords, sp):
-    coord_str = coord.to_string(style='hmsdms')
+    if coords.dec.deg > 0.:
+        pn = '+'
+    else:
+        pn = '-'
+    coord_tup = (coord.ra.hms.h, coord.ra.hms.m, coord.ra.hms.s, pn,
+                 coord.dec.dms.d, coord.dec.dms.m, coord.dec.dms.s)
+    coord_str = '%02dh%02dm%02.2fs%s%02dd%02dm%02.1fs' % coord_tup
     E.log.info('Working on coordinate: %s' % coord_str)
     info_result = E.get_fiberinfo_for_coord(coord, radius=5.)
     if info_result is None:
