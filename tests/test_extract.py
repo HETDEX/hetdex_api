@@ -7,8 +7,8 @@ Created on Tue Mar 19 12:05:39 2019
 """
 
 from astropy.coordinates import SkyCoord
-from astropy.io import fits
 from astropy import units as u
+import sys
 # Plotting tool
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource, RangeTool, PrintfTickFormatter
@@ -76,7 +76,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
 E = Extract()
 
 # Load a given shot
-E.load_shot('20190208v025')
+E.load_shot(sys.argv[1])
 RA = E.fibers.hdfile.root.Shot.cols.ra[:][0]
 Dec = E.fibers.hdfile.root.Shot.cols.dec[:][0]
 
