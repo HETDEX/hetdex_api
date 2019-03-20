@@ -161,6 +161,7 @@ class Extract:
         spece = self.fibers.table.read_coordinates(idx, 'calfibe')
         ftf = self.fibers.table.read_coordinates(idx, 'fiber_to_fiber')
         mask = self.fibers.table.read_coordinates(idx, 'Amp2Amp')
+        thr = self.fibers.table.read_coordinates(idx, 'Throughput')
         mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
         expn = np.array(self.fibers.table.read_coordinates(idx, 'expnum'),
                         dtype=int)
