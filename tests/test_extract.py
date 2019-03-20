@@ -67,7 +67,7 @@ def make_plot(name, wavelength, spec_list, color_list, label_list, image):
     select.toolbar.active_multi = range_tool
     imageplot.image(image=[image[0]], x=image[1].min(), y=image[2].min(),
                     dw=image[1].max()-image[1].min(),
-                    dh=image[2].max()-image[2].min(), palette=palette)
+                    dh=image[2].max()-image[2].min(), palette='Greys')
     output_file(name+".html", title=name)
     save(row(column(plot, select), imageplot))
 
