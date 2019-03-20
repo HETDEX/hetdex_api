@@ -137,7 +137,11 @@ for coord, S, xi in zip(coords, sp, xid):
     sel = (E.wave > 4800.) * (E.wave < 5200.)
     e1 = np.nanmedian(spectrum[sel])
     e2 = np.nanmedian(spectruma[sel])
-    E.log.info('%s: mag: %0.2e, psf: %0.2e, aper: %0.2e' % (coord_str, flam,
+    boundary = [-20., 20., -20., 20.]
+    in_bounds = ((xc > boundary[0]) * (xc < boundary[1]) *
+                         (yc > boundary[2]) * (yc < boundary[3]))
+    if in_bounds:
+        E.log.info('%s: mag: %0.2e, psf: %0.2e, aper: %0.2e' % (coord_str, flam,
                                                             e1, e2))
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
     make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
