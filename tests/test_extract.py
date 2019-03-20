@@ -85,7 +85,10 @@ Dec = E.fibers.hdfile.root.Shot.cols.dec[:][0]
 from astroquery.sdss import SDSS
 from astropy import coordinates as coords
 pos = coords.SkyCoord(RA * u.deg, Dec * u.deg, frame='fk5')
-xid = SDSS.query_region(pos, radius=11*u.arcmin, spectro=True)
+xid = SDSS.query_region(pos, radius=11*u.arcmin, spectro=True,
+                        photoobj_fields=['ra', 'dec', 'u', 'g', 'r', 'i', 'z'],
+                        specobj_fields=['plate', 'mjd', 'fiberID', 'z',
+                                        'specobjid'])
 ra, dec = xid['ra'], xid['dec']
 sp = SDSS.get_spectra(matches=xid)
 
@@ -101,7 +104,7 @@ E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (3., correction))
 
 coords = SkyCoord(ra * u.deg, dec * u.deg)
 L = []
-for coord, S in zip(coords, sp):
+for coord, S, xi in zip(coords, sp, xid):
     if coord.dec.deg > 0.:
         pn = '+'
     else:
@@ -121,6 +124,8 @@ for coord, S in zip(coords, sp):
                                    scale=0.25, seeing_fac=1.5, boxsize=10.75,
                                    wrange=[4900, 5300], nchunks=3,
                                    convolve_image=True)
+    flam = 10**(-0.4 * (xi['g']-23.9)) * 1e-29 * 3e18 / 5000.**2
+    E.log.info('%s: %0.2e' % (coord_str, flam))
     weights = E.build_weights(xc, yc, ifux, ifuy, aperture)
     result = E.get_spectrum(data, error, mask, weights)
     spectrum, spectrum_error = [res*correction for res in result]
