@@ -13,6 +13,7 @@ import sys
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource, RangeTool, PrintfTickFormatter
 from bokeh.plotting import figure, save, output_file
+from bokeh.io import export_png
 # Import Extract class
 from hetdex_api.extract import Extract
 import numpy as np
@@ -22,7 +23,7 @@ def make_plot(name, wave_list, spec_list, color_list, label_list, image,
               sx, sy):
     plot = figure(plot_height=300, plot_width=800,
                toolbar_location=None, x_axis_location="above",
-               background_fill_color="#efefef", x_range=(4200., 4300.),
+               background_fill_color="#efefef", x_range=(3470., 5540.),
                y_axis_type="linear")
 
     imageplot = figure(plot_height=540, plot_width=430,
@@ -75,6 +76,7 @@ def make_plot(name, wave_list, spec_list, color_list, label_list, image,
               line_color="orange", fill_color="red", alpha=0.75)
     output_file(name+".html", title=name)
     save(row(column(plot, select), imageplot))
+    export_png(row(column(plot, select), imageplot), name+'.png')
 
 # Initiate class
 E = Extract()
@@ -115,7 +117,8 @@ for coord, S, xi in zip(coords, sp, xid):
     else:
         pn = '-'
     coord_tup = (coord.ra.hms.h, coord.ra.hms.m, coord.ra.hms.s, pn,
-                 coord.dec.dms.d, coord.dec.dms.m, coord.dec.dms.s)
+                 np.abs(coord.dec.dms.d), np.abs(coord.dec.dms.m),
+                 np.abs(coord.dec.dms.s))
     coord_str = '%02dh%02dm%02ds%s%02dd%02dm%02ds' % coord_tup
     E.log.info('Working on coordinate: %s' % coord_str)
     info_result = E.get_fiberinfo_for_coord(coord, radius=7.)
