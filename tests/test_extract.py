@@ -76,7 +76,7 @@ def make_plot(name, wave_list, spec_list, color_list, label_list, image,
               line_color="orange", fill_color="red", alpha=0.75)
     output_file(name+".html", title=name)
     save(row(column(plot, select), imageplot))
-    export_png(row(column(plot, select), imageplot), name+'.png')
+    export_png(row(column(plot, select), imageplot), filename=name+'.png')
 
 # Initiate class
 E = Extract()
