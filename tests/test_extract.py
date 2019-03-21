@@ -18,7 +18,8 @@ from hetdex_api.extract import Extract
 import numpy as np
 
 
-def make_plot(name, wave_list, spec_list, color_list, label_list, image):
+def make_plot(name, wave_list, spec_list, color_list, label_list, image,
+              sx, sy):
     plot = figure(plot_height=300, plot_width=800,
                toolbar_location=None, x_axis_location="above",
                background_fill_color="#efefef", x_range=(4200., 4300.),
@@ -70,6 +71,8 @@ def make_plot(name, wave_list, spec_list, color_list, label_list, image):
     imageplot.image(image=[image[0]], x=image[1].min(), y=image[2].min(),
                     dw=image[1].max()-image[1].min(),
                     dh=image[2].max()-image[2].min())
+    imageplot.scatter(sx, sy, marker='circle_x', size=15,
+              line_color="orange", fill_color="red", alpha=0.75)
     output_file(name+".html", title=name)
     save(row(column(plot, select), imageplot))
 
@@ -147,4 +150,4 @@ for coord, S, xi in zip(coords, sp, xid):
     make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
               [spectrum, spectruma, S[1].data['flux']],
               ['SteelBlue', 'Orange', 'Crimson'],
-              ['VIRUS PSF', 'VIRUS 4"', 'SDSS'], image)
+              ['VIRUS PSF', 'VIRUS 4"', 'SDSS'], image, ifux-xc, ifuy-yc)
