@@ -144,7 +144,7 @@ for coord, S, xi in zip(coords, sp, xid):
         E.log.info('%s: mag: %0.2e, psf: %0.2e, aper: %0.2e' % (coord_str, flam,
                                                             e1*1e-17, e2*1e-17))
     sdssspec = np.interp(E.wave, 10**(S[1].data['loglam']), S[1].data['flux'])
-    make_plot(coord_str, [E.wave, E.wave, E.wave, 10**(S[1].data['loglam'])],
-              [spectrum, spectruma, data.sum(axis=0), S[1].data['flux']],
-              ['SteelBlue', 'RoyalBlue', 'Cyan', 'Crimson'],
-              ['VIRUS PSF', 'VIRUS 4"', 'VIRUS Sum', 'SDSS'], image)
+    make_plot(coord_str, [E.wave, E.wave, 10**(S[1].data['loglam'])],
+              [spectrum, spectruma, S[1].data['flux']],
+              ['SteelBlue', 'Orange', 'Crimson'],
+              ['VIRUS PSF', 'VIRUS 4"', 'SDSS'], image)
