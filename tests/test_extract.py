@@ -109,6 +109,7 @@ E.log.info('PSF correction for radius, %0.1f", is: %0.2f' % (fixed_aperture,
 
 coords = SkyCoord(ra * u.deg, dec * u.deg)
 L = []
+kk = 0
 for coord, S, xi in zip(coords, sp, xid):
     if coord.dec.deg > 0.:
         pn = '+'
@@ -119,6 +120,8 @@ for coord, S, xi in zip(coords, sp, xid):
                  np.abs(coord.dec.dms.s))
     coord_str = '%02dh%02dm%02ds%s%02dd%02dm%02ds' % coord_tup
     E.log.info('Working on coordinate: %s' % coord_str)
+    E.log.info('Index: %i' % kk)
+    kk +=1
     info_result = E.get_fiberinfo_for_coord(coord, radius=7.)
     if info_result is None:
         continue
