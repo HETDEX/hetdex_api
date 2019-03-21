@@ -330,7 +330,8 @@ class Extract:
         return zarray
 
     def model_psf(self, gmag_limit=21., radius=8., pixscale=0.25,
-                  boundary=[-21., 21., -21., 21.]):
+                  boundary=[-21., 21., -21., 21.],
+                  interp_kind='linear'):
         '''
         Model the VIRUS on-sky PSF for a set of three exposures
         
@@ -345,7 +346,9 @@ class Extract:
         boundary: list of 4 values
             [x_lower, x_higher, y_lower, y_higher] limits for including a star
             in ifu coordinates
-        
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
+
         Returns
         -------
         zarray: numpy 3d array
@@ -374,7 +377,8 @@ class Extract:
                               (starid[i], xc, yc))
                 continue
             psfi = self.make_collapsed_image(xc, yc, ifux, ifuy, data, mask,
-                                             boxsize=boxsize, scale=pixscale)
+                                             boxsize=boxsize, scale=pixscale,
+                                             interp_kind=interp_kind)
             psf_list.append(psfi)
         
         if len(psf_list) == 0:
@@ -392,7 +396,8 @@ class Extract:
     def make_collapsed_image(self, xc, yc, xloc, yloc, data, mask,
                              scale=0.25, seeing_fac=1.8, boxsize=4.,
                              wrange=[3470, 5540], nchunks=11,
-                             convolve_image=False):
+                             convolve_image=False,
+                             interp_kind='linear'):
         ''' 
         Collapse spectra to make a signle image on a rectified grid.  This
         may be done for a wavelength range and using a number of chunks
@@ -427,6 +432,8 @@ class Extract:
             A small wavelength may only need one chunk
         convolve_image: bool
             If true, the collapsed frame is smoothed at the seeing_fac scale
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
         
         Returns
         -------
@@ -450,7 +457,11 @@ class Extract:
         if convolve_image:
             seeing = seeing_fac / scale
             G = Gaussian2DKernel(seeing / 2.35)
-
+        if interp_kind not in ['linear', 'cubic']:
+            self.log.warning('interp_kind must be "linear" or "cubic"')
+            self.log.warning('Using "linear" for interp_kind')
+            interp_kind='linear'
+        
         for chunk, mchunk in zip(np.array_split(data[:, sel], nchunks, axis=1),
                                 np.array_split(mask[:, sel], nchunks, axis=1)):
             marray = np.ma.array(chunk, mask=mchunk<1e-8)
@@ -460,7 +471,7 @@ class Extract:
             S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
             cnt += 1
             grid_z = (griddata(S[~image.mask], image.data[~image.mask],
-                               (xgrid, ygrid), method='cubic') *
+                               (xgrid, ygrid), method=interp_kind) *
                       scale**2 / area)
             if convolve_image:
                 grid_z = convolve(grid_z, G)
