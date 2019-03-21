@@ -128,7 +128,7 @@ for coord, S, xi in zip(coords, sp, xid):
     image = E.make_collapsed_image(xc, yc, ifux, ifuy, data, mask,
                                    scale=0.25, seeing_fac=1.5, boxsize=10.75,
                                    wrange=[4900, 5300], nchunks=3,
-                                   convolve_image=True)
+                                   convolve_image=False)
     flam = 10**(-0.4 * (xi['g']-23.9)) * 1e-29 * 3e18 / 5000.**2
     weights = E.build_weights(xc, yc, ifux, ifuy, psf)
     result = E.get_spectrum(data, error, mask, weights)
