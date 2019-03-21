@@ -140,7 +140,7 @@ for coord, S, xi in zip(coords, sp, xid):
     sel = (E.wave > 4800.) * (E.wave < 5200.)
     e1 = np.nanmedian(spectrum[sel])
     e2 = np.nanmedian(spectruma[sel])
-    boundary = [-20., 20., -20., 20.]
+    boundary = [-24., 24., -24., 24.]
     in_bounds = ((xc > boundary[0]) * (xc < boundary[1]) *
                          (yc > boundary[2]) * (yc < boundary[3]))
     if in_bounds:
