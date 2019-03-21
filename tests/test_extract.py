@@ -47,13 +47,13 @@ def make_plot(name, wave_list, spec_list, color_list, label_list, image):
                   legend=label)
         select.line('wavelength', 'spectrum', source=source,
                     line_color=color)
-    plot.yaxis.axis_label = '10^-17 ergs/s/cm^2/A'
+    plot.yaxis.axis_label = '1e-17 ergs/s/cm^2/A'
     for p in [plot, select]:
-        p.xaxis.major_label_text_font_size = "16pt"
-        p.yaxis.major_label_text_font_size = "16pt"
+        p.xaxis.major_label_text_font_size = "14pt"
+        p.yaxis.major_label_text_font_size = "14pt"
         p.xaxis.axis_label = 'Wavelength'
-        p.xaxis.axis_label_text_font_size = "20pt"
-        p.yaxis.axis_label_text_font_size = "20pt"
+        p.xaxis.axis_label_text_font_size = "16pt"
+        p.yaxis.axis_label_text_font_size = "16pt"
         p.xaxis.major_tick_line_color = "firebrick"
         p.xaxis.major_tick_line_width = 3
         p.xaxis.minor_tick_line_color = "orange"
@@ -94,7 +94,7 @@ ra, dec = xid['ra'], xid['dec']
 sp = SDSS.get_spectra(matches=xid)
 
 # Build aperture PSF for aperture extraction
-fixed_aperture = 3.
+fixed_aperture = 4.
 aperture = E.tophat_psf(fixed_aperture, 10.5, 0.25)
 
 # Get curve of growth from VIRUS PSF for the given loaded shot
@@ -147,4 +147,4 @@ for coord, S, xi in zip(coords, sp, xid):
     make_plot(coord_str, [E.wave, E.wave, E.wave, 10**(S[1].data['loglam'])],
               [spectrum, spectruma, data.sum(axis=0), S[1].data['flux']],
               ['SteelBlue', 'RoyalBlue', 'Cyan', 'Crimson'],
-              ['VIRUS PSF', 'VIRUS 2"', 'VIRUS Sum', 'SDSS'], image)
+              ['VIRUS PSF', 'VIRUS 4"', 'VIRUS Sum', 'SDSS'], image)
