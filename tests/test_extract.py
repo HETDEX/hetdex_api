@@ -118,7 +118,7 @@ for coord, S, xi in zip(coords, sp, xid):
                  coord.dec.dms.d, coord.dec.dms.m, coord.dec.dms.s)
     coord_str = '%02dh%02dm%02ds%s%02dd%02dm%02ds' % coord_tup
     E.log.info('Working on coordinate: %s' % coord_str)
-    info_result = E.get_fiberinfo_for_coord(coord, radius=5.)
+    info_result = E.get_fiberinfo_for_coord(coord, radius=7.)
     if info_result is None:
         continue
     E.log.info('Found fibers for coordinate: %s' %
