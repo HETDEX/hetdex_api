@@ -121,8 +121,8 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
     attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-            'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
-            'Amp2Amp', 'Throughput']
+            'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+            'calfib', 'calfibe','Amp2Amp', 'Throughput']
     imattr = ['image', 'error', 'clean_image']
     for att in imattr:
         if att == 'image':
