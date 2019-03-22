@@ -1,0 +1,113 @@
+# ! /bin/bash
+#
+#updated by EMC 2018/09/21
+#updated by EMC 2018/10/12 - fixed semi colon issue on the paste command ;;;
+#updated by EMC 2019/03/22 - updated for use on stampede2
+#
+#takes an input file and splits it into many fixed length job files filling each 
+#line with a specified # of commands per line
+#
+# $1 = input file 
+# $2 = number of lines in the job, default is 200
+# $3 = number of commands per line separated by ";"'s, default is 1
+# $4 = 'hh:mm:ss' specified time length for the slurm job, default is '00:30:00'
+#
+#
+# example: jobsplitter input 200 5 '00:06:00'
+# this will create many input_#.run files and corresponding input_#.slurm job files 
+#
+#requires template.slurm, this will be copied over from hdr1 for now
+#
+
+cp /work/03946/hetdex/hdr1/software/HETDEX_API/hdr1_bash_scripts/template.slurm template.slurm
+
+#argument checking:
+
+
+if [ ! -e $1 ]; then
+   echo "Input file does not exist or is not given. Exiting script."
+   exit 1
+fi
+
+if [ $2 ]; then
+   djob=$2
+else
+   echo "Using default of 200 tasks per job file"
+   djob=200
+fi
+
+if [ $3 ]; then
+   ncpl=$3
+else
+   echo "Using default of 1 command per line"
+   ncpl=1
+fi   
+
+
+if [ -z $4 ]; then
+   echo "Using default slurm job time: 00:30:00" 
+   time='00:30:00'
+elif [[ $4 =~ [0-9][0-9]:[0-9][0-9]:[0-9][0-9] ]]; then
+   echo "Using entered slurm job time: $4"
+   time=$4
+else
+   echo "Slurm job time argument not correct format. Use 'HH:MM:SS'"
+   exit 1
+fi
+
+
+nlines=`wc $1 | awk '{print $1}'`
+
+start=1
+end=$djob
+
+echo "Splitting $1 with $nlines lines into separate -n $djob task calls with $ncpl commands per line"
+
+jobcount=1
+
+#first compess input file into $3 commands per line
+
+ncommand='-'
+i=1
+while [ $i -lt $ncpl ]; do
+    ncommand=$ncommand' -'
+    i=$[$i+1]    
+done
+
+#echo "$ncommand"
+
+paste -d ';' $ncommand < $1 > tmpjs 
+sed -i s/';;'//g tmpjs
+
+#update nlines parameter to length of tmpjs
+nlines=`wc tmpjs | awk '{print $1}'`
+
+echo "Compressed $1 in $ncpl commands per line. Job file is now $nlines lines long"
+
+
+while [ "$end" -le "$nlines" ]; do	
+      awk -v start="$start" -v end="$end" 'NR==start, NR==end {print $0}' tmpjs > "$1"_"$jobcount".run
+      cp template.slurm "$1"_"$jobcount".slurm
+      sed -i s/'-n 100'/"-n $djob"/ "$1"_"$jobcount".slurm
+      sed -i s/'template'/"$1"_"$jobcount".run/  "$1"_"$jobcount".slurm
+      sed -i s/'04:00:00'/$time/ "$1"_"$jobcount".slurm 
+      jobcount=$[$jobcount+1]
+      start=$[$start+$djob]
+      end=$[$end+$djob]
+      echo "$start $end $jobcount"
+done
+
+awk -v start="$start" -v end="$nlines" 'NR==start, NR==end {print $0}' tmpjs > "$1"_"$jobcount".run
+
+n=$(echo  $end-$nlines | bc)  
+#add empty lines to job file to reach njob 
+
+for i in `seq 1 $n`; do
+    echo 'echo "This is a filler line"' >> "$1"_"$jobcount".run 
+    let i=i+1
+done
+
+cp template.slurm "$1"_"$jobcount".slurm
+sed -i s/'-n 100'/"-n $djob"/ "$1"_"$jobcount".slurm
+sed -i s/'template'/"$1"_"$jobcount".run/  "$1"_"$jobcount".slurm
+sed -i s/'04:00:00'/$time/ "$1"_"$jobcount".slurm
