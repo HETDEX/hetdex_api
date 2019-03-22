@@ -249,6 +249,10 @@ def main(argv=None):
                         help='''Path to detections''',
                         type=str, default='/scratch/05350/ecooper/detects/')
 
+    parser.add_argument("-md", "--mergedir",
+                        help='''Merge all HDF5 files in the defined merge 
+                        directory. Can append to existing file using --append option''',
+                        type=str, default=None)
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -286,6 +290,20 @@ def main(argv=None):
             det = datevobs_det[13:]    
             detectidx = append_detection(detectidx, date, obs, det, args.detect_path, tableMain,
                              tableFibers, tableSpectra)
+    elif args.mergedir:
+        files = glob.glob(op.join(args.mergedir,'all*.h5'))
+        print files
+        for file in files:
+            fileh_i = tb.open_file(file, 'r')
+            tableMain_i = fileh_i.root.Detections.read()
+            tableFibers_i = fileh_i.root.Fibers.read()
+            tableSpectra_i = fileh_i.root.Spectra.read()
+
+            tableMain.append(tableMain_i)
+            tableFibers.append(tableFibers_i)
+            tableSpectra.append(tableSpectra_i)
+            fileh_i.close()
+            
     else:
         if not args.date:
             print "No date or dets list given. Exiting program."
@@ -303,8 +321,9 @@ def main(argv=None):
     tableFibers.flush()
     tableSpectra.flush()
 
-    #create completely sorted index on the detectid to make queries against that column much faster
-    if (args.append):        
+    # create completely sorted index on the detectid 
+    # to make queries against that column much faster
+    if (args.append) or (args.mergedir):        
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()
         tableFibers.flush() #just to be safe
