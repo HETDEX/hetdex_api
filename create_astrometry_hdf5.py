@@ -83,9 +83,11 @@ def main(argv=None):
     # does not already exist.
     does_exist = False
     if op.exists(args.outfilename) and args.append:
+        args.log.info('Appending astrometry to %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'a')
         does_exist = True
     else:
+        args.log.info('Creating new file for astrometry %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'w')
 
     groupAstrometry = fileh.create_group(fileh.root, 'Astrometry', 'Astrometry Info')
