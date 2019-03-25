@@ -17,6 +17,7 @@ python create_astrometry_hdf5.py -d 20181111 -o 15 -of 20181111v015.h5 --append
 
 import glob
 import re
+import os
 
 import tables as tb
 import argparse as ap
@@ -223,6 +224,19 @@ def main(argv=None):
             fitsim.attrs['filename'] = fitsfile
             F.close()
 
+
+        matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                           'match_' + expn + '.pdf')
+        matchpng = 'match_'+expn
+
+        try:
+            os.system('pdftoppm ' + matchpdf + ' ' + matchpng + ' -png -singlefile')  
+            plt_matchim = plt.imread(matchpng + '.png')
+            matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
+            matchim.attrs['CLASS'] = 'IMAGE'
+            matchim.attrs['filename'] = matchpdf
+        except:
+            args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
         file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
