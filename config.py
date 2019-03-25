@@ -22,5 +22,5 @@ path_radec = op.join(calib_dir, 'radec.all')
 survey_list = op.join(red_dir, 'hdr1.scilist')
 cal_list = op.join(red_dir, 'hdr1.callist')
 
-surveyh5 = op.join(hdr_dir,'survey','survey_hdr1.h5')
-detecth5 = op.join(hdr_dir,'detects','detect_cosmos.h5')
+surveyh5 = op.join(hdr_dir, 'survey', 'survey_hdr1.h5')
+detecth5 = op.join(hdr_dir, 'detects', 'detect_cosmos.h5')
