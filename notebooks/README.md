@@ -1,7 +1,19 @@
+## First, if you don't have an account on TACC:
+
+To get one, go to:
+
+https://portal.tacc.utexas.edu/
+
+Then, click:
+
+Create a TACC account
+
+Finally, send Karl your username so he can add you to the HETDEX group.
+
 ## Instructions to get the notebooks working on stampede2:
 
 ```
-ssh stampede2
+ssh username@stampede2.tacc.utexas.edu
 ```
 
 In your home (technically this is ``home1/``)​
