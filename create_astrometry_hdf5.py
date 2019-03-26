@@ -227,7 +227,7 @@ def main(argv=None):
 
         matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            'match_' + expn + '.pdf')
-        matchpng = 'match_'+expn
+        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn
 
         try:
             os.system('pdftoppm ' + matchpdf + ' ' + matchpng + ' -png')  
@@ -235,7 +235,6 @@ def main(argv=None):
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = 'match_exp??.pdf'
-            os.system('rm '+matchpng+'-1.png')
         except:
             args.log.warning('Count not include %s' % matchpdf)
 
