@@ -1,7 +1,19 @@
+## First, if you don't have an account on TACC:
+
+To get one, go to:
+
+https://portal.tacc.utexas.edu/
+
+Then, click:
+
+Create a TACC account
+
+Finally, send Karl your username so he can add you to the HETDEX group.
+
 ## Instructions to get the notebooks working on stampede2:
 
 ```
-ssh stampede2
+ssh username@stampede2.tacc.utexas.edu
 ```
 
 In your home (technically this is ``home1/``)​
@@ -19,12 +31,14 @@ ln -s /work/magicnumber/username/stampede2/ stampede2
 git clone https://github.com/grzeimann/HETDEX_API.git
 ```
 
-4. Go into the HETDEX_API directory and install with pip. This will install the API & dependencies
+4. Go into the HETDEX_API directory and install with pip. This will install the API & dependencies NOT including the ELiXer API.
 
 ```
 cd HETDEX_API
 pip install --user .
 ```
+
+4.1 To use the ELiXer API, you will need to install or reference ELiXer. Please see /work/03946/hetdex/hdr1/software/elixer/docs/Elixer_readme.pdf (Installation section on page 3)
 
 5. Also install other dependent python modules
 

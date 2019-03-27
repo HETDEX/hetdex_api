@@ -10,16 +10,23 @@ import os.path as op
 import numpy as np
 import config
 import subprocess
+import datetime
 
 #filename = sys.argv[1]
-filename = op.join(config.red_dir, 'throughput/hdr1.scilist')
+filename = op.join(config.red_dir, 'hdr1.scilist')
 object_table = [line.rstrip('\n').split() for line in open(filename)]
-object_table = [[_object[0], _object[1]] for _object in object_table
-                if _object[0][:4] == '2019']
+
+filename = op.join(config.red_dir, 'hdr1.callist')
+object_table2 = [line.rstrip('\n').split() for line in open(filename)]
+object_table = object_table + object_table2
 
 N = len(object_table) / 20 + 1
 object_chunks = np.array_split(object_table, N)
 spath = op.join(config.software_dir, 'scripting', 'rwrangler_shotfiles.slurm')
+G = open(op.join(config.software_dir, 'scripting/calls_to_run/at_calls.txt'),
+         'w')
+atcalls = []
+D = datetime.datetime.now()
 for i, object_chunk in enumerate(object_chunks):
     rname = 'rwrangler_shotfiles_%i' % (i+1)
     name = op.join(config.software_dir, 'scripting', 'calls_to_run',
@@ -37,3 +44,7 @@ for i, object_chunk in enumerate(object_chunks):
     sedcall = ('sed "s/rwrangler_shotfiles/%s/g" '
               '%s > %s' % (rname, spath, sname))
     subprocess.call([sedcall], shell=True)
+    d1 = D + datetime.timedelta(0, 600.*(i+1), 0)
+    d2 = d1.strftime('%H:%M %B %d')
+    atcalls.append('echo "source ~hetdex/.bashrc; sbatch %s" | at %s' % (sname, d2))
+G.write('\n'.join(atcalls))

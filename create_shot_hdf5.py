@@ -46,12 +46,12 @@ class VIRUSFiber(tb.IsDescription):
     twi_spectrum = tb.Float32Col((1032,))
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
+    sky_spectrum = tb.Float32Col((1032,))
     error1Dfib = tb.Float32Col((1032,))
     calfib = tb.Float32Col((1036,))
     calfibe = tb.Float32Col((1036,))
     Amp2Amp = tb.Float32Col((1036,))
     Throughput = tb.Float32Col((1036,))
-
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
@@ -92,7 +92,7 @@ class VIRUSShot(tb.IsDescription):
     exptime = tb.Float32Col()
 
 
-def append_shot_to_table(shot, fn, cnt):
+def append_shot_to_table(shot, shottable, fn, cnt):
     F = fits.open(fn)
     shot['obsind'] = cnt
     shot['date'] = int(''.join(F[0].header['DATE-OBS'].split('-')))
@@ -109,6 +109,7 @@ def append_shot_to_table(shot, fn, cnt):
     shot['pressure'] = F[0].header['BAROMPRE']
     shot['exptime'] = F[0].header['EXPTIME']
     shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
+    shottable.attrs['HEADER'] = F[0].header
     shot.append()
 
 
@@ -120,8 +121,8 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
     attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-            'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
-            'Amp2Amp', 'Throughput']
+            'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+            'calfib', 'calfibe','Amp2Amp', 'Throughput']
     imattr = ['image', 'error', 'clean_image']
     for att in imattr:
         if att == 'image':
@@ -251,7 +252,7 @@ def main(argv=None):
         cnt = 1
 
     shot = shottable.row
-    success = append_shot_to_table(shot, files[0], cnt)
+    success = append_shot_to_table(shot, shottable, files[0], cnt)
     if success:
         shottable.flush()
     for fn in files:

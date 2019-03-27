@@ -10,7 +10,6 @@ import numpy as np
 
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.coordinates import SkyCoord
-from astropy.io import fits
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
@@ -89,16 +88,38 @@ class Extract:
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
         
-    def set_coordinates(self, coords):
+    def convert_radec_to_ifux_ifuy(self, ifux, ifuy, ra, dec, rac, decc):
         '''
         Input SkyCoord object for sources to extract
         
         Parameters
         ----------
-        coords: SkyCoord object
-            e.g., coords = SkyCoord(ra * u.deg, dec * u.deg, frame='fk5')
+        coord: SkyCoord object
+            single ra and dec to turn into ifux and ifuy coordinates
         '''
-        self.coords = coords
+        if len(ifuy) < 2:
+            return None, None
+        ifu_vect = np.array([ifuy[1] - ifuy[0], ifux[1] - ifux[0]])
+        radec_vect = np.array([(ra[1] - ra[0]) * np.cos(np.deg2rad(dec[0])),
+                              dec[1] - dec[0]])
+        V = np.sqrt(ifu_vect[0]**2 + ifu_vect[1]**2)
+        W = np.sqrt(radec_vect[0]**2 + radec_vect[1]**2)
+        scale_vect = np.array([3600., 3600.])
+        v = ifu_vect * np.array([1., 1.])
+        w = radec_vect * scale_vect
+        W =  np.sqrt(np.sum(w**2))
+        ang1 = np.arctan2(v[1] / V, v[0] / V)
+        ang2 = np.arctan2(w[1] / W, w[0] / W)
+        ang1 += (ang1 < 0.) * 2. * np.pi
+        ang2 += (ang2 < 0.) * 2. * np.pi
+        theta = ang1 - ang2
+        dra = (rac - ra[0]) * np.cos(np.deg2rad(dec[0])) * 3600.
+        ddec = (decc - dec[0]) * 3600.
+        dx = np.cos(theta) * dra - np.sin(theta) * ddec
+        dy = np.sin(theta) * dra + np.cos(theta) * ddec
+        yc = dx + ifuy[0]
+        xc = dy + ifux[0]
+        return xc, yc
 
     def get_fiberinfo_for_coord(self, coord, radius=8.):
         ''' 
@@ -136,8 +157,8 @@ class Extract:
         ifuy = self.fibers.table.read_coordinates(idx, 'ifuy')
         ra = self.fibers.table.read_coordinates(idx, 'ra')
         dec = self.fibers.table.read_coordinates(idx, 'dec')
-        spec = self.fibers.table.read_coordinates(idx, 'calfib')
-        spece = self.fibers.table.read_coordinates(idx, 'calfibe')
+        spec = self.fibers.table.read_coordinates(idx, 'calfib') / 2.
+        spece = self.fibers.table.read_coordinates(idx, 'calfibe') / 2.
         ftf = self.fibers.table.read_coordinates(idx, 'fiber_to_fiber')
         mask = self.fibers.table.read_coordinates(idx, 'Amp2Amp')
         mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
@@ -145,7 +166,9 @@ class Extract:
                         dtype=int)
         ifux[:] = ifux + self.dither_pattern[expn-1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn-1, 1]
-        return ifux, ifuy, ra, dec, spec, spece, mask
+        xc, yc = self.convert_radec_to_ifux_ifuy(ifux, ifuy, ra, dec,
+                                                 coord.ra.deg, coord.dec.deg)
+        return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
 
     def get_starcatalog_params(self):
         '''
@@ -306,39 +329,9 @@ class Extract:
         zarray[0] /= zarray[0].sum()
         return zarray
 
-    def moffat_psf(self, seeing, boxsize, scale, alpha=3.5):
-        '''
-        Moffat PSF profile image
-        
-        Parameters
-        ----------
-        seeing: float
-            FWHM of the Moffat profile
-        boxsize: float
-            Size of image on a side for Moffat profile
-        scale: float
-            Pixel scale for image
-        alpha: float
-            Power index in Moffat profile function
-        
-        Returns
-        -------
-        zarray: numpy 3d array
-            An array with length 3 for the first axis: PSF image, xgrid, ygrid
-        '''
-        M = Moffat2D()
-        M.alpha.value = alpha
-        M.gamma.value = 0.5 * seeing / np.sqrt(2**(1./ M.alpha.value) - 1.)
-        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
-        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
-        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
-        xgrid, ygrid = np.meshgrid(x, y)
-        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
-        zarray[0] /= zarray[0].sum()
-        return zarray
-
     def model_psf(self, gmag_limit=21., radius=8., pixscale=0.25,
-                  boundary=[-21., 21., -21., 21.]):
+                  boundary=[-21., 21., -21., 21.],
+                  interp_kind='linear'):
         '''
         Model the VIRUS on-sky PSF for a set of three exposures
         
@@ -353,7 +346,9 @@ class Extract:
         boundary: list of 4 values
             [x_lower, x_higher, y_lower, y_higher] limits for including a star
             in ifu coordinates
-        
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
+
         Returns
         -------
         zarray: numpy 3d array
@@ -374,16 +369,16 @@ class Extract:
             result = self.get_fiberinfo_for_coord(coord, radius=radius)
             if result is None:
                 continue
-            xc, yc = [np.mean(x) for x in [result[0], result[1]]]
+            ifux, ifuy, xc, yc, ra, dec, data, datae, mask = result
             in_bounds = ((xc > boundary[0]) * (xc < boundary[1]) *
                          (yc > boundary[2]) * (yc < boundary[3]))
             if not in_bounds:
                 self.log.info('PSF model StarID: %i on edge: %0.2f, %0.2f' %
                               (starid[i], xc, yc))
                 continue
-            psfi = self.make_collapsed_image(xc, yc, result[0], result[1],
-                                             result[4], result[6],
-                                             boxsize=boxsize, scale=pixscale)
+            psfi = self.make_collapsed_image(xc, yc, ifux, ifuy, data, mask,
+                                             boxsize=boxsize, scale=pixscale,
+                                             interp_kind=interp_kind)
             psf_list.append(psfi)
         
         if len(psf_list) == 0:
@@ -391,9 +386,9 @@ class Extract:
             self.log.warning('Using default moffat PSF with 1.8" seeing')
             return self.moffat_psf(1.8, boxsize, pixscale)
         
-        self.log.warning('%i suitable stars for PSF' % len(psf_list))
+        self.log.info('%i suitable stars for PSF' % len(psf_list))
         C = np.array(psf_list)
-        avg_psf_image = np.nanmedian(C[:, 0, :, :], axis=0)
+        avg_psf_image = np.median(C[:, 0, :, :], axis=0)
         avg_psf_image[np.isnan(avg_psf_image)] = 0.0
         zarray = np.array([avg_psf_image, C[0, 1], C[0, 2]])
         return zarray
@@ -401,7 +396,8 @@ class Extract:
     def make_collapsed_image(self, xc, yc, xloc, yloc, data, mask,
                              scale=0.25, seeing_fac=1.8, boxsize=4.,
                              wrange=[3470, 5540], nchunks=11,
-                             convolve_image=False):
+                             convolve_image=False,
+                             interp_kind='linear'):
         ''' 
         Collapse spectra to make a signle image on a rectified grid.  This
         may be done for a wavelength range and using a number of chunks
@@ -436,6 +432,8 @@ class Extract:
             A small wavelength may only need one chunk
         convolve_image: bool
             If true, the collapsed frame is smoothed at the seeing_fac scale
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
         
         Returns
         -------
@@ -443,9 +441,10 @@ class Extract:
             An array with length 3 for the first axis: PSF image, xgrid, ygrid
         '''
         a, b = data.shape
-        xl, xh = (xc - boxsize / 2., xc + boxsize / 2. + scale)
-        yl, yh = (yc - boxsize / 2., yc + boxsize / 2. + scale)
-        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        N = int(boxsize/scale)
+        xl, xh = (xc - boxsize / 2., xc + boxsize / 2.)
+        yl, yh = (yc - boxsize / 2., yc + boxsize / 2.)
+        x, y = (np.linspace(xl, xh, N), np.linspace(yl, yh, N))
         xgrid, ygrid = np.meshgrid(x, y)
         S = np.zeros((a, 2))
         area = np.pi * 0.75**2
@@ -458,7 +457,11 @@ class Extract:
         if convolve_image:
             seeing = seeing_fac / scale
             G = Gaussian2DKernel(seeing / 2.35)
-
+        if interp_kind not in ['linear', 'cubic']:
+            self.log.warning('interp_kind must be "linear" or "cubic"')
+            self.log.warning('Using "linear" for interp_kind')
+            interp_kind='linear'
+        
         for chunk, mchunk in zip(np.array_split(data[:, sel], nchunks, axis=1),
                                 np.array_split(mask[:, sel], nchunks, axis=1)):
             marray = np.ma.array(chunk, mask=mchunk<1e-8)
@@ -468,12 +471,13 @@ class Extract:
             S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
             cnt += 1
             grid_z = (griddata(S[~image.mask], image.data[~image.mask],
-                               (xgrid, ygrid), method='cubic') *
+                               (xgrid, ygrid), method=interp_kind) *
                       scale**2 / area)
             if convolve_image:
                 grid_z = convolve(grid_z, G)
             image_list.append(grid_z)
         image = np.median(image_list, axis=0)
+        image[np.isnan(image)] = 0.0
         zarray = np.array([image, xgrid-xc, ygrid-yc])
         return zarray
 

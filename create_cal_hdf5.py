@@ -82,10 +82,11 @@ def main(argv=None):
     does_exist = False
     if op.exists(args.outfilename) and args.append:
         fileh = tb.open_file(args.outfilename, 'a')
-
+        args.log.info('Appending calibration info to %s'% args.outfilename)
         does_exist = True
     else:
         fileh = tb.open_file(args.outfilename, 'w')
+        args.log.info('Writingcalibration info to %s'% args.outfilename)
 
     group = fileh.create_group(fileh.root, 'Calibration',
                                'HETDEX Calibration Info')

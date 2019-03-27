@@ -19,8 +19,9 @@ from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-path_data = '/work/03946/hetdex/hdr1/reduction/data'
+import config
 
+path_data = config.data_dir
 
 def open_shot_file(shot):
     """
@@ -52,6 +53,16 @@ class Fibers:
     def __init__(self, shot):
         '''
         Initialize Fibers Class
+
+        This creates an astropy coordinates array of all
+        fiber coordinates. Because of the large number of fibers
+        for an individual shot this will take some time, but makes
+        positional querying much easier.
+
+        This will also initiate the wave_rect attribute which is
+        an array of rectified wavelengths corresponding the the
+        'calfib' and 'calfibe' datasets
+
         '''
         
         self.hdfile = open_shot_file(shot)
@@ -59,6 +70,8 @@ class Fibers:
         self.coords = SkyCoord(self.table.cols.ra[:] * u.degree,
                                self.table.cols.dec[:] * u.degree,
                                frame='icrs')
+        self.wave_rect = 2.0 * np.arange(1036) + 3470.
+
 
     def query_region(self, coords, radius=3./3600.):
         """
@@ -124,21 +137,48 @@ class Fibers:
         return x, y
 
 
-    def plot_fiber_spectrum(self, idx, type='sky_subtracted', xlim=None, ylim=None):
-        plt.plot(self.table[idx]['wavelength'], self.table[idx]['sky_subtracted'])
-        if xlim is not None:
-            plt.xlim(xlim)
-        if ylim is not None:
-            plt.ylim(ylim)
-        plt.xlabel('wavelength')
-        plt.ylabel(type)
-
-         
-    def save_fiber_spectrum(self, idx, type='sky_subtracted', file='spec.dat'):
+    def plot_fiber_spectrum(self, idx, type='calfib', xlim=None, ylim=None):
+        if type == 'calfib':
+            try:
+                plt.plot(self.wave_rect, self.table[idx]['calfib'])
+                if xlim is not None:
+                    plt.xlim(xlim)
+                if ylim is not None:
+                    plt.ylim(ylim)
+                plt.xlabel('wavelength')
+                plt.ylabel(type)
+            except:
+                print("Error plotting calib spectrum")
+        else:
+            try:
+                plt.plot(self.table[idx]['wavelength'], self.table[idx][type])
+                if xlim is not None:
+                    plt.xlim(xlim)
+                if ylim is not None:
+                    plt.ylim(ylim)
+                plt.xlabel('wavelength')
+                plt.ylabel(type)
+            except:
+                print("Error plotting spectrum")
+             
+    def save_fiber_spectrum(self, idx, type='calfib', file='spec.dat'):
         
         spectab = Table()
-        spectab['wavelength'] = self.table[idx]['wavelength']
-        spectab[type] = self.table[idx][type] 
+        if type == 'calfib':
+            try:
+                print("Saving the flux-calibrated fiber spectrum")
+                spectab['wavelength'] = self.wave_rect
+                spectab[type] = self.table[idx][type]
+                spectab['error'] = self.table[idx]['calfibe']
+            except:
+                print("Could not save calibrated fiber spectrum")
+        else:
+            try:
+                spectab['wavelength'] = self.table[idx]['wavelength']
+                spectab[type] = self.table[idx][type] 
+                spectab['error'] = self.table[idx]['error1Dfib']
+            except:
+                print("Could not retrieve Fiber spectrum")
         spectab.write(file, format='ascii', overwrite=True)
 
     def close(self):
@@ -192,17 +232,20 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
 
 
 
-def get_image2D_amp(shot, multiframe_obj, imtype='clean_image'):
+def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
     Returns an image from the 2D data based on 
     an multiframe or a specid/amp combo
-
+    
+    multiframe - unique amp identifier to display
     imtype - image option to display
              options are:['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
                          'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
                          'Amp2Amp', 'Throughput']
+    expnum_obj - integer for which dither/exposure
+
     """
     fileh = open_shot_file(shot)
-    im0 = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj)")
+    im0 = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
     
-    return im0[0][imtype]
+    return im0[imtype][0]

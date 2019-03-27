@@ -10,6 +10,7 @@ import numpy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
+import config
 
 class Survey:
     def __init__(self, survey):
@@ -22,7 +23,7 @@ class Survey:
             Data release you would like to load, i.e., 'DR1' or 'Parallel'.
             This is case insensitive.
         '''
-        survey_options = {'hdr1': '/work/03946/hetdex/hdr1/survey/survey_test.h5',
+        survey_options = {'hdr1': config.surveyh5,
                           'parallel': 'PATHNAME'}
         if survey.lower() not in survey_options:
             print('survey not in survey options')
@@ -102,4 +103,3 @@ class Survey:
         '''
         
         self.hdfile.close()
-

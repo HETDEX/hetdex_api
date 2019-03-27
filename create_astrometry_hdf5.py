@@ -17,6 +17,7 @@ python create_astrometry_hdf5.py -d 20181111 -o 15 -of 20181111v015.h5 --append
 
 import glob
 import re
+import os
 
 import tables as tb
 import argparse as ap
@@ -83,9 +84,11 @@ def main(argv=None):
     # does not already exist.
     does_exist = False
     if op.exists(args.outfilename) and args.append:
+        args.log.info('Appending astrometry to %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'a')
         does_exist = True
     else:
+        args.log.info('Creating new file for astrometry %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'w')
 
     groupAstrometry = fileh.create_group(fileh.root, 'Astrometry', 'Astrometry Info')
@@ -107,7 +110,7 @@ def main(argv=None):
     try:
         f = open(fileshuffle, 'r')
         shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read())
-        shuffle.set_attr('filename', fileshuffle)
+        shuffle.set_attr('filename','shuffle.cfg')
         f.close()
     except:
         args.log.warning('Could not include %s' % fileshuffle)
@@ -130,7 +133,7 @@ def main(argv=None):
         f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
                                           'specslot', 'ifuid', 'ifurot', 'platesc'])
         fplanetable = fileh.create_table(groupAstrometry, 'fplane', f.as_array())
-        fplanetable.set_attr('filename', filefplane)
+        fplanetable.set_attr('filename', 'fplane.txt')
     except:
         args.log.warning('Could not include %s' % filefplane)
 
@@ -142,7 +145,7 @@ def main(argv=None):
         f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
                                                 'u', 'g', 'r', 'i', 'z'])
         starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array())
-        starstable.set_attr('filename', file_stars)
+        starstable.set_attr('filename', 'shout.ifustars')
         if any(f_stars['z'] > 0):
             starstable.set_attr('catalog', 'SDSS')
         else:
@@ -218,9 +221,22 @@ def main(argv=None):
             fitsim.attrs['CLASS'] = 'IMAGE'
             fitsim.attrs['IMAGE_MINMAXRANGE'] = (-1.5, 100)
             fitsim.attrs['HEADER'] = F[0].header
-            fitsim.attrs['filename'] = fitsfile
+            fitsim.attrs['filename'] = 'DATEvOBSfp_exp??.fits'
             F.close()
 
+
+        matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                           'match_' + expn + '.pdf')
+        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn
+
+        try:
+            os.system('pdftoppm ' + matchpdf + ' ' + matchpng + ' -png')  
+            plt_matchim = plt.imread(matchpng + '-1.png')
+            matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
+            matchim.attrs['CLASS'] = 'IMAGE'
+            matchim.attrs['filename'] = 'match_exp??.pdf'
+        except:
+            args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
         file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
@@ -231,7 +247,7 @@ def main(argv=None):
                                                       'dec_dex', 'ra_cat', 'dec_cat',
                                                       'ifuslot'])
             getoffinfo = fileh.create_table(groupOffsets, expn, f_getoff.as_array())
-            getoffinfo.set_attr('filename', file_getoff)
+            getoffinfo.set_attr('filename', 'getoff_exp??.out')
         except:
             args.log.warning('Could not include %s' % file_getoff)
             
@@ -242,7 +258,7 @@ def main(argv=None):
         try:
             f_dith = ascii.read(file_dith)
             dithinfo = fileh.create_table(groupDithall, expn, f_dith.as_array())
-            dithinfo.set_attr('filename', file_dith)
+            dithinfo.set_attr('filename', 'dith_exp??.all')
         except:
             args.log.warning('Could not include %s' % file_dith)
             
@@ -269,7 +285,7 @@ def main(argv=None):
         try:
             xy_table = ascii.read(file_xy)
             tableXY = fileh.create_table(groupMatches, expn, xy_table.as_array())
-            tableXY.set_attr('filename',file_xy)
+            tableXY.set_attr('filename','xy_exp??.dat')
         except:
             args.log.warning('Could not include %s' % file_xy)
 
