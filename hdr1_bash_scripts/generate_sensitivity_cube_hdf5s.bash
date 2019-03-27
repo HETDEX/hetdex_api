@@ -16,7 +16,7 @@ OUTPATH=/work/04120/dfarrow/wrangler/flims/hdr1
 # File in to which to write the biweight location of the flux limits at 4540AA for each shot
 AVERAGE_FLIM_FILE=/work/04120/dfarrow/wrangler/flims/hdr1/average_flims.txt
 
-for fpath in `ls -d ${INPATH}/2019*v???`
+for fpath in `ls -d ${INPATH}/20*v???`
 do
 
     datevobs=`basename ${fpath}`
