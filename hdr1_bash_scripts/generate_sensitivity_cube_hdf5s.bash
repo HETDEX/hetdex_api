@@ -16,10 +16,17 @@ OUTPATH=/work/04120/dfarrow/wrangler/flims/hdr1
 # File in to which to write the biweight location of the flux limits at 4540AA for each shot
 AVERAGE_FLIM_FILE=/work/04120/dfarrow/wrangler/flims/hdr1/average_flims.txt
 
-for fpath in `ls -d ${INPATH}/2019*v*`
+for fpath in `ls -d ${INPATH}/2019*v???`
 do
+
     datevobs=`basename ${fpath}`
     echo $datevobs
+
+    if [ -f ${OUTPATH}/${datevobs}_sensitivity_cube.h5 ]; then
+        echo "${OUTPATH}/${datevobs}_sensitivity_cube.h5 exists, skipping"
+        continue
+    fi
+
     pushd $fpath
     cd flim
     python $AV_FLIM_SCRIPT --fn-shot-average $AVERAGE_FLIM_FILE *.fits

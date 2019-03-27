@@ -14,8 +14,8 @@ echo "If nothing is printed then everything worked: "
 while read line
 do
 
-    date=`echo $line | awk 'BEGIN {FS=" "}{print $2}'`
-    shot=`echo $line | awk 'BEGIN {FS=" "}{print $3}'`
+    date=`echo $line | awk 'BEGIN {FS=" "}{print $1}'`
+    shot=`echo $line | awk 'BEGIN {FS=" "}{print $2}'`
     folder="${date}v${shot}"
 
     # Test folder exists
@@ -44,4 +44,8 @@ do
             fi
         done
     fi
-done < $INLIST 
+done < $INLIST
+
+
+# Command to submit lots
+# for dir in `cat failures | awk 'BEGIN {FS=" "}{print $3}'`; do cd $dir/flim/; ls *.slurm; cd -; done 
