@@ -88,13 +88,44 @@ def return_flattened_slice(cube, lambda_):
     """
 
     # Look up the relevant iz for lambda
-    ix, iy, iz = cube.wcs.all_world2pix(0.0, 0.0, lambda_, 0)
+    ra, dec, junk = cube.wcs.all_pix2world(5.0, 5.0, 5.0, 0)
+    ix, iy, iz = cube.wcs.all_world2pix(ra, dec, lambda_, 0)
 
     # Grab a wavelength slice and collapse it
     wavelength_slice = cube.f50vals[int(iz),:,:] 
     slice_flattened = wavelength_slice.flatten()
 
     return slice_flattened
+
+def return_flattened_wlrange(cube, lambda_1, lambda_2):
+    """
+
+    Return a flattened cube between two
+    wavelength cuts
+
+    Parameters
+    ----------
+    cube : pyhetdex.selfunc.sensitivity_cube:SensitivityCube
+        sensitivity cube to collapse 
+    lambda1, lambda2 : float
+        the wavelength range in Angstrom. lambda_2 > lamba_1
+
+    """
+
+    if lambda_2 < lambda_1:
+        raise ValueError("The second wavelength must be bigger than the first!")
+
+    # Look up the relevant iz for lambda
+    ra, dec, junk = cube.wcs.all_pix2world(5.0, 5.0, 5.0, 0)
+    ix, iy, iz1 = cube.wcs.all_world2pix(ra, dec, lambda_1, 0)
+    ix, iy, iz2 = cube.wcs.all_world2pix(ra, dec, lambda_2, 0)
+
+    # Grab a wavelength slice and collapse it
+    wavelength_slice = cube.f50vals[int(iz1):int(iz2),:,:]
+    slice_flattened = wavelength_slice.flatten()
+
+    return slice_flattened
+
 
 
 def return_biwt_cmd(args=None):
@@ -107,25 +138,23 @@ def return_biwt_cmd(args=None):
 
     # Parse the arguments
     parser = argparse.ArgumentParser(description="Compute biweight flux limits from HDF5 file")
-    parser.add_argument("--wl", default=4540, type=int, help="Wavelength to compute median for")
+    parser.add_argument("--wlrange", nargs=2, default=[4500, 4600], type=int, help="Wavelength range to compute median over")
     parser.add_argument("--hist", action="store_true", help="Plot histograms of flux limit")
+    parser.add_argument("--nkeep", type=int, default=10000, help="To remove the edge pixel only the nkeep deepest pixels"  
+                                                                 " are considered (default 10000)")
     parser.add_argument("--hist_all", action="store_true", help="Plot histograms flux limit for all inputs")
     parser.add_argument("--fout", default=None, type=str, help="Ascii file to save results to")
     parser.add_argument("--fn-shot-average", default=None, type=str, help="Ascii file to append shot average flim to")
     parser.add_argument("files", help="HDF container(s) of sensitivity cubes", nargs='+')
     opts = parser.parse_args(args=args)
     
-    bins = linspace(0.0, 5e-16, 40)
-    bcens = 0.5*(bins[1:] + bins[:-1])
-    
-    print("Using wavelength {:f} AA".format(opts.wl))
+    print("Using wavelengths {:f} to {:f} AA".format(*opts.wlrange))
     
     # Loop over the files producing median and percentiles
     biwt_ls = []
-    biwt_vars = []
-    dateshot = []
     ifu = []
-    flims_all = []
+    biwt_vars =[]
+    dateshot = []
 
     for fn in opts.files:
 
@@ -136,25 +165,27 @@ def return_biwt_cmd(args=None):
             shots_groups = hdfcont.h5file.list_nodes(hdfcont.h5file.root) 
             for shot_group in shots_groups:
                 str_datevshot = shot_group._v_name
- 
+                flims_shot = []
+
                 # Loop over sensitivity cubes
                 for ifu_name, scube in hdfcont.itercubes(datevshot=str_datevshot):
-                    flims = return_flattened_slice(scube, opts.wl) 
+                    flims = return_flattened_wlrange(scube, opts.wlrange[0], opts.wlrange[1]) 
                     flims = flims[isfinite(flims)]
-
+                    flims.sort()
+                    
                     # Compute statistics and save numbers
                     # from this cube
-                    flims_all.extend(flims)    
-                    biwt_ls.append(biweight_location(flims))
-                    biwt_vars.append(biweight_midvariance(flims))
+                    flims_shot.extend(flims[:opts.nkeep])    
+                    biwt_ls.append(biweight_location(flims[:opts.nkeep]))
+                    biwt_vars.append(biweight_midvariance(flims[:opts.nkeep]))
 
                     # Save IFU and shot info
                     ifu.append(ifu_name.strip("ifuslot_"))
                     dateshot.append(str_datevshot.strip("/virus_"))
 
-        if opts.fn_shot_average:
-            with open(opts.fn_shot_average, 'a') as fn:
-                fn.write("{:s} {:e} {:e}\n".format(str_datevshot.strip("virus_"), biweight_location(flims_all), peak))
+                if opts.fn_shot_average:
+                    with open(opts.fn_shot_average, 'a') as fn:
+                        fn.write("{:s} {:e} \n".format(str_datevshot.strip("virus_"), biweight_location(flims_shot)))
 
     table = Table([dateshot, ifu, biwt_ls, sqrt(biwt_vars)], names=["dateshot", "ifu", "biwt_loc", "sqrt_biwt_mdvar"])
         

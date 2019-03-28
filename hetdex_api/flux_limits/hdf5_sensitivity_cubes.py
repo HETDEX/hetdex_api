@@ -119,7 +119,10 @@ class SensitivityCubeHDF5Container(object):
 
         # Store this in a compressible array
         array = self.h5file.create_carray(shot, ifuslot, obj=scube.f50vals, title="50% Detection Limits")
-       
+      
+        #  Store what aperture correction has been applied 
+        array.attrs.aper_corr = scube.aper_corr
+
         # Store the header as an attribute
         array.attrs.header = scube.header
         array.attrs.wavelengths = scube.wavelengths
@@ -170,7 +173,7 @@ class SensitivityCubeHDF5Container(object):
             header = ifu.attrs.header
             wavelengths = ifu.attrs.wavelengths
             alphas = ifu.attrs.alphas
-            f50vals = ifu.read()
+            f50vals = ifu.read()/ifu.attrs.aper_corr
 
             yield ifu.name, SensitivityCube(f50vals, header, wavelengths, alphas)
 
@@ -220,8 +223,11 @@ class SensitivityCubeHDF5Container(object):
         header = ifu.attrs.header
         wavelengths = ifu.attrs.wavelengths
         alphas = ifu.attrs.alphas
-        f50vals = ifu.read() 
 
+        # Remove any aperture correction
+        f50vals = ifu.read()/ifu.attrs.aper_corr
+
+        # Force apcor to be 1.0 here, so we don't double count it
         return SensitivityCube(f50vals, header, wavelengths, alphas)
 
     def flush(self):

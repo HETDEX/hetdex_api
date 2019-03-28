@@ -6,16 +6,19 @@
 # submitting again
 
 INLIST=$1
-NRUN=10 # Number to submit at once
+NRUN=15 # Number to submit at once
 counter=1
 
 while read line 
 do
 
-   date=`echo ${line} | awk '{print $2}'`
-   shot=`echo ${line} | awk '{print $3}'`
-   outfolder=`echo ${line} | awk '{print $2"v"$3}'`
+   date=`echo ${line} | awk '{print $1}'`
+   shot=`echo ${line} | awk '{print $2}'`
+   outfolder=`echo ${line} | awk '{print $1"v"$2}'`
    echo $date $shot
+
+   # mv to folder to redo 
+   #mv $outfolder wrong_dither_runs  
 
    # Run the setup
    vdrp_setup_flim $date $shot
