@@ -87,6 +87,7 @@ class Fibers:
         
         return self.table[idx]
 
+
     def query_region_idx(self, coords, radius=3./3600.):
         """
         Returns an index for a Fibers class object to
@@ -99,19 +100,6 @@ class Fibers:
         idx = coords.separation(self.coords) < radius * u.degree
         return np.where(idx)[0]
 
-    def plot_fibertable_spectra(self, xlim=None, ylim=None):
-        """
-        Plots up series of spectra in a fibertable
-        This could be messy if there are a lot of fibers!
-
-        Inputs
-        -----------
-        self - a fibers table object, either 
-               called by Fibers().table
-               or fileh.root.Data.Fibers
-        """
-       
-#        for row in self.table:
 
     def get_closest_fiber(self, coords):
         """
