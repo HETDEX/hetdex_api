@@ -183,7 +183,7 @@ def return_biwt_cmd(args=None):
                     ifu.append(ifu_name.strip("ifuslot_"))
                     dateshot.append(str_datevshot.strip("/virus_"))
 
-i               if opts.fn_shot_average:
+                if opts.fn_shot_average:
                     with open(opts.fn_shot_average, 'a') as fn:
                         fn.write("{:s} {:e} \n".format(str_datevshot.strip("virus_"), biweight_location(flims_shot)))
 
