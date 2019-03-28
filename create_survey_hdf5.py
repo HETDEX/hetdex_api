@@ -6,9 +6,12 @@ Created: 2019/01/23
 
 Script to gather information for the Survey Table. This provides
 a master look up table for representaive values for each shot
-in the HETDEX survey
+in the HETDEX survey. Use the API provided in 
+hetdex_api/survey.py to easily access data and query 
+astropy coordinates.
 
-The script uses the files to generate the Table, but any
+
+The script uses the files to generate the table, but any
 list of DATE OBS would work.
 
 /work/03946/hetdex/hdr1/reduction/hdr1.scilist 
@@ -92,9 +95,8 @@ class Survey(tb.IsDescription):
     fwhm_gaussian = tb.Float32Col(pos=10)
     fwhm_moffat = tb.Float32Col(pos=11)
     moffat_beta = tb.Float32Col(pos=12)
-    RelFlux1 = tb.Float32Col(pos=13)
-    RelFlux2 = tb.Float32Col(pos=14)
-    RelFlux3 = tb.Float32Col(pos=15)
+    relflux_guider = tb.Float32Col((3),pos=13)
+    relflux_virus = tb.Float32Col((3),pos=14)
     response_4540 = tb.Float32Col(pos=8)  # normalized for 360s
     xditherpos = tb.Float32Col((3))
     yditherpos = tb.Float32Col((3))
@@ -137,8 +139,7 @@ def main(argv=None):
     tableMain = fileh.create_table(fileh.root, 'Survey', Survey,
                                    'Main Survey Info')
 
-    master_fwhm = ascii.read('/work/03030/grnagara/maverick/getgp2/DR1FWHM.txt')
-#    master_fwhm = ascii.read(config.path_gpinfo)
+    master_fwhm = ascii.read(config.path_gpinfo)
 
     master_astrometry = ascii.read(config.path_radec)
     ra_flag_table = ascii.read(config.path_acc_flags, names=['date','obsid','exp01','exp02','exp03'])
@@ -200,9 +201,9 @@ def main(argv=None):
             row['fwhm_moffat'] = np.float(master_fwhm['Moffat_FWHM'][sel1])
             row['fwhm_gaussian'] = np.float(master_fwhm['Gaussian_FWHM'][sel1])
             row['moffat_beta'] = np.float(master_fwhm['Moffat_Beta'][sel1])
-            row['RelFlux1'] = np.float(master_fwhm['RelFlux1'][sel1])
-            row['RelFlux2'] = np.float(master_fwhm['RelFlux2'][sel1])
-            row['RelFlux3'] = np.float(master_fwhm['RelFlux3'][sel1])
+            row['relflux_guider'] = [master_fwhm['RelFlux1'][sel1],
+                                     master_fwhm['RelFlux2'][sel1],
+                                     master_fwhm['RelFlux3'][sel1]]
 
         elif np.size(sel1) > 1:
             args.log.warning('Weird: More than one FWHM value for %s' & datevshot)
@@ -244,6 +245,21 @@ def main(argv=None):
         else:
             args.log.warning('Could not open %s' % allmchfile)
             
+        normdatfile = op.join(args.astrometry_dir, str(row['date']) + 'v'
+                              + str(row['obsid']).zfill(3), 'norm.dat')
+        if op.exists(normdatfile):
+            try:
+                normdat = ascii.read(normdatfile)
+                row['relflux_virus'] = [normdat['col1'],
+                                        normdat['col2'],
+                                        normdat['col3']]
+            except:
+                args.log.warning('Could not ingest %s' % normdatfile)
+        else:
+            args.log.warning('Could not open %s' % normdatfile)
+
+
+
         # add in additional dither specific info as an array                                                                          
         expnum_arr = np.zeros(3, dtype=int)
         xoffset_arr = np.full(3, np.nan)
