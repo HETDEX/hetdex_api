@@ -4,6 +4,24 @@ Created: 2019/01/23
 
 @author: Erin Mentuch Cooper
 
+Script to gather information for the Survey Table. This provides
+a master look up table for representaive values for each shot
+in the HETDEX survey. Use the API provided in 
+hetdex_api/survey.py to easily access data and query 
+astropy coordinates.
+
+
+The script uses the files to generate the table, but any
+list of DATE OBS would work.
+
+/work/03946/hetdex/hdr1/reduction/hdr1.scilist 
+/work/03946/hetdex/hdr1/reduction/hdr1.callist 
+
+Requires multi*fits files to gather header info, a shifts/
+directory to gather some QA astrometry data, and additional
+paths contained in the HETDEX_API/config.py files
+
+
 To run:
 
 pyton create_survey_hdf5.py -of survey_hdr1.h5
@@ -69,10 +87,16 @@ class Survey(tb.IsDescription):
     ra = tb.Float64Col(pos=4)
     dec = tb.Float64Col(pos=5)
     pa = tb.Float64Col(pos=6)
+    n_ifu = tb.Int32Col()
     trajcra = tb.Float32Col()
     trajcdec = tb.Float32Col()
     trajcpa = tb.Float32Col()
-    fwhm = tb.Float32Col(pos=7)
+    fwhm_flag = tb.Int32Col(pos=9)
+    fwhm_gaussian = tb.Float32Col(pos=10)
+    fwhm_moffat = tb.Float32Col(pos=11)
+    moffat_beta = tb.Float32Col(pos=12)
+    relflux_guider = tb.Float32Col((3),pos=13)
+    relflux_virus = tb.Float32Col((3),pos=14)
     response_4540 = tb.Float32Col(pos=8)  # normalized for 360s
     xditherpos = tb.Float32Col((3))
     yditherpos = tb.Float32Col((3))
@@ -116,6 +140,7 @@ def main(argv=None):
                                    'Main Survey Info')
 
     master_fwhm = ascii.read(config.path_gpinfo)
+
     master_astrometry = ascii.read(config.path_radec)
     ra_flag_table = ascii.read(config.path_acc_flags, names=['date','obsid','exp01','exp02','exp03'])
 
@@ -131,7 +156,7 @@ def main(argv=None):
 
         # grabbing multi fits files to get header info 
         files = get_files(args.rootdir, date, obsid)
-        
+
         shotid = int(str(date)+str(obsid).zfill(3))
         
         row = tableMain.row
@@ -172,13 +197,19 @@ def main(argv=None):
         sel1 = np.where(master_fwhm['Datevshot'] == datevshot)
         
         if np.size(sel1) == 1:
-            row['fwhm'] = np.float(master_fwhm['FWHM_Moffat'][sel1])
+            row['fwhm_flag'] = np.int(master_fwhm['Good(1)/Approximated(0)'][sel1])
+            row['fwhm_moffat'] = np.float(master_fwhm['Moffat_FWHM'][sel1])
+            row['fwhm_gaussian'] = np.float(master_fwhm['Gaussian_FWHM'][sel1])
+            row['moffat_beta'] = np.float(master_fwhm['Moffat_Beta'][sel1])
+            row['relflux_guider'] = [master_fwhm['RelFlux1'][sel1],
+                                     master_fwhm['RelFlux2'][sel1],
+                                     master_fwhm['RelFlux3'][sel1]]
+
         elif np.size(sel1) > 1:
             args.log.warning('Weird: More than one FWHM value for %s' & datevshot)
-            row['fwhm'] = np.float(master_fwhm['fwhm_mof'][sel1][0])
         else:
-            row['fwhm'] = np.nan
-            args.log.warning('Could not find FWHM for %s' % datevshot)
+            if row['field'] != 'cal':
+                args.log.warning('Could not find FWHM for %s' % datevshot)
 
         tpfile = op.join(config.tp_dir, str(row['date']) + 'v'
                          + str(row['obsid']).zfill(3)+'sedtp_f.dat')
@@ -188,7 +219,7 @@ def main(argv=None):
             tp_4540 = tp_tab['col2'][np.where(tp_tab['col1'] == 4540.)][0]
             row['response_4540'] = tp_4540
         else:
-            row['response_4540'] = np.nan
+            row['response_4540'] = 0.0
             if row['field'] != 'cal':
                 args.log.warning('Could not get response_4540 for %s' % datevshot)
     
@@ -214,6 +245,21 @@ def main(argv=None):
         else:
             args.log.warning('Could not open %s' % allmchfile)
             
+        normdatfile = op.join(args.astrometry_dir, str(row['date']) + 'v'
+                              + str(row['obsid']).zfill(3), 'norm.dat')
+        if op.exists(normdatfile):
+            try:
+                normdat = ascii.read(normdatfile)
+                row['relflux_virus'] = [normdat['col1'],
+                                        normdat['col2'],
+                                        normdat['col3']]
+            except:
+                args.log.warning('Could not ingest %s' % normdatfile)
+        else:
+            args.log.warning('Could not open %s' % normdatfile)
+
+
+
         # add in additional dither specific info as an array                                                                          
         expnum_arr = np.zeros(3, dtype=int)
         xoffset_arr = np.full(3, np.nan)
@@ -228,6 +274,12 @@ def main(argv=None):
         for idx2, expn in enumerate(['exp01','exp02', 'exp03']):
 
             files_exp = get_files_exp(args.rootdir, date, obsid, expn)
+            
+            if expn == 'exp01':
+                try:
+                    row['n_ifu'] = np.size(files_exp)/4
+                except:
+                    args.log.warning('Could not get N_ifu for %s' % datevshot)
 
             if np.size(files_exp) > 0:
                 F_exp = fits.open(files_exp[0])
