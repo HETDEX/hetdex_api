@@ -114,6 +114,11 @@ class SensitivityCube(object):
         arrays of the wavelength in
         Angstrom and the alpha parameter
         of the Fleming+ 1995 function
+    aper_corr : float
+        Aperture correction to multiply
+        the cubes with. If None, read
+        from header. If not in header
+        and aper_corr=None do nothing
 
     Attributes
     ----------
@@ -127,7 +132,7 @@ class SensitivityCube(object):
         for an input wavelength
 
     """
-    def __init__(self, f50vals, header, wavelengths, alphas):
+    def __init__(self, f50vals, header, wavelengths, alphas, aper_corr=None):
 
         self.f50vals = f50vals
 
@@ -141,7 +146,17 @@ class SensitivityCube(object):
 
         self.wcs = WCS(header)
         self.header = header
-        
+
+        # Deal with aperture corrections
+        if aper_corr:
+            self.aper_corr = aper_corr
+        elif "APCOR" in self.header:
+            self.aper_corr = self.header["APCOR"]
+        else:
+            self.aper_corr = 1.0        
+
+        self.f50vals = self.f50vals*self.aper_corr
+
         self.alphas = alphas
         self.wavelengths = wavelengths
         self.alpha_func = interp1d(wavelengths, alphas, 
@@ -150,7 +165,7 @@ class SensitivityCube(object):
 
     @classmethod
     def from_file(cls, fn_sensitivity_cube, wavelengths, alphas, 
-                 datascale=1e-17):
+                 datascale=1e-17, **kwargs):
 
         """
         Read in a sensitivity cube
@@ -161,17 +176,21 @@ class SensitivityCube(object):
         fn_sensitivity_cube : str
             the file name of a cube
             containing the limiting
-            magnitude
-    
+            magnitude   
         wavelengths, alphas : array
             arrays of the wavelength in
             Angstrom and the alpha parameter
             of the Fleming+ 1995 function
+        datascale : float (optional)
+            the values stored are 
+            this_value/flim
+        **kwargs :
+            these are passed to the SensitivityCube init
         """
 
         f50vals, header = read_cube(fn_sensitivity_cube, datascale=datascale)
 
-        return SensitivityCube(f50vals, header, wavelengths, alphas)
+        return SensitivityCube(f50vals, header, wavelengths, alphas, **kwargs)
 
 
     def radecwltoxyz(self, ra, dec, lambda_):
@@ -292,7 +311,10 @@ class SensitivityCube(object):
 
     def write(self, filename, datascale=1e-17, **kwargs):
         """
-        Write the sensitivity cube to a FITS file
+        Write the sensitivity cube to a FITS file. If any 
+        aperture correction was applied, this is removed
+        such that the saved data file should be identical 
+        to the input (within numerical accuracy).
 
         Parameters
         ----------
@@ -306,7 +328,7 @@ class SensitivityCube(object):
             passed to the astropy.io.fits:writeto
             function
         """
-        fits.writeto(filename , datascale/self.f50vals, header=self.header, **kwargs)
+        fits.writeto(filename , self.aper_corr*datascale/self.f50vals, header=self.header, **kwargs)
 
 
 def plot_completeness(args=None):
