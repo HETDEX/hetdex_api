@@ -138,7 +138,7 @@ def return_biwt_cmd(args=None):
 
     # Parse the arguments
     parser = argparse.ArgumentParser(description="Compute biweight flux limits from HDF5 file")
-    parser.add_argument("--wlrange", default=[4500, 4600], type=int, help="Wavelength range to compute median over")
+    parser.add_argument("--wlrange", nargs=2, default=[4500, 4600], type=int, help="Wavelength range to compute median over")
     parser.add_argument("--hist", action="store_true", help="Plot histograms of flux limit")
     parser.add_argument("--nkeep", type=int, default=10000, help="To remove the edge pixel only the nkeep deepest pixels"  
                                                                  " are considered (default 10000)")
