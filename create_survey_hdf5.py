@@ -91,6 +91,7 @@ class Survey(tb.IsDescription):
     trajcra = tb.Float32Col()
     trajcdec = tb.Float32Col()
     trajcpa = tb.Float32Col()
+    structaz = tb.Float32Col(pos=15)
     fwhm_flag = tb.Int32Col(pos=9)
     fwhm_gaussian = tb.Float32Col(pos=10)
     fwhm_moffat = tb.Float32Col(pos=11)
@@ -176,6 +177,7 @@ def main(argv=None):
         row['trajcra'] = F[0].header['TRAJCRA']
         row['trajcdec'] = F[0].header['TRAJCDEC']
         row['trajcpa'] = F[0].header['PARANGLE']
+        row['structaz'] = F[0].header['STRUCTAZ']
 
         sel2 = np.where((master_astrometry['col1'] == np.int(row['date']))
                         * (master_astrometry['col2'] == np.int(row['obsid'])))
