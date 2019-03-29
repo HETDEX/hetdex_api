@@ -336,7 +336,7 @@ def main(argv=None):
 
     # create completely sorted index on the detectid 
     # to make queries against that column much faster
-    if (args.append) or (args.mergedir): 
+    if (args.append): 
         print "Reindexing the detectid column"
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()
