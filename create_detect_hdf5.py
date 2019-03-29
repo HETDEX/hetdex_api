@@ -338,16 +338,19 @@ def main(argv=None):
     # to make queries against that column much faster
     if (args.append): 
         print "Reindexing the detectid column"
+        tableMain.cols.detectid.reindex()
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()
         tableFibers.flush() #just to be safe
         tableSpectra.flush()
+        tableMain.flush()
     else:
+        tableMain.cols.detectid.create_csindex()
         tableFibers.cols.detectid.create_csindex()
         tableSpectra.cols.detectid.create_csindex()
         tableFibers.flush() #just to be safe                                                            
         tableSpectra.flush()
-
+        tableMain.flush()
                  
     fileh.close()
 
