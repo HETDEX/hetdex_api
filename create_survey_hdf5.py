@@ -99,6 +99,7 @@ class Survey(tb.IsDescription):
     relflux_guider = tb.Float32Col((3),pos=13)
     relflux_virus = tb.Float32Col((3),pos=14)
     response_4540 = tb.Float32Col(pos=8)  # normalized for 360s
+    fluxlimit_4550 = tb.Float32Col()
     xditherpos = tb.Float32Col((3))
     yditherpos = tb.Float32Col((3))
     xoffset = tb.Float32Col((3))
@@ -132,6 +133,10 @@ def main(argv=None):
                         help='''Relative or absolute path for output HDF5
                         file.''', default=None)
 
+    parser.add_argument("-flim", "--flim_dir",
+                        help='''Path to flim look up table''',
+                        type=str, default='/work/04120/dfarrow/wrangler/flims/hdr1/average_flims_4500_4600.txt')
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -144,6 +149,7 @@ def main(argv=None):
 
     master_astrometry = ascii.read(config.path_radec)
     ra_flag_table = ascii.read(config.path_acc_flags, names=['date','obsid','exp01','exp02','exp03'])
+    flux_limit = ascii.read(args.flim_dir, names=['datevobs', 'flim'])
 
     survey_table = Table(np.loadtxt(config.survey_list, dtype=np.int, usecols=[0,1]), names=['date','obs'])
     cal_table = Table(np.loadtxt(config.cal_list, dtype=np.int, usecols=[0,1]), names=['date','obs'])
@@ -215,6 +221,16 @@ def main(argv=None):
 
         tpfile = op.join(config.tp_dir, str(row['date']) + 'v'
                          + str(row['obsid']).zfill(3)+'sedtp_f.dat')
+
+        sel3 = np.where(flux_limit['datevobs'] == datevshot)
+
+        if np.size(sel3) == 1:
+            row['fluxlimit_4550'] = flux_limit['flim'][sel3]
+        elif np.size(sel3) > 1:
+            args.log.warning('Weird: More than one flim value for %s' & datevshot)
+        else:
+            if row['field'] != 'cal':
+                args.log.warning('Could not find flim for %s' % datevshot)
         
         if op.exists(tpfile):
             tp_tab = ascii.read(tpfile)
