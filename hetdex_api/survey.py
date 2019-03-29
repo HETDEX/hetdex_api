@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+
+Initiates survey class and provides an
+API to query the survey class based on 
+astropy coordinates
+
 Created on Tue Jan 22 11:02:53 2019
 
 @author: gregz/Erin Mentuch Cooper
