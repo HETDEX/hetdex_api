@@ -16,14 +16,20 @@ The main code to create HDF5 files contained in the DR1 release are:
 
 * create_survey_hdf5.py - this creates the main survey info file which contains general shot and exposure info. A HETDEX shot always has 3 dithered exposures in it, while a parallel shot typically only has one.
 
-* create_shot_hdf5.py - this is the code to all info related to a single shot, including the raw fits image data from each exposure, flux calibrated fibers with their associated astrometric information, response curves, and other calibration information pertaining to an individual shot.
+* create_shot_hdf5.py - this is the code to all info related to a single shot, including the raw fits image data from each exposure, flux calibrated fibers with their associated astrometric information, response curves, and other calibration information pertaining to an individual shot. It is used along with create_astrometry_hdf5.py and create_cal_hdf5.py which append the astrometry information to an existing shot file.
 
 * create_detect_hdf5.py - this is the code to encode the detections database into an HDF5 container. Included in the HDF5 file are 1d flux-calibrated, PSF-weighted spectra for each source detection.
+
+* hetdex_api/ - contains a number of functions to interact on the Survey, Shot, Fibers, Images and Detections classes. 
 
 * hetdex_api/flux_lmits - deals with creating and accessing HDF5 containers for the datacubes that contain the flux limit. Also computes
 the average flux limits across shots and IFUs
 
-## Installation of flux limit tools
+* hetdex_api/config.py - configuration file to link to HETDEX DR1 files
+
+* notebooks/ - contains a number of jupyter notebooks to help HETDEX users learn to interact with the data and the API to the data. See readme within this directory on how to start these notebooks.
+
+## Installation of HETDEX_API and flux limit tools
 
 The tools to deal with flux limits need to be installed, to do this, and install the library and binaries in your
 home directory, run this command in the top directory (the directory with setup.py)
@@ -53,4 +59,3 @@ git commit -m "Reason for update or file creation"
 git push
 ```
 
-The directory "notebooks" contains a list of jupyter notebooks to familiarize the user with HDF5 file access and querying. It also contains several case uses of API modules developed by the team for scientific analysis.
