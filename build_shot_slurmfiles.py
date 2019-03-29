@@ -8,9 +8,10 @@ Created on Fri Mar  8 11:52:01 2019
 
 import os.path as op
 import numpy as np
-import config
 import subprocess
 import datetime
+
+from hetdex_api import config
 
 #filename = sys.argv[1]
 filename = op.join(config.red_dir, 'hdr1.scilist')
