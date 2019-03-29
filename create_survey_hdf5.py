@@ -43,7 +43,7 @@ from astropy.io import fits
 from astropy.table import vstack, Table
 from input_utils import setup_logging
 
-import config
+from hetdex_api import config
 
 
 def get_files(path_to_multifits, date, obsid):
