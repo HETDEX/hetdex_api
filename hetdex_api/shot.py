@@ -25,7 +25,9 @@ path_data = config.data_dir
 
 def open_shot_file(shot):
     """
-    get the file for a shot
+    get the file for a shot. This is a 
+    global function. It basically just
+    replaces dealing with a path name.
 
     Input
 
@@ -37,6 +39,7 @@ def open_shot_file(shot):
 
     fileh = open_shot_file(20180123009)
     fileh = open_shot_file('20180123v009')
+    
    
     """
 
@@ -61,7 +64,7 @@ class Fibers:
 
         This will also initiate the wave_rect attribute which is
         an array of rectified wavelengths corresponding the the
-        'calfib' and 'calfibe' datasets
+        'calfib', 'calfibe', 'Amp2Amp', and 'Throughput' datasets
 
         '''
         
@@ -76,11 +79,11 @@ class Fibers:
     def query_region(self, coords, radius=3./3600.):
         """
         returns an indexed fiber table
-        for a defined aperture
+        for a defined aperture. 
         
         self = Fibers class object
         coords = astropy coordinate object
-        radius = astropy quantity object
+        radius = radius in degrees
         """
         
         idx = coords.separation(self.coords) < radius * u.degree
@@ -150,7 +153,17 @@ class Fibers:
                 print("Error plotting spectrum")
              
     def save_fiber_spectrum(self, idx, type='calfib', file='spec.dat'):
-        
+        """
+        Saves a fiber spectrum
+
+        self = Fibers class object
+        idx = index of the fiber in the Fibers Table
+        types = ['calfib', 'spectrum', 'sky_spectrum', 'twi_spectrum',
+                 'error1Dfib', fiber_to_fiber']
+        file = output file name
+
+        """
+
         spectab = Table()
         if type == 'calfib':
             try:
@@ -223,14 +236,14 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
 def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
     Returns an image from the 2D data based on 
-    an multiframe or a specid/amp combo
+    an multiframe or a specid/amp/expnum combo
     
     multiframe - unique amp identifier to display
     imtype - image option to display
              options are:['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
                          'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
                          'Amp2Amp', 'Throughput']
-    expnum_obj - integer for which dither/exposure
+    expnum_obj - integer for the dither/exposure
 
     """
     fileh = open_shot_file(shot)
