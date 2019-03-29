@@ -38,6 +38,7 @@ from astropy.table import Table
 
 from input_utils import setup_logging
 from hetdex_api.shot import *
+from hetdex_api.survey import *
 
 def save_rsp_spectrum(self, idx, file='spec.dat'):
     spectab = Table()
@@ -84,19 +85,34 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    # initiate Fibers Class
+    # initiate Fibers and Survey Classes
     print args
     fibers = Fibers(args.datevobs)
+    survey = Survey('hdr1')
     
+    fwhm = survey.fwhm_moffat[survey.datevobs == args.datevobs]
+    structaz = survey.structaz[survey.datevobs == args.datevobs]
+    ascii.write([fwhm, structaz], 'shot.info', 
+                names=['fwhm_moffat', 'structaz'], overwrite=True)
+
     obj_coords = SkyCoord(args.ra * u.deg, args.dec * u.deg, frame='icrs')
     
     idx = fibers.query_region_idx(obj_coords, radius=(args.rad/3600.))
 
+    output = Table()
+    output['ra'] = fibers.coords.ra[idx]*u.deg
+    output['dec'] = fibers.coords.dec[idx]*u.deg
+    filenames = []
+
     fileidx = 101
     for i in idx:
         filename = 'tmp' + str(fileidx) + '.dat'
+        filenames.append(filename)
         save_rsp_spectrum(fibers, i, file=filename, )
         fileidx += 1
 
+    output['filename'] = np.array(filenames)
+    ascii.write(output, 'fib_coords.dat', overwrite=True)
+    
 if __name__ == '__main__':
     main()
