@@ -14,6 +14,7 @@ data_dir = op.join(red_dir, 'data')
 tp_dir = op.join(red_dir, 'throughput')
 calib_dir = op.join(hdr_dir, 'calib')
 raw_dir = op.join(hdr_dir, 'raw')
+flim_dir = op.join(red_dir, 'flim')
 
 path_gpinfo = op.join(calib_dir,'DR1FWHM.txt')
 path_acc_flags = op.join(red_dir, 'status_summary_hdr1.txt')
