@@ -219,11 +219,13 @@ class Classifications(tb.IsDescription):
 def get_elixer_image(detectid, elix_path):
     file_jpg = op.join(elix_path, 'jpgs', str(detectid) + '.jpg')
     file_pdf = op.join(elix_path, 'pdfs', str(detectid) + '.pdf')
+    
     if op.exists(file_jpg):
         elixim = plt.imread(file_jpg)
+        print np.size(elixim)
     elif op.exists(file_pdf):
-        file_png = detectid + '.png'
-        os.system('pdftoppm ' + file_pdf + ' ' + file_png + ' -png -singlefile')
+        file_png = str(detectid) + '.png'
+        os.system('pdftoppm ' + file_pdf + ' ' + str(detectid) + ' -png -singlefile')
         elixim = plt.imread(file_png)
     return elixim
 
@@ -262,7 +264,7 @@ def main(argv=None):
     args.log = setup_logging()
 
     # open elixer _cat.txt file to be ingested                                                
-    catfn = op.join(args.elixer_path, 'catalogs', '2017xx_cat.txt')
+    catfn = op.join(args.elixer_path, 'catalogs', '2017xxx_cat.txt')
     fibfn = op.join(args.elixer_path, 'catalogs', '2017xx_fib.txt')
 
     if op.exists(catfn):
@@ -295,12 +297,12 @@ def main(argv=None):
     for detect_i in detect_list[0:50]:
         
         args.log.info('Ingesting detectid = %s' % detect_i)
-        try:
-            elixim = get_elixer_image(detect_i, args.elixer_path)
-            elixarray = fileh.create_array(groupElix, 'DEX' + str(detect_i), elixim)
-            elixarray.attrs['CLASS'] = 'IMAGE'
-        except:
-            args.log.warning('Could not open elixer image for %s' % detect_i)
+    
+    elixim = get_elixer_image(detect_i, args.elixer_path)
+    elixarray = fileh.create_carray(groupElix, 'DEX' + str(detect_i), elixim)
+    elixarray.attrs['CLASS'] = 'IMAGE'
+    #except:
+    #    args.log.warning('Could not open elixer image for %s' % detect_i)
             
     table.flush()
     fileh.close()
