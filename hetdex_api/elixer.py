@@ -114,7 +114,9 @@ def read_elixer_catalogs(fibfn, catfn):
     cat_table = Table(data2, names=colnames2)
                 
     for detectid_i in enumerate(np.array(detectid)):
-        idx = np.where(cat_table['detectidcat'] == detectid_i)
+        idx = np.where((cat_table['detectidcat'] == detectid_i) & 
+                       (cat_table['ra_match'] == 666) & (cat_table['dec_match'] == 666)
+        print idx
         
 
     #Now we have consumed the catalog files
