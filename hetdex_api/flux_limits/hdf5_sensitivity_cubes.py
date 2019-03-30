@@ -10,9 +10,10 @@ Author: Daniel Farrow
 """
 
 import logging
-from os.path import isfile
+from os.path import isfile, join
 from re import compile
 import tables as tb
+from hetdex_api.config import flim_dir
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
 
@@ -53,8 +54,7 @@ def return_sensitivity_hdf_path(datevobs):
 
     """
 
-    path_to_hdf5s = "/work/04120/dfarrow/wrangler/flims/hdr1/"
-    path_to_hdf5s += "{:s}_sensitivity_cube.h5".format(datevobs)
+    path_to_hdf5s = join(flim_dir, "{:s}_sensitivity_cube.h5".format(datevobs))
 
     if isfile(path_to_hdf5s):
         return path_to_hdf5s
