@@ -36,185 +36,21 @@ from input_utils import setup_logging
 
 from hetdex_api import config
 
-class Detection:
-    #represents a single detection (may or may not be an acceptable LAE
-    def __init__(self):
-
-        self.detectid = None
-        self.entryid = None #unique for a run?
-        self.pdfname = None
-        self.detectname = None #i.e. 20180123v009_137
-        self.ra = None
-        self.dec = None
-        self.w = None #observed wavelength
-
-        self.z = None #assumes LyA
-
-        self.ew_obs = None
-        self.ew_rest = None #assuming LyA z
-        self.line_flux = None
-
-        self.sigma = None
-        self.chi2 = None
-        self.continuum = None
-
-        self.plae_poii_hetdex = None #hetdex only data
-        self.plae_poii_aperture = None
-        self.aperture_mag = None
-        self.aperture_filter = None
-
-        self.neighbors = [] #empty list (of Neighbors
-
-    @property
-    def num_neighbors(self):
-        try:
-            return len(self.neighbors)
-        except:
-            return -1
-
-
-class Neighbor:
-    #a catalog neighbor
-    def __init__(self):
-        self.ra = None
-        self.dec = None
-        self.mag = None
-        self.filter = None #filter for the magnitude
-        self.dist = None #distance in arcsecs
-        self.plae_poii_cat = None #P(LAE)/P(OII)
-
-
-def read_elixer_catalogs(fibfn, catfn):
-    """
-    read the _fib.txt and _cat.txt catalogs
-    create Detections for each (combining across and within catalogs as needed)
-
-    :return: list of Detections
-
-    Author: Dustin Davis
-    """
-
-    detections = []
-    fib_version = None #can switch on version number if necessary
-    cat_version = None
-
-    #should be one line per detection in fib.txt
-    #at least one line but may be more in cat.txt
-
-    #read fib.txt first and build out list of detections
-    with open(fibfn,"r") as f:
-        for line in f:
-            if line[0] == '#': #except get # version 1.5.0a16
-                if (fib_version is None) and ('version' in line): #1st line should be the version
-                    toks = line.split()
-                    if (toks is not None) and (len(toks)== 3):
-                        fib_version = toks[2]
-                continue
-
-            if len(line) < 100:
-                continue
-
-            toks = line.split() #white space split
-
-            if len(toks) < 29: #must be at least 29 for _fib.txt
-                continue
-
-            d = Detection()
-
-            d.pdfname = toks[0]
-            d.detectid = np.int64(toks[1])
-            d.entryid = toks[2]
-            d.ra = float(toks[3])
-            d.dec = float(toks[4])
-            d.w = float(toks[5])
-            d.sigma = float(toks[6])
-            d.chi2 = float(toks[7])
-            d.line_flux = float(toks[10])
-            d.continuum = float(toks[12])
-
-            d.plae_poii_hetdex = float(toks[14])
-
-            detections.append(d)
-
-
-    #then read cat.txt and match up to existing entry in detections list
-    with open(catfn,"r") as f:
-        for line in f:
-            if line[0] == '#':
-                if (cat_version is None) and ('version' in line): #1st line should be the version
-                    toks = line.split()
-                    if (toks is not None) and (len(toks)== 3):
-                        cat_version = toks[2]
-                continue
-
-            if len(line) < 100:
-                continue
-
-            toks = line.split() #white space split
-
-            if len(toks) < 29: #must be at least 29 for _fib.txt
-                continue
-
-            
-            pdfname = toks[0]
-            detectid = np.int64(toks[1])
-                
-            try:
-                entryid = toks[2]
-                
-                ra = float(toks[3])
-                dec = float(toks[4])
-                
-                num_cat_matches = int(toks[5])
-                
-                w = float(toks[6])
-                
-                match_ra = float(toks[24])
-                match_dec = float(toks[25])
-                dist = float(toks[26])
-                mag = toks[28]
-                filter = toks[29]
-                if (toks[32] is not None) and (toks[32].lower() != 'none'): #can be None if could not get an aperture
-                    plae_poii = float(toks[32])
-                else:
-                    plae_poii = -1 
-                    
-                #find your mates:
-                #there may be several ... the 1st is the aperture
-                #each additional one is a catalog match
-
-                for m in detections:
-                    if (m.entryid == entryid) and (m.detectid == detectid) and (m.ra == ra) and (m.dec == dec) and (m.w == w):
-                        #match
-                        if (match_ra == 666) and (match_dec == 666) and (dist == 0.0): #this is the aperture entry
-                            m.plae_poii_aperture = plae_poii
-                            m.aperture_filter = filter
-                            m.aperture_mag = mag
-                        else: #this is a matched catalog object
-                            n = Neighbor()
-                            n.ra = match_ra
-                            n.dec = match_dec
-                            n.mag = mag
-                            n.filter = filter  # filter for the magnitude
-                            n.dist = dist  # distance in arcsecs
-                            n.plae_poii = plae_poii  # P(LAE)/P(OII)
-                            
-                            m.num_neighbors += 1
-                            m.neighbors.append(n)
-            except:
-                print('Could not ingest cat info for %s' % detectid) 
-
-    #Now we have consumed the catalog files
-    return detections
 
 class Classifications(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
-    plae_poii_hetdex = tb.Float32Col()
-    plae_poii_image = tb.Float32Col()
-    image_src = tb.StringCol((20))
-    plae_poii_cat = tb.Float32Col()
-    cat_src = tb.StringCol((20))
-    
+    plae_poii_hetdex = tb.Float32Col(pos=1)
+    plae_poii_aperture = tb.Float32Col(pos=3)
+    aperture_filter = tb.StringCol((1), pos=4)
+    aperture_mag = tb.Float32Col(pos=2)
+    plae_poii_cat = tb.Float32Col(pos=7)
+    cat_mag = tb.Float32Col(pos=5)
+    cat_src = tb.StringCol((20), pos=6)
+    ra = tb.Float32Col()
+    dec = tb.Float32Col()
+    z_prelim = tb.Float32Col()
+    ra_match = tb.Float32Col()
+    dec_match = tb.Float32Col()
 
 def get_elixer_image(detectid, elix_path):
     file_jpg = op.join(elix_path, 'jpgs', str(detectid) + '.jpg')
@@ -255,22 +91,26 @@ def main(argv=None):
                         help='''Path to elixer output''',
                         type=str, default='/scratch/03261/polonius/')
 
-    parser.add_argument("-name", "--elixer_name",
-                        help='''Path to elixer output''',
-                        type=str, default=None)
+    parser.add_argument("-cat", "--elixer_cat",
+                        help='''Path to elixer catalog''',
+                        type=str, default='/work/03261/polonius/stampede2/erin/simple_cat.txt')
 
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    # open elixer _cat.txt file to be ingested                                                
-    catfn = op.join(args.elixer_path, 'catalogs', '2017xxx_cat.txt')
-    fibfn = op.join(args.elixer_path, 'catalogs', '2017xx_fib.txt')
+    # open elixer catalog file to be ingested                                                
 
-    if op.exists(catfn):
-        elixer_info = read_elixer_catalogs(fibfn, catfn)
+    if op.exists(args.elixer_cat):
+        colnames = ['detectid', 'ra', 'dec', 'z_prelim', 'ew_obs',
+                    'ew_rest', 'plae_poii_hetdex',
+                    'plae_poii_aperture', 'aperture_mag',
+                    'aperture_filter', 'plae_poii_cat',
+                    'cat_filter', 'dist_match', 'mag_match',
+                    'ra_match', 'dec_match']
+        elixer_table = ascii.read(args.elixer_cat, names=colnames)
     else:
-        print('Could not open %s' % catfn)
+        print('Could not open %s' % args.elixer_cat)
 
     filedet = tb.open_file(config.detecth5, 'r')
     detect_list = filedet.root.Detections.cols.detectid[:]
@@ -292,19 +132,35 @@ def main(argv=None):
         except:
             args.log.warning('Could not open %s.', args.outfilename)
 
-    table = fileh.root.Classifications
-  
+    tableMain = fileh.root.Classifications
+
+    # set array of columns to store
+
+    colkeep = ['ra', 'dec', 'z_prelim', 'plae_poii_hetdex',
+                    'plae_poii_aperture', 'aperture_mag',
+                    'aperture_filter', 'plae_poii_cat',
+                    'cat_filter', 'dist_match', 'mag_match',
+                    'ra_match', 'dec_match']
+
     for detect_i in detect_list[0:50]:
-        
-        args.log.info('Ingesting detectid = %s' % detect_i)
-    
-    elixim = get_elixer_image(detect_i, args.elixer_path)
-    elixarray = fileh.create_carray(groupElix, 'DEX' + str(detect_i), elixim)
-    elixarray.attrs['CLASS'] = 'IMAGE'
-    #except:
-    #    args.log.warning('Could not open elixer image for %s' % detect_i)
-            
-    table.flush()
+        row = tableMain.row
+        row['detectid'] = detect_i
+
+        idx = np.where(elixer_table['detectid'] == detect_i)
+
+        if np.size(idx) > 0:
+            for colname_i in colkeep:
+                try:
+                    row[colname_i] = elixer_table[colname_i][idx]
+                except:
+                    args.log.warning('Could not ingest %s' % colname_i)
+                    args.log.warning('Could not ingest %s' % detect_i)
+        else:
+            print('Could not ingest %s' % detect_i)
+
+        row.append()
+
+    tableMain.flush()
     fileh.close()
 
 if __name__ == '__main__':
