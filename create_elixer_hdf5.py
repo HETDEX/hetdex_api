@@ -41,13 +41,14 @@ class Classifications(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
     plae_poii_hetdex = tb.Float32Col(pos=1)
     plae_poii_aperture = tb.Float32Col(pos=3)
-    aperture_filter = tb.StringCol((1), pos=4)
+    aperture_filter = tb.StringCol((15), pos=4)
     aperture_mag = tb.Float32Col(pos=2)
     plae_poii_cat = tb.Float32Col(pos=7)
-    cat_mag = tb.Float32Col(pos=5)
-    cat_src = tb.StringCol((20), pos=6)
+    mag_match = tb.Float32Col(pos=5)
+    cat_filter = tb.StringCol((15), pos=6)
     ra = tb.Float32Col()
     dec = tb.Float32Col()
+    dist_match = tb.Float32Col()
     z_prelim = tb.Float32Col()
     ra_match = tb.Float32Col()
     dec_match = tb.Float32Col()
@@ -142,7 +143,7 @@ def main(argv=None):
                     'cat_filter', 'dist_match', 'mag_match',
                     'ra_match', 'dec_match']
 
-    for detect_i in detect_list[0:50]:
+    for detect_i in detect_list:
         row = tableMain.row
         row['detectid'] = detect_i
 
@@ -151,7 +152,10 @@ def main(argv=None):
         if np.size(idx) > 0:
             for colname_i in colkeep:
                 try:
-                    row[colname_i] = elixer_table[colname_i][idx]
+                    if colname_i == 'aperture_filter' or colname_i == 'cat_filter':
+                        row[colname_i] = str(elixer_table[colname_i][idx])
+                    else:
+                        row[colname_i] = elixer_table[colname_i][idx]
                 except:
                     args.log.warning('Could not ingest %s' % colname_i)
                     args.log.warning('Could not ingest %s' % detect_i)
