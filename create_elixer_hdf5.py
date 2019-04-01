@@ -157,12 +157,12 @@ def main(argv=None):
             for colname_i in colkeep:
                 try:
                     if colname_i == 'aperture_filter' or colname_i == 'cat_filter':
-                        row[colname_i] = elixer_table[colname_i][idx]
+                        row[colname_i] = str(elixer_table[colname_i][idx])
                     else:
                         row[colname_i] = elixer_table[colname_i][idx]
-                except:
-                    args.log.warning('Could not ingest %s' % colname_i)
-                    args.log.warning('Could not ingest %s' % detect_i)
+                except Exception as e:
+                    args.log.warning('Could not ingest col(%s) detectid(%d)' % (colname_i,detect_i), exc_info=True )
+                    #args.log.warning('Could not ingest %s' % detect_i, exc_info=True)
         else:
             print('Could not ingest %s' % detect_i)
 
