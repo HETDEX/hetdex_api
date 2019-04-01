@@ -109,7 +109,8 @@ def main(argv=None):
                     'aperture_filter', 'plae_poii_cat',
                     'cat_filter', 'dist_match', 'mag_match',
                     'ra_match', 'dec_match']
-        elixer_table = ascii.read(args.elixer_cat, names=colnames)
+        elixer_table = ascii.read(args.elixer_cat, names=colnames, comment="#")
+                                  #delimiter="\t", guess=False, format='basic')
     else:
         print('Could not open %s' % args.elixer_cat)
 
@@ -157,7 +158,7 @@ def main(argv=None):
             for colname_i in colkeep:
                 try:
                     if colname_i == 'aperture_filter' or colname_i == 'cat_filter':
-                        row[colname_i] = str(elixer_table[colname_i][idx])
+                        row[colname_i] = str(elixer_table[colname_i][idx])[-elixer_table[colname_i][idx].size:]
                     else:
                         row[colname_i] = elixer_table[colname_i][idx]
                 except Exception as e:
