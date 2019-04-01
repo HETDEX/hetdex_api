@@ -169,6 +169,7 @@ def main(argv=None):
 
         row.append()
 
+    tableMain.cols.detectid.create_csindex()
     tableMain.flush()
     fileh.close()
 
