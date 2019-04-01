@@ -297,7 +297,7 @@ def main(argv=None):
     elif args.mergedir:
         files = sorted(glob.glob(op.join(args.mergedir,'detect*.h5')))
 
-        detectid_max = 0
+        detectid_max = 1
 
         for file in files:
             fileh_i = tb.open_file(file, 'r')
@@ -313,7 +313,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff 
 
             fileh_i.close()
             
