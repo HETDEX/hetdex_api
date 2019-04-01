@@ -115,6 +115,7 @@ def main(argv=None):
 
     filedet = tb.open_file(config.detecth5, 'r')
     detect_list = filedet.root.Detections.cols.detectid[:]
+    inputid = filedet.root.Detections.cols.inputid[:]
     filedet.close()
 
     # open elixer HDF5 file, if append option is given this will be a group added
@@ -143,17 +144,20 @@ def main(argv=None):
                     'cat_filter', 'dist_match', 'mag_match',
                     'ra_match', 'dec_match']
 
-    for detect_i in detect_list:
+    for index, detect_i in enumerate(detect_list):
         row = tableMain.row
         row['detectid'] = detect_i
 
         idx = np.where(elixer_table['detectid'] == detect_i)
 
         if np.size(idx) > 0:
+            if np.size(idx > 1):
+                print(detect_i, inputid[index])
+
             for colname_i in colkeep:
                 try:
                     if colname_i == 'aperture_filter' or colname_i == 'cat_filter':
-                        row[colname_i] = str(elixer_table[colname_i][idx])
+                        row[colname_i] = elixer_table[colname_i][idx]
                     else:
                         row[colname_i] = elixer_table[colname_i][idx]
                 except:
