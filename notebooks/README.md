@@ -25,7 +25,7 @@ In your home (technically this is ``home1/``)​
 ln -s /work/magicnumber/username/stampede2/ stampede2
 ```
 
-3. clone the GitHub HETDEX_API to somewhere on ``/work``
+3. clone the GitHub HETDEX_API to somewhere on ``/work`` (Not necessary if you are pip installing from HDR1/software/HETDEX_API)
 
 ```
 git clone https://github.com/grzeimann/HETDEX_API.git
@@ -36,6 +36,11 @@ git clone https://github.com/grzeimann/HETDEX_API.git
 ```
 cd HETDEX_API
 pip install --user .
+```
+or you can just install from the HETDEX_API installed in HDR1 (this will likely be out of date soon).
+
+```
+pip install --user /work/03946/hetdex/hdr1/software/HETDEX_API
 ```
 
 4.1 To use the ELiXer API, you will need to install or reference ELiXer. Please see /work/03946/hetdex/hdr1/software/elixer/docs/Elixer_readme.pdf (Installation section on page 3)
