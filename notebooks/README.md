@@ -25,25 +25,40 @@ In your home (technically this is ``home1/``)​
 ln -s /work/magicnumber/username/stampede2/ stampede2
 ```
 
-3. clone the GitHub HETDEX_API to somewhere on ``/work`` (Not necessary if you are pip installing from HDR1/software/HETDEX_API)
+3. pip install HETDEX_API
 
-```
-git clone https://github.com/grzeimann/HETDEX_API.git
-```
-
-4. Go into the HETDEX_API directory and install with pip. This will install the API & dependencies NOT including the ELiXer API.
-
-```
-cd HETDEX_API
-pip install --user .
-```
-or you can just install from the HETDEX_API installed in HDR1 (this will likely be out of date soon).
+Option 1: pip install HETDEX_API. You can just install from the HETDEX_API installed in HDR1 (this will likely be out of date soon).
 
 ```
 pip install --user /work/03946/hetdex/hdr1/software/HETDEX_API
 ```
 
-4.1 To use the ELiXer API, you will need to install or reference ELiXer. Please see /work/03946/hetdex/hdr1/software/elixer/docs/Elixer_readme.pdf (Installation section on page 3)
+Option 2: clone the GitHub HETDEX_API to somewhere on ``/work`` (Not necessary if you are pip installing from HDR1/software/HETDEX_API)
+
+```
+git clone https://github.com/grzeimann/HETDEX_API.git
+```
+
+Go into the HETDEX_API directory and install with pip. This will install the API & dependencies NOT including the ELiXer API.
+
+```
+cd HETDEX_API
+pip install --user .
+```
+
+As we update HETDEX_API, this latter option will be needed. For updates, 
+
+```
+cd HETDEX_API
+git pull
+pip install --user --upgrade .
+```
+
+4 To use the ELiXer API, you will need to install or reference ELiXer. Please see /work/03946/hetdex/hdr1/software/elixer/docs/Elixer_readme.pdf (Installation section on page 3)
+
+```
+pip install photutils --user
+```
 
 5. Also install other dependent python modules
 
