@@ -54,8 +54,16 @@ pip install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetd
 pip install --user /work/03946/hetdex/hdr1/software/vdrp
 ```
 
-6. goto https://vis.tacc.utexas.edu/ 
+6. Copy over the notebooks to a working directory on /work. These create some example output files so you probably want these somewhere you can delete and don't make your git clone too messy.
 
-7. log onto stampede2 ipython jupyter notebook (normal queue worked for me)
+```
+cdw (alias to cd into your working directory)
+mkdir notebookplay
+cp /work/03946/hetdex/hdr1/software/HETDEX_API/notebooks/* notebookplay/
+```
 
-8. cd stampede2/path_to_HETDEX_API/notebooks
+7. goto https://vis.tacc.utexas.edu/ 
+
+8. log onto stampede2 ipython jupyter notebook (development queue is fastest but will only be active for 2 hours. Normal queue will give you longer)
+
+9. cd stampede2/notebookplay
