@@ -8,7 +8,7 @@ Then, click:
 
 Create a TACC account
 
-Finally, send Karl your username so he can add you to the HETDEX group.
+Finally, send Karl your username so he can add you to the HETDEX group. FYI, you may need to wait up to 24 hours for your password and group authentication to get approved.
 
 ## Instructions to get the notebooks working on stampede2:
 
