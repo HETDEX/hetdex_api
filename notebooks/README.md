@@ -56,6 +56,8 @@ pip install --user /work/03946/hetdex/hdr1/software/vdrp
 
 You don't need to install vdrp unless you plan to use the reduction scripts located within it.
 
+Note: do not worry about pip version warnings. I have had issues after upgrading pip so I recommend you remain with version 9.0.3 for now. If you do upgrade and have issues, email Erin (erin@astro) and she can help you revert back.
+
 6. Copy over the notebooks to a working directory on /work. These create some example output files so you probably want these somewhere you can delete and don't make your git clone too messy.
 
 ```
