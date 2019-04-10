@@ -21,7 +21,7 @@ def on_button_clicked(b):
     limits.dec = dec.value
     limits.rad = rad.value
     limits.field = field.value
-    outfile = open('pickle.query', 'wb')
+    outfile = open('query.pickle', 'wb')
     pickle.dump(limits, outfile)
     outfile.close()
 
@@ -56,16 +56,16 @@ text_layout = widgets.Layout(width='100%', height='35px')
 start = widgets.Label(value='start', layout=text_layout)
 end = widgets.Label(value='end', layout=text_layout)
 blank = widgets.Label(value='',layout=text_layout)
-wave_low = widgets.FloatText(value=3500.0, layout=but_layout)
-wave_high = widgets.FloatText(value=5500.0, layout=but_layout)
-flux_low = widgets.FloatText(layout=but_layout)
-flux_high = widgets.FloatText(layout=but_layout)
-linewidth_low = widgets.FloatText(layout=but_layout)
-linewidth_high = widgets.FloatText(layout=but_layout)
-sn_low = widgets.FloatText(value=5, layout=but_layout)
-sn_high = widgets.FloatText(value=25, layout=but_layout)
-chi2_low = widgets.FloatText(value=0.1, layout=but_layout)
-chi2_high = widgets.FloatText(value=2.4, layout=but_layout)
+wave_low = widgets.FloatText(value=None, layout=but_layout)
+wave_high = widgets.FloatText(value=None, layout=but_layout)
+flux_low = widgets.FloatText(value=None, layout=but_layout)
+flux_high = widgets.FloatText(value=None, layout=but_layout)
+linewidth_low = widgets.FloatText(value=None, layout=but_layout)
+linewidth_high = widgets.FloatText(value=None, layout=but_layout)
+sn_low = widgets.FloatText(value=None, layout=but_layout)
+sn_high = widgets.FloatText(value=None, layout=but_layout)
+chi2_low = widgets.FloatText(value=None, layout=but_layout)
+chi2_high = widgets.FloatText(value=None, layout=but_layout)
 
 # set up labels
 wave_label = widgets.Label(value='wavelength (AA)')
@@ -97,9 +97,9 @@ field = widgets.SelectMultiple(
 ra_label = widgets.Label(value='RA (degrees)', layout=text_layout)
 dec_label = widgets.Label(value='Dec (degrees)', layout=text_layout)
 rad_label = widgets.Label(value='Radius (arcsec)', layout=text_layout)
-ra = widgets.FloatText(layout=but_layout)
-dec = widgets.FloatText(layout=but_layout)
-rad = widgets.FloatText(value=3,layout=but_layout)
+ra = widgets.FloatText(value=None, layout=but_layout)
+dec = widgets.FloatText(value=None, layout=but_layout)
+rad = widgets.FloatText(value=None,layout=but_layout)
 
 print('Either select a specific field or multiple fields (command-click to select multiple fields):\n')
 display(field)
@@ -120,3 +120,5 @@ display(check)
 print("You may also wish to consider some down selections:")
 display(toggles, button)
 button.on_click(on_button_clicked)
+
+
