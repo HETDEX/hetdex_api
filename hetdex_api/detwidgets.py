@@ -3,6 +3,7 @@ import ipywidgets as widgets
 import numpy as np
 import pickle
 
+
 def on_button_clicked(b):
     print("Query limits saved to query.pickle")
     limits.wave_low = wave_low.value
@@ -119,4 +120,3 @@ display(check)
 print("You may also wish to consider some down selections:")
 display(toggles, button)
 button.on_click(on_button_clicked)
-
