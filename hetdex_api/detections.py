@@ -24,18 +24,26 @@ class Detections:
         Input
         -----
         survey : string
-            Data release you would like to load, i.e., 'DR1' or 'Parallel'.
+            Data release you would like to load, i.e., 'DR1' or 'cont_sources'.
             This is case insensitive.
         '''
         survey_options = {'dr1': config.detecth5,
-                          'parallel': 'PATHNAME'}
+                          'cont_sources': config.contsourceh5}
         if survey.lower() not in survey_options:
             print('survey not in survey options')
             print(survey_options)
             return None
         self.filename = survey_options[survey]
         self.hdfile = tb.open_file(self.filename, mode='r')
-        colnames = self.hdfile.root.Info.Detections.colnames
+        colnames = self.hdfile.root.Detections.colnames
         for name in colnames:
             setattr(self, name,
-                    getattr(self.hdfile.root.Info.Detections.cols, name)[:])
+                    getattr(self.hdfile.root.Detections.cols, name)[:])
+        
+        # set the SkyCoords
+        self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
+
+        # add in the elixer probabilties and associated info:
+        self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
+        colnames2 = self.hdfile_elix.root.
+        
