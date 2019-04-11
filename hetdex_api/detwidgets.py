@@ -96,7 +96,7 @@ field = widgets.SelectMultiple(
 # set up coord vals
 ra_label = widgets.Label(value='RA (degrees)', layout=text_layout)
 dec_label = widgets.Label(value='Dec (degrees)', layout=text_layout)
-rad_label = widgets.Label(value='Radius (arcsec)', layout=text_layout)
+rad_label = widgets.Label(value='Radius (arcmin)', layout=text_layout)
 ra = widgets.FloatText(value=None, layout=but_layout)
 dec = widgets.FloatText(value=None, layout=but_layout)
 rad = widgets.FloatText(value=None,layout=but_layout)
