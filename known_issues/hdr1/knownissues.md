@@ -10,3 +10,4 @@ These engineering shots were accidentally labelled as science shots. Should be i
 * 20180309v003 89.00241 56.09940 303.54000 
 * 20180309v004 97.00384 56.09990 303.50000 
 * 20181205v012 41.85607 19.36482 117.50000
+
