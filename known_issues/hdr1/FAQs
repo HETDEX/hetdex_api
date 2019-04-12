@@ -1,0 +1,14 @@
+## Frequently Asked Questions
+
+Here we list some common questions and answers about HDR1 and the HETDEX_API package
+
+1. How do I run extractions?
+The detections were run using software that worked on the multifits files. These were combined into single H5 files to save      on file count and space. We are actively working to update the extraction script to run directly on the H5 files. We do provide the API extract.py and an example jupyter notebook on how to do this yourself but have not fully tested if these results are consistent with the older style of extractions used for our detection catalog. Please try it out and give feedback to either Erin or Greg.
+
+2. Do I have to use the Jupyter notebooks? They are slow to log onto.
+
+Its true the Jupyter notebooks are annoying because you have to wait for a node on stampede2 to activate them and then they time out after 2 hours. Instead, you can just follow the code as seen on the github pages of the notebooks:
+
+https://github.com/grzeimann/HETDEX_API/tree/master/notebooks
+  
+And copy and paste the code into your own python script then run away. It will work within the ipython module on TACC as well without the bonus of instant visualizations. 
