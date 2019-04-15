@@ -63,7 +63,7 @@ class Detections:
                 setattr(self, name2,
                         getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
-        # also assign a field identifier
+        # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
         self.fwhm = np.zeros(np.size(self.detectid))
         self.flux_limit = np.zeros(np.size(self.detectid))
@@ -76,7 +76,18 @@ class Detections:
             self.fwhm[ix] = S.fwhm_moffat[index]
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
-    
+
+        # assign a vis_class field assigned classification
+        # -2 = ignore (bad detectid, shot)
+        # -1 = no assignemnt
+        # 0 = artifact
+        # 1 = OII emitter
+        # 2 = LAE emitter
+        # 3 = star
+        # 4 = nearby galaxies (HBeta, OIII usually)
+        # 5 = other line
+
+        self.vis_class = -1 * np.ones(np.size(self.detectid))
 
     def query_by_coords(self, coords, radius):
         '''
@@ -206,7 +217,45 @@ class Detections:
         '''
         Reads in the bad detect list from config.py
         and removes those detectids
+        Set these to -2 (they are software errors)
+        Don't use for machine learning or other
+        classifying algorithms tests.
         '''
+        
+        # set an empty mask to start
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
+        
+        baddetects = ascii.read(config.baddetects, names=['detectid'])
+
+        for baddet in baddetects['detectid']:
+            maskdet = self.detectid == baddet
+            mask = mask | maskdet
+
+        self.vis_class[mask] = -2
+
+        return np.invert(mask)
+
+    def remove_bad_amps(self):
+        '''
+        Reads in the bad amp list from config.py
+        and creates a mask to remove those detections.
+        It will also assign a 0 to signify an artifact
+        in vis_class
+        '''
+
+        # set an empty mask to start
+
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
+
+        badamps = ascii.read(config.badamps, 
+                             names=['ifuslot', 'amp','date_start', 'date_end']))
+
+        for row in np.arange(np.size(badamps)):
+            maskamp = (detects.amp == badamps['amp']) 
+                      * (detects.ifuslot == str(badamps['ifuslot'].zfill(3)))
+                      * (detects.date > badamps['date_start'])
+                      * (detects.data < badamps['date_end'])
+            mask = maskamp | mask
 
 
     def remove_shots(self, shotlist):
@@ -214,14 +263,42 @@ class Detections:
         Takes a list of shots and removes them
         '''
 
+        badshots = ascii.read(config.badshots)
+
+
     def remove_balmerdip_stars(self):
         '''
         Applies a cut to the databased to remove all
         stars that show a false emission feature around 3780
+        Also assigns a star classification to each detectid
         '''
-        maskwave = (self.wavelength > 3775) * (self.wavelength < 3785) * self.continuum > 3)
+        mask = (self.wavelength > 3775) * (self.wavelength < 3785) * (self.continuum > 3)
+        detects.vis_class[mask] = 3
+
+        return np.invert(mask)
         
-        return np.invert(maskwave)
+    def remove_bright_stars(self):
+        '''
+        Applies a cut to remove bright stars based on
+        continuum level. Assigns a star classification
+        to each detectid
+        '''
+        mask = (self.continuum > 150.) * ( self.continuum < 1000.)
+        detects.vis_class[mask] = 3
+        
+        return np.invert(mask)
+    
+    def remove_bright_artifacts(self):
+        '''
+        Remove all objects with very 
+        high continuum. These are detector
+        issues.
+        '''
+
+        mask = self.continuum > 1000.
+        detects.vis_class[mask] = 0
+        
+        return np.invert(mask)
         
 def show_elixer(detectid):
     '''
