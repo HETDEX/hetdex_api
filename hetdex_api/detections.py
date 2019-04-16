@@ -2,8 +2,7 @@
 """
 
 Initiates the Detections class.
-An API may or may not be developed in the future.
-We recommend just using pytables since this is only one file.
+
 
 Created on 2019/01/28
 
@@ -131,6 +130,8 @@ class Detections:
           self.sn_high = None
           self.chi2_low = None
           self.chi2_high = None
+          self.cont_low = None
+          self.cont_high = None
           self.aperture_flag = False
           self.ra = None
           self.dec = None
@@ -175,6 +176,10 @@ class Detections:
         else:
             maskchi2 = np.ones(ndets, dtype=bool)
             
+        if limits.cont_low or limits.cont_high:
+            maskcont = (self.continuum > limits.cont_low) * (self.continuum < limits.cont_high)
+        else:
+            maskcont = np.ones(ndets, dtype=bool)
             
         if limits.aperture_flag:
             coords = SkyCoord(limits.ra * u.degree, limits.dec * u.degree, frame='icrs')
@@ -191,9 +196,10 @@ class Detections:
                     mask_i = (self.field == field_index)
                     maskfield = maskfield | mask_i
         
-        mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskfield
+        mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
                     
         return mask
+
                 
     def query_by_pickle(self, picklefile):
         '''
@@ -208,6 +214,7 @@ class Detections:
         created in detwidget.py
         
         '''
+
         limits = pickle.load( open( picklefile, "rb" ) )
         mask = self.query_by_dictionary(limits)
         return mask
@@ -235,6 +242,7 @@ class Detections:
 
         return np.invert(mask)
 
+
     def remove_bad_amps(self):
         '''
         Reads in the bad amp list from config.py
@@ -254,14 +262,25 @@ class Detections:
             maskamp = (detects.amp == badamps['amp']) * (detects.ifuslot == str(badamps['ifuslot'].zfill(3))) * (detects.date > badamps['date_start']) * (detects.data < badamps['date_end'])
             mask = maskamp | mask
 
+        return np.invert(mask)
 
     def remove_shots(self, shotlist):
         '''
-        Takes a list of shots and removes them
+        Takes a list of bad shots and removes them. Assigns -2 
+        to detections in these shots so they are not used 
+        in any MLing analysis
         '''
 
-        badshots = ascii.read(config.badshots)
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
 
+        badshots = ascii.read(config.badshots)
+        for shot in badshots:
+            maskshot = (self.shotid == shot)
+            mask = mask | maskshot
+        
+        self.vis_class = -2
+
+        return np.invert(mask)
 
     def remove_balmerdip_stars(self):
         '''
