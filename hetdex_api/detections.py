@@ -248,13 +248,10 @@ class Detections:
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
         badamps = ascii.read(config.badamps, 
-                             names=['ifuslot', 'amp','date_start', 'date_end']))
+                             names=['ifuslot', 'amp','date_start', 'date_end'])
 
         for row in np.arange(np.size(badamps)):
-            maskamp = (detects.amp == badamps['amp']) 
-                      * (detects.ifuslot == str(badamps['ifuslot'].zfill(3)))
-                      * (detects.date > badamps['date_start'])
-                      * (detects.data < badamps['date_end'])
+            maskamp = (detects.amp == badamps['amp']) * (detects.ifuslot == str(badamps['ifuslot'].zfill(3))) * (detects.date > badamps['date_start']) * (detects.data < badamps['date_end'])
             mask = maskamp | mask
 
 
@@ -272,7 +269,12 @@ class Detections:
         stars that show a false emission feature around 3780
         Also assigns a star classification to each detectid
         '''
-        mask = (self.wavelength > 3775) * (self.wavelength < 3785) * (self.continuum > 3)
+        mask1 = (self.wave > 3775) * (self.wave < 3785) * (self.continuum > 3)
+
+        mask2 = (self.wave > 4503.) * (self.wave <4513.) * (self.continuum > 10)
+ 
+        mask = mask1 | mask2 
+
         detects.vis_class[mask] = 3
 
         return np.invert(mask)
@@ -283,19 +285,19 @@ class Detections:
         continuum level. Assigns a star classification
         to each detectid
         '''
-        mask = (self.continuum > 150.) * ( self.continuum < 1000.)
+        mask = (self.continuum > 175.) 
         detects.vis_class[mask] = 3
         
         return np.invert(mask)
     
-    def remove_bright_artifacts(self):
+    def remove_ccd_features(self):
         '''
         Remove all objects with very 
         high continuum. These are detector
         issues.
         '''
 
-        mask = self.continuum > 1000.
+        mask1 = (self.wave > 3520.) * (self.wave > 5525.) 
         detects.vis_class[mask] = 0
         
         return np.invert(mask)
