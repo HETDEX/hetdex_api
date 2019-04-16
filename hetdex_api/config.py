@@ -15,6 +15,7 @@ tp_dir = op.join(red_dir, 'throughput')
 calib_dir = op.join(hdr_dir, 'calib')
 raw_dir = op.join(hdr_dir, 'raw')
 flim_dir = op.join(red_dir, 'flim')
+elix_dir = op.join(hdr_dir, 'detect', 'ergfiles')
 
 path_gpinfo = op.join(calib_dir,'DR1FWHM.txt')
 path_acc_flags = op.join(red_dir, 'status_summary_hdr1.txt')
@@ -27,3 +28,9 @@ surveyh5 = op.join(hdr_dir,'survey','survey_hdr1.h5')
 detecth5 = op.join(hdr_dir,'detect','detect_hdr1.h5')
 elixerh5 = op.join(hdr_dir,'detect','elixer.h5')
 contsourceh5 = op.join(hdr_dir,'detect','continuum_sources.h5')
+
+bad_dir = '../known_issues/hdr1'
+baddetect = op.join(bad_dir, 'baddetects.list')
+badshot = op.join(bad_dir, 'badshots.list')
+badamp = op.join(bad_dir, 'badamps.list')
+badpix = op.join(bad_dir, 'badpix.list')
