@@ -8,7 +8,7 @@ extras = {}
 setup(
     # package description and version
     name="HETDEX API",
-    version="0.0,0",
+    version="0.0,1",
     author="The HETDEX Collaboration",
     author_email="dfarrow@mpe.mpg.de",
     description="Tools to deal with HETDEX data releases",
