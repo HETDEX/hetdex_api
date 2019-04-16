@@ -16,6 +16,8 @@ def on_button_clicked(b):
     limits.sn_high = sn_high.value
     limits.chi2_low = chi2_low.value
     limits.chi2_high = chi2_high.value
+    limits.cont_low = cont_low.value
+    limits.cont_high = cont_high.value
     limits.aperture_flag = check.value
     limits.ra = ra.value
     limits.dec = dec.value
@@ -42,6 +44,8 @@ class Det_limits:
         self.sn_high = None
         self.chi2_low = None 
         self.chi2_high = None
+        self.cont_low = None
+        self.cont_high = None
         self.aperture_flag = False
         self.ra = None
         self.dec = None
@@ -66,6 +70,8 @@ sn_low = widgets.FloatText(value=None, layout=but_layout)
 sn_high = widgets.FloatText(value=None, layout=but_layout)
 chi2_low = widgets.FloatText(value=None, layout=but_layout)
 chi2_high = widgets.FloatText(value=None, layout=but_layout)
+cont_low = widgets.FloatText(value=None, layout=but_layout)
+cont_high = widgets.FloatText(value=None, layout=but_layout)
 
 # set up labels
 wave_label = widgets.Label(value='wavelength (AA)')
@@ -73,7 +79,8 @@ flux_label = widgets.Label(value='lineflux ('+ r'\(10^{-17}\) ergs/s/cm'+r'\(^2\
 linewidth_label = widgets.Label(value='linewidth (AA)')
 sn_label = widgets.Label(value='S/N')
 chi2_label = widgets.Label(value=r'\(\chi^2\)')
-        
+cont_label = widgets.Label(value='Continuum')        
+
 # Set up GUI columns
 textcol = widgets.VBox([blank, start, end])
 col1 = widgets.VBox([wave_label, wave_low, wave_high])
@@ -81,8 +88,9 @@ col2 = widgets.VBox([flux_label, flux_low, flux_high])
 col3 = widgets.VBox([linewidth_label, linewidth_low, linewidth_high])
 col4 = widgets.VBox([sn_label, sn_low, sn_high])
 col5 = widgets.VBox([chi2_label, chi2_low, chi2_high])
+col6 = widgets.VBox([cont_label, cont_low, cont_high])
 
-toggles = widgets.HBox([textcol,col1, col2, col3, col4, col5])
+toggles = widgets.HBox([textcol,col1, col2, col3, col4, col5, col6])
 button = widgets.Button(description="Select Detections", button_style='success')
 
 # Set up Field Selection Toggles
