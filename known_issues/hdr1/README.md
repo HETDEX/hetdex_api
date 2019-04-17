@@ -1,11 +1,8 @@
 ## Overview
 
-This directory contains lists of bad pixels, amps, shots, detectids that have been found both prior and after the HDR1 data release. In some cases, the lists (bad pixels/amps) were removed upon ingestion into the release, but as we add more cases, it is important for every user to mask out this bad data.
+This directory contains lists of bad pixels, amps, shots, detectids that have been found both prior and after the HDR1 data release. In some cases, the lists (bad pixels/amps) were removed upon ingestion into the release, but as we find more cases, it is important for every user to mask out this bad data.
 
-Note on Detections - the ingested Detections Database was intentionally left to contain a high number of sources to finesse with cuts afterwards. For example, many nearby stars and nearby galaxies (Hbeta) are included, but can easily be excluded with a cut on the continuum levels. We also have lists of known bad shots and detectids that need to be exluded. These will be growing lists. We also very liberal in our S/N and Chi2 cuts in order to not lose any possible sources. It will be an active effort to determine which ones can be removed automatically in software and which ones first need to be evaluated by eye.
-
-
-Note on Detections - the ingested Detections Database was intentionally left to contain a high number of sources to finesse with cuts afterwards. For example, many nearby stars and nearby galaxies (Hbeta) are included, but can easily be excluded with a cut on the continuum levels. We also have lists of known bad shots and detectids that need to be exluded. These will be growing lists. We also very liberal in our S/N and Chi2 cuts in order to not lose any possible sources. It will be an active effort to determine which ones can be removed automatically in software and which ones first need to be evaluated by ey
+Note on Detections - the ingested Detections Database was intentionally left to contain a high number of sources to finesse with cuts afterwards. For example, many nearby stars and nearby galaxies (Hbeta) are included, but can easily be excluded with a cut on the continuum levels. We also have lists of known bad shots and detectids that need to be excluded. These will be growing lists. We were also very liberal in our S/N and Chi2 cuts in order to not lose any possible sources. It will be an active effort to determine which ones can be removed automatically in software and which ones first need to be evaluated by eye.
 
 
 ## Description of files:
