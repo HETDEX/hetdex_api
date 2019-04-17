@@ -19,13 +19,14 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 import pickle
 import tarfile
+import speclite.filters
 
 from hetdex_api.survey import Survey
 from hetdex_api import config
 
 
 class Detections:
-    def __init__(self, survey):
+    def __init__(self, survey, removestars=True, removebad=True, removebrightgal=True):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -76,7 +77,7 @@ class Detections:
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
 
-        # assign a vis_class field assigned classification
+        # assign a vis_class field for future classification
         # -2 = ignore (bad detectid, shot)
         # -1 = no assignemnt
         # 0 = artifact
@@ -87,6 +88,12 @@ class Detections:
         # 5 = other line
 
         self.vis_class = -1 * np.ones(np.size(self.detectid))
+
+        if removestars:
+            maskbd = self.remove_balmerdip_stars()
+            maskbright = self.remove_bright_stars()
+
+        
 
     def query_by_coords(self, coords, radius):
         '''
@@ -294,7 +301,7 @@ class Detections:
  
         mask = mask1 | mask2 
 
-        detects.vis_class[mask] = 3
+        self.vis_class[mask] = 3
 
         return np.invert(mask)
         
@@ -305,7 +312,7 @@ class Detections:
         to each detectid
         '''
         mask = (self.continuum > 175.) 
-        detects.vis_class[mask] = 3
+        self.vis_class[mask] = 3
         
         return np.invert(mask)
     
@@ -317,24 +324,53 @@ class Detections:
         '''
 
         mask1 = (self.wave > 3520.) * (self.wave > 5525.) 
-        detects.vis_class[mask] = 0
+        self.vis_class[mask] = 0
         
         return np.invert(mask)
+
+    def get_spectrum(self, detectid_i):
+        spectra = self.hdfile.root.Spectra
+        spectra_table = spectra.read_where("detectid == detectid_i")
+        data = Table()
+        intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+        data['wave1d'] = Column( spectra_table['wave1d'][0], unit= u.AA)
+        data['spec1d'] = Column( spectra_table['spec1d'][0], unit= 1.e-17 * intensityunit)
+        data['spec1d_err'] = Column( spectra_table['spec1d_err'][0], unit= 1.e-17 * intensityunit)
         
+        return data        
+
+    def get_gband_mag(self, detectid_i):
+        '''
+        Calculates the gband magnitude from the 1D spectrum
+        '''
+
+        spec_table = self.get_spectrum(detectid_i)
+        gfilt = speclite.filters.load_filters('sdss2010-g')
+        flux, wlen = gfilt.pad_spectrum(np.array(1.e-17*spec_table['spec1d']), 
+                                        np.array(spec_table['wave1d']))
+        mag = gfilt.get_ab_magnitudes(flux, wlen)
+        
+        return mag
+
+    def add_hetdex_mag(self):
+        '''
+        Calculates g-band magnitude from spec1d for
+        each detectid in the Detections class instance
+
+        '''
+
+        self.mag_dex = np.zeros(np.size(self.detectid))
+        for ix, detectid_i in enumerate(self.detectid):
+            try:
+                self.mags[ix] = self.get_gband_mag(detectid_i)
+            except:
+                self.mags[ix] = np.nan
+
+
 def show_elixer(detectid):
     '''
     Takes a detectid and pulls out the elixer PDF from the
     elixer tar files on hdr1 and shows it in matplotlib
     '''
-
-    tarname = op.join(config.elix_dir,"erg_%d.tar" %(detectid//100000))
-    if detectid < 1000690662:
-        file_pdf = op.join("egs_%d" %(detectid//100000), str(detectid) + '.pdf')
-    elif detectid >= 1000690662 and detectid <= 1000690798:
-        file_pdf = op.join(str(detectid) + '.pdf')
-
-    os.system('tar -xvf '+ tarname + ' ' + file_pdf) 
-    os.system('pdftoppm ' + file_pdf + ' ' + str(detectid) + ' -png -singlefile')
-    file_png = str(detectid) + '.png'
-    elixim = plt.imread(file_png)
-     
+    elix_dir = '/scratch/03261/polonius/jpgs'
+    file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
