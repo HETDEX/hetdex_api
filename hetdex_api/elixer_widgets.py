@@ -26,7 +26,7 @@ def main_display(x):
     display(Image(file_jpg))
     display(classification)
     display(notes)
-    display(submitbutton)
+    display(widgets.HBox([submitbutton, picklebutton]))
     submitbutton.on_click(on_button_click)
 
 def on_button_click(b):
@@ -50,12 +50,17 @@ detectbox = widgets.BoundedIntText(
 )
 
 classification = widgets.ToggleButtons(
-    options=['OII Galaxy', 'LAE Galaxy', 'Star', 'Nearby Galaxy', 'Other Line', 'Artifact'],
+    options=['OII Galaxy', 'LAE Galaxy', 'Star', 'Nearby Galaxy', 'Other Line', 'Artifact','Junk'],
     description='Type:',
     disabled=False,
     button_style='', # 'success', 'info', 'warning', 'danger' or ''
-    tooltips=['Description of slow', 'Description of regular', 'Description of fast'],
-    #     icons=['check'] * 3
+    tooltips=['Low-z OII[3727] emitters', 
+              'Distant high-z LAE[1216] emitters',
+              'Object is a star, spectrum has no emission',
+              'Nearby galaxy, likely Hbeta[4861] or OIII[5007] emitter',
+              'Choose this if you are sure its CIV or some other emission',
+              'Detector Artifact/cosmic ray',
+              'Junky - low SN, very hard to tell']
 )
 notes = widgets.Text(
     value='',
@@ -63,6 +68,7 @@ notes = widgets.Text(
     description='Comments:',
     disabled=False
 )
-submitbutton = widgets.Button(description="Select Detections", button_style='success')
+submitbutton = widgets.Button(description="Submit Classification", button_style='success')
+picklebutton = widgets.Button(description="Save Progress", button_style='success')
 
 interact(main_display, x=detectbox)
