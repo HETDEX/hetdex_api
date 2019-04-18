@@ -18,36 +18,48 @@ class classification_info:
         self.vis_class[ix] = vis_class_i
         self.comment[ix] = comment_i
         
-
 def main_display(x):
     detectid = detectbox.value
     elix_dir = '/scratch/03261/polonius/jpgs'
     file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+    display(nextbutton)
     display(Image(file_jpg))
     display(classification)
     display(notes)
+    nextbutton.on_click(on_next_click)
     display(widgets.HBox([submitbutton, picklebutton]))
     submitbutton.on_click(on_button_click)
 
 def on_button_click(b):
     class_info.add(detectbox.value, classification.value, notes.value)
-    detectbox.value +=1
+    ix = np.where(detectlist == detectbox.value)[0]
+    if ix+1 < np.size(detectlist):
+        detectbox.value = detectlist[ix+1]
+    else:
+        print("At the end of the detectlist")
 
+def on_next_click(b):
+    ix = np.where(detectlist == detectbox.value)[0]
+    if ix+1 < np.size(detectlist):
+        detectbox.value = detectlist[ix+1]
+    else:
+        print("At the end of the detectlist")
 
-detects = Detections('hdr1')
-
-detectlist = detects.detectid
-
-class_info = classification_info(detectlist)
+detectlist = pickle.load( open(sys.argv[1], "rb"))
 
 detectbox = widgets.BoundedIntText(
-    value=7,
-    min=1000000000,
-    max=1000690798,
+    value=np.min(detectlist),
+    min=np.min(detectlist),
+    max=np.max(detectlist),
     step=1,
     description='DetectID:',
     disabled=False
 )
+nextbutton = widgets.Button(description='Next DetectID', button_style='success')
+
+detectwidget = widgets.HBox([detectbox, nextbutton])
+
+class_info = classification_info(detectlist)
 
 classification = widgets.ToggleButtons(
     options=['OII Galaxy', 'LAE Galaxy', 'Star', 'Nearby Galaxy', 'Other Line', 'Artifact','Junk'],
