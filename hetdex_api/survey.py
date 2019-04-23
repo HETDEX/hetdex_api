@@ -10,6 +10,7 @@ Created on Tue Jan 22 11:02:53 2019
 @author: gregz/Erin Mentuch Cooper
 """
 
+import numpy as np
 import tables as tb
 import numpy
 import astropy.units as u
@@ -43,6 +44,22 @@ class Survey:
             
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
+        
+
+    def remove_shots(self):
+        '''
+        function to remove shots that should be exluded
+        from most analysis. They are engineering shots that were 
+        accidentally included
+        '''
+        
+        mask = np.zeros(np.size(self.shotid), dtype=bool)
+        badshots = np.loadtxt(config.badshot, dtype=int)
+        for shot in badshots:
+            maskshot = (self.shotid == shot)
+            mask = mask | maskshot
+            
+        return np.invert(mask)
 
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
