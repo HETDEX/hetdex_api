@@ -13,6 +13,7 @@ Created on Tue Jan 22 11:02:53 2019
 import numpy as np
 import tables as tb
 import numpy
+import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
@@ -44,7 +45,40 @@ class Survey:
             
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
+
+    def __getitem__(self, indx):
+        ''' 
+        This allows for slicing of the survey class
+        object so that a mask can be applied to
+        every attribute automatically by:
         
+        survey_sliced = survey[indx]
+        
+        '''
+        
+        p = copy.copy(self)
+        attrnames = self.__dict__.keys()
+        for attrname in attrnames:
+            try:
+                setattr(p, attrname, getattr(self, attrname)[indx])
+            except:
+                setattr(p, attrname, getattr(self, attrname))
+        return p
+
+    def slice(self):
+        '''
+        This will slice the survey class upon
+        initialization to remove
+        any bad shots from the survey so that
+        only one class variable is used.
+
+        For example:
+        survey = Survey('hdr1').slice()
+
+        '''
+
+        maskshots = self.remove_shots()
+        return self[maskshots]
 
     def remove_shots(self):
         '''
@@ -60,7 +94,6 @@ class Survey:
             mask = mask | maskshot
             
         return np.invert(mask)
-
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
         """
