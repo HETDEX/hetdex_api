@@ -30,20 +30,20 @@ def main_display(x):
     display(widgets.HBox([submitbutton, picklebutton]))
     submitbutton.on_click(on_button_click)
 
-def on_button_click(b):
-    class_info.add(detectbox.value, classification.value, notes.value)
-    ix = np.where(detectlist == detectbox.value)[0]
+def goto_next_detect():
+    ix = np.where(detectlist >= detectbox.value)[0][0]
     if ix+1 < np.size(detectlist):
         detectbox.value = detectlist[ix+1]
     else:
         print("At the end of the detectlist")
 
+
+def on_button_click(b):
+    class_info.add(detectbox.value, classification.value, notes.value)
+    goto_next_detect()
+
 def on_next_click(b):
-    ix = np.where(detectlist == detectbox.value)[0]
-    if ix+1 < np.size(detectlist):
-        detectbox.value = detectlist[ix+1]
-    else:
-        print("At the end of the detectlist")
+    goto_next_detect()
 
 detectlist = pickle.load( open(sys.argv[1], "rb"))
 
