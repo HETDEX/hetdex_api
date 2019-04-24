@@ -14,9 +14,11 @@ import os
 import os.path as op
 import numpy as np
 import tables as tb
+import copy
 from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.io import ascii
 import pickle
 import tarfile
 import speclite.filters
@@ -26,7 +28,7 @@ from hetdex_api import config
 
 
 class Detections:
-    def __init__(self, survey, removestars=True, removebad=True, removebrightgal=True):
+    def __init__(self, survey, removestars=True, removebad=True):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -89,11 +91,25 @@ class Detections:
 
         self.vis_class = -1 * np.ones(np.size(self.detectid))
 
-        if removestars:
-            maskbd = self.remove_balmerdip_stars()
-            maskbright = self.remove_bright_stars()
-
+    def __getitem__(self, indx):
+        ''' 
+        This allows for slicing of the Detections class
+        object so that a mask can be applied to
+        every attribute automatically by:
         
+        detections_sliced = detects[indx]
+        
+        '''
+        
+        p = copy.copy(self)
+        attrnames = self.__dict__.keys()
+        for attrname in attrnames:
+            try:
+                setattr(p, attrname, getattr(self, attrname)[indx])
+            except:
+                setattr(p, attrname, getattr(self, attrname))
+        return p
+
 
     def query_by_coords(self, coords, radius):
         '''
@@ -262,12 +278,14 @@ class Detections:
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        badamps = ascii.read(config.badamps, 
+        badamps = ascii.read(config.badamp, 
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
         for row in np.arange(np.size(badamps)):
-            maskamp = (detects.amp == badamps['amp']) * (detects.ifuslot == str(badamps['ifuslot'].zfill(3))) * (detects.date > badamps['date_start']) * (detects.data < badamps['date_end'])
+            maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date > badamps['date_start'][row]) * (self.date < badamps['date_end'][row])
             mask = maskamp | mask
+
+        self.vis_class[mask] = 0
 
         return np.invert(mask)
 
@@ -279,8 +297,8 @@ class Detections:
         '''
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
+        badshots = np.loadtxt(config.badshot, dtype=int)
 
-        badshots = ascii.read(config.badshots)
         for shot in badshots:
             maskshot = (self.shotid == shot)
             mask = mask | maskshot
@@ -305,25 +323,28 @@ class Detections:
 
         return np.invert(mask)
         
-    def remove_bright_stars(self):
+    def remove_bright_stuff(self):
         '''
         Applies a cut to remove bright stars based on
-        continuum level. Assigns a star classification
-        to each detectid
+        gmag attribute. Assigns a star classification
+        to each detectid, although some may be nearby
+        galaxies. Will want to improve this if you are
+        looking to study nearby galaxies.
         '''
-        mask = (self.continuum > 175.) 
+        
+        mask = (self.gmag < 18.) 
         self.vis_class[mask] = 3
         
         return np.invert(mask)
     
     def remove_ccd_features(self):
         '''
-        Remove all objects with very 
-        high continuum. These are detector
-        issues.
+        Remove all objects with very at the
+        edges of the detectors and denotes 
+        them as artifacts in vis_class
         '''
 
-        mask1 = (self.wave > 3520.) * (self.wave > 5525.) 
+        mask = (self.wave > 3540.) * (self.wave > 5515.) 
         self.vis_class[mask] = 0
         
         return np.invert(mask)
@@ -352,20 +373,33 @@ class Detections:
         
         return mag
 
-    def add_hetdex_mag(self):
+    def add_hetdex_mag(self, loadpickle=True, picklefile='gmags.pickle'):
         '''
         Calculates g-band magnitude from spec1d for
         each detectid in the Detections class instance
-
+        If the gmags.pickle file and pickle=True is 
+        given then it will just load from previous computation
         '''
+        if loadpickle:
+            self.gmag = pickle.load( open(picklefile, 'rb'))
+        else:
+            self.gmag = np.zeros(np.size(self.detectid), dtype=float)
+        
+            # fastest way is to calculate gmag over whole 1D spec array
+            # then populate the detections class
 
-        self.mag_dex = np.zeros(np.size(self.detectid))
-        for ix, detectid_i in enumerate(self.detectid):
-            try:
-                self.mags[ix] = self.get_gband_mag(detectid_i)
-            except:
-                self.mags[ix] = np.nan
-
+            detectid_spec = self.hdfile.root.Spectra.cols.detectid[:]
+            spec1d = self.hdfile.root.Spectra.cols.spec1d[:]
+            wave_rect =  2.0 * np.arange(1036) + 3470.
+            gfilt = speclite.filters.load_filters('sdss2010-g')
+            flux, wlen = gfilt.pad_spectrum(1.e-17*spec1d, wave_rect)
+            
+            for idx, detectid_i in enumerate(self.detectid[:]):
+                seldet = np.where(detectid_spec == detectid_i)[0]
+                if np.size(seldet) == 1:
+                    self.gmag[idx] = gmags[seldet]
+                else:
+                    self.gmag[idx] = np.nan
 
 def show_elixer(detectid):
     '''
