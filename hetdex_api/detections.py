@@ -15,17 +15,19 @@ import os.path as op
 import numpy as np
 import tables as tb
 import copy
+import matplotlib.pyplot as plt
+
 from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 import pickle
-import tarfile
 import speclite.filters
 
 from hetdex_api.survey import Survey
 from hetdex_api import config
 
+np.warnings.filterwarnings('ignore')
 
 class Detections:
     def __init__(self, survey, removestars=True, removebad=True):
@@ -70,6 +72,7 @@ class Detections:
         self.fwhm = np.zeros(np.size(self.detectid))
         self.flux_limit = np.zeros(np.size(self.detectid))
         self.throughput = np.zeros(np.size(self.detectid))
+        self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
         S = Survey(survey)
         for index, shot in enumerate(S.shotid):
@@ -78,6 +81,7 @@ class Detections:
             self.fwhm[ix] = S.fwhm_moffat[index]
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
+            self.n_ifu[ix] = S.n_ifu[index]
 
         # assign a vis_class field for future classification
         # -2 = ignore (bad detectid, shot)
@@ -90,6 +94,10 @@ class Detections:
         # 5 = other line
 
         self.vis_class = -1 * np.ones(np.size(self.detectid))
+
+
+        self.add_hetdex_mag(loadpickle=True, 
+                            picklefile=config.gmags)
 
     def __getitem__(self, indx):
         ''' 
@@ -110,6 +118,23 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
+    def refine(self):
+        '''
+        Masks out bad and bright detections 
+        and returns a refined Detections class
+        object
+        '''
+
+        mask1 = self.remove_bad_amps() 
+        mask2 = self.remove_bright_stuff()
+        mask3 = self.remove_ccd_features()
+        mask4 = self.remove_balmerdip_stars()
+        mask5 = self.remove_bad_detects()
+        mask6 = self.remove_shots()
+
+        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
+
+        return self[mask]
 
     def query_by_coords(self, coords, radius):
         '''
@@ -254,10 +279,9 @@ class Detections:
         
         # set an empty mask to start
         mask = np.zeros(np.size(self.detectid), dtype=bool)
-        
-        baddetects = ascii.read(config.baddetects, names=['detectid'])
+        baddetects = np.loadtxt(config.baddetect, dtype=int)
 
-        for baddet in baddetects['detectid']:
+        for baddet in baddetects:
             maskdet = self.detectid == baddet
             mask = mask | maskdet
 
@@ -282,14 +306,14 @@ class Detections:
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
         for row in np.arange(np.size(badamps)):
-            maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date > badamps['date_start'][row]) * (self.date < badamps['date_end'][row])
+            maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
             mask = maskamp | mask
 
         self.vis_class[mask] = 0
 
         return np.invert(mask)
 
-    def remove_shots(self, shotlist):
+    def remove_shots(self):
         '''
         Takes a list of bad shots and removes them. Assigns -2 
         to detections in these shots so they are not used 
@@ -344,7 +368,7 @@ class Detections:
         them as artifacts in vis_class
         '''
 
-        mask = (self.wave > 3540.) * (self.wave > 5515.) 
+        mask = (self.wave < 3540.) | (self.wave > 5515.) 
         self.vis_class[mask] = 0
         
         return np.invert(mask)
@@ -400,6 +424,29 @@ class Detections:
                     self.gmag[idx] = gmags[seldet]
                 else:
                     self.gmag[idx] = np.nan
+
+
+    def save_spectrum(self, detectid_i, outfile=None):
+        spec_data = self.get_spectrum(detectid_i)
+        if outfile:
+            ascii.write(spec_data, outfile, overwrite=True)
+        else:
+            ascii.write(spec_data, 'spec_'+str(detectid_i)+'.dat', overwrite=True)
+
+
+    def plot_spectrum(self, detectid_i, xlim=None, ylim=None):
+        spec_data = self.get_spectrum(detectid_i)
+        plt.figure(figsize=(8, 6))
+        plt.errorbar(spec_data['wave1d'], spec_data['spec1d'], yerr=spec_data['spec1d_err'])
+        plt.title("DetectID "+str(detectid_i))
+        plt.xlabel('wave (AA)')
+        plt.ylabel('flux (1e-17 erg/s/cm^2/AA)')
+        if xlim is not None:
+            plt.xlim(xlim)
+            if ylim is not None:
+                plt.ylim(ylim)
+        plt.show()
+
 
 def show_elixer(detectid):
     '''
