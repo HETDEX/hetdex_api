@@ -34,3 +34,4 @@ baddetect = op.join(bad_dir, 'baddetects.list')
 badshot = op.join(bad_dir, 'badshots.list')
 badamp = op.join(bad_dir, 'badamps.list')
 badpix = op.join(bad_dir, 'badpix.list')
+gmags = '/work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1/gmags.pickle'
