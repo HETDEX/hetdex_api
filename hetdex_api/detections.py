@@ -306,8 +306,12 @@ class Detections:
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
         for row in np.arange(np.size(badamps)):
-            maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
-            mask = maskamp | mask
+            if badamps['amp'][row] == 'AA':
+                 maskamp = (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
+                 mask = maskamp | mask
+            else:
+                maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
+                mask = maskamp | mask
 
         self.vis_class[mask] = 0
 
