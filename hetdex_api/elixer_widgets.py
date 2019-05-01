@@ -66,10 +66,10 @@ class ElixerWidget():
         elif savedfile:
             try: 
                 saved_data = ascii.read(savedfile)
-                self.detectid = saved_data['detectid']
-                self.vis_type = saved_data['vis_type']
-                self.vis_class = saved_data['vis_class']
-                self.comment = saved_data['comments']
+                self.detectid = np.array(saved_data['detectid'], dtype=int)
+                self.vis_type = np.array(saved_data['vis_type'], dtype='|S15')
+                self.vis_class = np.array(saved_data['vis_class'], dtype=int)
+                self.comment = np.array(saved_data['comments'], dtype='|S30')
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
         elif detectlist.any():
@@ -127,7 +127,7 @@ class ElixerWidget():
 
     def setup_widget(self):
         if self.resume:
-            detectstart = self.detectid[np.max(np.where(self.vis_class != -1))] 
+            detectstart = self.detectid[np.max(np.where(self.vis_class != -1)) + 1] 
         else:
             detectstart = np.min(self.detectid)
         self.detectbox = widgets.BoundedIntText(
@@ -196,8 +196,8 @@ class ElixerWidget():
 
     def on_save_click(self, b):
         self.output = Table()
-        self.output.add_column(Column(self.detectid, name='detectid'))
-        self.output.add_column(Column(self.vis_type, name='vis_type'))
-        self.output.add_column(Column(self.vis_class, name='vis_class'))
-        self.output.add_column(Column(self.comment, name='comments'))
-        ascii.write(self.output, self.outfilename)
+        self.output.add_column(Column(self.detectid, name='detectid', dtype=int))
+        self.output.add_column(Column(self.vis_type, name='vis_type', dtype='|S15'))
+        self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
+        self.output.add_column(Column(self.comment, name='comments', dtype='|S30'))
+        ascii.write(self.output, self.outfilename, overwrite=True)
