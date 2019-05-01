@@ -68,7 +68,6 @@ pip install --user astropy
 pip install --user pickle
 pip install --user ipywidgets
 pip install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
-pip install --user /work/03946/hetdex/hdr1/software/vdrp 
 ```
 
 You don't need to install vdrp unless you plan to use the reduction scripts located within it.
