@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
 
 
-install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0', 'tables']
+install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0', 
+                    'tables', 'ipywidgets', 'speclite']
 
 extras = {}
 
