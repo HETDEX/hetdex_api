@@ -118,15 +118,18 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self):
+    def refine(self, gmagcut=gmagcut):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
         object
+
+        gmagcut = mag limit to exclude everything
+                  brighter
         '''
 
         mask1 = self.remove_bad_amps() 
-        mask2 = self.remove_bright_stuff()
+        mask2 = self.remove_bright_stuff(gmagcut)
         mask3 = self.remove_ccd_features()
         mask4 = self.remove_balmerdip_stars()
         mask5 = self.remove_bad_detects()
@@ -331,7 +334,7 @@ class Detections:
             maskshot = (self.shotid == shot)
             mask = mask | maskshot
         
-        self.vis_class = -2
+        self.vis_class[mask] = -2
 
         return np.invert(mask)
 
@@ -351,7 +354,7 @@ class Detections:
 
         return np.invert(mask)
         
-    def remove_bright_stuff(self):
+    def remove_bright_stuff(self, gmagcut):
         '''
         Applies a cut to remove bright stars based on
         gmag attribute. Assigns a star classification
@@ -360,7 +363,7 @@ class Detections:
         looking to study nearby galaxies.
         '''
         
-        mask = (self.gmag < 18.) 
+        mask = (self.gmag < gmagcut) 
         self.vis_class[mask] = 3
         
         return np.invert(mask)
