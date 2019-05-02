@@ -457,5 +457,7 @@ def show_elixer(detectid):
     Takes a detectid and pulls out the elixer PDF from the
     elixer tar files on hdr1 and shows it in matplotlib
     '''
-    elix_dir = '/scratch/03261/polonius/jpgs'
+    elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
     file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+    im = plt.imread(file_jpg)
+    plt.imshow(im)
