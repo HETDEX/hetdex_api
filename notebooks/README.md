@@ -65,7 +65,6 @@ pip install photutils --user
 ```
 pip install --user tables
 pip install --user astropy
-pip install --user pickle
 pip install --user ipywidgets
 pip install --user speclite
 pip install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
