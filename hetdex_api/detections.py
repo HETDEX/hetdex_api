@@ -429,6 +429,22 @@ class Detections:
                 else:
                     self.gmag[idx] = np.nan
 
+    def return_astropy_table(self):
+        """
+        Return an astropy table version of the Detections
+        that can easily be saved
+
+        Returns
+        -------
+        table : astropy.table:Table
+            an astropy table you can save
+
+        """
+        table = Table()
+        for name in self.hdfile.root.Detections.colnames:
+            table[name] = getattr(self, name)
+
+        return table
 
     def save_spectrum(self, detectid_i, outfile=None):
         spec_data = self.get_spectrum(detectid_i)
