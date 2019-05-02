@@ -30,7 +30,7 @@ from hetdex_api import config
 np.warnings.filterwarnings('ignore')
 
 class Detections:
-    def __init__(self, survey, removestars=True, removebad=True):
+    def __init__(self, survey):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -118,14 +118,14 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=gmagcut):
+    def refine(self, gmagcut=18):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
         object
 
         gmagcut = mag limit to exclude everything
-                  brighter
+                  brighter, defaults to 18 mags
         '''
 
         mask1 = self.remove_bad_amps() 
@@ -478,5 +478,6 @@ def show_elixer(detectid):
     '''
     elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
     file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+    plt.figure(figsize=(10,8))
     im = plt.imread(file_jpg)
     plt.imshow(im)
