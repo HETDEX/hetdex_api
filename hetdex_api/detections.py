@@ -118,14 +118,14 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=18):
+    def refine(self, gmagcut=None):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
         object
 
         gmagcut = mag limit to exclude everything
-                  brighter, defaults to 18 mags
+                  brighter, defaults to None
         '''
 
         mask1 = self.remove_bad_amps() 
@@ -362,9 +362,11 @@ class Detections:
         galaxies. Will want to improve this if you are
         looking to study nearby galaxies.
         '''
-        
-        mask = (self.gmag < gmagcut) 
-        self.vis_class[mask] = 3
+
+        if gmagcut:
+            mask = (self.gmag < gmagcut) 
+        else:
+            mask = np.zeros(np.size(self.detectid), dtype=bool)
         
         return np.invert(mask)
     
