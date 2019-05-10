@@ -57,15 +57,17 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
 
+
         # add in the elixer probabilties and associated info:
-        self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
-        colnames2 = self.hdfile_elix.root.Classifications.colnames
-        for name2 in colnames2:
-            if name2 == 'detectid':
-                setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
-            else:
-                setattr(self, name2,
-                        getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
+        if survey == 'hdr1':
+            self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
+            colnames2 = self.hdfile_elix.root.Classifications.colnames
+            for name2 in colnames2:
+                if name2 == 'detectid':
+                    setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
+                else:
+                    setattr(self, name2,
+                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
         # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
@@ -74,7 +76,8 @@ class Detections:
         self.throughput = np.zeros(np.size(self.detectid))
         self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
-        S = Survey(survey)
+        S = Survey('hdr1')
+        
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
             self.field[ix] = S.field[index]
@@ -96,8 +99,9 @@ class Detections:
         self.vis_class = -1 * np.ones(np.size(self.detectid))
 
 
-        self.add_hetdex_mag(loadpickle=True, 
-                            picklefile=config.gmags)
+        if survey == 'hdr1':
+            self.add_hetdex_mag(loadpickle=True, 
+                                picklefile=config.gmags)
 
     def __getitem__(self, indx):
         ''' 
