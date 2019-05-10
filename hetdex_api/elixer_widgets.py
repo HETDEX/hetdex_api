@@ -63,26 +63,26 @@ class ElixerWidget():
             self.detectid = np.loadtxt(detectfile, dtype=np.int32)
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
         elif savedfile:
             try: 
                 saved_data = ascii.read(savedfile)
                 self.detectid = np.array(saved_data['detectid'], dtype=int)
                 self.vis_type = np.array(saved_data['vis_type'], dtype='|S15')
                 self.vis_class = np.array(saved_data['vis_class'], dtype=int)
-                self.comment = np.array(saved_data['comments'], dtype='|S30')
+                self.comment = np.array(saved_data['comments'], dtype='|S45')
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
         elif type(detectlist) is np.ndarray:
             self.detectid = detectlist
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
         else:
             self.detectid = np.arange(1000000000,1000690799,1)
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
 
         # store outfile name if given
         if outfile:
@@ -202,5 +202,5 @@ class ElixerWidget():
         self.output.add_column(Column(self.detectid, name='detectid', dtype=int))
         self.output.add_column(Column(self.vis_type, name='vis_type', dtype='|S15'))
         self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
-        self.output.add_column(Column(self.comment, name='comments', dtype='|S30'))
+        self.output.add_column(Column(self.comment, name='comments', dtype='|S45'))
         ascii.write(self.output, self.outfilename, overwrite=True)
