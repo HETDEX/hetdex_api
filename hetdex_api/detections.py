@@ -118,7 +118,7 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=None):
+    def refine(self, gmagcut=None, removebalmerstars=True):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
@@ -131,11 +131,16 @@ class Detections:
         mask1 = self.remove_bad_amps() 
         mask2 = self.remove_bright_stuff(gmagcut)
         mask3 = self.remove_ccd_features()
-        mask4 = self.remove_balmerdip_stars()
+        if removebalmerstars:
+            mask4 = self.remove_balmerdip_stars()
+        else:
+            mask4 = np.ones(np.size(self.detectid))
+  
         mask5 = self.remove_bad_detects()
         mask6 = self.remove_shots()
+        mask7 = self.remove_bad_pix()
 
-        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
+        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         return self[mask]
 
@@ -320,6 +325,44 @@ class Detections:
 
         return np.invert(mask)
 
+    def remove_bad_pix(self):
+        '''
+        Takes the post-hdr1 list of bad pixels 
+        in HETDEX_API/known_issues/hdr1/posthdr1badpix.list
+        
+        For current development we will use the one in EMC's 
+        directory as that will be most up to date:
+        
+        /work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1
+        
+        and removes any detections within a Detections() class 
+        object in the defined regions when
+        either the .refine() or .remove_bad_pix() methods are 
+        called.
+        
+        Note: all previously know bad detections are stored in
+        
+        HETDEX_API/known_issues/hdr1/badpix.list 
+        
+        **** THESE SHOULD BE REMOVED WHEN USING THE SHOT H5 files
+        from HDR1
+        
+        '''
+        
+        badpixlist = ascii.read(config.badpix,
+                                names=['multiframe','x1','x2','y1','y2'])
+    
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
+        
+        for row in badpixlist:
+            maskbadpix = (self.multiframe == row['multiframe']) * (self.x_raw > row['x1']) * (self.x_raw < row['x2']) * (self.y_raw > row['y1']) * (self.y_raw < row['y2'])
+            mask = maskbadpix | mask
+            
+        self.vis_class[mask] = 0
+        
+        return np.invert(mask)
+
+
     def remove_shots(self):
         '''
         Takes a list of bad shots and removes them. Assigns -2 
@@ -338,6 +381,7 @@ class Detections:
 
         return np.invert(mask)
 
+
     def remove_balmerdip_stars(self):
         '''
         Applies a cut to the databased to remove all
@@ -353,6 +397,7 @@ class Detections:
         self.vis_class[mask] = 3
 
         return np.invert(mask)
+
         
     def remove_bright_stuff(self, gmagcut):
         '''
