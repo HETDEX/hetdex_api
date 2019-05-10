@@ -100,7 +100,7 @@ class Detections:
 
 
         if survey == 'hdr1':
-            self.add_hetdex_mag(loadpickle=True, 
+            self.add_hetdex_gmag(loadpickle=True, 
                                 picklefile=config.gmags)
 
     def __getitem__(self, indx):
@@ -455,7 +455,7 @@ class Detections:
         
         return mag
 
-    def add_hetdex_mag(self, loadpickle=True, picklefile='gmags.pickle'):
+    def add_hetdex_gmag(self, loadpickle=True, picklefile='gmags.pickle'):
         '''
         Calculates g-band magnitude from spec1d for
         each detectid in the Detections class instance
@@ -475,11 +475,12 @@ class Detections:
             wave_rect =  2.0 * np.arange(1036) + 3470.
             gfilt = speclite.filters.load_filters('sdss2010-g')
             flux, wlen = gfilt.pad_spectrum(1.e-17*spec1d, wave_rect)
-            
+            gmags = gfilt.get_ab_magnitudes(flux, wlen)
+
             for idx, detectid_i in enumerate(self.detectid[:]):
                 seldet = np.where(detectid_spec == detectid_i)[0]
                 if np.size(seldet) == 1:
-                    self.gmag[idx] = gmags[seldet]
+                    self.gmag[idx] = gmags[seldet][0][0]
                 else:
                     self.gmag[idx] = np.nan
 
