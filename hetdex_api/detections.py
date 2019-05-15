@@ -439,7 +439,11 @@ class Detections:
         data['wave1d'] = Column( spectra_table['wave1d'][0], unit= u.AA)
         data['spec1d'] = Column( spectra_table['spec1d'][0], unit= 1.e-17 * intensityunit)
         data['spec1d_err'] = Column( spectra_table['spec1d_err'][0], unit= 1.e-17 * intensityunit)
-        
+
+        # convert from 2AA binning to 1AA binning:
+        data['spec1d'] /= 2.
+        data['spec1d_err'] /= 2.
+
         return data        
 
     def get_gband_mag(self, detectid_i):
@@ -472,6 +476,8 @@ class Detections:
 
             detectid_spec = self.hdfile.root.Spectra.cols.detectid[:]
             spec1d = self.hdfile.root.Spectra.cols.spec1d[:]
+            # convert from ergs/s/cm2 to ergs/s/cm2/AA
+            spec1d /= 2.
             wave_rect =  2.0 * np.arange(1036) + 3470.
             gfilt = speclite.filters.load_filters('sdss2010-g')
             flux, wlen = gfilt.pad_spectrum(1.e-17*spec1d, wave_rect)
@@ -483,6 +489,23 @@ class Detections:
                     self.gmag[idx] = gmags[seldet][0][0]
                 else:
                     self.gmag[idx] = np.nan
+
+
+    def get_hetdex_mag(self, detectid_i, filter='sdss2010-g'):
+        ''' 
+        filter = can be any filter used in the speclite
+                 package 
+                 https://speclite.readthedocs.io/en/latest/api.html
+
+        '''
+        spec_table = self.get_spectrum(detectid_i)
+        filt = speclite.filters.load_filters(filter)
+        flux, wlen = filt.pad_spectrum(np.array(1.e-17*spec_table['spec1d']),
+                                        np.array(spec_table['wave1d']))
+        mag = filt.get_ab_magnitudes(flux, wlen)[0][0]
+
+        return mag
+
 
     def return_astropy_table(self):
         """
