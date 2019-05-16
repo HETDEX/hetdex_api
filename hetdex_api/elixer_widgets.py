@@ -44,7 +44,7 @@ class ElixerWidget():
     the classification type as a string in vis_type
 
         # assign a vis_class field for future classification
-        # -2 = ignore (bad detectid, software issue, would not want this for Machine Learning)
+        # -2 = ignore (bad detectid, software issue, would not want this for testing)
         # -1 = no assignemnt
         # 0 = artifact (pixel artifact/bad amp/cosmic)
         # 1 = OII emitter
@@ -52,36 +52,37 @@ class ElixerWidget():
         # 3 = star
         # 4 = nearby galaxies (HBeta, OIII usually)
         # 5 = other line (CIV in a LAE for example)
-
-
+        # 6 = noise - low sn detection, prob not real
+        # 7 = unknown - weird object/hard to tell/flag to follow up
+    
     '''
 
-    def __init__(self, detectfile=None, detectlist=[0], savedfile=None, outfile=None, resume=False):
+    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False):
 
         if detectfile:
             self.detectid = np.loadtxt(detectfile, dtype=np.int32)
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
         elif savedfile:
             try: 
                 saved_data = ascii.read(savedfile)
                 self.detectid = np.array(saved_data['detectid'], dtype=int)
                 self.vis_type = np.array(saved_data['vis_type'], dtype='|S15')
                 self.vis_class = np.array(saved_data['vis_class'], dtype=int)
-                self.comment = np.array(saved_data['comments'], dtype='|S30')
+                self.comment = np.array(saved_data['comments'], dtype='|S45')
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
-        elif detectlist.any():
+        elif type(detectlist) is np.ndarray:
             self.detectid = detectlist
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
         else:
             self.detectid = np.arange(1000000000,1000690799,1)
             self.vis_type = np.zeros(np.size(self.detectid), dtype='|S15')
             self.vis_class = -1*np.ones(np.size(self.detectid), dtype=int)
-            self.comment = np.zeros(np.size(self.detectid), dtype='|S30')
+            self.comment = np.zeros(np.size(self.detectid), dtype='|S45')
 
         # store outfile name if given
         if outfile:
@@ -106,8 +107,10 @@ class ElixerWidget():
                   'Star' :3, 
                   'Nearby Galaxy': 4,
                   'Other Line': 5,
-                  'Artifact' : 6,
-                  'Junk' : -2 }
+                  'Artifact' : 0,
+                  'Noise' : 6, 
+                  'Unknown': 7}
+
         self.vis_class[ix] = vis_dict.get(vis_type_i)
 
     def main_display(self, x):
@@ -142,7 +145,7 @@ class ElixerWidget():
         self.nextbutton = widgets.Button(description='Next DetectID', button_style='success')
         self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
         self.classification = widgets.ToggleButtons(
-            options=['OII Galaxy', 'LAE Galaxy', 'Star', 'Nearby Galaxy', 'Other Line', 'Artifact','Junk'],
+            options=['OII Galaxy', 'LAE Galaxy', 'Star', 'Nearby Galaxy', 'Other Line', 'Artifact', 'Noise', 'Unknown'],
             description='Type:',
             disabled=False,
             button_style='', # 'success', 'info', 'warning', 'danger' or ''
@@ -199,5 +202,5 @@ class ElixerWidget():
         self.output.add_column(Column(self.detectid, name='detectid', dtype=int))
         self.output.add_column(Column(self.vis_type, name='vis_type', dtype='|S15'))
         self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
-        self.output.add_column(Column(self.comment, name='comments', dtype='|S30'))
+        self.output.add_column(Column(self.comment, name='comments', dtype='|S45'))
         ascii.write(self.output, self.outfilename, overwrite=True)

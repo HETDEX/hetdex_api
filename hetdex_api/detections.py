@@ -30,7 +30,7 @@ from hetdex_api import config
 np.warnings.filterwarnings('ignore')
 
 class Detections:
-    def __init__(self, survey, removestars=True, removebad=True):
+    def __init__(self, survey):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -57,15 +57,17 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
 
+
         # add in the elixer probabilties and associated info:
-        self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
-        colnames2 = self.hdfile_elix.root.Classifications.colnames
-        for name2 in colnames2:
-            if name2 == 'detectid':
-                setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
-            else:
-                setattr(self, name2,
-                        getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
+        if survey == 'hdr1':
+            self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
+            colnames2 = self.hdfile_elix.root.Classifications.colnames
+            for name2 in colnames2:
+                if name2 == 'detectid':
+                    setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
+                else:
+                    setattr(self, name2,
+                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
         # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
@@ -74,7 +76,8 @@ class Detections:
         self.throughput = np.zeros(np.size(self.detectid))
         self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
-        S = Survey(survey)
+        S = Survey('hdr1')
+        
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
             self.field[ix] = S.field[index]
@@ -96,8 +99,9 @@ class Detections:
         self.vis_class = -1 * np.ones(np.size(self.detectid))
 
 
-        self.add_hetdex_mag(loadpickle=True, 
-                            picklefile=config.gmags)
+        if survey == 'hdr1':
+            self.add_hetdex_gmag(loadpickle=True, 
+                                picklefile=config.gmags)
 
     def __getitem__(self, indx):
         ''' 
@@ -118,21 +122,29 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self):
+    def refine(self, gmagcut=None, removebalmerstars=True):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
         object
+
+        gmagcut = mag limit to exclude everything
+                  brighter, defaults to None
         '''
 
         mask1 = self.remove_bad_amps() 
-        mask2 = self.remove_bright_stuff()
+        mask2 = self.remove_bright_stuff(gmagcut)
         mask3 = self.remove_ccd_features()
-        mask4 = self.remove_balmerdip_stars()
+        if removebalmerstars:
+            mask4 = self.remove_balmerdip_stars()
+        else:
+            mask4 = np.ones(np.size(self.detectid))
+  
         mask5 = self.remove_bad_detects()
         mask6 = self.remove_shots()
+        mask7 = self.remove_bad_pix()
 
-        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
+        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         return self[mask]
 
@@ -317,6 +329,44 @@ class Detections:
 
         return np.invert(mask)
 
+    def remove_bad_pix(self):
+        '''
+        Takes the post-hdr1 list of bad pixels 
+        in HETDEX_API/known_issues/hdr1/posthdr1badpix.list
+        
+        For current development we will use the one in EMC's 
+        directory as that will be most up to date:
+        
+        /work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1
+        
+        and removes any detections within a Detections() class 
+        object in the defined regions when
+        either the .refine() or .remove_bad_pix() methods are 
+        called.
+        
+        Note: all previously know bad detections are stored in
+        
+        HETDEX_API/known_issues/hdr1/badpix.list 
+        
+        **** THESE SHOULD BE REMOVED WHEN USING THE SHOT H5 files
+        from HDR1
+        
+        '''
+        
+        badpixlist = ascii.read(config.badpix,
+                                names=['multiframe','x1','x2','y1','y2'])
+    
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
+        
+        for row in badpixlist:
+            maskbadpix = (self.multiframe == row['multiframe']) * (self.x_raw > row['x1']) * (self.x_raw < row['x2']) * (self.y_raw > row['y1']) * (self.y_raw < row['y2'])
+            mask = maskbadpix | mask
+            
+        self.vis_class[mask] = 0
+        
+        return np.invert(mask)
+
+
     def remove_shots(self):
         '''
         Takes a list of bad shots and removes them. Assigns -2 
@@ -331,9 +381,10 @@ class Detections:
             maskshot = (self.shotid == shot)
             mask = mask | maskshot
         
-        self.vis_class = -2
+        self.vis_class[mask] = -2
 
         return np.invert(mask)
+
 
     def remove_balmerdip_stars(self):
         '''
@@ -350,8 +401,9 @@ class Detections:
         self.vis_class[mask] = 3
 
         return np.invert(mask)
+
         
-    def remove_bright_stuff(self):
+    def remove_bright_stuff(self, gmagcut):
         '''
         Applies a cut to remove bright stars based on
         gmag attribute. Assigns a star classification
@@ -359,9 +411,11 @@ class Detections:
         galaxies. Will want to improve this if you are
         looking to study nearby galaxies.
         '''
-        
-        mask = (self.gmag < 18.) 
-        self.vis_class[mask] = 3
+
+        if gmagcut:
+            mask = (self.gmag < gmagcut) 
+        else:
+            mask = np.zeros(np.size(self.detectid), dtype=bool)
         
         return np.invert(mask)
     
@@ -385,7 +439,11 @@ class Detections:
         data['wave1d'] = Column( spectra_table['wave1d'][0], unit= u.AA)
         data['spec1d'] = Column( spectra_table['spec1d'][0], unit= 1.e-17 * intensityunit)
         data['spec1d_err'] = Column( spectra_table['spec1d_err'][0], unit= 1.e-17 * intensityunit)
-        
+
+        # convert from 2AA binning to 1AA binning:
+        data['spec1d'] /= 2.
+        data['spec1d_err'] /= 2.
+
         return data        
 
     def get_gband_mag(self, detectid_i):
@@ -401,7 +459,7 @@ class Detections:
         
         return mag
 
-    def add_hetdex_mag(self, loadpickle=True, picklefile='gmags.pickle'):
+    def add_hetdex_gmag(self, loadpickle=True, picklefile='gmags.pickle'):
         '''
         Calculates g-band magnitude from spec1d for
         each detectid in the Detections class instance
@@ -418,16 +476,36 @@ class Detections:
 
             detectid_spec = self.hdfile.root.Spectra.cols.detectid[:]
             spec1d = self.hdfile.root.Spectra.cols.spec1d[:]
+            # convert from ergs/s/cm2 to ergs/s/cm2/AA
+            spec1d /= 2.
             wave_rect =  2.0 * np.arange(1036) + 3470.
             gfilt = speclite.filters.load_filters('sdss2010-g')
             flux, wlen = gfilt.pad_spectrum(1.e-17*spec1d, wave_rect)
-            
+            gmags = gfilt.get_ab_magnitudes(flux, wlen)
+
             for idx, detectid_i in enumerate(self.detectid[:]):
                 seldet = np.where(detectid_spec == detectid_i)[0]
                 if np.size(seldet) == 1:
-                    self.gmag[idx] = gmags[seldet]
+                    self.gmag[idx] = gmags[seldet][0][0]
                 else:
                     self.gmag[idx] = np.nan
+
+
+    def get_hetdex_mag(self, detectid_i, filter='sdss2010-g'):
+        ''' 
+        filter = can be any filter used in the speclite
+                 package 
+                 https://speclite.readthedocs.io/en/latest/api.html
+
+        '''
+        spec_table = self.get_spectrum(detectid_i)
+        filt = speclite.filters.load_filters(filter)
+        flux, wlen = filt.pad_spectrum(np.array(1.e-17*spec_table['spec1d']),
+                                        np.array(spec_table['wave1d']))
+        mag = filt.get_ab_magnitudes(flux, wlen)[0][0]
+
+        return mag
+
 
     def return_astropy_table(self):
         """
@@ -483,5 +561,8 @@ def show_elixer(detectid):
     Takes a detectid and pulls out the elixer PDF from the
     elixer tar files on hdr1 and shows it in matplotlib
     '''
-    elix_dir = '/scratch/03261/polonius/jpgs'
+    elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
     file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+    plt.figure(figsize=(10,8))
+    im = plt.imread(file_jpg)
+    plt.imshow(im)

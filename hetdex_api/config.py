@@ -29,9 +29,10 @@ detecth5 = op.join(hdr_dir,'detect','detect_hdr1.h5')
 elixerh5 = op.join(hdr_dir,'detect','elixer.h5')
 contsourceh5 = op.join(hdr_dir,'detect','continuum_sources.h5')
 
+# here are files that are changing since HDR1 release
 bad_dir = '/work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1'
 baddetect = op.join(bad_dir, 'baddetects.list')
 badshot = op.join(bad_dir, 'badshots.list')
 badamp = op.join(bad_dir, 'badamps.list')
-badpix = op.join(bad_dir, 'badpix.list')
-gmags = '/work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1/gmags.pickle'
+badpix = op.join(bad_dir, 'posthdr1badpix.list')
+gmags = op.join(bad_dir,'gmags.pickle')
