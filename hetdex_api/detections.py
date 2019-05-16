@@ -443,6 +443,16 @@ class Detections:
         table = Table()
         for name in self.hdfile.root.Detections.colnames:
             table[name] = getattr(self, name)
+ 
+        # elixer columns
+        for name in self.hdfile_elix.root.Classifications.colnames:
+            if name == "detectid":
+                continue
+            table[name] = getattr(self, name)
+
+        # bonus info
+        for name in ["field", "fwhm", "flux_limit", "n_ifu"]:
+            table[name] = getattr(self, name)
 
         return table
 
