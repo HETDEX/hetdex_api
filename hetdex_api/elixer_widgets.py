@@ -38,7 +38,8 @@ class ElixerWidget():
                  of detectid, vis_class and comments
 
     outfile    = name of file to store classifcations, will use elixer_classifications.dat
-                 if not provided. Not needed if savedfile is provided.
+                 if not provided. Not needed if savedfile is provided. This feature
+                 has shown to be buggy
     
     For now we are using the following integer flags for vis_class. We also store
     the classification type as a string in vis_type
@@ -86,6 +87,7 @@ class ElixerWidget():
 
         # store outfile name if given
         if outfile:
+            print("Careful with this option, it likely won't work properly. You are better off using the savedfile option")
             self.outfilename = outfile
         elif savedfile:
             self.outfilename = savedfile
@@ -130,7 +132,11 @@ class ElixerWidget():
 
     def setup_widget(self):
         if self.resume:
-            detectstart = self.detectid[np.max(np.where(self.vis_class != -1)) + 1] 
+            i_start = np.max(np.where(self.vis_class != -1)) + 1
+            if i_start < np.size(self.detectid):
+                detectstart = self.detectid[i_start]
+            else:
+                detectstart = np.min(self.detectid)
         else:
             detectstart = np.min(self.detectid)
         self.detectbox = widgets.BoundedIntText(
