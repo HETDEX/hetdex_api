@@ -102,6 +102,9 @@ class Detections:
         if survey == 'hdr1':
             self.add_hetdex_gmag(loadpickle=True, 
                                 picklefile=config.gmags)
+        elif survey == 'cont_sources':
+            self.add_hetdex_gmag(loadpickle=True, 
+                                 picklefile=config.gmags_cont)
 
     def __getitem__(self, indx):
         ''' 
@@ -391,6 +394,8 @@ class Detections:
         Applies a cut to the databased to remove all
         stars that show a false emission feature around 3780
         Also assigns a star classification to each detectid
+
+        This is obsolete as gmag cuts get rid of these easily
         '''
         mask1 = (self.wave > 3775) * (self.wave < 3785) * (self.continuum > 3)
 
