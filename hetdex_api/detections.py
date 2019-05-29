@@ -83,7 +83,7 @@ class Detections:
         
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
-            self.field[ix] = S.field[index]
+            self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
@@ -259,7 +259,11 @@ class Detections:
                     print ("Field = 'all'; not downselecting")
                     maskfield = np.ones(ndets, dtype=bool)
                 else:
-                    mask_i = (self.field == field_index)
+                    if isinstance(field_index, str):
+                        #python2 to python3 issue (pytables also ... as bytes vs unicode)
+                        mask_i = (self.field.decode() == field_index)
+                    else:
+                        mask_i = (self.field == field_index)
                     maskfield = maskfield | mask_i
         
         mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
