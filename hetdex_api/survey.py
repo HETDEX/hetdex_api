@@ -9,6 +9,7 @@ Created on Tue Jan 22 11:02:53 2019
 
 @author: gregz/Erin Mentuch Cooper
 """
+from __future__ import print_function
 
 import numpy as np
 import tables as tb
@@ -134,7 +135,7 @@ class Survey:
             try:
                 idx = self.coords.separation(coords) < radius
             except:
-                print "Assuming radius in degrees"
+                print ("Assuming radius in degrees")
                 idx = self.coords.separation(coords) < radius * u.degree
         else:
             try:
@@ -142,12 +143,12 @@ class Survey:
                 idx2 = (abs(self.dec  - coords.dec.value) < height/2.)
                 idx = idx1 * idx2
             except:
-                print "Provide both width and height of sky region in degrees."
+                print ("Provide both width and height of sky region in degrees.")
 
         return self.shotid[idx]
 
 
-    def close():
+    def close(self):
         '''
         Be sure to close the HDF5 file when you are done using
         it to release anything that might be in memory

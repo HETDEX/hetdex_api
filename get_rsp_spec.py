@@ -24,6 +24,8 @@ Note: id isn't actually needed, everything is done in
 the current working directory
 """
 
+from __future__ import print_function
+
 import glob
 import re
 
@@ -86,7 +88,7 @@ def main(argv=None):
     args.log = setup_logging()
 
     # initiate Fibers and Survey Classes
-    print args
+    print(args)
     fibers = Fibers(args.datevobs)
     survey = Survey('hdr1')
     

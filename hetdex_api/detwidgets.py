@@ -1,3 +1,4 @@
+from __future__ import print_function
 from IPython.display import display
 import ipywidgets as widgets
 import numpy as np

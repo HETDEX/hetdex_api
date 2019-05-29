@@ -9,6 +9,8 @@ Created on 2019/01/28
 @author: Erin Mentuch Cooper
 """
 
+from __future__ import print_function
+
 import sys
 import os
 import os.path as op
@@ -246,11 +248,11 @@ class Detections:
             maskfield = self.query_by_coords(coords, limits.rad)
         else:
             maskfield = np.zeros(ndets, dtype=bool)
-            print 'Subselecting for field(s):', limits.field
+            print ('Subselecting for field(s):', limits.field)
         
             for field_index in limits.field:
                 if field_index == 'all':
-                    print "Field = 'all'; not downselecting"
+                    print ("Field = 'all'; not downselecting")
                     maskfield = np.ones(ndets, dtype=bool)
                 else:
                     mask_i = (self.field == field_index)
