@@ -18,7 +18,7 @@ import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-import config
+from hetdex_api import config
 
 class Survey:
     def __init__(self, survey):

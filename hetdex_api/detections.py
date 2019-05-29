@@ -10,6 +10,7 @@ Created on 2019/01/28
 """
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys
 import os
@@ -277,7 +278,7 @@ class Detections:
         
         '''
 
-        limits = pickle.load( open( picklefile, "rb" ) )
+        limits = pickle.load( open( picklefile, "rb" ),encoding='latin1' )
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -469,7 +470,7 @@ class Detections:
         given then it will just load from previous computation
         '''
         if loadpickle:
-            self.gmag = pickle.load( open(picklefile, 'rb'))
+            self.gmag = pickle.load(open(picklefile, 'rb'),encoding='latin1')
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
