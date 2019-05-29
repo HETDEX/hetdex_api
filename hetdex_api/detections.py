@@ -277,8 +277,8 @@ class Detections:
         created in detwidget.py
         
         '''
-
-        limits = pickle.load( open( picklefile, "rb" ),encoding='latin1' )
+        #todo: encoding='latin1' is an assumption ... might be better to use bytes?
+        limits = pickle.load( open( picklefile, "rb" ),encoding='bytes' )
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -470,7 +470,8 @@ class Detections:
         given then it will just load from previous computation
         '''
         if loadpickle:
-            self.gmag = pickle.load(open(picklefile, 'rb'),encoding='latin1')
+            # todo: encoding='latin1' is an assumption ... might be better to use bytes?
+            self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
