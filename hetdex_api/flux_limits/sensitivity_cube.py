@@ -21,7 +21,7 @@ https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 """
 from __future__ import (absolute_import, print_function)
 from numpy import (rint, array, around, multiply, 
-                   sqrt, divide, linspace, ones, log10)
+                   sqrt, divide, linspace, ones, log10, loadtxt, polyval)
 from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
@@ -91,6 +91,8 @@ def read_cube(fn, datascale=1e-17):
    f50s = datascale/(hdus[0].data)
    header = hdus[0].header
 
+     
+
    return f50s, header
 
 
@@ -119,6 +121,7 @@ class SensitivityCube(object):
         the cubes with. If None, read
         from header. If not in header
         and aper_corr=None do nothing
+
 
     Attributes
     ----------
@@ -157,6 +160,8 @@ class SensitivityCube(object):
 
         self.f50vals = self.f50vals*self.aper_corr
 
+
+
         self.alphas = alphas
         self.wavelengths = wavelengths
         self.alpha_func = interp1d(wavelengths, alphas, 
@@ -192,6 +197,34 @@ class SensitivityCube(object):
 
         return SensitivityCube(f50vals, header, wavelengths, alphas, **kwargs)
 
+
+    def apply_flux_recalibration(self, flux_calib_correction):
+        """
+        Apply a recalibration of the fluxes to the 
+        cube
+
+        Parameters
+        ----------
+
+        flux_calib_correction : str
+           filename containing a polynomial
+           fit (HETDEX - TRUTH)/HETDEX versus
+           wavelength to correct for 
+           problems with the flux
+           calibration. Should be a polynomial
+           centered on 4600, i.e. input to
+           polyval(pvals, wl - 4600.0)
+        """
+
+        pvals = loadtxt(flux_calib_correction)
+        for iz in range(self.f50vals.shape[0]):
+            ra, dec, wl = self.wcs.wcs_pix2world(0, 0, iz, 0)
+
+            if wl < 3850.0:
+                wl = 3850.0
+
+            self.f50vals[iz, :, :] = self.f50vals[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
+ 
 
     def radecwltoxyz(self, ra, dec, lambda_):
         """

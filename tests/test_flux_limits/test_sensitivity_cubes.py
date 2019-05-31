@@ -33,3 +33,32 @@ def test_aper_corr(datadir, aper_corr):
     ratio = scube.f50vals/scube_corr1.f50vals
 
     assert ratio == pytest.approx(aper_corr)
+
+
+def test_flux_calib_corr(datadir, plot=True):
+    """
+    Test the handling of the flux calibration
+    """
+
+    #filename = datadir.join("test_sensitivity_cube.fits").strpath
+
+    filename = datadir.join("test.fits").strpath
+    fcalib_corr = datadir.join("polyvals.txt").strpath
+    wavelengths = [3500.0, 5500.0]
+    alphas = [-3.5, -3.5]
+
+    scube = SensitivityCube.from_file(filename, wavelengths, alphas)
+    scube_corr1 = SensitivityCube.from_file(filename, wavelengths, alphas)
+    scube_corr1.apply_flux_recalibration(fcalib_corr) 
+
+    # The aper_corr should be multiplied though in the cubes
+    ratio = scube.f50vals/scube_corr1.f50vals
+
+    if plot:
+        import matplotlib.pyplot as plt
+        ra, dec, wls = scube.wcs.wcs_pix2world(0, 0, range(scube.f50vals.shape[0]), 0)
+        plt.plot(wls, (scube.f50vals[:,10,10] - scube_corr1.f50vals[:,10,10])/scube.f50vals[:,10,10])
+        plt.show()
+
+    # Check something happened
+    assert ratio != pytest.approx(1.0)

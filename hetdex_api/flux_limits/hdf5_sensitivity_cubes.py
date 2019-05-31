@@ -131,8 +131,42 @@ class SensitivityCubeHDF5Container(object):
     def list_contents(self):
         """ List the contents of the HDF5 file """
         print(self.h5file)   
-      
+    
+    # doesn't work - think I'd have to write all this to disk  
+    #def apply_flux_recalibration(self, flux_calib_correction):
+    #    """
+    #    Apply a recalibration of the fluxes to all cubes
+    #    inf the HDF5 file
 
+    #    Parameters
+    #    ----------
+
+    #    flux_calib_correction : str
+    #       filename containing a polynomial
+    #       fit (HETDEX - TRUTH)/HETDEX versus
+    #       wavelength to correct for 
+    #       problems with the flux
+    #       calibration. Should be a polynomial
+    #       centered on 4600, i.e. input to
+    #       polyval(pvals, wl - 4600.0)
+    #    """
+
+    #    pvals = loadtxt(flux_calib_correction)
+    #    _logger.warn("Applying flux recalibration to all IFUs!")
+
+    #    for shot in self.h5file.list_nodes(self.h5file.root):
+
+    #        for ifu in shot:
+    #            f50vals = ifu.read()
+    #            for iz in range(f50vals.shape[0]):
+    #                wcs = WCS(ifu.attrs.header)
+    #                ra, dec, wl = wcs.wcs_pix2world(0, 0, iz, 0)
+
+    #                if wl < 3850.0:
+    #                    wl = 3850.0
+
+    #                self.f50vals[iz, :, :] = self.f50vals[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
+ 
     def itercubes(self, datevshot=None):
         """ 
         Iterate over the IFUs 
