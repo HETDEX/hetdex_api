@@ -35,14 +35,13 @@ def test_aper_corr(datadir, aper_corr):
     assert ratio == pytest.approx(aper_corr)
 
 
-def test_flux_calib_corr(datadir, plot=True):
+def test_flux_calib_corr(datadir, plot=False):
     """
     Test the handling of the flux calibration
     """
 
-    #filename = datadir.join("test_sensitivity_cube.fits").strpath
-
-    filename = datadir.join("test.fits").strpath
+    filename = datadir.join("test_sensitivity_cube.fits").strpath
+    #filename = datadir.join("test.fits").strpath
     fcalib_corr = datadir.join("polyvals.txt").strpath
     wavelengths = [3500.0, 5500.0]
     alphas = [-3.5, -3.5]
