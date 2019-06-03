@@ -141,7 +141,7 @@ class Detections:
         if removebalmerstars:
             mask4 = self.remove_balmerdip_stars()
         else:
-            mask4 = np.ones(np.size(self.detectid))
+            mask4 = np.ones(np.size(self.detectid), dtype=bool)
   
         mask5 = self.remove_bad_detects()
         mask6 = self.remove_shots()
