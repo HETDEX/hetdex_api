@@ -13,6 +13,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import sys
+PYTHON_MAJOR_VERSION = sys.version_info[0]
+PYTHON_VERSION = sys.version_info
+
 import os
 import os.path as op
 import numpy as np
@@ -284,13 +287,13 @@ class Detections:
         created in detwidget.py
         
         '''
-        #todo: encoding='latin1' is an assumption ... might be better to use bytes?
-        try:
-            #if locally encoded and opened (same version of python)
+        #if locally encoded and opened (same version of python)
+        if PYTHON_MAJOR_VERSION < 3:
             limits = pickle.load( open( picklefile, "rb" ))
-        except:
-            #if this is a python2 to python3 issue
+        else:
             limits = pickle.load(open(picklefile, "rb"), encoding='bytes')
+
+
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -485,7 +488,10 @@ class Detections:
         '''
         if loadpickle:
             # todo: encoding='latin1' is an assumption ... might be better to use bytes?
-            self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
+            if PYTHON_MAJOR_VERSION < 3:
+                self.gmag = pickle.load(open(picklefile, 'rb'))
+            else:
+                self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
