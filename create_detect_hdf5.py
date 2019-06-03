@@ -8,6 +8,7 @@ This file contains all information related to the HETDEX line detections
 catalog
 
 """
+from __future__ import print_function
 
 import sys
 import os
@@ -285,7 +286,7 @@ def main(argv=None):
 
     if args.dets:
         f = open(args.dets,"r")
-        print args.dets
+        print (args.dets)
         for line in f:
             datevobs_det = line.rstrip()
             datevobs = datevobs_det[0:12]
@@ -319,13 +320,13 @@ def main(argv=None):
             
     else:
         if not args.date:
-            print "No date or dets list given. Exiting program."
+            print ("No date or dets list given. Exiting program.")
             return
         if not args.observation:
-            print "No observation number was given. Exiting program."
+            print ("No observation number was given. Exiting program.")
             return
         if not args.inputid:
-            print "No inputid given. Exiting program."
+            print ("No inputid given. Exiting program.")
             return
         append_detection(detectidx, args.date, args.observation, args.inputid, 
                          args.detect_path, tableMain, tableFibers, tableSpectra)
@@ -337,7 +338,7 @@ def main(argv=None):
     # create completely sorted index on the detectid 
     # to make queries against that column much faster
     if (args.append): 
-        print "Reindexing the detectid column"
+        print ("Reindexing the detectid column")
         tableMain.cols.detectid.reindex()
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()

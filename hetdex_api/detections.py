@@ -9,6 +9,9 @@ Created on 2019/01/28
 @author: Erin Mentuch Cooper
 """
 
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import sys
 import os
 import os.path as op
@@ -80,7 +83,7 @@ class Detections:
         
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
-            self.field[ix] = S.field[index]
+            self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
@@ -249,14 +252,18 @@ class Detections:
             maskfield = self.query_by_coords(coords, limits.rad)
         else:
             maskfield = np.zeros(ndets, dtype=bool)
-            print 'Subselecting for field(s):', limits.field
+            print ('Subselecting for field(s):', limits.field)
         
             for field_index in limits.field:
                 if field_index == 'all':
-                    print "Field = 'all'; not downselecting"
+                    print ("Field = 'all'; not downselecting")
                     maskfield = np.ones(ndets, dtype=bool)
                 else:
-                    mask_i = (self.field == field_index)
+                    if isinstance(field_index, str):
+                        #python2 to python3 issue (pytables also ... as bytes vs unicode)
+                        mask_i = (self.field.decode() == field_index)
+                    else:
+                        mask_i = (self.field == field_index)
                     maskfield = maskfield | mask_i
         
         mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
@@ -277,8 +284,13 @@ class Detections:
         created in detwidget.py
         
         '''
-
-        limits = pickle.load( open( picklefile, "rb" ) )
+        #todo: encoding='latin1' is an assumption ... might be better to use bytes?
+        try:
+            #if locally encoded and opened (same version of python)
+            limits = pickle.load( open( picklefile, "rb" ))
+        except:
+            #if this is a python2 to python3 issue
+            limits = pickle.load(open(picklefile, "rb"), encoding='bytes')
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -472,7 +484,8 @@ class Detections:
         given then it will just load from previous computation
         '''
         if loadpickle:
-            self.gmag = pickle.load( open(picklefile, 'rb'))
+            # todo: encoding='latin1' is an assumption ... might be better to use bytes?
+            self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
