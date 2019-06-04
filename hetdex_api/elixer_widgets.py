@@ -143,8 +143,13 @@ class ElixerWidget():
 
     def main_display(self, x):
         detectid = x
-        objnum = np.where(self.detectid == detectid)[0][0]
-        print('On ELiXer Report '+ str(objnum) + '/' + str(np.size(self.detectid)))
+
+        try:
+            objnum = np.where(self.detectid == detectid)[0][0]
+            print('On ELiXer Report '+ str(objnum) + '/' + str(np.size(self.detectid)))
+        except: 
+            print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
+
         elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
         file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
         display(widgets.HBox([self.previousbutton, self.nextbutton]))
@@ -212,7 +217,7 @@ class ElixerWidget():
                                               readout_format='.1f',
                                           )
         self.followup = widgets.RadioButtons(options=['yes','no'],
-                                             default='no',
+                                             value='no',
                                              description='Follow up?', 
                                              orientation='horizontal',
                                              disabled=False)
