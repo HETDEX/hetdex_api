@@ -111,6 +111,13 @@ class Detections:
         elif survey == 'cont_sources':
             self.add_hetdex_gmag(loadpickle=True, 
                                  picklefile=config.gmags_cont)
+        
+        if survey == 'hdr1':
+            if PYTHON_MAJOR_VERSION < 3:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb" )))
+            else:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
+            
 
     def __getitem__(self, indx):
         ''' 
@@ -130,6 +137,7 @@ class Detections:
             except:
                 setattr(p, attrname, getattr(self, attrname))
         return p
+
 
     def refine(self, gmagcut=None, removebalmerstars=False):
         '''
@@ -545,6 +553,16 @@ class Detections:
         table = Table()
         for name in self.hdfile.root.Detections.colnames:
             table[name] = getattr(self, name)
+        
+        table.add_column(Column(self.fwhm), index=1, name='fwhm')
+        table.add_column(Column(self.throughput), index=2, name='throughput')
+        table.add_column(Column(self.flux_limit), index=3, name='flux_limit')
+        table.add_column(Column(self.field), index=4, name='field')
+        table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
+        table.add_column(Column(self.gmag), index=6, name='gmag')
+        table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
+        table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
+        table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
 
         return table
 
