@@ -146,6 +146,7 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
+
     def refine(self, gmagcut=None, removebalmerstars=False):
         '''
         Masks out bad and bright detections 
