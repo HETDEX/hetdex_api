@@ -19,7 +19,7 @@ from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-import config
+from hetdex_api import config
 
 path_data = config.data_dir
 

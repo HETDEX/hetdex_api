@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+###!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Fri Mar  8 12:21:35 2019
@@ -36,3 +36,4 @@ badshot = op.join(bad_dir, 'badshots.list')
 badamp = op.join(bad_dir, 'badamps.list')
 badpix = op.join(bad_dir, 'posthdr1badpix.list')
 gmags = op.join(bad_dir,'gmags.pickle')
+gmags_cont = op.join(bad_dir, 'gmags_cont.pickle')

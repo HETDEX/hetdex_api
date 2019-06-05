@@ -16,6 +16,7 @@ a detections database H5 file.
 python create_elixer_hdf5.py 
 
 """
+from __future__ import print_function
 
 import sys
 import os
@@ -59,7 +60,7 @@ def get_elixer_image(detectid, elix_path):
     
     if op.exists(file_jpg):
         elixim = plt.imread(file_jpg)
-        print np.size(elixim)
+        print(np.size(elixim))
     elif op.exists(file_pdf):
         file_png = str(detectid) + '.png'
         os.system('pdftoppm ' + file_pdf + ' ' + str(detectid) + ' -png -singlefile')

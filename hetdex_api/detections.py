@@ -9,7 +9,13 @@ Created on 2019/01/28
 @author: Erin Mentuch Cooper
 """
 
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import sys
+PYTHON_MAJOR_VERSION = sys.version_info[0]
+PYTHON_VERSION = sys.version_info
+
 import os
 import os.path as op
 import numpy as np
@@ -80,7 +86,7 @@ class Detections:
         
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
-            self.field[ix] = S.field[index]
+            self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
             self.flux_limit[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
@@ -102,6 +108,9 @@ class Detections:
         if survey == 'hdr1':
             self.add_hetdex_gmag(loadpickle=True, 
                                 picklefile=config.gmags)
+        elif survey == 'cont_sources':
+            self.add_hetdex_gmag(loadpickle=True, 
+                                 picklefile=config.gmags_cont)
 
     def __getitem__(self, indx):
         ''' 
@@ -122,7 +131,7 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=None, removebalmerstars=True):
+    def refine(self, gmagcut=None, removebalmerstars=False):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
@@ -138,7 +147,7 @@ class Detections:
         if removebalmerstars:
             mask4 = self.remove_balmerdip_stars()
         else:
-            mask4 = np.ones(np.size(self.detectid))
+            mask4 = np.ones(np.size(self.detectid), dtype=bool)
   
         mask5 = self.remove_bad_detects()
         mask6 = self.remove_shots()
@@ -246,14 +255,18 @@ class Detections:
             maskfield = self.query_by_coords(coords, limits.rad)
         else:
             maskfield = np.zeros(ndets, dtype=bool)
-            print 'Subselecting for field(s):', limits.field
+            print ('Subselecting for field(s):', limits.field)
         
             for field_index in limits.field:
                 if field_index == 'all':
-                    print "Field = 'all'; not downselecting"
+                    print ("Field = 'all'; not downselecting")
                     maskfield = np.ones(ndets, dtype=bool)
                 else:
-                    mask_i = (self.field == field_index)
+                    if isinstance(field_index, str):
+                        #python2 to python3 issue (pytables also ... as bytes vs unicode)
+                        mask_i = (self.field.decode() == field_index)
+                    else:
+                        mask_i = (self.field == field_index)
                     maskfield = maskfield | mask_i
         
         mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
@@ -274,8 +287,13 @@ class Detections:
         created in detwidget.py
         
         '''
+        #if locally encoded and opened (same version of python)
+        if PYTHON_MAJOR_VERSION < 3:
+            limits = pickle.load( open( picklefile, "rb" ))
+        else:
+            limits = pickle.load(open(picklefile, "rb"), encoding='bytes')
 
-        limits = pickle.load( open( picklefile, "rb" ) )
+
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -391,6 +409,8 @@ class Detections:
         Applies a cut to the databased to remove all
         stars that show a false emission feature around 3780
         Also assigns a star classification to each detectid
+
+        This is obsolete as gmag cuts get rid of these easily
         '''
         mask1 = (self.wave > 3775) * (self.wave < 3785) * (self.continuum > 3)
 
@@ -467,7 +487,11 @@ class Detections:
         given then it will just load from previous computation
         '''
         if loadpickle:
-            self.gmag = pickle.load( open(picklefile, 'rb'))
+            # todo: encoding='latin1' is an assumption ... might be better to use bytes?
+            if PYTHON_MAJOR_VERSION < 3:
+                self.gmag = pickle.load(open(picklefile, 'rb'))
+            else:
+                self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
