@@ -57,7 +57,11 @@ class Detections:
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Detections.colnames
         for name in colnames:
-            setattr(self, name,
+            if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0],np.bytes_):
+                setattr(self, name,
+                    getattr(self.hdfile.root.Detections.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
                     getattr(self.hdfile.root.Detections.cols, name)[:])
         
         # set the SkyCoords
@@ -72,7 +76,11 @@ class Detections:
                 if name2 == 'detectid':
                     setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
                 else:
-                    setattr(self, name2,
+                    if isinstance(getattr(self.hdfile_elix.root.Classifications.cols, name2)[0], np.bytes_):
+                        setattr(self, name2,
+                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:].astype(str))
+                    else:
+                        setattr(self, name2,
                             getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
         # also assign a field and some QA identifiers
@@ -111,6 +119,13 @@ class Detections:
         elif survey == 'cont_sources':
             self.add_hetdex_gmag(loadpickle=True, 
                                  picklefile=config.gmags_cont)
+        
+        if survey == 'hdr1':
+            if PYTHON_MAJOR_VERSION < 3:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb" )))
+            else:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
+            
 
     def __getitem__(self, indx):
         ''' 
@@ -267,7 +282,7 @@ class Detections:
                         mask_i = (self.field.decode() == field_index)
                     else:
                         mask_i = (self.field == field_index)
-                    maskfield = maskfield | mask_i
+                    maskfield = np.logical_or(maskfield, mask_i)
         
         mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
                     
@@ -313,7 +328,7 @@ class Detections:
 
         for baddet in baddetects:
             maskdet = self.detectid == baddet
-            mask = mask | maskdet
+            mask = np.logical_or(mask,maskdet)
 
         self.vis_class[mask] = -2
 
@@ -335,17 +350,19 @@ class Detections:
         badamps = ascii.read(config.badamp, 
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
+
         for row in np.arange(np.size(badamps)):
             if badamps['amp'][row] == 'AA':
                  maskamp = (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
-                 mask = maskamp | mask
+                 mask = np.logical_or(mask,maskamp)
             else:
                 maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
-                mask = maskamp | mask
+                mask = np.logical_or(mask, maskamp)
+
+
 
         self.vis_class[mask] = 0
-
-        return np.invert(mask)
+        return np.logical_not(mask)
 
     def remove_bad_pix(self):
         '''
@@ -378,7 +395,7 @@ class Detections:
         
         for row in badpixlist:
             maskbadpix = (self.multiframe == row['multiframe']) * (self.x_raw > row['x1']) * (self.x_raw < row['x2']) * (self.y_raw > row['y1']) * (self.y_raw < row['y2'])
-            mask = maskbadpix | mask
+            mask = np.logical_or(maskbadpix,mask)
             
         self.vis_class[mask] = 0
         
@@ -397,7 +414,7 @@ class Detections:
 
         for shot in badshots:
             maskshot = (self.shotid == shot)
-            mask = mask | maskshot
+            mask = np.logical_or(maskshot, mask)
         
         self.vis_class[mask] = -2
 
@@ -415,8 +432,8 @@ class Detections:
         mask1 = (self.wave > 3775) * (self.wave < 3785) * (self.continuum > 3)
 
         mask2 = (self.wave > 4503.) * (self.wave <4513.) * (self.continuum > 10)
- 
-        mask = mask1 | mask2 
+
+        mask = np.logical_or(mask1, mask2)
 
         self.vis_class[mask] = 3
 
@@ -446,7 +463,7 @@ class Detections:
         them as artifacts in vis_class
         '''
 
-        mask = (self.wave < 3540.) | (self.wave > 5515.) 
+        mask = (self.wave < 3540.) | (self.wave > 5515.)
         self.vis_class[mask] = 0
         
         return np.invert(mask)
@@ -545,6 +562,16 @@ class Detections:
         table = Table()
         for name in self.hdfile.root.Detections.colnames:
             table[name] = getattr(self, name)
+        
+        table.add_column(Column(self.fwhm), index=1, name='fwhm')
+        table.add_column(Column(self.throughput), index=2, name='throughput')
+        table.add_column(Column(self.flux_limit), index=3, name='flux_limit')
+        table.add_column(Column(self.field), index=4, name='field')
+        table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
+        table.add_column(Column(self.gmag), index=6, name='gmag')
+        table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
+        table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
+        table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
 
         return table
 

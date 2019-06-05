@@ -223,7 +223,7 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
     fibers = Fibers(shot)
 
     idx = fibers.get_closest_fiber(coords)
-    multiframe_obj = fibers.table.cols.multiframe[idx]
+    multiframe_obj = fibers.table.cols.multiframe[idx].astype(str)
     expnum_obj = fibers.table.cols.expnum[idx]
     x, y = fibers.get_image_xy(idx, wave_obj)
 
