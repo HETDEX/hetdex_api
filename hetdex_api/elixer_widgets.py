@@ -145,7 +145,7 @@ class ElixerWidget():
         detectid = x
 
         try:
-            objnum = np.where(self.detectid == detectid)[0][0]
+            objnum = np.where(self.detectid == detectid)[0][0] + 1
             print('On ELiXer Report '+ str(objnum) + '/' + str(np.size(self.detectid)))
         except: 
             print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
