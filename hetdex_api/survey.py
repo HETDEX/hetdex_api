@@ -41,12 +41,12 @@ class Survey:
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Survey.colnames
         for name in colnames:
-            if isinstance(getattr(self.hdfile.root.Survey.cols, name)[0], np.bytes_):
-                setattr(self, name,
-                        getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
             if name == 'ra_flag':
                     setattr(self, name,
                             getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
+            elif isinstance(getattr(self.hdfile.root.Survey.cols, name)[0], np.bytes_):
+                setattr(self, name,
+                        getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
             else:
                 setattr(self, name,
                         getattr(self.hdfile.root.Survey.cols, name)[:])
