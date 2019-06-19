@@ -203,6 +203,7 @@ def get_fibers_table(shot, coords, radius):
     rad = radius.degree
 
     fibers_table = fibers.read_where("sqrt((ra - ra_in)**2 + (dec - dec_in)**2) < rad")
+    fileh.close()
     return fibers_table
 
 
@@ -248,5 +249,6 @@ def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
     fileh = open_shot_file(shot)
     im0 = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
+    fileh.close()
     
     return im0[imtype][0]
