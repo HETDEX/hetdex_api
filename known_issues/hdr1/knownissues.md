@@ -48,3 +48,9 @@ These shots are rejected due to duplicate dither frames:
 * 20180310v002  
 * 20180310v007   
 * 20180320v009  
+
+These shots are removed for an extremely high number of detections on most amps.. possible reasons given in brackets if known
+
+* 20180211v019 (['B'] ra_flags ) 
+* 20180321v012 (response_4540 = 0.0923)
+
