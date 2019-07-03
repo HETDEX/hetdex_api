@@ -139,27 +139,34 @@ class AmplifierQC():
 
 class AllAmplifierQC():
 
-    def __init__(self):
+    def __init__(self, filename=None):
         '''
         Initialize the AmplifierQC object for a given date
 
         Parameters
         ----------
-        datestr : str
-            The date string to check, must be of format YYYYMMDD,
-            otherwise the server will return an error.
+        filename : str, optional
+            An optional JSON file to read the data from. Using a file
+            disables saving of updates to the database.
         '''
 
-        url = 'https://luna.mpe.mpg.de/qc/all'
+        if filename != None:
+            print('Attempting read from file')
+            with open(filename, 'r') as f:
+                self._qcdata = json.load(f)
+            self._original = None
+        else:
+            url = 'https://luna.mpe.mpg.de/qc/all'
 
-        try:
-            resp = urlopen(url)
-        except HTTPError as e:
-            raise Exception(' Failed to retrieve qc data, server '
-                            'responded with %d %s' % (e.getcode(), e.reason))
+            try:
+                resp = urlopen(url)
+            except HTTPError as e:
+                raise Exception(' Failed to retrieve qc data, server '
+                                'responded with %d %s' % (e.getcode(),
+                                                          e.reason))
 
-        self._qcdata = json.loads(resp.read())
-        self._original = copy.copy(self._qcdata)
+            self._qcdata = json.loads(resp.read())
+            self._original = copy.copy(self._qcdata)
 
         # Attempt to read the authorization key
         try:
@@ -234,6 +241,8 @@ class AllAmplifierQC():
         Save the updated quality control data to the database.
         '''
 
+        if self._original is None:
+            raise Exception('Cannot save, data was loaded from json file!')
         if self._original == self._qcdata:
             print('No changes found, not saving to database.')
             return
