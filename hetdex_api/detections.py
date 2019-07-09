@@ -86,7 +86,7 @@ class Detections:
         # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
         self.fwhm = np.zeros(np.size(self.detectid))
-        self.flux_limit = np.zeros(np.size(self.detectid))
+        self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
         self.throughput = np.zeros(np.size(self.detectid))
         self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -96,7 +96,7 @@ class Detections:
             ix = np.where(self.shotid == shot)
             self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
-            self.flux_limit[ix] = S.fluxlimit_4550[index]
+            self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
             self.n_ifu[ix] = S.n_ifu[index]
 
@@ -566,7 +566,7 @@ class Detections:
         
         table.add_column(Column(self.fwhm), index=1, name='fwhm')
         table.add_column(Column(self.throughput), index=2, name='throughput')
-        table.add_column(Column(self.flux_limit), index=3, name='flux_limit')
+        table.add_column(Column(self.fluxlimit_4550), index=3, name='fluxlimit_4550')
         table.add_column(Column(self.field), index=4, name='field')
         table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
         table.add_column(Column(self.gmag), index=6, name='gmag')
