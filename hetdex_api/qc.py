@@ -165,7 +165,10 @@ class AllAmplifierQC():
                                 'responded with %d %s' % (e.getcode(),
                                                           e.reason))
 
-            self._qcdata = json.loads(resp.read())
+            qcdata = json.loads(resp.read())
+            self._qcdata = {}
+            for k in qcdata:
+                self._qcdata[int(k)] = qcdata[k]
             self._original = copy.copy(self._qcdata)
 
         # Attempt to read the authorization key
@@ -201,7 +204,7 @@ class AllAmplifierQC():
             print('WARNING! No data for date %d' % date)
             return 0
         try:
-            return self._qcdata[ifuslot][amp]
+            return self._qcdata[date][ifuslot][amp]
         except KeyError:
             return 0
 
