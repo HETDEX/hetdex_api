@@ -54,3 +54,16 @@ These shots are removed for an extremely high number of detections on most amps.
 * 20180211v019 (['B'] ra_flags ) 
 * 20180321v012 (response_4540 = 0.0923)
 
+These shots weren't reduced well.. probably used a bad twilight. 
+
+* 20180509007
+* 20180509009
+* 20180509010
+
+## Some Weird Shots
+
+These shots have lines everywhere.. should look into. They have NOT been removed from Detections.refine()
+* 20180113012
+* 20180212011
+* 20180221010
+
