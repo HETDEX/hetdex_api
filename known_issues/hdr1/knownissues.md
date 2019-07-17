@@ -54,3 +54,9 @@ These shots are removed for an extremely high number of detections on most amps.
 * 20180211v019 (['B'] ra_flags ) 
 * 20180321v012 (response_4540 = 0.0923)
 
+These shots were removed as they had lines and seems to be poor sky subtraction.. try again for HDR2 with other twilights.
+
+* 20180113012
+* 20180212011
+* 20180221010
+
