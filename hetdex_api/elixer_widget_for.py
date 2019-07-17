@@ -54,7 +54,7 @@ class ElixerWidget():
         self.current_idx = 0
 
         if detectfile:
-            self.detectid = np.loadtxt(detectfile, dtype=np.int32)
+            self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
                 #hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
