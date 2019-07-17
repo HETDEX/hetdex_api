@@ -62,7 +62,7 @@ These shots weren't reduced well.. probably used a bad twilight.
 
 ## Some Weird Shots
 
-These shots have lines everywhere.. should look in.
+These shots have lines everywhere.. should look into. They have NOT been removed from Detections.refine()
 * 20180113012
 * 20180212011
 * 20180221010
