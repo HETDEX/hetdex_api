@@ -60,6 +60,8 @@ These shots weren't reduced well.. probably used a bad twilight.
 * 20180509009
 * 20180509010
 
+## Some Weird Shots
+
 These shots have lines everywhere.. should look in.
 * 20180113012
 * 20180212011
