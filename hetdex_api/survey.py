@@ -41,8 +41,15 @@ class Survey:
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Survey.colnames
         for name in colnames:
-            setattr(self, name,
-                    getattr(self.hdfile.root.Survey.cols, name)[:])
+            if name == 'ra_flag':
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
+            elif isinstance(getattr(self.hdfile.root.Survey.cols, name)[0], np.bytes_):
+                setattr(self, name,
+                        getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
+                        getattr(self.hdfile.root.Survey.cols, name)[:])
             
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')

@@ -34,3 +34,23 @@ These shots were rejected due to Equipment Error ie. RA_flag = E
        20180310007, 20180313015, 20180313016, 20180313017, 20180316015,
        20180316016, 20180317012, 20180320009, 20180517015, 20180714007,
        20190104017]
+
+These shots are rejected due to duplicate dither frames:
+
+* 20170126v003    
+* 20170127v007    
+* 20171012v014   
+* 20171012v015   
+* 20171012v016    
+* 20171012v017    
+* 20171222v013   
+* 20180308v002    
+* 20180310v002  
+* 20180310v007   
+* 20180320v009  
+
+These shots are removed for an extremely high number of detections on most amps.. possible reasons given in brackets if known
+
+* 20180211v019 (['B'] ra_flags ) 
+* 20180321v012 (response_4540 = 0.0923)
+
