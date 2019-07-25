@@ -35,7 +35,7 @@ class AmplifierQC():
 
         self._datestr = datestr
         self._qcdata = json.loads(resp.read())
-        self._original = copy.copy(self._qcdata)
+        self._original = copy.deepcopy(self._qcdata)
 
         # Attempt to read the authorization key
         try:
@@ -169,7 +169,7 @@ class AllAmplifierQC():
             self._qcdata = {}
             for k in qcdata:
                 self._qcdata[int(k)] = qcdata[k]
-            self._original = copy.copy(self._qcdata)
+            self._original = copy.deepcopy(self._qcdata)
 
         # Attempt to read the authorization key
         try:
