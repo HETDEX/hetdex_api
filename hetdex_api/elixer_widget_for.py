@@ -229,11 +229,9 @@ class ElixerWidget():
 
 
     def goto_next_detect(self):
-
         ix = np.where(self.detectid == self.detectbox.value)[0][0] #current position
         if ix+1 < np.size(self.detectid):
             ix += 1
-
         else:
             print("At the end of the DetectID List")
             return
@@ -246,6 +244,8 @@ class ElixerWidget():
 
 
     def set_classification(self,value=0):
+        self.current_idx = np.where(self.detectid == self.detectbox.value)[0][0]  # current position
+
         self.vis_class[self.current_idx] = value
         self.flag[self.current_idx] = 1
 
