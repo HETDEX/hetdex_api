@@ -94,7 +94,7 @@ class ElixerWidget():
         elif savedfile:
             self.outfilename = savedfile
         else:
-            self.outfilename = 'elixer_for.dat'
+            self.outfilename = 'elixer_spur.dat'
 
         self.resume = resume
         self.setup_widget()
