@@ -123,48 +123,32 @@ class ElixerWidget():
     def main_display(self, x):
 
         detectid = x
+        show_selection_buttons = True
 
         try:
             objnum = np.where(self.detectid == detectid)[0][0]
             print('On ELiXer Report '+ str(objnum+1) + '/' + str(np.size(self.detectid)))
         except:
             print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
-            #objnum = self.current_idx
-
-            if False: #partial implementation of using an index instead of detectID;creates some duplication, not worth
-                      #solving for this version
-                #maybe it was an index?
-                objnum = x-1 #user is presented with indices starting at 1
-                if objnum < len(self.detectid):
-                    try:
-                        detectid = self.detectid[objnum]
-                    except:
-                        print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
-                        return
-                else:
-                    print('Supplied DetectID (%d) does not exist as ID or index. Returned to previous ID.' %(x))
-                    return
-
-        #clear_output()
-        self.rest_widget_values(objnum)
-
-        file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
-
+            show_selection_buttons = False
 
         display(widgets.HBox([self.previousbutton, self.nextbutton]))
-        display(widgets.HBox([self.s0_button,self.s1_button,self.s2_button,self.s3_button,self.s4_button,self.s5_button]))
-
-        display(Image(file_jpg))
-
         self.previousbutton.on_click(self.on_previous_click)
         self.nextbutton.on_click(self.on_next_click)
 
-        self.s0_button.on_click(self.s0_button_click)
-        self.s1_button.on_click(self.s1_button_click)
-        self.s2_button.on_click(self.s2_button_click)
-        self.s3_button.on_click(self.s3_button_click)
-        self.s4_button.on_click(self.s4_button_click)
-        self.s5_button.on_click(self.s5_button_click)
+        if show_selection_buttons:
+            # clear_output()
+            self.rest_widget_values(objnum)
+            display(widgets.HBox([self.s0_button,self.s1_button,self.s2_button,self.s3_button,
+                                  self.s4_button,self.s5_button]))
+            self.s0_button.on_click(self.s0_button_click)
+            self.s1_button.on_click(self.s1_button_click)
+            self.s2_button.on_click(self.s2_button_click)
+            self.s3_button.on_click(self.s3_button_click)
+            self.s4_button.on_click(self.s4_button_click)
+            self.s5_button.on_click(self.s5_button_click)
+
+        display(Image(op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')))
 
 
     def setup_widget(self):
@@ -217,13 +201,20 @@ class ElixerWidget():
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
 
     def goto_previous_detect(self):
-        ix = np.where(self.detectid == self.detectbox.value)[0][0]
 
-        if ix - 1 >= 0:
-            ix -= 1
-        else:
-            print("At the beginning of the DetectID List")
-            return
+        try:
+            ix = np.where(self.detectid == self.detectbox.value)[0][0]
+
+            if ix - 1 >= 0:
+                ix -= 1
+            else:
+                print("At the beginning of the DetectID List")
+                return
+
+        except:
+            #invalid index ... the report displayed is not in the operating list
+            #so use the last good index:
+            ix = self.current_idx
 
         self.rest_widget_values(idx=ix)
 
@@ -233,18 +224,21 @@ class ElixerWidget():
 
 
     def goto_next_detect(self):
-        ix = np.where(self.detectid == self.detectbox.value)[0][0] #current position
-        if ix+1 < np.size(self.detectid):
-            ix += 1
-        else:
-            print("At the end of the DetectID List")
-            return
+        try:
+            ix = np.where(self.detectid == self.detectbox.value)[0][0]
+            if ix+1 < np.size(self.detectid):
+                ix += 1
+            else:
+                print("At the end of the DetectID List")
+                return
+        except:
+            #invalid index ... the report displayed is not in the operating list
+            #so use the last good index:
+            ix = self.current_idx
 
         self.rest_widget_values(idx=ix)
         self.current_idx = ix
         self.detectbox.value = self.detectid[ix]
-
-
 
 
     def set_classification(self,value=0):
@@ -259,7 +253,7 @@ class ElixerWidget():
 
     def rest_widget_values(self,idx=0):
 
-        if self.detectbox.value < 1000000000: #assume an indedx
+        if self.detectbox.value < 1000000000: #assume an index
             self.detectbox.value = self.detectid[idx]
             return
 
