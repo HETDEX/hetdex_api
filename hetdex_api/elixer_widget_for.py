@@ -144,7 +144,16 @@ class ElixerWidget():
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
 
-        display(Image(op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')))
+        try:
+            fname = op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+
+            if op.exists(fname):
+                display(Image(fname))
+            else:
+                print("Cannot load ELiXer Report image: ", fname)
+        except:
+            print("Cannot load ELiXer Report image: ", fname)
+
 
     def setup_widget(self):
         if self.resume:

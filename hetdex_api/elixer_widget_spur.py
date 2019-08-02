@@ -30,7 +30,6 @@ elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 # You may also initiate with no variables to just open any ELiXeR
 # on demand
 
-conversion_dict = {-5:0,-4:1,-3:1,-2:2,-1:2,1:3,2:3,3:4,4:4,5:5}
 
 class ElixerWidget():
 
@@ -56,20 +55,8 @@ class ElixerWidget():
                 try:
                     self.flag = np.array(saved_data['flag'],dtype=int)
                 except:
-                    #did not have it, so this is a -5 to 5 version
-                    #convert and update
-
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
-                    #there are not too many of these, so this is simple and fast enough
-                    #for a one time conversion
-                    for i in range(len(self.detectid)):
-                        if self.vis_class[i] in conversion_dict.keys():
-                            self.vis_class[i] = conversion_dict[self.vis_class[i]]
-                            self.flag[i] = 1
-                        else: #is already zero or some error value, so set (or leave) at 0
-                            self.vis_class[i] = 0
-                            #self.flag[i] stays at zero
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -122,15 +109,24 @@ class ElixerWidget():
             # clear_output()
             self.rest_widget_values(objnum)
             display(widgets.HBox([self.s0_button, self.s1_button, self.s2_button, self.s3_button,
-                                  self.s4_button, self.s5_button]))
+                                  self.s4_button, self.s5_button,self.s6_button]))
             self.s0_button.on_click(self.s0_button_click)
             self.s1_button.on_click(self.s1_button_click)
             self.s2_button.on_click(self.s2_button_click)
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+            self.s6_button.on_click(self.s6_button_click)
 
-        display(Image(op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')))
+        try:
+            fname = op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+
+            if op.exists(fname):
+                display(Image(fname))
+            else:
+                print("Cannot load ELiXer Report image: ", fname)
+        except:
+            print("Cannot load ELiXer Report image: ", fname)
 
 
     def setup_widget(self):
@@ -176,7 +172,8 @@ class ElixerWidget():
         self.s2_button = widgets.Button(description=' Bad Amp ', button_style='success')
         self.s3_button = widgets.Button(description=' Cosmic ', button_style='success')
         self.s4_button = widgets.Button(description=' Noise ', button_style='success')
-        self.s5_button = widgets.Button(description=' Unknown ', button_style='success')
+        self.s5_button = widgets.Button(description=' Other ', button_style='success')
+        self.s6_button = widgets.Button(description=' REAL ', button_style='success')
 
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
@@ -246,6 +243,7 @@ class ElixerWidget():
         self.s3_button.icon = ''
         self.s4_button.icon = ''
         self.s5_button.icon = ''
+        self.s6_button.icon = ''
 
         # mark the label on the button
         if self.flag[idx] != 0:
@@ -261,7 +259,8 @@ class ElixerWidget():
                 self.s4_button.icon = 'check'
             elif self.vis_class[idx] == 5:
                 self.s5_button.icon = 'check'
-
+            elif self.vis_class[idx] == 6:
+                self.s6_button.icon = 'check'
 
 
     def on_previous_click(self, b):
@@ -288,6 +287,9 @@ class ElixerWidget():
 
     def s5_button_click(self, b):
         self.set_classification(5)
+
+    def s6_button_click(self, b):
+        self.set_classification(6)
 
 
     def on_save_click(self, b):

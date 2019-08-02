@@ -48,7 +48,6 @@ elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 # You may also initiate with no variables to just open any ELiXeR
 # on demand
 
-conversion_dict = {-5:0,-4:1,-3:1,-2:2,-1:2,1:3,2:3,3:4,4:4,5:5}
 
 class ElixerWidget():
 
@@ -74,20 +73,8 @@ class ElixerWidget():
                 try:
                     self.flag = np.array(saved_data['flag'],dtype=int)
                 except:
-                    #did not have it, so this is a -5 to 5 version
-                    #convert and update
-
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
-                    #there are not too many of these, so this is simple and fast enough
-                    #for a one time conversion
-                    for i in range(len(self.detectid)):
-                        if self.vis_class[i] in conversion_dict.keys():
-                            self.vis_class[i] = conversion_dict[self.vis_class[i]]
-                            self.flag[i] = 1
-                        else: #is already zero or some error value, so set (or leave) at 0
-                            self.vis_class[i] = 0
-                            #self.flag[i] stays at zero
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -148,8 +135,15 @@ class ElixerWidget():
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
 
-        display(Image(op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')))
+        try:
+            fname = op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
 
+            if op.exists(fname):
+                display(Image(fname))
+            else:
+                print("Cannot load ELiXer Report image: ", fname)
+        except:
+            print("Cannot load ELiXer Report image: ", fname)
 
     def setup_widget(self):
         if self.resume:
