@@ -14,6 +14,7 @@ To make an astropy Table from elixer catalogs:
 elixer_table = read_elixer_catalogs(fibfn, catfn)
 
 """
+from __future__ import print_function
 
 import os
 import os.path as op
@@ -115,8 +116,8 @@ def read_elixer_catalogs(fibfn, catfn):
                 
     for detectid_i in enumerate(np.array(detectid)):
         idx = np.where((cat_table['detectidcat'] == detectid_i) & 
-                       (cat_table['ra_match'] == 666) & (cat_table['dec_match'] == 666)
-        print idx
+                       (cat_table['ra_match'] == 666) & (cat_table['dec_match'] == 666))
+        print(idx)
         
 
     #Now we have consumed the catalog files

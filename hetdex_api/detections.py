@@ -9,7 +9,13 @@ Created on 2019/01/28
 @author: Erin Mentuch Cooper
 """
 
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import sys
+PYTHON_MAJOR_VERSION = sys.version_info[0]
+PYTHON_VERSION = sys.version_info
+
 import os
 import os.path as op
 import numpy as np
@@ -30,7 +36,7 @@ from hetdex_api import config
 np.warnings.filterwarnings('ignore')
 
 class Detections:
-    def __init__(self, survey, removestars=True, removebad=True):
+    def __init__(self, survey):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -51,35 +57,46 @@ class Detections:
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Detections.colnames
         for name in colnames:
-            setattr(self, name,
+            if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0],np.bytes_):
+                setattr(self, name,
+                    getattr(self.hdfile.root.Detections.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
                     getattr(self.hdfile.root.Detections.cols, name)[:])
         
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
 
+
         # add in the elixer probabilties and associated info:
-        self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
-        colnames2 = self.hdfile_elix.root.Classifications.colnames
-        for name2 in colnames2:
-            if name2 == 'detectid':
-                setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
-            else:
-                setattr(self, name2,
-                        getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
+        if survey == 'hdr1':
+            self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
+            colnames2 = self.hdfile_elix.root.Classifications.colnames
+            for name2 in colnames2:
+                if name2 == 'detectid':
+                    setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
+                else:
+                    if isinstance(getattr(self.hdfile_elix.root.Classifications.cols, name2)[0], np.bytes_):
+                        setattr(self, name2,
+                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:].astype(str))
+                    else:
+                        setattr(self, name2,
+                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
         # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
         self.fwhm = np.zeros(np.size(self.detectid))
-        self.flux_limit = np.zeros(np.size(self.detectid))
+        self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
         self.throughput = np.zeros(np.size(self.detectid))
         self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
-        S = Survey(survey)
+        S = Survey('hdr1')
+        
         for index, shot in enumerate(S.shotid):
             ix = np.where(self.shotid == shot)
-            self.field[ix] = S.field[index]
+            self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
-            self.flux_limit[ix] = S.fluxlimit_4550[index]
+            self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
             self.n_ifu[ix] = S.n_ifu[index]
 
@@ -96,8 +113,19 @@ class Detections:
         self.vis_class = -1 * np.ones(np.size(self.detectid))
 
 
-        self.add_hetdex_mag(loadpickle=True, 
-                            picklefile=config.gmags)
+        if survey == 'hdr1':
+            self.add_hetdex_gmag(loadpickle=True, 
+                                picklefile=config.gmags)
+        elif survey == 'cont_sources':
+            self.add_hetdex_gmag(loadpickle=True, 
+                                 picklefile=config.gmags_cont)
+        
+        if survey == 'hdr1':
+            if PYTHON_MAJOR_VERSION < 3:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb" )))
+            else:
+                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
+            
 
     def __getitem__(self, indx):
         ''' 
@@ -118,21 +146,30 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self):
+
+    def refine(self, gmagcut=None, removebalmerstars=False):
         '''
         Masks out bad and bright detections 
         and returns a refined Detections class
         object
+
+        gmagcut = mag limit to exclude everything
+                  brighter, defaults to None
         '''
 
         mask1 = self.remove_bad_amps() 
-        mask2 = self.remove_bright_stuff()
+        mask2 = self.remove_bright_stuff(gmagcut)
         mask3 = self.remove_ccd_features()
-        mask4 = self.remove_balmerdip_stars()
+        if removebalmerstars:
+            mask4 = self.remove_balmerdip_stars()
+        else:
+            mask4 = np.ones(np.size(self.detectid), dtype=bool)
+  
         mask5 = self.remove_bad_detects()
         mask6 = self.remove_shots()
+        mask7 = self.remove_bad_pix()
 
-        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
+        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         return self[mask]
 
@@ -234,15 +271,19 @@ class Detections:
             maskfield = self.query_by_coords(coords, limits.rad)
         else:
             maskfield = np.zeros(ndets, dtype=bool)
-            print 'Subselecting for field(s):', limits.field
+            print ('Subselecting for field(s):', limits.field)
         
             for field_index in limits.field:
                 if field_index == 'all':
-                    print "Field = 'all'; not downselecting"
+                    print ("Field = 'all'; not downselecting")
                     maskfield = np.ones(ndets, dtype=bool)
                 else:
-                    mask_i = (self.field == field_index)
-                    maskfield = maskfield | mask_i
+                    if isinstance(field_index, str):
+                        #python2 to python3 issue (pytables also ... as bytes vs unicode)
+                        mask_i = (self.field.decode() == field_index)
+                    else:
+                        mask_i = (self.field == field_index)
+                    maskfield = np.logical_or(maskfield, mask_i)
         
         mask = maskwave * masklw * masksn * maskflux * maskchi2 * maskcont * maskfield
                     
@@ -262,8 +303,13 @@ class Detections:
         created in detwidget.py
         
         '''
+        #if locally encoded and opened (same version of python)
+        if PYTHON_MAJOR_VERSION < 3:
+            limits = pickle.load( open( picklefile, "rb" ))
+        else:
+            limits = pickle.load(open(picklefile, "rb"), encoding='bytes')
 
-        limits = pickle.load( open( picklefile, "rb" ) )
+
         mask = self.query_by_dictionary(limits)
         return mask
 
@@ -283,7 +329,7 @@ class Detections:
 
         for baddet in baddetects:
             maskdet = self.detectid == baddet
-            mask = mask | maskdet
+            mask = np.logical_or(mask,maskdet)
 
         self.vis_class[mask] = -2
 
@@ -305,17 +351,57 @@ class Detections:
         badamps = ascii.read(config.badamp, 
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
+
         for row in np.arange(np.size(badamps)):
             if badamps['amp'][row] == 'AA':
                  maskamp = (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
-                 mask = maskamp | mask
+                 mask = np.logical_or(mask,maskamp)
             else:
                 maskamp = (self.amp == badamps['amp'][row]) * (self.ifuslot == str(badamps['ifuslot'][row]).zfill(3)) * (self.date >= badamps['date_start'][row]) * (self.date <= badamps['date_end'][row])
-                mask = maskamp | mask
+                mask = np.logical_or(mask, maskamp)
+
+
 
         self.vis_class[mask] = 0
+        return np.logical_not(mask)
 
+    def remove_bad_pix(self):
+        '''
+        Takes the post-hdr1 list of bad pixels 
+        in HETDEX_API/known_issues/hdr1/posthdr1badpix.list
+        
+        For current development we will use the one in EMC's 
+        directory as that will be most up to date:
+        
+        /work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1
+        
+        and removes any detections within a Detections() class 
+        object in the defined regions when
+        either the .refine() or .remove_bad_pix() methods are 
+        called.
+        
+        Note: all previously know bad detections are stored in
+        
+        HETDEX_API/known_issues/hdr1/badpix.list 
+        
+        **** THESE SHOULD BE REMOVED WHEN USING THE SHOT H5 files
+        from HDR1
+        
+        '''
+        
+        badpixlist = ascii.read(config.badpix,
+                                names=['multiframe','x1','x2','y1','y2'])
+    
+        mask = np.zeros(np.size(self.detectid), dtype=bool)
+        
+        for row in badpixlist:
+            maskbadpix = (self.multiframe == row['multiframe']) * (self.x_raw > row['x1']) * (self.x_raw < row['x2']) * (self.y_raw > row['y1']) * (self.y_raw < row['y2'])
+            mask = np.logical_or(maskbadpix,mask)
+            
+        self.vis_class[mask] = 0
+        
         return np.invert(mask)
+
 
     def remove_shots(self):
         '''
@@ -329,29 +415,33 @@ class Detections:
 
         for shot in badshots:
             maskshot = (self.shotid == shot)
-            mask = mask | maskshot
+            mask = np.logical_or(maskshot, mask)
         
-        self.vis_class = -2
+        self.vis_class[mask] = -2
 
         return np.invert(mask)
+
 
     def remove_balmerdip_stars(self):
         '''
         Applies a cut to the databased to remove all
         stars that show a false emission feature around 3780
         Also assigns a star classification to each detectid
+
+        This is obsolete as gmag cuts get rid of these easily
         '''
         mask1 = (self.wave > 3775) * (self.wave < 3785) * (self.continuum > 3)
 
         mask2 = (self.wave > 4503.) * (self.wave <4513.) * (self.continuum > 10)
- 
-        mask = mask1 | mask2 
+
+        mask = np.logical_or(mask1, mask2)
 
         self.vis_class[mask] = 3
 
         return np.invert(mask)
+
         
-    def remove_bright_stuff(self):
+    def remove_bright_stuff(self, gmagcut):
         '''
         Applies a cut to remove bright stars based on
         gmag attribute. Assigns a star classification
@@ -359,9 +449,11 @@ class Detections:
         galaxies. Will want to improve this if you are
         looking to study nearby galaxies.
         '''
-        
-        mask = (self.gmag < 18.) 
-        self.vis_class[mask] = 3
+
+        if gmagcut:
+            mask = (self.gmag < gmagcut) 
+        else:
+            mask = np.zeros(np.size(self.detectid), dtype=bool)
         
         return np.invert(mask)
     
@@ -372,7 +464,7 @@ class Detections:
         them as artifacts in vis_class
         '''
 
-        mask = (self.wave < 3540.) | (self.wave > 5515.) 
+        mask = (self.wave < 3540.) | (self.wave > 5515.)
         self.vis_class[mask] = 0
         
         return np.invert(mask)
@@ -385,7 +477,11 @@ class Detections:
         data['wave1d'] = Column( spectra_table['wave1d'][0], unit= u.AA)
         data['spec1d'] = Column( spectra_table['spec1d'][0], unit= 1.e-17 * intensityunit)
         data['spec1d_err'] = Column( spectra_table['spec1d_err'][0], unit= 1.e-17 * intensityunit)
-        
+
+        # convert from 2AA binning to 1AA binning:
+        data['spec1d'] /= 2.
+        data['spec1d_err'] /= 2.
+
         return data        
 
     def get_gband_mag(self, detectid_i):
@@ -401,7 +497,7 @@ class Detections:
         
         return mag
 
-    def add_hetdex_mag(self, loadpickle=True, picklefile='gmags.pickle'):
+    def add_hetdex_gmag(self, loadpickle=True, picklefile='gmags.pickle'):
         '''
         Calculates g-band magnitude from spec1d for
         each detectid in the Detections class instance
@@ -409,7 +505,11 @@ class Detections:
         given then it will just load from previous computation
         '''
         if loadpickle:
-            self.gmag = pickle.load( open(picklefile, 'rb'))
+            # todo: encoding='latin1' is an assumption ... might be better to use bytes?
+            if PYTHON_MAJOR_VERSION < 3:
+                self.gmag = pickle.load(open(picklefile, 'rb'))
+            else:
+                self.gmag = pickle.load(open(picklefile, 'rb'),encoding="bytes")
         else:
             self.gmag = np.zeros(np.size(self.detectid), dtype=float)
         
@@ -418,17 +518,63 @@ class Detections:
 
             detectid_spec = self.hdfile.root.Spectra.cols.detectid[:]
             spec1d = self.hdfile.root.Spectra.cols.spec1d[:]
+            # convert from ergs/s/cm2 to ergs/s/cm2/AA
+            spec1d /= 2.
             wave_rect =  2.0 * np.arange(1036) + 3470.
             gfilt = speclite.filters.load_filters('sdss2010-g')
             flux, wlen = gfilt.pad_spectrum(1.e-17*spec1d, wave_rect)
-            
+            gmags = gfilt.get_ab_magnitudes(flux, wlen)
+
             for idx, detectid_i in enumerate(self.detectid[:]):
                 seldet = np.where(detectid_spec == detectid_i)[0]
                 if np.size(seldet) == 1:
-                    self.gmag[idx] = gmags[seldet]
+                    self.gmag[idx] = gmags[seldet][0][0]
                 else:
                     self.gmag[idx] = np.nan
 
+
+    def get_hetdex_mag(self, detectid_i, filter='sdss2010-g'):
+        ''' 
+        filter = can be any filter used in the speclite
+                 package 
+                 https://speclite.readthedocs.io/en/latest/api.html
+
+        '''
+        spec_table = self.get_spectrum(detectid_i)
+        filt = speclite.filters.load_filters(filter)
+        flux, wlen = filt.pad_spectrum(np.array(1.e-17*spec_table['spec1d']),
+                                        np.array(spec_table['wave1d']))
+        mag = filt.get_ab_magnitudes(flux, wlen)[0][0]
+
+        return mag
+
+
+    def return_astropy_table(self):
+        """
+        Return an astropy table version of the Detections
+        that can easily be saved
+
+        Returns
+        -------
+        table : astropy.table:Table
+            an astropy table you can save
+
+        """
+        table = Table()
+        for name in self.hdfile.root.Detections.colnames:
+            table[name] = getattr(self, name)
+        
+        table.add_column(Column(self.fwhm), index=1, name='fwhm')
+        table.add_column(Column(self.throughput), index=2, name='throughput')
+        table.add_column(Column(self.fluxlimit_4550), index=3, name='fluxlimit_4550')
+        table.add_column(Column(self.field), index=4, name='field')
+        table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
+        table.add_column(Column(self.gmag), index=6, name='gmag')
+        table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
+        table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
+        table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
+
+        return table
 
     def save_spectrum(self, detectid_i, outfile=None):
         spec_data = self.get_spectrum(detectid_i)
@@ -457,5 +603,8 @@ def show_elixer(detectid):
     Takes a detectid and pulls out the elixer PDF from the
     elixer tar files on hdr1 and shows it in matplotlib
     '''
-    elix_dir = '/scratch/03261/polonius/jpgs'
+    elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
     file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+    plt.figure(figsize=(10,8))
+    im = plt.imread(file_jpg)
+    plt.imshow(im)

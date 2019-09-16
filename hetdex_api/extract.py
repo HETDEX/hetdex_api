@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+###!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 11 11:48:55 2019
@@ -13,7 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
-from shot import Fibers
+from hetdex_api.shot import Fibers
 import imp
 
 input_utils = imp.load_source('input_utils',
