@@ -74,6 +74,16 @@ class Fibers:
                                frame='icrs')
         self.wave_rect = 2.0 * np.arange(1036) + 3470.
 
+        colnames = self.hdfile.root.Data.Fibers.colnames
+        
+        for name in colnames:
+            if isinstance(getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_):
+                setattr(self, name,
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
+        
 
     def query_region(self, coords, radius=3./3600.):
         """
@@ -103,11 +113,17 @@ class Fibers:
         return np.where(idx)[0]
 
 
-    def get_closest_fiber(self, coords):
+    def get_closest_fiber(self, coords, exp=None):
         """
         Returns index to closest fiber to an RA/DEC
+        exp=dither number (used primarily for building 2D image
         """
-        return coords.match_to_catalog_sky(self.coords)[0]
+        if exp in [1,2,3]:
+            sel = self.expnum=exp
+            fib_idx = coords.match_to_catalog_sky(self.coords[sel])[0] 
+        else:
+            fib_idx = coords.match_to_catalog_sky(self.coords)[0]
+        return fib_idx
 
 
     def get_image_xy(self, idx, wave_obj):
@@ -119,11 +135,11 @@ class Fibers:
         image arrays produced by Panacea.
         """
 
-        wave_data = self.table[idx]['wavelength']
-        trace_data = self.table[idx]['trace']
+        wave_data = self.wavelength[idx]
+        trace_data = self.trace[idx]
 
-        y = int(round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
-        x = int(round(np.interp(y,range(len(trace_data)),trace_data)))
+        y = int(np.round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
+        x = int(np.round(np.interp(y,range(len(trace_data)),trace_data)))
         return x, y
 
 
@@ -186,6 +202,32 @@ class Fibers:
     def close(self):
         self.hdfile.close()
 
+    
+    def get_fib_image2D(self, wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=60, height=40, imtype='clean_image'):
+        """
+        Returns an image from the 2D data for 
+        a specific fiber centered at a specifc wavelength
+
+        self - fibers class object
+        wave_obj - astropy wavelength object
+        expnum - dither exposure number [1,2,3]
+        fibnum - fiber number
+        multiframe - amp multiframe ID
+
+        imtype - image option to display
+        width - pixel width to be cutout (image size is 1032 pix)
+        height - pixel height to be cutout (image size is 1032 pix)
+
+        """
+        
+        idx = np.where((self.fibidx == (fibnum_obj - 1) ) * (self.multiframe == multiframe_obj) * (self.expnum == expnum_obj))[0][0]
+        
+        x, y = self.get_image_xy(idx, wave_obj)
+            
+        im0 = self.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
+
+        return im0[imtype][0][x-int(height/2):x+int(height/2), y-int(width/2):y+int(width/2)]
+        
 
 def get_fibers_table(shot, coords, radius):
     """
