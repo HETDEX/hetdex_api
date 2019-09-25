@@ -41,7 +41,8 @@ from ipywidgets import interact, interactive
 #from IPython.display import clear_output
 from hetdex_api.detections import *
 
-elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
+elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
+elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
@@ -52,9 +53,13 @@ elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 class ElixerWidget():
 
 
-    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False):
+    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None):
 
         self.current_idx = 0
+
+        if img_dir is not None:
+            if op.exists(img_dir):
+                elix_dir = img_dir
 
         if detectfile:
             self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
@@ -119,9 +124,10 @@ class ElixerWidget():
             print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
             show_selection_buttons = False
 
-        display(widgets.HBox([self.previousbutton, self.nextbutton]))
+        display(widgets.HBox([self.previousbutton, self.nextbutton,self.elixerNeighborhood]))
         self.previousbutton.on_click(self.on_previous_click)
         self.nextbutton.on_click(self.on_next_click)
+        self.elixerNeighborhood.on_click(self.on_elixer_neighborhood)
 
         if show_selection_buttons:
             # clear_output()
@@ -136,12 +142,18 @@ class ElixerWidget():
             self.s5_button.on_click(self.s5_button_click)
 
         try:
-            fname = op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+            fname = op.join(elix_dir, "%d.png" % (detectid))
 
             if op.exists(fname):
                 display(Image(fname))
-            else:
+            else: #try the archive location
                 print("Cannot load ELiXer Report image: ", fname)
+                print("Tring archive location...")
+                fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+                if op.exists(fname):
+                    display(Image(fname))
+                else:
+                    print("Cannot load ELiXer Report image: ", fname)
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
@@ -179,16 +191,24 @@ class ElixerWidget():
         )
         self.previousbutton = widgets.Button(description='Previous DetectID', button_style='success')
         self.nextbutton = widgets.Button(description='Next DetectID', button_style='success')
+        self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='success')
         self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
 
         #buttons as classification selection
-        self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
-        self.s1_button = widgets.Button(description=' Spurious ', button_style='success')
-        self.s2_button = widgets.Button(description=' Not LAE ', button_style='success')
-        self.s3_button = widgets.Button(description=' Unknown ', button_style='success')
-        self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
-        self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
+        # self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
+        # self.s1_button = widgets.Button(description=' Spurious ', button_style='success')
+        # self.s2_button = widgets.Button(description=' Not LAE ', button_style='success')
+        # self.s3_button = widgets.Button(description=' Unknown ', button_style='success')
+        # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
+        # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
+
+        self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
+        self.s1_button = widgets.Button(description='          (1) ', button_style='success')
+        self.s2_button = widgets.Button(description='          (2) ', button_style='success')
+        self.s3_button = widgets.Button(description='          (3) ', button_style='success')
+        self.s4_button = widgets.Button(description='          (4) ', button_style='success')
+        self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
 
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
@@ -309,3 +329,12 @@ class ElixerWidget():
         self.output.add_column(Column(self.flag, name='flag', dtype=int))
 
         ascii.write(self.output, self.outfilename, overwrite=True)
+
+    def on_elixer_neighborhood(self,b):
+        detectid = self.detectbox.value
+        path = os.path.join(elix_dir, "%dnei.png" % (detectid))
+
+        if not os.path.isfile(path):
+            print("%s not found" % path)
+        else:
+            display(Image(path))
