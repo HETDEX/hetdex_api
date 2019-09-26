@@ -55,6 +55,8 @@ class ElixerWidget():
 
     def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None):
 
+        global elix_dir
+
         self.current_idx = 0
 
         if img_dir is not None:
@@ -148,7 +150,7 @@ class ElixerWidget():
                 display(Image(fname))
             else: #try the archive location
                 print("Cannot load ELiXer Report image: ", fname)
-                print("Tring archive location...")
+                print("Trying archive location...")
                 fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
                 if op.exists(fname):
                     display(Image(fname))
