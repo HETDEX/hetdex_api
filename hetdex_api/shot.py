@@ -226,7 +226,25 @@ class Fibers:
             
         im0 = self.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
 
-        return im0[imtype][0][x-int(height/2):x+int(height/2), y-int(width/2):y+int(width/2)]
+        #create image of forced dims of input width x height
+        im_base = np.zeros((height, width))
+
+        x1 = np.maximum(0, x-int(height/2))
+        x2 = np.minimum(x+int(height/2), 1031)
+
+        y1 = np.maximum(0, y-int(width/2))
+        y2 = np.minimum(y+int(width/2), 1031)
+        
+        x1_slice = np.minimum(0, height - (x2 - x1))
+        x2_slice = x2-x1
+        y1_slice = np.minimum(0, width - (y2 - y1))
+        y2_slice = y2-y1
+        
+        im_reg = im0[imtype][0][x1:x2,y1:y2]
+
+        im_base[ x1_slice:x2_slice, y1_slice:y2_slice] = im_reg
+        
+        return im_base
         
 
 def get_fibers_table(shot, coords, radius):
