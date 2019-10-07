@@ -53,6 +53,7 @@ class Detections:
             print(survey_options)
             return None
 
+        self.survey = survey
         self.filename = survey_options[survey]
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Detections.colnames
@@ -569,10 +570,12 @@ class Detections:
         table.add_column(Column(self.fluxlimit_4550), index=3, name='fluxlimit_4550')
         table.add_column(Column(self.field), index=4, name='field')
         table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
-        table.add_column(Column(self.gmag), index=6, name='gmag')
-        table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
-        table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
-        table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
+
+        if self.survey == 'hdr1':
+            table.add_column(Column(self.gmag), index=6, name='gmag')
+            table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
+            table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
+            table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
 
         return table
 
