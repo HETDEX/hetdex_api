@@ -576,9 +576,6 @@ class Detections:
             table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
             table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
             table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
-
-        for name in bonus_fields:
-            table[name] = getattr(self, name)
         
         return table
 
