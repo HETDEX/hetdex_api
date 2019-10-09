@@ -1,26 +1,30 @@
 from __future__ import print_function
+
+
+
 """
-ELiXer Widget Classify Real
+ELiXer Widget Classify Supriod Detections
 
 Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
-This is a simplified version that only presents a scaled binary selection for the user to mark his/her confidence
-that the presented emission line detection is fake or real. Fake refers to some data artifact that does not correspond
-to real (astrophysical) photons as an EMISSION LINE.  A real detection typically belongs to a galaxy (but could be an 
-emission nebula or even a meteor).
+#*** PLACE HOLDER ***#
 
-Fake: 
-* random noise in the spectrum
-* sky line
-* interference pattern
-* cosmic ray strike
-* hot CCD pixel
-* adjacent (real) absorpotion features that leave a "peak" going back to the continuum level misterpreted as emission
+Classify the type of real detection, primarily LAE or not LAE
 
-Real:
-* any emission line
-* emission line on top of continuum (usually a nearby galaxy)
-* emission line from a transient (meteor, etc)
+Options: 
+No Imaging   -- cannot make any determination because there is no imaging
+                Note: if there is no imaging BUT you can make a classification, do so 
+               (i.e. if there are multiple obvious emission lines in the spectra)
+Spurious     -- the detection is noise or an artificat of some kind
+Not LAE      -- the object is clearly not an LAE (but is real)
+Unknown      -- all the information is present, but a classification is still ambiguous
+                (i.e. imaging is present, but only 1 emission line and the various PLAE/POII are unclear/unconvincing)
+Maybe LAE    -- probably this is an LAE (there is evidence to support it), but not definitive
+Definite LAE -- evidence is very convincing
+
+
+
+
 """
 
 import sys
@@ -45,12 +49,11 @@ elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
 # You may also initiate with no variables to just open any ELiXeR
 # on demand
 
-conversion_dict = {-5:0,-4:1,-3:1,-2:2,-1:2,1:3,2:3,3:4,4:4,5:5}
 
 class ElixerWidget():
 
 
-    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False,img_dir=None):
+    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None):
 
         global elix_dir
 
@@ -77,20 +80,8 @@ class ElixerWidget():
                 try:
                     self.flag = np.array(saved_data['flag'],dtype=int)
                 except:
-                    #did not have it, so this is a -5 to 5 version
-                    #convert and update
-
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
-                    #there are not too many of these, so this is simple and fast enough
-                    #for a one time conversion
-                    for i in range(len(self.detectid)):
-                        if self.vis_class[i] in conversion_dict.keys():
-                            self.vis_class[i] = conversion_dict[self.vis_class[i]]
-                            self.flag[i] = 1
-                        else: #is already zero or some error value, so set (or leave) at 0
-                            self.vis_class[i] = 0
-                            #self.flag[i] stays at zero
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -115,7 +106,7 @@ class ElixerWidget():
         elif savedfile:
             self.outfilename = savedfile
         else:
-            self.outfilename = 'elixer_for.dat'
+            self.outfilename = 'elixer_lae.dat'
 
         self.resume = resume
         self.setup_widget()
@@ -168,7 +159,6 @@ class ElixerWidget():
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
-
     def setup_widget(self):
         if self.resume:
             try:
@@ -208,17 +198,23 @@ class ElixerWidget():
 
 
         #buttons as classification selection
-        self.s0_button = widgets.Button(description=' Fake (0) ', button_style='success')
-        self.s1_button = widgets.Button(description='      (1) ', button_style='success')
-        self.s2_button = widgets.Button(description='      (2) ', button_style='success')
-        self.s3_button = widgets.Button(description='      (3) ', button_style='success')
-        self.s4_button = widgets.Button(description='      (4) ', button_style='success')
-        self.s5_button = widgets.Button(description=' Real (5) ', button_style='success')
+        # self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
+        # self.s1_button = widgets.Button(description=' Spurious ', button_style='success')
+        # self.s2_button = widgets.Button(description=' Not LAE ', button_style='success')
+        # self.s3_button = widgets.Button(description=' Unknown ', button_style='success')
+        # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
+        # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
+
+        self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
+        self.s1_button = widgets.Button(description='          (1) ', button_style='success')
+        self.s2_button = widgets.Button(description='          (2) ', button_style='success')
+        self.s3_button = widgets.Button(description='          (3) ', button_style='success')
+        self.s4_button = widgets.Button(description='          (4) ', button_style='success')
+        self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
 
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
-
 
     def goto_previous_detect(self):
 

@@ -10,7 +10,21 @@ try:
 except ImportError:
     # Python 2
     from urllib2 import urlopen, HTTPError
+    import urllib2
 
+    class Request(urllib2.Request):
+        def __init__(self, *args, **kwargs):
+            if 'method' in kwargs:
+                self._method = kwargs['method']
+                del kwargs['method']
+            else:
+                self._method = None
+            return urllib2.Request.__init__(self, *args, **kwargs)
+
+        def get_method(self, *args, **kwargs):
+            if self._method is not None:
+                return self._method
+            return urllib2.Request.get_method(self, *args, **kwargs)
 
 class AmplifierQC():
 
@@ -35,7 +49,7 @@ class AmplifierQC():
 
         self._datestr = datestr
         self._qcdata = json.loads(resp.read())
-        self._original = copy.copy(self._qcdata)
+        self._original = copy.deepcopy(self._qcdata)
 
         # Attempt to read the authorization key
         try:
@@ -165,8 +179,11 @@ class AllAmplifierQC():
                                 'responded with %d %s' % (e.getcode(),
                                                           e.reason))
 
-            self._qcdata = json.loads(resp.read())
-            self._original = copy.copy(self._qcdata)
+            qcdata = json.loads(resp.read())
+            self._qcdata = {}
+            for k in qcdata:
+                self._qcdata[int(k)] = qcdata[k]
+            self._original = copy.deepcopy(self._qcdata)
 
         # Attempt to read the authorization key
         try:
@@ -201,7 +218,7 @@ class AllAmplifierQC():
             print('WARNING! No data for date %d' % date)
             return 0
         try:
-            return self._qcdata[ifuslot][amp]
+            return self._qcdata[date][ifuslot][amp]
         except KeyError:
             return 0
 
@@ -270,7 +287,7 @@ class AllAmplifierQC():
                               headers={'Authorization':
                                        'FPS_API apikey='+self._apikey},
                               method='PUT')
-            urlopen(req)
+                urlopen(req)
         except HTTPError as e:
             raise Exception(' Failed to save qc data, server '
                             'responded with %d %s' % (e.getcode(), e.reason))

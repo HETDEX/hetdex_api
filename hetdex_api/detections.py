@@ -53,6 +53,7 @@ class Detections:
             print(survey_options)
             return None
 
+        self.survey = survey
         self.filename = survey_options[survey]
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Detections.colnames
@@ -86,7 +87,7 @@ class Detections:
         # also assign a field and some QA identifiers
         self.field = np.chararray(np.size(self.detectid),12)
         self.fwhm = np.zeros(np.size(self.detectid))
-        self.flux_limit = np.zeros(np.size(self.detectid))
+        self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
         self.throughput = np.zeros(np.size(self.detectid))
         self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -96,7 +97,7 @@ class Detections:
             ix = np.where(self.shotid == shot)
             self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
             self.fwhm[ix] = S.fwhm_moffat[index]
-            self.flux_limit[ix] = S.fluxlimit_4550[index]
+            self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
             self.throughput[ix] = S.response_4540[index]
             self.n_ifu[ix] = S.n_ifu[index]
 
@@ -563,17 +564,18 @@ class Detections:
         table = Table()
         for name in self.hdfile.root.Detections.colnames:
             table[name] = getattr(self, name)
- 
-        # elixer columns
-        for name in self.hdfile_elix.root.Classifications.colnames:
-            if name == "detectid":
-                continue
-            table[name] = getattr(self, name)
+        
+        table.add_column(Column(self.fwhm), index=1, name='fwhm')
+        table.add_column(Column(self.throughput), index=2, name='throughput')
+        table.add_column(Column(self.fluxlimit_4550), index=3, name='fluxlimit_4550')
+        table.add_column(Column(self.field), index=4, name='field')
+        table.add_column(Column(self.n_ifu), index=5, name='n_ifu')
 
-        # bonus info
-        bonus_fields = ["field", "fwhm", "flux_limit", "n_ifu",
-                        "throughput", "gmag", "plae_poii_hetdex_gmag",
-                        "plae_poii_cat", "plae_poii_aperture"]
+        if self.survey == 'hdr1':
+            table.add_column(Column(self.gmag), index=6, name='gmag')
+            table.add_column(Column(self.plae_poii_hetdex_gmag), name='plae_poii_hetdex_gmag')
+            table.add_column(Column(self.plae_poii_cat), name='plae_poii_cat')
+            table.add_column(Column(self.plae_poii_aperture), name='plae_poii_aperture')
 
         for name in bonus_fields:
             table[name] = getattr(self, name)

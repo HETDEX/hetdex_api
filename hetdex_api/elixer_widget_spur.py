@@ -1,26 +1,12 @@
 from __future__ import print_function
 """
-ELiXer Widget Classify Real
+ELiXer Widget Classify Supriod Detections
 
 Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
-This is a simplified version that only presents a scaled binary selection for the user to mark his/her confidence
-that the presented emission line detection is fake or real. Fake refers to some data artifact that does not correspond
-to real (astrophysical) photons as an EMISSION LINE.  A real detection typically belongs to a galaxy (but could be an 
-emission nebula or even a meteor).
+Classify the type of spurious detection
 
-Fake: 
-* random noise in the spectrum
-* sky line
-* interference pattern
-* cosmic ray strike
-* hot CCD pixel
-* adjacent (real) absorpotion features that leave a "peak" going back to the continuum level misterpreted as emission
 
-Real:
-* any emission line
-* emission line on top of continuum (usually a nearby galaxy)
-* emission line from a transient (meteor, etc)
 """
 
 import sys
@@ -37,28 +23,20 @@ from ipywidgets import interact, interactive
 #from IPython.display import clear_output
 from hetdex_api.detections import *
 
-elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
-elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
+elix_dir = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
 # You may also initiate with no variables to just open any ELiXeR
 # on demand
 
-conversion_dict = {-5:0,-4:1,-3:1,-2:2,-1:2,1:3,2:3,3:4,4:4,5:5}
 
 class ElixerWidget():
 
 
-    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False,img_dir=None):
-
-        global elix_dir
+    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False):
 
         self.current_idx = 0
-
-        if img_dir is not None:
-            if op.exists(img_dir):
-                elix_dir = img_dir
 
         if detectfile:
             self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
@@ -77,20 +55,8 @@ class ElixerWidget():
                 try:
                     self.flag = np.array(saved_data['flag'],dtype=int)
                 except:
-                    #did not have it, so this is a -5 to 5 version
-                    #convert and update
-
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
-                    #there are not too many of these, so this is simple and fast enough
-                    #for a one time conversion
-                    for i in range(len(self.detectid)):
-                        if self.vis_class[i] in conversion_dict.keys():
-                            self.vis_class[i] = conversion_dict[self.vis_class[i]]
-                            self.flag[i] = 1
-                        else: #is already zero or some error value, so set (or leave) at 0
-                            self.vis_class[i] = 0
-                            #self.flag[i] stays at zero
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -115,13 +81,12 @@ class ElixerWidget():
         elif savedfile:
             self.outfilename = savedfile
         else:
-            self.outfilename = 'elixer_for.dat'
+            self.outfilename = 'elixer_spur.dat'
 
         self.resume = resume
         self.setup_widget()
 
         interact(self.main_display, x=self.detectbox)
-
 
     def main_display(self, x):
 
@@ -130,41 +95,36 @@ class ElixerWidget():
 
         try:
             objnum = np.where(self.detectid == detectid)[0][0]
-            print('On ELiXer Report '+ str(objnum+1) + '/' + str(np.size(self.detectid)))
+            print('On ELiXer Report ' + str(objnum + 1) + '/' + str(np.size(self.detectid)))
         except:
             print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
             show_selection_buttons = False
 
-        display(widgets.HBox([self.previousbutton, self.nextbutton,self.elixerNeighborhood]))
+
+        display(widgets.HBox([self.previousbutton, self.nextbutton]))
         self.previousbutton.on_click(self.on_previous_click)
         self.nextbutton.on_click(self.on_next_click)
-        self.elixerNeighborhood.on_click(self.on_elixer_neighborhood)
 
         if show_selection_buttons:
             # clear_output()
             self.rest_widget_values(objnum)
-            display(widgets.HBox([self.s0_button,self.s1_button,self.s2_button,self.s3_button,
-                                  self.s4_button,self.s5_button]))
+            display(widgets.HBox([self.s0_button, self.s1_button, self.s2_button, self.s3_button,
+                                  self.s4_button, self.s5_button,self.s6_button]))
             self.s0_button.on_click(self.s0_button_click)
             self.s1_button.on_click(self.s1_button_click)
             self.s2_button.on_click(self.s2_button_click)
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+            self.s6_button.on_click(self.s6_button_click)
 
         try:
-            fname = op.join(elix_dir, "%d.png" % (detectid))
+            fname = op.join(elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
 
             if op.exists(fname):
                 display(Image(fname))
-            else: #try the archive location
+            else:
                 print("Cannot load ELiXer Report image: ", fname)
-                print("Trying archive location...")
-                fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
-                if op.exists(fname):
-                    display(Image(fname))
-                else:
-                    print("Cannot load ELiXer Report image: ", fname)
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
@@ -203,23 +163,21 @@ class ElixerWidget():
         )
         self.previousbutton = widgets.Button(description='Previous DetectID', button_style='success')
         self.nextbutton = widgets.Button(description='Next DetectID', button_style='success')
-        self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='success')
         self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
 
         #buttons as classification selection
-        self.s0_button = widgets.Button(description=' Fake (0) ', button_style='success')
-        self.s1_button = widgets.Button(description='      (1) ', button_style='success')
-        self.s2_button = widgets.Button(description='      (2) ', button_style='success')
-        self.s3_button = widgets.Button(description='      (3) ', button_style='success')
-        self.s4_button = widgets.Button(description='      (4) ', button_style='success')
-        self.s5_button = widgets.Button(description=' Real (5) ', button_style='success')
+        self.s0_button = widgets.Button(description=' Sky Sub ', button_style='success')
+        self.s1_button = widgets.Button(description=' Pixel Flat ', button_style='success')
+        self.s2_button = widgets.Button(description=' Bad Amp ', button_style='success')
+        self.s3_button = widgets.Button(description=' Cosmic ', button_style='success')
+        self.s4_button = widgets.Button(description=' Noise ', button_style='success')
+        self.s5_button = widgets.Button(description=' Other ', button_style='success')
+        self.s6_button = widgets.Button(description=' REAL ', button_style='success')
 
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
-
-
     def goto_previous_detect(self):
 
         try:
@@ -261,6 +219,7 @@ class ElixerWidget():
         self.detectbox.value = self.detectid[ix]
 
 
+
     def set_classification(self,value=0):
         self.current_idx = np.where(self.detectid == self.detectbox.value)[0][0]  # current position
 
@@ -273,7 +232,7 @@ class ElixerWidget():
 
     def rest_widget_values(self,idx=0):
 
-        if self.detectbox.value < 1000000000: #assume an index
+        if self.detectbox.value < 1000000000: #assume an indedx
             self.detectbox.value = self.detectid[idx]
             return
 
@@ -284,6 +243,7 @@ class ElixerWidget():
         self.s3_button.icon = ''
         self.s4_button.icon = ''
         self.s5_button.icon = ''
+        self.s6_button.icon = ''
 
         # mark the label on the button
         if self.flag[idx] != 0:
@@ -299,7 +259,8 @@ class ElixerWidget():
                 self.s4_button.icon = 'check'
             elif self.vis_class[idx] == 5:
                 self.s5_button.icon = 'check'
-
+            elif self.vis_class[idx] == 6:
+                self.s6_button.icon = 'check'
 
 
     def on_previous_click(self, b):
@@ -327,6 +288,9 @@ class ElixerWidget():
     def s5_button_click(self, b):
         self.set_classification(5)
 
+    def s6_button_click(self, b):
+        self.set_classification(6)
+
 
     def on_save_click(self, b):
         self.output = Table()
@@ -335,12 +299,3 @@ class ElixerWidget():
         self.output.add_column(Column(self.flag, name='flag', dtype=int))
 
         ascii.write(self.output, self.outfilename, overwrite=True)
-
-    def on_elixer_neighborhood(self,b):
-        detectid = self.detectbox.value
-        path = os.path.join(elix_dir, "%dnei.png" % (detectid))
-
-        if not os.path.isfile(path):
-            print("%s not found" % path)
-        else:
-            display(Image(path))
