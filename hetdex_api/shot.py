@@ -9,38 +9,37 @@ author = Erin Mentuch Cooper
 """
 
 import os.path as op
-import glob
 import re
 import tables as tb
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 from astropy.table import Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-import config
+from hetdex_api import config
 
 path_data = config.data_dir
 
 def open_shot_file(shot):
     """
-    get the file for a shot. This is a 
+    get the file for a shot. This is a
     global function. It basically just
     replaces dealing with a path name.
 
     Input
 
     shot: either in the form of integer
-          shotid (eg. 20180123009) or                                               
+          shotid (eg. 20180123009) or
           string datevobs (eg. 20180123v009)
 
     Example:
 
     fileh = open_shot_file(20180123009)
     fileh = open_shot_file('20180123v009')
-    
-   
+
+
     """
 
     if re.search('v', str(shot)):
@@ -67,7 +66,7 @@ class Fibers:
         'calfib', 'calfibe', 'Amp2Amp', and 'Throughput' datasets
 
         '''
-        
+
         self.hdfile = open_shot_file(shot)
         self.table  = self.hdfile.root.Data.Fibers
         self.coords = SkyCoord(self.table.cols.ra[:] * u.degree,
@@ -75,19 +74,29 @@ class Fibers:
                                frame='icrs')
         self.wave_rect = 2.0 * np.arange(1036) + 3470.
 
+        colnames = self.hdfile.root.Data.Fibers.colnames
+        
+        for name in colnames:
+            if isinstance(getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_):
+                setattr(self, name,
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
+        
 
     def query_region(self, coords, radius=3./3600.):
         """
         returns an indexed fiber table
-        for a defined aperture. 
-        
+        for a defined aperture.
+
         self = Fibers class object
         coords = astropy coordinate object
         radius = radius in degrees
         """
-        
+
         idx = coords.separation(self.coords) < radius * u.degree
-        
+
         return self.table[idx]
 
 
@@ -98,37 +107,45 @@ class Fibers:
 
         self   - Fibers class object
         coords - astropy coordinate object
-        radius - astropy quantity object                                                  
+        radius - astropy quantity object
         """
         idx = coords.separation(self.coords) < radius * u.degree
         return np.where(idx)[0]
 
 
-    def get_closest_fiber(self, coords):
+    def get_closest_fiber(self, coords, exp=None):
         """
         Returns index to closest fiber to an RA/DEC
+        exp=dither number (used primarily for building 2D image
         """
-        return coords.match_to_catalog_sky(self.coords)[0]
-    
-    
+        if exp in [1,2,3]:
+            sel = self.expnum=exp
+            fib_idx = coords.match_to_catalog_sky(self.coords[sel])[0] 
+        else:
+            fib_idx = coords.match_to_catalog_sky(self.coords)[0]
+        return fib_idx
+
+
     def get_image_xy(self, idx, wave_obj):
         """
         Finds the X,Y image position from a row in the
         fibers table
-        
+
         Note: this returns x,y image coords from 2D
-        image arrays produced by Panacea. 
+        image arrays produced by Panacea.
         """
-            
-        wave_data = self.table[idx]['wavelength']
-        trace_data = self.table[idx]['trace']
-        
-        y = int(round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
-        x = int(round(np.interp(y,range(len(trace_data)),trace_data)))
+
+        wave_data = self.wavelength[idx]
+        trace_data = self.trace[idx]
+
+        y = int(np.round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
+        x = int(np.round(np.interp(y,range(len(trace_data)),trace_data)))
         return x, y
 
 
     def plot_fiber_spectrum(self, idx, type='calfib', xlim=None, ylim=None):
+        import matplotlib.pyplot as plt
+
         if type == 'calfib':
             try:
                 plt.plot(self.wave_rect, self.table[idx]['calfib'])
@@ -151,7 +168,7 @@ class Fibers:
                 plt.ylabel(type)
             except:
                 print("Error plotting spectrum")
-             
+
     def save_fiber_spectrum(self, idx, type='calfib', file='spec.dat'):
         """
         Saves a fiber spectrum
@@ -176,7 +193,7 @@ class Fibers:
         else:
             try:
                 spectab['wavelength'] = self.table[idx]['wavelength']
-                spectab[type] = self.table[idx][type] 
+                spectab[type] = self.table[idx][type]
                 spectab['error'] = self.table[idx]['error1Dfib']
             except:
                 print("Could not retrieve Fiber spectrum")
@@ -185,16 +202,60 @@ class Fibers:
     def close(self):
         self.hdfile.close()
 
+    
+    def get_fib_image2D(self, wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=60, height=40, imtype='clean_image'):
+        """
+        Returns an image from the 2D data for 
+        a specific fiber centered at a specifc wavelength
+
+        self - fibers class object
+        wave_obj - astropy wavelength object
+        expnum - dither exposure number [1,2,3]
+        fibnum - fiber number
+        multiframe - amp multiframe ID
+
+        imtype - image option to display
+        width - pixel width to be cutout (image size is 1032 pix)
+        height - pixel height to be cutout (image size is 1032 pix)
+
+        """
+        
+        idx = np.where((self.fibidx == (fibnum_obj - 1) ) * (self.multiframe == multiframe_obj) * (self.expnum == expnum_obj))[0][0]
+        
+        x, y = self.get_image_xy(idx, wave_obj)
+            
+        im0 = self.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
+
+        #create image of forced dims of input width x height
+        im_base = np.zeros((height, width))
+
+        x1 = np.maximum(0, x-int(height/2))
+        x2 = np.minimum(x+int(height/2), 1031)
+
+        y1 = np.maximum(0, y-int(width/2))
+        y2 = np.minimum(y+int(width/2), 1031)
+        
+        x1_slice = np.minimum(0, height - (x2 - x1))
+        x2_slice = x2-x1
+        y1_slice = np.minimum(0, width - (y2 - y1))
+        y2_slice = y2-y1
+        
+        im_reg = im0[imtype][0][x1:x2,y1:y2]
+
+        im_base[ x1_slice:x2_slice, y1_slice:y2_slice] = im_reg
+        
+        return im_base
+        
 
 def get_fibers_table(shot, coords, radius):
     """
     Returns fiber specta for defined aperture
-    
+
     shot - either shotid or datevobs
     coords - astropy coordinate object
     radius - an astropy quantity object
     or radius in degrees
-    
+
     """
     fileh = open_shot_file(shot)
     fibers = fileh.root.Data.Fibers
@@ -203,10 +264,11 @@ def get_fibers_table(shot, coords, radius):
     rad = radius.degree
 
     fibers_table = fibers.read_where("sqrt((ra - ra_in)**2 + (dec - dec_in)**2) < rad")
+    fileh.close()
     return fibers_table
 
 
-def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image'):    
+def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image'):
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
@@ -223,21 +285,21 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
     fibers = Fibers(shot)
 
     idx = fibers.get_closest_fiber(coords)
-    multiframe_obj = fibers.table.cols.multiframe[idx]
+    multiframe_obj = fibers.table.cols.multiframe[idx].astype(str)
     expnum_obj = fibers.table.cols.expnum[idx]
     x, y = fibers.get_image_xy(idx, wave_obj)
 
     im0 = fibers.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
-    
+
     return im0[imtype][0][x-int(width/2):x+int(width/2), y-int(height/2):y+int(height/2)]
 
 
 
 def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
-    Returns an image from the 2D data based on 
+    Returns an image from the 2D data based on
     an multiframe or a specid/amp/expnum combo
-    
+
     multiframe - unique amp identifier to display
     imtype - image option to display
              options are:['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
@@ -248,5 +310,6 @@ def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
     fileh = open_shot_file(shot)
     im0 = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
-    
+    fileh.close()
+
     return im0[imtype][0]

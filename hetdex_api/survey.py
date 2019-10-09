@@ -9,6 +9,7 @@ Created on Tue Jan 22 11:02:53 2019
 
 @author: gregz/Erin Mentuch Cooper
 """
+from __future__ import print_function
 
 import numpy as np
 import tables as tb
@@ -17,7 +18,7 @@ import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-import config
+from hetdex_api import config
 
 class Survey:
     def __init__(self, survey):
@@ -40,8 +41,15 @@ class Survey:
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Survey.colnames
         for name in colnames:
-            setattr(self, name,
-                    getattr(self.hdfile.root.Survey.cols, name)[:])
+            if name == 'ra_flag':
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
+            elif isinstance(getattr(self.hdfile.root.Survey.cols, name)[0], np.bytes_):
+                setattr(self, name,
+                        getattr(self.hdfile.root.Survey.cols, name)[:].astype(str))
+            else:
+                setattr(self, name,
+                        getattr(self.hdfile.root.Survey.cols, name)[:])
             
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
@@ -134,7 +142,7 @@ class Survey:
             try:
                 idx = self.coords.separation(coords) < radius
             except:
-                print "Assuming radius in degrees"
+                print ("Assuming radius in degrees")
                 idx = self.coords.separation(coords) < radius * u.degree
         else:
             try:
@@ -142,12 +150,12 @@ class Survey:
                 idx2 = (abs(self.dec  - coords.dec.value) < height/2.)
                 idx = idx1 * idx2
             except:
-                print "Provide both width and height of sky region in degrees."
+                print ("Provide both width and height of sky region in degrees.")
 
         return self.shotid[idx]
 
 
-    def close():
+    def close(self):
         '''
         Be sure to close the HDF5 file when you are done using
         it to release anything that might be in memory
