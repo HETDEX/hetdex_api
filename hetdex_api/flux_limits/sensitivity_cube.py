@@ -154,7 +154,9 @@ class SensitivityCube(object):
         if aper_corr:
             self.aper_corr = aper_corr
         elif "APCOR" in self.header:
-            self.aper_corr = self.header["APCOR"]
+            self.aper_corr = self.header["APCOR"] 
+            # XXX HACK HACK HACK
+            ## self.aper_corr = 1.0
         else:
             self.aper_corr = 1.0        
 
@@ -198,15 +200,18 @@ class SensitivityCube(object):
         return SensitivityCube(f50vals, header, wavelengths, alphas, **kwargs)
 
 
-    def apply_flux_recalibration(self, flux_calib_correction):
+    def apply_flux_recalibration(self, rescale, flux_calib_correction_file=None):
         """
         Apply a recalibration of the fluxes to the 
         cube
 
         Parameters
         ----------
+        rescale : float 
+           value to multiply the flux limit cubes
+           to rescale
 
-        flux_calib_correction : str
+        flux_calib_correction_file : str (optional)
            filename containing a polynomial
            fit (HETDEX - TRUTH)/HETDEX versus
            wavelength to correct for 
@@ -216,15 +221,20 @@ class SensitivityCube(object):
            polyval(pvals, wl - 4600.0)
         """
 
-        pvals = loadtxt(flux_calib_correction)
+        if flux_calib_correction_file:
+            pvals = loadtxt(flux_calib_correction_file)
+
         for iz in range(self.f50vals.shape[0]):
             ra, dec, wl = self.wcs.wcs_pix2world(0, 0, iz, 0)
 
             if wl < 3850.0:
                 wl = 3850.0
 
-            self.f50vals[iz, :, :] = self.f50vals[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
- 
+            if flux_calib_correction_file:
+                self.f50vals[iz, :, :] = rescale*self.f50vals[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
+            else: 
+                self.f50vals[iz, :, :] = rescale*self.f50vals[iz, :, :]  
+
 
     def radecwltoxyz(self, ra, dec, lambda_):
         """
