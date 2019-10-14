@@ -172,7 +172,7 @@ class ElixerWidget():
     def setup_widget(self):
         if self.resume:
             try:
-                i_start = np.max(np.where(self.vis_class != 0)) + 1
+                i_start = np.max(np.where(self.flag != 0)) + 1
 
                 if i_start is None:
                     i_start = 0
