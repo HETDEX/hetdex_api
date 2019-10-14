@@ -7,23 +7,6 @@ ELiXer Widget Classify Supriod Detections
 
 Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
-#*** PLACE HOLDER ***#
-
-Classify the type of real detection, primarily LAE or not LAE
-
-Options: 
-No Imaging   -- cannot make any determination because there is no imaging
-                Note: if there is no imaging BUT you can make a classification, do so 
-               (i.e. if there are multiple obvious emission lines in the spectra)
-Spurious     -- the detection is noise or an artificat of some kind
-Not LAE      -- the object is clearly not an LAE (but is real)
-Unknown      -- all the information is present, but a classification is still ambiguous
-                (i.e. imaging is present, but only 1 emission line and the various PLAE/POII are unclear/unconvincing)
-Maybe LAE    -- probably this is an LAE (there is evidence to support it), but not definitive
-Definite LAE -- evidence is very convincing
-
-
-
 
 """
 
@@ -40,6 +23,11 @@ from IPython.display import Image
 from ipywidgets import interact, interactive
 #from IPython.display import clear_output
 from hetdex_api.detections import *
+import tables
+
+#needed only if detection observered wavelength is not supplied
+HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+HETDEX_DETECT_HDF5_HANDLE = None
 
 elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
@@ -49,6 +37,32 @@ elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
 # You may also initiate with no variables to just open any ELiXeR
 # on demand
 
+
+
+current_wavelength = -1.0
+
+line_id_dict_lae = "1216 LyA"
+line_id_dict_lae_wave = 1216.0
+line_id_dict_sep = "--------------"
+
+line_id_dict_default = "Unk (????)"
+line_id_dict = {line_id_dict_default:-1.0,
+                line_id_dict_lae:1216.0,
+                "3727 OII":3727.0,
+                "4863 H-beta": 4862.68,
+                "4960 OIII":4960.295,
+                "5008 OIII":5008.240,
+                line_id_dict_sep:-1.0,
+                "1241 NV":1240.81,
+                "1260 SiII": 1260.0,
+                "1549 CIV":1549.48,
+                "1640 HeII": 1640.4,
+                "1909 CII":1908.734,
+                "2799 MgII":2799.117,
+                "4102 H-delta": 4102.0,
+                "4342 H-gamma": 4341.68,
+                "Other (xxxx)":-1.0
+                }
 
 class ElixerWidget():
 
@@ -67,6 +81,7 @@ class ElixerWidget():
             self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
+            self.z = np.full(np.size(self.detectid),-1.0)
                 #hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
                 #and possible future use as followup
 
@@ -82,6 +97,12 @@ class ElixerWidget():
                 except:
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
+                #could have z
+                try:
+                    self.z = np.array(saved_data['z'],dtype=float)
+                except:
+                    self.z = np.full(np.size(self.detectid), -1.0)
+
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -91,11 +112,13 @@ class ElixerWidget():
             self.detectid = detectlist
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
+            self.z = np.full(np.size(self.detectid), -1.0)
 
         else:
             self.detectid = np.arange(1000000000, 1000690799, 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
+            self.z = np.full(np.size(self.detectid), -1.0)
 
 
         # store outfile name if given
@@ -134,6 +157,8 @@ class ElixerWidget():
         if show_selection_buttons:
             # clear_output()
             self.rest_widget_values(objnum)
+            display(widgets.HBox([self.line_id_drop, self.wave_box, self.z_box]))
+
             display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
 
@@ -144,6 +169,8 @@ class ElixerWidget():
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+
+
 
         try:
             fname = op.join(elix_dir, "%d.png" % (detectid))
@@ -198,6 +225,13 @@ class ElixerWidget():
         self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='success')
         self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
+        self.line_id_drop = widgets.Dropdown(options=line_id_dict.keys(),
+                                             value=line_id_dict_default,description='Line ID',disabled=False)
+        self.line_id_drop.observe(self._handle_line_id_selection, names='value')
+
+        self.wave_box = widgets.FloatText(value=-1.0,step=0.00001,description=r"$\lambda$ rest",disabled=False)
+        self.z_box = widgets.FloatText(value=-1.0,step=0.00001,description="z",disabled=False)
+
 
         #buttons as classification selection
         # self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
@@ -219,7 +253,73 @@ class ElixerWidget():
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
 
+
+    def get_observed_wavelength(self):
+        global HETDEX_DETECT_HDF5_HANDLE,HETDEX_DETECT_HDF5_FN,current_wavelength
+
+        current_wavelength = -1.0
+
+        if HETDEX_DETECT_HDF5_HANDLE is None:
+            HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
+
+        dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
+        q_detectid = self.detectbox.value
+        rows = dtb.read_where('detectid==q_detectid')
+        if (rows is not None) and (rows.size == 1):
+            current_wavelength = rows[0]['wave']
+
+        return current_wavelength
+
+
+    def _handle_line_id_selection(self,event):
+        """
+        event': 'value',
+        'old': 'Unk (????)',
+        'new': '4960 OIII',
+        'owner': Dropdown(description='Line ID', index=13, options=('Unk (????)', 'Other (xxxx)', '1216 LyA', '1241 NV', '1260 SiII', '1549 CIV', '1640 HeII', '1909 CII', '2799 MgII', '3727 OII', '4102 H-delta', '4342 H-gamma', '4863 H-beta', '4960 OIII', '5008 OIII'), value='4960 OIII'),
+        'type': 'change'
+        :param event:
+        :return:
+        """
+        global current_wavelength,line_id_dict_lae_wave
+
+        _old = event['old']
+        _old_wave = line_id_dict[_old]
+        _new = event['new']
+        _new_wave = line_id_dict[_new]
+
+        if _new_wave < 0: #i.e. a -1.00
+            #do not change the z and lambda_rest values
+            pass
+        else:
+            if current_wavelength < 0: #need to find it
+                self.get_observed_wavelength()
+
+            self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            self.wave_box.value = np.round(_new_wave,5)
+
+            #what button value to hit?
+            #LAE lines would be LyA, CIV, HeII
+            #set these to '5' or '4' or what?
+            #This causes some syncrhonization problems ... probably should skip it
+            # if abs(self.wave_box.value -line_id_dict_lae_wave) < 0.1:
+            #     if self.s5_button.icon == '': #only trip the button if not already at 5
+            #         self.s5_button_click(None)
+
+
+
+
+
+        #causes dirty flag
+        # self.current_idx = ix
+        # self.detectbox.value = self.detectid[ix]
+
+        # print("Drop down event",event)
+        # print(event['old'],event['new'],line_id_dict[event['new']])
+
+
     def goto_previous_detect(self):
+
 
         try:
             ix = np.where(self.detectid == self.detectbox.value)[0][0]
@@ -235,7 +335,11 @@ class ElixerWidget():
             #so use the last good index:
             ix = self.current_idx
 
+        #print("Prev detect idx", ix)
+
         self.rest_widget_values(idx=ix)
+
+        #print("Prev detect post reset idx", )
 
         #causes dirty flag
         self.current_idx = ix
@@ -266,15 +370,57 @@ class ElixerWidget():
         self.vis_class[self.current_idx] = value
         self.flag[self.current_idx] = 1
 
+        #make sure the values match
+        if self.line_id_drop.value == line_id_dict_default:
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
+
+        self.z[self.current_idx] =  self.z_box.value
+
+
         self.on_save_click(None)
         self.goto_next_detect()
+
+    def get_line_match(self,z,w):
+        global current_wavelength
+
+        self.line_id_drop.value = line_id_dict_default
+        self.wave_box.value = -1.0
+
+        if z is None or z < 0 or w is None or w < 0:
+            return  self.line_id_drop.value, self.wave_box.value
+
+        w_rest = np.round(w / (1. + z),5)
+        #find the match in the line_id_dict
+        for k in line_id_dict.keys():
+            if abs(line_id_dict[k] - w_rest) < 1.0:
+                self.line_id_drop.value = k
+                self.wave_box.value = w_rest
+                break
+
+
+        return self.line_id_drop.value, self.wave_box.value
+
 
 
     def rest_widget_values(self,idx=0):
 
+        global current_wavelength
+
+        #print("Reset idx",idx,"Current w",current_wavelength)
+
+
         if self.detectbox.value < 1000000000: #assume an index
             self.detectbox.value = self.detectid[idx]
             return
+
+
+        self.z_box.value = self.z[idx] #-1.0
+        current_wavelength = self.get_observed_wavelength()
+        self.line_id_drop.value,self.wave_box.value = self.get_line_match(self.z_box.value,current_wavelength)
+
+        #print("Updated Reset idx", idx, "Current w", current_wavelength)
+
 
         # reset all to base
         self.sm1_button.icon = ''
@@ -314,22 +460,74 @@ class ElixerWidget():
         self.set_classification(-1)
     
     def s0_button_click(self, b):
+        global line_id_dict_lae
+        if self.is_consistent_with_lae():
+            #NOT okay, if you say is not LAE
+            self.line_id_drop.value == line_id_dict_default
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
+        else:
+            pass #okay, already NOT consistent with LAE
+
         self.set_classification(0)
 
     def s1_button_click(self, b):
+        global line_id_dict_lae
+        if self.is_consistent_with_lae():
+            #NOT okay, if you say is not LAE
+            self.line_id_drop.value == line_id_dict_default
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
+        else:
+            pass #okay, already NOT consistent with LAE
+
         self.set_classification(1)
 
     def s2_button_click(self, b):
+        global line_id_dict_lae
+
+        if self.is_consistent_with_lae():
+            #NOT okay, if you say is not LAE
+            self.line_id_drop.value == line_id_dict_default
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
+        else:
+            pass #okay, already NOT consistent with LAE
+
+
+
         self.set_classification(2)
 
     def s3_button_click(self, b):
+        #leave the drop box where ever it is
         self.set_classification(3)
 
     def s4_button_click(self, b):
+        global line_id_dict_lae
+        if self.is_consistent_with_lae():
+            pass  # already okay, could be CIV, etc
+        else:
+            self.line_id_drop.value = line_id_dict_lae
+
         self.set_classification(4)
 
     def s5_button_click(self, b):
+        global line_id_dict_lae
+
+        if self.is_consistent_with_lae():
+            pass #already okay, could be CIV, etc
+        else:
+            self.line_id_drop.value=line_id_dict_lae
         self.set_classification(5)
+
+
+    def is_consistent_with_lae(self):
+        #is the emission line consistent with this being an LAE in HETDEX
+        #basically, a cheat ... is  1.9 < z < 3.5
+        if 1.8 < self.z_box.value < 3.6:
+            return True
+        else:
+            return False
 
 
     def on_save_click(self, b):
@@ -337,6 +535,7 @@ class ElixerWidget():
         self.output.add_column(Column(self.detectid, name='detectid', dtype=int))
         self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
         self.output.add_column(Column(self.flag, name='flag', dtype=int))
+        self.output.add_column(Column(self.z,name='z',dtype=float))
 
         ascii.write(self.output, self.outfilename, overwrite=True)
 
