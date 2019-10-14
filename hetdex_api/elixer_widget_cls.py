@@ -20,7 +20,7 @@ from astropy.table import Table, Column
 
 import ipywidgets as widgets
 from IPython.display import Image
-from ipywidgets import interact, interactive
+from ipywidgets import interact, Layout #Style #, interactive
 #from IPython.display import clear_output
 from hetdex_api.detections import *
 import tables
@@ -44,6 +44,7 @@ current_wavelength = -1.0
 line_id_dict_lae = "1216 LyA"
 line_id_dict_lae_wave = 1216.0
 line_id_dict_sep = "--------------"
+line_id_dict_other = "Other (xxxx)"
 
 line_id_dict_default = "Unk (????)"
 line_id_dict = {line_id_dict_default:-1.0,
@@ -61,7 +62,7 @@ line_id_dict = {line_id_dict_default:-1.0,
                 "2799 MgII":2799.117,
                 "4102 H-delta": 4102.0,
                 "4342 H-gamma": 4341.68,
-                "Other (xxxx)":-1.0
+                line_id_dict_other:-1.0
                 }
 
 class ElixerWidget():
@@ -149,7 +150,6 @@ class ElixerWidget():
             print('Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist')
             show_selection_buttons = False
 
-        display(widgets.HBox([self.previousbutton, self.nextbutton,self.elixerNeighborhood]))
         self.previousbutton.on_click(self.on_previous_click)
         self.nextbutton.on_click(self.on_next_click)
         self.elixerNeighborhood.on_click(self.on_elixer_neighborhood)
@@ -157,7 +157,8 @@ class ElixerWidget():
         if show_selection_buttons:
             # clear_output()
             self.rest_widget_values(objnum)
-            display(widgets.HBox([self.line_id_drop, self.wave_box, self.z_box]))
+            display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood,
+                                  self.line_id_drop, self.wave_box, self.z_box]))
 
             display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
@@ -169,6 +170,8 @@ class ElixerWidget():
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+        else:
+            display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
 
 
@@ -220,17 +223,30 @@ class ElixerWidget():
             description='DetectID:',
             disabled=False
         )
-        self.previousbutton = widgets.Button(description='Previous DetectID', button_style='success')
-        self.nextbutton = widgets.Button(description='Next DetectID', button_style='success')
-        self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='success')
-        self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
+        self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
+        self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
+
+        #see https://fontawesome.com/icons?d=gallery
+        self.previousbutton.style.button_color = 'darkgray'
+        self.previousbutton.icon = 'arrow-circle-left'
+        self.nextbutton.style.button_color = 'darkgray'
+        self.nextbutton.icon = 'arrow-circle-right'
+        #self.nextbutton.layout = Layout()
+
+        self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='info')
+        #self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
         self.line_id_drop = widgets.Dropdown(options=line_id_dict.keys(),
-                                             value=line_id_dict_default,description='Line ID',disabled=False)
+                                             value=line_id_dict_default,description='Line ID',
+                                             layout=Layout(width="25%"),
+                                             disabled=False)
         self.line_id_drop.observe(self._handle_line_id_selection, names='value')
 
-        self.wave_box = widgets.FloatText(value=-1.0,step=0.00001,description=r"$\lambda$ rest",disabled=False)
-        self.z_box = widgets.FloatText(value=-1.0,step=0.00001,description="z",disabled=False)
+        self.wave_box = widgets.FloatText(value=-1.0,step=0.00001,description=r"$\lambda$ rest",
+                                          layout=Layout(width="20%"),disabled=False)
+        self.wave_box.observe(self._handle_wave_box_selection,names='value')
+        self.z_box = widgets.FloatText(value=-1.0,step=0.00001,description="z",
+                                       layout=Layout(width="20%"),disabled=False)
 
 
         #buttons as classification selection
@@ -241,7 +257,10 @@ class ElixerWidget():
         # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
         # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
 
-        self.sm1_button = widgets.Button(description='NOT REAL (-1)', button_style='success')
+        self.sm1_button = widgets.Button(description='Spurious',
+                                         button_style='danger',
+                                         layout=Layout(width='10%'))
+
         self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
         self.s1_button = widgets.Button(description='          (1) ', button_style='success')
         self.s2_button = widgets.Button(description='          (2) ', button_style='success')
@@ -270,6 +289,31 @@ class ElixerWidget():
 
         return current_wavelength
 
+    def _handle_wave_box_selection(self,event):
+
+        global current_wavelength, line_id_dict_lae_wave
+
+        _old_wave = event['old']
+        _new_wave = event['new']
+
+        if _old_wave == _new_wave:
+            return
+
+        if _new_wave < 0:  # i.e. a -1.00
+            # do not change the z and lambda_rest values
+            self.z_box.value = -1.0
+            self.wave_box.value = -1.0
+        else:
+            if current_wavelength < 0:  # need to find it
+                self.get_observed_wavelength()
+
+            self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            self.wave_box.value = np.round(_new_wave, 5)
+
+            #do NOT reset the line id label ... can cause a loop
+            #self.get_line_match(self.z_box.value, current_wavelength )
+
+
 
     def _handle_line_id_selection(self,event):
         """
@@ -288,15 +332,24 @@ class ElixerWidget():
         _new = event['new']
         _new_wave = line_id_dict[_new]
 
+        if _old_wave == _new_wave:
+            return
+
         if _new_wave < 0: #i.e. a -1.00
             #do not change the z and lambda_rest values
-            pass
+            if _new == line_id_dict_default:
+                self.z_box.value = -1.0
+                self.wave_box.value = -1.0
         else:
             if current_wavelength < 0: #need to find it
                 self.get_observed_wavelength()
 
             self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
             self.wave_box.value = np.round(_new_wave,5)
+
+            # if (self.z_box.value < 0.0) and (self.line_id_drop.value != line_id_dict_default):
+            #     self.z_box.style = 'warning'
+
 
             #what button value to hit?
             #LAE lines would be LyA, CIV, HeII
@@ -384,8 +437,12 @@ class ElixerWidget():
     def get_line_match(self,z,w):
         global current_wavelength
 
-        self.line_id_drop.value = line_id_dict_default
-        self.wave_box.value = -1.0
+        if z > 0:
+            self.line_id_drop.value = line_id_dict_other
+            self.wave_box.value = np.round(w / (1. + z),5)
+        else:
+            self.line_id_drop.value = line_id_dict_default
+            self.wave_box.value = -1.0
 
         if z is None or z < 0 or w is None or w < 0:
             return  self.line_id_drop.value, self.wave_box.value
