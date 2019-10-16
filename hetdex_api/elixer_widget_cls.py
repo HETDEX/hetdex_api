@@ -69,11 +69,13 @@ line_id_dict = {line_id_dict_default:-1.0,
 class ElixerWidget():
 
 
-    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None):
+    def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None,
+                 counterpart=False):
 
         global elix_dir
 
         self.current_idx = 0
+        self.show_counterpart_btns=counterpart
 
         if img_dir is not None:
             if op.exists(img_dir):
@@ -85,14 +87,22 @@ class ElixerWidget():
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
             self.z = np.full(np.size(self.detectid),-1.0)
             self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+            self.counterpart = np.full(np.size(self.detectid), -1,dtype=int)
                 #hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
                 #and possible future use as followup
 
         elif savedfile:
             try:
                 saved_data = ascii.read(savedfile)
-                self.detectid = np.array(saved_data['detectid'], dtype=int)
-                self.vis_class = np.array(saved_data['vis_class'], dtype=int)
+                try:
+                    self.detectid = np.array(saved_data['detectid'], dtype=int)
+                except:
+                    self.detectid = np.array(saved_data['detectid'], dtype=float).astype(int)
+
+                try:
+                    self.vis_class = np.array(saved_data['vis_class'], dtype=int)
+                except:
+                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
 
                 #could have a flag
                 try:
@@ -106,11 +116,17 @@ class ElixerWidget():
                 except:
                     self.z = np.full(np.size(self.detectid), -1.0)
 
-                #could hve comment
+                #could have comment
                 try:
                     self.comment = np.array(saved_data['comments'], dtype='|S80').astype(str)
                 except:
                     self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+
+                #could have counterpart
+                try:
+                    self.counterpart = np.array(saved_data['counterpart'], dtype=int)
+                except:
+                    self.counterpart = np.full(np.size(self.detectid), -1,dtype=int)
 
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
@@ -123,6 +139,7 @@ class ElixerWidget():
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
             self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
         else:
             self.detectid = np.arange(1000000000, 1000690799, 1)
@@ -130,6 +147,7 @@ class ElixerWidget():
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
             self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
+            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
 
         # store outfile name if given
@@ -140,7 +158,7 @@ class ElixerWidget():
         elif savedfile:
             self.outfilename = savedfile
         else:
-            self.outfilename = 'elixer_lae.dat'
+            self.outfilename = 'elixer_cls.dat'
 
         self.resume = resume
         self.setup_widget()
@@ -169,6 +187,18 @@ class ElixerWidget():
             self.rest_widget_values(objnum)
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood,
                                   self.line_id_drop, self.wave_box, self.z_box,self.comment_box]))
+
+
+            if self.show_counterpart_btns:
+                display(widgets.HBox([widgets.Label(value="Catalog Counterpart:"),
+                                      self.c_none_button,self.c_aper_button,self.c_blue_button,
+                                      self.c_red_button,self.c_green_button]))
+
+                self.c_none_button.on_click(self.c_none_button_click)
+                self.c_aper_button.on_click(self.c_aper_button_click)
+                self.c_blue_button.on_click(self.c_blue_button_click)
+                self.c_red_button.on_click(self.c_red_button_click)
+                self.c_green_button.on_click(self.c_green_button_click)
 
             display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
@@ -292,6 +322,17 @@ class ElixerWidget():
         self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
 
 
+
+        self.c_none_button = widgets.Button(description='Not visible')#, button_style='success')
+        self.c_none_button.style.button_color = 'darkgray'
+        self.c_aper_button = widgets.Button(description='Aperture')#, button_style='success')
+        self.c_aper_button.style.button_color = 'gold'
+        self.c_blue_button = widgets.Button(description='Blue')#, button_style='success')
+        self.c_blue_button.style.button_color = 'blue'
+        self.c_red_button = widgets.Button(description='Red')#, button_style='success')
+        self.c_red_button.style.button_color = 'red'
+        self.c_green_button = widgets.Button(description='Green')#, button_style='success')
+        self.c_green_button.style.button_color = 'green'
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -440,6 +481,25 @@ class ElixerWidget():
         self.current_idx = ix
         self.detectbox.value = self.detectid[ix]
 
+    def set_counterpart(self,value=0):
+        self.counterpart[self.current_idx] = value
+        self.c_none_button.icon = ''
+        self.c_aper_button.icon = ''
+        self.c_blue_button.icon = ''
+        self.c_red_button.icon = ''
+        self.c_green_button.icon = ''
+
+        if value == 0:
+            self.c_none_button.icon = 'check'
+        elif value == 1:
+            self.c_aper_button.icon = 'check'
+        elif value == 2:
+            self.c_blue_button.icon = 'check'
+        elif value == 3:
+            self.c_red_button.icon = 'check'
+        elif value == 4:
+            self.c_green_button.icon = 'check'
+
 
     def set_classification(self,value=0):
         self.current_idx = np.where(self.detectid == self.detectbox.value)[0][0]  # current position
@@ -515,6 +575,12 @@ class ElixerWidget():
         self.s4_button.icon = ''
         self.s5_button.icon = ''
 
+        self.c_none_button.icon = ''
+        self.c_aper_button.icon = ''
+        self.c_blue_button.icon = ''
+        self.c_red_button.icon = ''
+        self.c_green_button.icon = ''
+
         # mark the label on the button
         if self.flag[idx] != 0:
             if self.vis_class[idx] == 0:
@@ -532,6 +598,17 @@ class ElixerWidget():
             elif self.vis_class[idx] == -1:
                 self.sm1_button.icon = 'check'
 
+            if self.counterpart[idx] == 0:
+                self.c_none_button.icon = 'check'
+            elif self.counterpart[idx] == 1:
+                self.c_aper_button.icon = 'check'
+            elif self.counterpart[idx] == 2:
+                self.c_blue_button.icon = 'check'
+            elif self.counterpart[idx] == 3:
+                self.c_red_button.icon = 'check'
+            elif self.counterpart[idx] == 4:
+                self.c_green_button.icon = 'check'
+
 
 
     def on_previous_click(self, b):
@@ -540,6 +617,22 @@ class ElixerWidget():
     def on_next_click(self, b):
         self.goto_next_detect()
 
+
+    def c_none_button_click(self, b):
+        self.set_counterpart(0)
+
+    def c_aper_button_click(self, b):
+        self.set_counterpart(1)
+
+    def c_blue_button_click(self, b):
+        self.set_counterpart(2)
+
+    def c_red_button_click(self, b):
+        self.set_counterpart(3)
+
+    def c_green_button_click(self, b):
+        self.set_counterpart(4)
+
     def sm1_button_click(self, b):
         global line_id_dict_lae
         self.line_id_drop.value == line_id_dict_default
@@ -547,7 +640,7 @@ class ElixerWidget():
         self.z_box.value = -1.0
 
         self.set_classification(-1)
-    
+
     def s0_button_click(self, b):
         global line_id_dict_lae
         if self.is_consistent_with_lae():
@@ -628,6 +721,7 @@ class ElixerWidget():
         self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
         self.output.add_column(Column(self.flag, name='flag', dtype=int))
         self.output.add_column(Column(self.z,name='z',dtype=float))
+        self.output.add_column(Column(self.counterpart,name='counterpart',dtype=int))
         self.output.add_column(Column(self.comment,name='comments',dtype='|S80'))
 
         ascii.write(self.output, self.outfilename, overwrite=True)
