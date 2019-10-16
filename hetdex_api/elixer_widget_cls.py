@@ -431,9 +431,9 @@ class ElixerWidget():
 
         self.z[self.current_idx] =  self.z_box.value
 
-
         self.on_save_click(None)
         self.goto_next_detect()
+
 
     def get_line_match(self,z,w):
         global current_wavelength
