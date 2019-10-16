@@ -19,6 +19,7 @@ from astropy.io import ascii
 from astropy.table import Table, Column
 
 import ipywidgets as widgets
+#from IPython import display#, HTML
 from IPython.display import Image
 from ipywidgets import interact, Layout #Style #, interactive
 #from IPython.display import clear_output
@@ -83,6 +84,7 @@ class ElixerWidget():
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
             self.z = np.full(np.size(self.detectid),-1.0)
+            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
                 #hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
                 #and possible future use as followup
 
@@ -104,6 +106,12 @@ class ElixerWidget():
                 except:
                     self.z = np.full(np.size(self.detectid), -1.0)
 
+                #could hve comment
+                try:
+                    self.comment = np.array(saved_data['comments'], dtype='|S80').astype(str)
+                except:
+                    self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
@@ -114,12 +122,14 @@ class ElixerWidget():
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
+            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
 
         else:
             self.detectid = np.arange(1000000000, 1000690799, 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
+            self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
 
 
         # store outfile name if given
@@ -158,7 +168,7 @@ class ElixerWidget():
             # clear_output()
             self.rest_widget_values(objnum)
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood,
-                                  self.line_id_drop, self.wave_box, self.z_box]))
+                                  self.line_id_drop, self.wave_box, self.z_box,self.comment_box]))
 
             display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
@@ -172,8 +182,6 @@ class ElixerWidget():
             self.s5_button.on_click(self.s5_button_click)
         else:
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
-
-
 
         try:
             fname = op.join(elix_dir, "%d.png" % (detectid))
@@ -233,22 +241,36 @@ class ElixerWidget():
         self.nextbutton.icon = 'arrow-circle-right'
         #self.nextbutton.layout = Layout()
 
-        self.elixerNeighborhood = widgets.Button(description='Neighbors')#, button_style='info')
+        self.elixerNeighborhood = widgets.Button(description='Neighbors',layoout=Layout(width="10%"))#, button_style='info')
         self.elixerNeighborhood.style.button_color='darkgray'
         #self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
         self.line_id_drop = widgets.Dropdown(options=line_id_dict.keys(),
-                                             value=line_id_dict_default,description='Line ID',
-                                             layout=Layout(width="25%"),
+                                             value=line_id_dict_default,description='Line',
+                                             layout=Layout(width="20%"),
                                              disabled=False)
         self.line_id_drop.observe(self._handle_line_id_selection, names='value')
 
         self.wave_box = widgets.FloatText(value=-1.0,step=0.00001,description=r"$\lambda$ rest",
-                                          layout=Layout(width="20%"),disabled=False)
+                                          layout=Layout(width="17%"),disabled=False,indent=False)
+        # self.wave_box = widgets.Text(
+        #     value='-1.0',
+        #     description=r"$\lambda$ rest",
+        #     layout=Layout(width="20%")
+        #     disabled=False),
+
+
         self.wave_box.observe(self._handle_wave_box_selection,names='value')
         self.z_box = widgets.FloatText(value=-1.0,step=0.00001,description="z",
-                                       layout=Layout(width="20%"),disabled=False)
+                                       layout=Layout(width="17%"),disabled=False,indent=False)
+        self.z_box.add_class("left-spacing-class")
+        #display(HTML("<style>.left-spacing-class {margin-left: 10px;}</style>"))
 
+        self.comment_box = widgets.Text(
+            value='',
+            placeholder='Enter any comments here',
+            description='Comments:',
+            disabled=False)#,layout=Layout(width='20%'))
 
         #buttons as classification selection
         # self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
@@ -268,6 +290,7 @@ class ElixerWidget():
         self.s3_button = widgets.Button(description='          (3) ', button_style='success')
         self.s4_button = widgets.Button(description='          (4) ', button_style='success')
         self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
+
 
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
@@ -430,6 +453,7 @@ class ElixerWidget():
             self.z_box.value = -1.0
 
         self.z[self.current_idx] =  self.z_box.value
+        self.comment[self.current_idx] = self.comment_box.value
 
         self.on_save_click(None)
         self.goto_next_detect()
@@ -477,6 +501,8 @@ class ElixerWidget():
         current_wavelength = self.get_observed_wavelength()
         self.line_id_drop.value,self.wave_box.value = self.get_line_match(self.z_box.value,current_wavelength)
 
+        self.comment_box.value = self.comment[idx]
+
         #print("Updated Reset idx", idx, "Current w", current_wavelength)
 
 
@@ -515,6 +541,11 @@ class ElixerWidget():
         self.goto_next_detect()
 
     def sm1_button_click(self, b):
+        global line_id_dict_lae
+        self.line_id_drop.value == line_id_dict_default
+        self.wave_box.value = -1.0
+        self.z_box.value = -1.0
+
         self.set_classification(-1)
     
     def s0_button_click(self, b):
@@ -552,8 +583,6 @@ class ElixerWidget():
         else:
             pass #okay, already NOT consistent with LAE
 
-
-
         self.set_classification(2)
 
     def s3_button_click(self, b):
@@ -564,8 +593,10 @@ class ElixerWidget():
         global line_id_dict_lae
         if self.is_consistent_with_lae():
             pass  # already okay, could be CIV, etc
-        else:
-            self.line_id_drop.value = line_id_dict_lae
+        else: #not consistent with LAE, so reset
+            self.line_id_drop.value == line_id_dict_default
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
 
         self.set_classification(4)
 
@@ -574,8 +605,11 @@ class ElixerWidget():
 
         if self.is_consistent_with_lae():
             pass #already okay, could be CIV, etc
-        else:
-            self.line_id_drop.value=line_id_dict_lae
+        else: #not consistent with LAE, so reset
+            self.line_id_drop.value == line_id_dict_default
+            self.wave_box.value = -1.0
+            self.z_box.value = -1.0
+
         self.set_classification(5)
 
 
@@ -594,6 +628,7 @@ class ElixerWidget():
         self.output.add_column(Column(self.vis_class, name='vis_class', dtype=int))
         self.output.add_column(Column(self.flag, name='flag', dtype=int))
         self.output.add_column(Column(self.z,name='z',dtype=float))
+        self.output.add_column(Column(self.comment,name='comments',dtype='|S80'))
 
         ascii.write(self.output, self.outfilename, overwrite=True)
 
