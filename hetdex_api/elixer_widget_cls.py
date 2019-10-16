@@ -190,15 +190,16 @@ class ElixerWidget():
 
 
             if self.show_counterpart_btns:
-                display(widgets.HBox([widgets.Label(value="Catalog Counterpart:"),
+                display(widgets.HBox([widgets.Label(value="Counterpart:"),
                                       self.c_none_button,self.c_aper_button,self.c_blue_button,
-                                      self.c_red_button,self.c_green_button]))
+                                      self.c_red_button,self.c_green_button,self.c_other_button]))
 
                 self.c_none_button.on_click(self.c_none_button_click)
                 self.c_aper_button.on_click(self.c_aper_button_click)
                 self.c_blue_button.on_click(self.c_blue_button_click)
                 self.c_red_button.on_click(self.c_red_button_click)
                 self.c_green_button.on_click(self.c_green_button_click)
+                self.c_other_button.on_click(self.c_other_button_click)
 
             display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
@@ -324,7 +325,7 @@ class ElixerWidget():
 
 
         self.c_none_button = widgets.Button(description='Not visible')#, button_style='success')
-        self.c_none_button.style.button_color = 'darkgray'
+        self.c_none_button.style.button_color = 'lightgray'
         self.c_aper_button = widgets.Button(description='Aperture')#, button_style='success')
         self.c_aper_button.style.button_color = 'gold'
         self.c_blue_button = widgets.Button(description='Blue')#, button_style='success')
@@ -333,6 +334,8 @@ class ElixerWidget():
         self.c_red_button.style.button_color = 'red'
         self.c_green_button = widgets.Button(description='Green')#, button_style='success')
         self.c_green_button.style.button_color = 'green'
+        self.c_other_button = widgets.Button(description='Other')#, button_style='success')
+        self.c_other_button.style.button_color = 'orange'
 
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -488,6 +491,7 @@ class ElixerWidget():
         self.c_blue_button.icon = ''
         self.c_red_button.icon = ''
         self.c_green_button.icon = ''
+        self.c_other_button.icon = ''
 
         if value == 0:
             self.c_none_button.icon = 'check'
@@ -499,6 +503,8 @@ class ElixerWidget():
             self.c_red_button.icon = 'check'
         elif value == 4:
             self.c_green_button.icon = 'check'
+        elif value == 99:
+            self.c_other_button.icon = 'check'
 
 
     def set_classification(self,value=0):
@@ -580,6 +586,7 @@ class ElixerWidget():
         self.c_blue_button.icon = ''
         self.c_red_button.icon = ''
         self.c_green_button.icon = ''
+        self.c_other_button.icon = ''
 
         # mark the label on the button
         if self.flag[idx] != 0:
@@ -608,6 +615,8 @@ class ElixerWidget():
                 self.c_red_button.icon = 'check'
             elif self.counterpart[idx] == 4:
                 self.c_green_button.icon = 'check'
+            elif self.counterpart[idx] == 99:
+                self.c_other_button.icon = 'check'
 
 
 
@@ -632,6 +641,9 @@ class ElixerWidget():
 
     def c_green_button_click(self, b):
         self.set_counterpart(4)
+
+    def c_other_button_click(self, b):
+        self.set_counterpart(99)
 
     def sm1_button_click(self, b):
         global line_id_dict_lae
