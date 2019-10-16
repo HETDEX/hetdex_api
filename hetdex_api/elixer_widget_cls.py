@@ -233,7 +233,8 @@ class ElixerWidget():
         self.nextbutton.icon = 'arrow-circle-right'
         #self.nextbutton.layout = Layout()
 
-        self.elixerNeighborhood = widgets.Button(description='Neighbors', button_style='info')
+        self.elixerNeighborhood = widgets.Button(description='Neighbors')#, button_style='info')
+        self.elixerNeighborhood.style.button_color='darkgray'
         #self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
         self.line_id_drop = widgets.Dropdown(options=line_id_dict.keys(),
