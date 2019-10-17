@@ -204,28 +204,25 @@ def main(argv=None):
                         default=False, type=bool)
 
     parser.add_argument("--mergepath",'-mpath', help='''Path to location of pickle files to merge''',
-                        default = os.getcwd(), type=str)
+                        default=os.getcwd(), type=str)
  
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     if args.merge:
-        try:
-            all_source_dict = {}
-            files = glob.glob(op.join(args.mergepath,'*.pkl'))
-            sys.exit('Merged all pickle files in ' + args.mergepath)
-            for file in files:
-                file_dict = pickle.load( open( file, 'rb'))
-                merge( all_source_dict, file_dict )
-                outfile = args.outfile+'.pkl'
-                pickle.dump( source_dict, open( outfile, "wb" ) )
+        all_source_dict = {}
+        files = glob.glob(op.join(args.mergepath,'*.pkl'))
+        args.log.info('Merging all pickle files in ' + args.mergepath)
+        for file in files:
+            file_dict = pickle.load( open( file, 'rb'))
+            all_source_dict = merge( all_source_dict, file_dict )
             
-            args.log.info('Merged all pickle files in ' + args.mergepath)
-            args.log.info('Saved output file to '+ outfile)
-            sys.exit('Exiting script')
-        except:
-            sys.exit('Could not merge files. Please specific directory in --mergepath argument if the files are not in the current workdir')
+        outfile = args.outfile+'.pkl'
+        
+        pickle.dump( all_source_dict, open( outfile, "wb" ) )
+        args.log.info('Saved output file to '+ outfile)
+        sys.exit('Exiting script')
 
     if args.infile:
 
