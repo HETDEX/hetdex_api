@@ -15,6 +15,19 @@ Option can be to provide a single
 or can let program figure out which shots
 to extract spectra on.
 
+OPTIONS:
+
+--ra           RA for single source in deg
+--dec          DEC for single source in deg
+--rad          radius size for aperture in arcsec, defaults to 3arcsec
+--ID           object ID if using a single source
+--shotid       use if you are running on just a single shotid (or datevobs)
+--input        path to input catalog of ID/RA/DEC 
+--output       name of output pickle file
+--multiprocess flag to use python multiprocess, don't use in a slurm job
+--single       flag to write out several astropy tables for each ID/shot spectra
+--merge        will combine all .pkl files in a directory, for use in slurm job cleanup
+--mergepath    use if you want to combine pickle files in another directory
 
 For a single coordinate, you can search and extract all shots in HDR1
 
@@ -35,11 +48,7 @@ This can also work on an input file. It should either have the format of
 3 columns = ID/RA/DEC or be an astropy table with columns 
 labeled 'ID', 'ra', 'dec'
 
-python3 get_spec.py --multiprocess True -i '3dhst_input.cat' -o '3dhst' 
-
-This for example can be broken into batch jobs:
-
-python3 get_spec.py -i '3dhst_input.cat'  
+python3 get_spec.py --multiprocess -i '3dhst_input.cat' -o '3dhst' 
 
 
 """
@@ -171,7 +180,7 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create rsp tmpXXX.datfiles.""",
                                add_help=True)
 
-    parser.add_argument("-s", "--shot",
+    parser.add_argument("-s", "--shotid",
                         help='''ShotID, e.g., 20170321v009, YYYYMMDDvOBS''',
                         type=str, default=None)
     
@@ -198,17 +207,17 @@ def main(argv=None):
                         type=str, default=None)
     
     parser.add_argument("--multiprocess", "-mp", help='''Multiprocessing Flag''', 
-                        type=bool, default=False)
+                        default=False, required=False, action='store_true')
 
     parser.add_argument("--merge", '-merge', help='''Boolean trigger to merger are pickle files in cwd''',
-                        default=False, type=bool)
+                        default=False, required=False, action='store_true')
 
     parser.add_argument("--mergepath",'-mpath', help='''Path to location of pickle files to merge''',
                         default=os.getcwd(), type=str)
     
     parser.add_argument("--single", "-single", 
                         help='''Select to create single astropy tables for each ID/SHOT''',
-                        default=False, type=bool)
+                        default=False, required=False, action='store_true')
     
 
     args = parser.parse_args(argv)
@@ -251,13 +260,13 @@ def main(argv=None):
 
     args.survey = Survey('hdr1')
 
-    # if args.shot exists, only select that shot
+    # if args.shotidid exists, only select that shot
 
-    if args.shot:
+    if args.shotid:
         try:
-            sel_shot = args.survey.shotid == int(args.shot)
+            sel_shot = args.survey.shotid == int(args.shotid)
         except:
-            sel_shot = args.survey.datevobs == str(args.shot)
+            sel_shot = args.survey.datevobs == str(args.shotid)
 
         args.survey = args.survey[sel_shot]
 
