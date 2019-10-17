@@ -7,8 +7,11 @@ Extracts 1D spectrum at specified RA/DEC.
 
 Provide either an ID/RA/DEC as input or a file
 with a list of ID, RA, DEC. Can be in the format
-of an astropy table provided columns are appropriately 
-marked 'ID','ra', 'dec'. 
+of an astropy table (fits, ascii and no_header
+are currently supported) provided columns are appropriately 
+marked 'ID','ra', 'dec' or 'RA', 'DEC'. Coordinates
+can be in any astropy unit coordinate in
+the input table.
 
 Option can be to provide a single
  shotid/datevobs to work on for batch processing, 
@@ -17,12 +20,12 @@ to extract spectra on.
 
 OPTIONS:
 
---ra           RA for single source in deg
---dec          DEC for single source in deg
---rad          radius size for aperture in arcsec, defaults to 3arcsec
+--ra           RA for single source in an astropy unit, or assumed as deg
+--dec          DEC for single source in an astropy unit, or assumed as deg
+--rad          radius size for aperture in arcsec or an astropy unit, defaults to 3arcsec
 --ID           object ID if using a single source
 --shotid       use if you are running on just a single shotid (or datevobs)
---input        path to input catalog of ID/RA/DEC 
+--input        path to input catalog of ID/RA/DEC, can use any astropy units or program will assume degree 
 --output       name of output pickle file
 --multiprocess flag to use python multiprocess, don't use in a slurm job
 --single       flag to write out several astropy tables for each ID/shot spectra
@@ -46,7 +49,7 @@ python3 get_spec.py -ra 8.86535 -dec 0.59352  -s 20190104008
 
 This can also work on an input file. It should either have the format of
 3 columns = ID/RA/DEC or be an astropy table with columns 
-labeled 'ID', 'ra', 'dec'
+labeled 'ID', 'ra' or 'RA', 'dec' or 'DEC'
 
 python3 get_spec.py --multiprocess -i '3dhst_input.cat' -o '3dhst' 
 
@@ -235,7 +238,7 @@ def main(argv=None):
         
         pickle.dump( all_source_dict, open( outfile, "wb" ) )
         args.log.info('Saved output file to '+ outfile)
-        sys.exit('Exiting script')
+        sys.exit('Exiting')
 
     if args.infile:
 
@@ -244,11 +247,29 @@ def main(argv=None):
         try: 
             table_in = Table.read(args.infile, format='ascii')
         except:
-            table_in = Table.read(args.infile, format='no_header', names=['ID','ra','dec'])
+            pass
 
-        args.ID = table_in['ID']
-        args.ra = table_in['ra']
-        args.dec = table_in['dec']
+        try:
+            table_in = Table.read(args.infile, format='fits')
+        except:
+            pass
+
+        try:
+            table_in = Table.read(args.infile, format='no_header', names=['ID','ra','dec'])
+        except:
+            pass
+
+        try:
+            args.ID = table_in['ID']
+        except:
+            args.ID = table_in['id']
+        
+        try:
+            args.ra = table_in['ra']
+            args.dec = table_in['dec']
+        except:
+            args.ra = table_in['RA']
+            args.dec = table_in['DEC']
 
     else:
         if args.ID == None:
@@ -256,7 +277,12 @@ def main(argv=None):
 
         args.log.info('Extracting for ID: %s' % args.ID)
 
-    args.coords = SkyCoord(args.ra*u.deg, args.dec*u.deg)
+    #generate astropy coordinates object for searching
+
+    try:
+        args.coords = SkyCoord(args.ra, args.dec)
+    except:
+        args.coords = SkyCoord(args.ra*u.deg, args.dec*u.deg)
 
     args.survey = Survey('hdr1')
 
