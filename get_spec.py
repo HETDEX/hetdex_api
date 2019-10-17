@@ -205,7 +205,11 @@ def main(argv=None):
 
     parser.add_argument("--mergepath",'-mpath', help='''Path to location of pickle files to merge''',
                         default=os.getcwd(), type=str)
- 
+    
+    parser.add_argument("--single", "-single", 
+                        help='''Select to create single astropy tables for each ID/SHOT''',
+                        default=False, type=bool)
+    
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -325,9 +329,31 @@ def main(argv=None):
                 Source_dict = merge( Source_dict, shot_source_dict)
 
     args.survey.close()
-    
+
     outfile = args.outfile+'.pkl'
     pickle.dump( Source_dict, open( outfile, "wb" ) )
-        
+
+    if args.single:
+        # loop over every ID/observation combo:
+        fluxden_u = 1e-17 * u.erg * u.s**(-1) * u.cm**(-2) * u.AA**(-1)
+        for ID in Source_dict.keys():
+            for shotid in Source_dict[ID].keys():
+
+                wave_rect = 2.0 * np.arange(1036) + 3470.
+                spec = Source_dict[ID][shotid][0]
+                spec_err = Source_dict[ID][shotid][1]
+                weights = Source_dict[ID][shotid][2]
+                
+                sel = np.isfinite(spec)
+                if np.sum(sel) > 0:
+                    output = Table()
+
+                    output.add_column(Column(wave_rect, name='wavelength', unit=u.AA))
+                    output.add_column(Column(spec, name='spec', unit=fluxden_u))
+                    output.add_column(Column(spec_err, name='spec_err', unit=fluxden_u))
+                    output.add_column(Column(weights, name='weights'))
+                    
+                    output.write('spec_'+str(ID)+'_'+str(shotid)+'.tab', format='ascii')
+
 if __name__ == '__main__':
     main()
