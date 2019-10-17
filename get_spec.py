@@ -20,20 +20,26 @@ For a single coordinate, you can search and extract all shots in HDR1
 
 python3 get_spec.py --ra 150.02548 --dec 2.087987 --ID cosmos_LAE --outfile cosmos_LAE
 
-
 To speed up, you can use the --multiprocess option. This works for interactive use
 on a node either through a jupyter notebook or an interactive node called by idev
 
 python3 get_spec.py --multiprocess --ra 150.02548 --dec 2.087987 --ID cosmos_LAE --outfile cosmos_LAE  
 
+For working on a single shot only you can use the -s option. 
+It is recommended to batch process each 
+SHOTID individually and provide the same source list in each call.
 
-For working on a single shot only. It is recommended to batch process each SHOTID individually and provide the same source list in each call.
+python3 get_spec.py -ra 8.86535 -dec 0.59352  -s 20190104008
 
+This can also work on an input file. It should either have the format of
+3 columns = ID/RA/DEC or be an astropy table with columns 
+labeled 'ID', 'ra', 'dec'
 
+python3 get_spec.py --multiprocess True -i '3dhst_input.cat' -o '3dhst' 
 
+This for example can be broken into batch jobs:
 
-
-
+python3 get_spec.py -i '3dhst_input.cat'  
 
 
 """
@@ -253,9 +259,7 @@ def main(argv=None):
             sel_shot = args.survey.datevobs == str(args.shot)
 
         args.survey = args.survey[sel_shot]
-        #make output file the date string if default output is used.
-        if args.outfile == 'output':
-            args.output = str(args.shot)
+
     else:
         args.log.info('Searching through all shots')
             
@@ -323,10 +327,10 @@ def main(argv=None):
             if shot_source_dict:
                 Source_dict = merge( Source_dict, shot_source_dict)
 
+    args.survey.close()
+    
     outfile = args.outfile+'.pkl'
     pickle.dump( Source_dict, open( outfile, "wb" ) )
-
-    args.survey.close()
-
+        
 if __name__ == '__main__':
     main()
