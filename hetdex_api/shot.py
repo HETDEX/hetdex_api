@@ -245,7 +245,23 @@ class Fibers:
         im_base[ x1_slice:x2_slice, y1_slice:y2_slice] = im_reg
         
         return im_base
+
+    def return_astropy_table(self):
+        """
+        Return an astropy table version of the Fibers table
+        that can easily be saved
+
+        Returns
+        -------
+        table : astropy.table:Table
+            an astropy table you can save
+
+        """
+        table = Table()
+        for name in self.hdfile.root.Data.Fibers.colnames:
+            table[name] = getattr(self, name)
         
+        return table
 
 def get_fibers_table(shot, coords, radius):
     """
