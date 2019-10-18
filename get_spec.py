@@ -62,6 +62,7 @@ import os
 import os.path as op
 import glob
 
+import tables
 import numpy as np
 import pickle
 import warnings
@@ -176,7 +177,8 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         source_dict[args.ID][shotid] = [spectrum_aper, spectrum_aper_error, weights.sum(axis=0)]
 
         E.fibers.close()
-        
+        tables.file._open_files.close_all()
+
 def main(argv=None):
     ''' Main Function '''
     # Call initial parser from init_utils
@@ -389,6 +391,8 @@ def main(argv=None):
                     output.add_column(Column(weights, name='weights'))
                     
                     output.write('spec_'+str(ID)+'_'+str(shotid)+'.tab', format='ascii')
+
+tables.file._open_files.close_all()
 
 if __name__ == '__main__':
     main()
