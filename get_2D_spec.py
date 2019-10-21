@@ -177,6 +177,7 @@ def main(argv=None):
 
     fibers.close()
     
-    
+tb.file._open_files.close_all() 
+   
 if __name__ == '__main__':
     main()
