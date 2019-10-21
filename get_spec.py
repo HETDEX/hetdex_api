@@ -177,7 +177,6 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         source_dict[args.ID][shotid] = [spectrum_aper, spectrum_aper_error, weights.sum(axis=0)]
 
         E.fibers.close()
-        tables.file._open_files.close_all()
 
 def main(argv=None):
     ''' Main Function '''
