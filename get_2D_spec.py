@@ -132,6 +132,11 @@ def main(argv=None):
     parser.add_argument("-p", "--path", help='''Path to save output''',
                         default=os.getcwd(), type=str)
 
+    parser.add_argument("-i", "--infile",
+                        help='''File with table of ID/RA/DEC''', default=None)
+
+
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -145,11 +150,19 @@ def main(argv=None):
     print("opening shot: "+str(shotid_i))
     fibers = Fibers(args.datevobs)
 
-    #find detectids to extract
-    catalog = Table.read('/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab', format='ascii')
-    selcat = (catalog['shotid'] == int(shotid_i)) 
     
-    detectlist = np.array(catalog['detectid'][selcat])
+    if args.infile:
+        try:
+            catalog = Table.read(args.infile, format=ascii)
+        except:
+            catalog = Table.read('/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab', format='ascii')
+            
+        selcat = (catalog['shotid'] == int(shotid_i))     
+        detectlist = np.array(catalog['detectid'][selcat])
+
+    elif args.dets:
+        detectlist = np.loadtxt(args.dets, dtype=int)
+
 
     for detectid_i in detectlist:
         print(detectid_i)
