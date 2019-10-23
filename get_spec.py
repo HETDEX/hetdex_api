@@ -178,6 +178,45 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
         E.fibers.close()
 
+def return_astropy_table(Source_dict):
+    '''Returns an astropy table fom a source dictionary'''
+    
+    id_arr = []
+    shotid_arr = []
+    wave_arr = []
+    spec_arr = []
+    spec_err_arr = []
+    weights_arr = []
+
+    # loop over every ID/observation combo:                                          \
+                                                                                          
+    for ID in Source_dict.keys():
+        for shotid in Source_dict[ID].keys():
+            wave_rect = 2.0 * np.arange(1036) + 3470.
+            spec = Source_dict[ID][shotid][0]
+            spec_err = Source_dict[ID][shotid][1]
+            weights = Source_dict[ID][shotid][2]
+
+            sel = np.isfinite(spec)
+            if np.sum(sel) > 0:
+                id_arr.append(ID)
+                shotid_arr.append(shotid)
+                wave_arr.append(wave_rect)
+                spec_arr.append(spec)
+                spec_err_arr.append(spec_err)
+                weights_arr.append(weights)
+
+    output = Table()
+    fluxden_u = 1e-17 * u.erg * u.s**(-1) * u.cm**(-2) * u.AA**(-1)
+    output.add_column(Column(id_arr), name='ID')
+    output.add_column(Column(shotid_arr), name='shotid')
+    output.add_column(Column(wave_arr, unit=u.AA, name='wavelength'))
+    output.add_column(Column(spec_arr, unit=fluxden_u, name='spec'))
+    output.add_column(Column(spec_arr, unit=fluxden_u, name='spec_err'))
+    output.add_column(Column(weights_arr), name='weights')
+
+    return output
+
 def main(argv=None):
     ''' Main Function '''
     # Call initial parser from init_utils
@@ -223,6 +262,8 @@ def main(argv=None):
                         help='''Select to create single astropy tables for each ID/SHOT''',
                         default=False, required=False, action='store_true')
     
+    parser.add_argument("--fits", "-fit", help='''Store spectra in an astropy table''', 
+                        default=False, action='store_true')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -234,32 +275,40 @@ def main(argv=None):
         for file in files:
             file_dict = pickle.load( open( file, 'rb'))
             all_source_dict = merge( all_source_dict, file_dict )
-            
-        outfile = args.outfile+'.pkl'
+
+        if args.fits:
+            output = return_astropy_table(all_source_dict)
+            outfile = args.outfile + '.fits'
+            output.write( outfile, format='fits', overwrite=True)
+        else:
+            outfile = args.outfile+'.pkl'
+            pickle.dump( all_source_dict, open( outfile, "wb" ) )
         
-        pickle.dump( all_source_dict, open( outfile, "wb" ) )
         args.log.info('Saved output file to '+ outfile)
         sys.exit('Exiting')
 
     if args.infile:
 
         args.log.info('Loading External File')
-
-        try: 
-            table_in = Table.read(args.infile, format='ascii')
-        except:
-            pass
-
+        
         try:
-            table_in = Table.read(args.infile, format='fits')
+            try: 
+                table_in = Table.read(args.infile, format='ascii')
+            except:
+                pass
+            try:
+                table_in = Table.read(args.infile, format='fits')
+            except:
+                pass
+            try:
+                table_in = Table.read(args.infile, format='no_header', names=['ID','ra','dec'])
+            except:
+                pass
         except:
-            pass
-
-        try:
-            table_in = Table.read(args.infile, format='no_header', names=['ID','ra','dec'])
-        except:
-            pass
-
+            if op.exists(args.infile):
+                args.log.warning('Could not open input file')
+            else:
+                args.log.warning('Input file not found')
         try:
             args.ID = table_in['ID']
         except:
@@ -390,6 +439,11 @@ def main(argv=None):
                     output.add_column(Column(weights, name='weights'))
                     
                     output.write('spec_'+str(ID)+'_'+str(shotid)+'.tab', format='ascii')
+
+    if args.fits:
+        
+        output = return_astropy_table(Source_dict)
+        output.write( args.outfile + '.fits', format='fits', overwrite=True)
 
 tables.file._open_files.close_all()
 
