@@ -604,6 +604,8 @@ class Detections:
                 plt.ylim(ylim)
         plt.show()
 
+    def close(self):
+        self.hdfile.close()
 
 def show_elixer(detectid):
     '''
