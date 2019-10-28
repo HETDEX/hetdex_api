@@ -13,6 +13,10 @@ import re
 import tables as tb
 import numpy as np
 
+import warnings
+import sys
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
 
 from astropy.table import Table, Column
 import astropy.units as u
