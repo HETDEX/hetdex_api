@@ -178,14 +178,20 @@ def main(argv=None):
 
     print(args)
 
+    class Image2D(tb.IsDescription):
+        detectid = tb.Int64Col(pos=0)
+        im_wave = tb.Float32Col(args.width, pos=1)
+        im_sum = tb.Float32Col((args.height, args.width), pos=2)
+        im_array = tb.Float32Col((4, args.height, args.width), pos=3)
+
     if args.merge:
-        fileh = tb.open_file('im2D_merged.h5')
-        im2D_table = fileh.create_table(fileh.root, '2D Image Arrays', Image2D)
+        fileh = tb.open_file('merged_im2D.h5', 'w')
+        im2D_table = fileh.create_table(fileh.root, 'Images', Image2D)
 
         files = sorted(glob.glob('im2D*.h5'))
         for file in files:
             fileh_i = tb.open_file(file,'r')
-            im2D_table_i = fileh_i.root.Image2D.read()
+            im2D_table_i = fileh_i.root.Images.read()
 
             im2D_table.append(im2D_table_i)
 
@@ -220,12 +226,6 @@ def main(argv=None):
             detectlist = np.loadtxt(args.dets, dtype=int)
 
     if args.h5file:
-
-        class Image2D(tb.IsDescription):
-            detectid = tb.Int64Col(pos=0)
-            im_wave = tb.Float32Col(args.width, pos=1)
-            im_sum = tb.Float32Col((args.height, args.width), pos=2)
-            im_array = tb.Float32Col((4, args.height, args.width), pos=3)
 
         fileh = tb.open_file('im2D_' + str(args.datevobs)+ '.h5', 'w')
 
