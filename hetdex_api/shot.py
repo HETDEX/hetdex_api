@@ -231,13 +231,20 @@ class Fibers:
         im0 = self.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
 
         #create image of forced dims of input width x height
+
+        height= np.minimum(height, 1032)
+        width = np.minimum(width, 1032)
+        
         im_base = np.zeros((height, width))
 
-        x1 = np.maximum(0, x-int(height/2))
-        x2 = np.minimum(x+int(height/2), 1031)
+        dx = int(height/2)
+        dy = int(width/2)
 
-        y1 = np.maximum(0, y-int(width/2))
-        y2 = np.minimum(y+int(width/2), 1031)
+        x1 = np.maximum(0, x-dx)
+        x2 = np.minimum(x+ dx + (height % 2), 1032)
+
+        y1 = np.maximum(0, y-dy)
+        y2 = np.minimum(y+ dy + (width % 2), 1032)
         
         x1_slice = np.minimum(0, height - (x2 - x1))
         x2_slice = x2-x1
