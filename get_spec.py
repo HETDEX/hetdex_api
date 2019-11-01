@@ -473,8 +473,7 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
     
     if args.ID == None:
         args.ID = 'DEX_' + str(args.coords.ra.value).zfill(4)+'_'+str(args.coords.dec.value).zfill(4)
-    
-    print(args)
+
     Source_dict = get_spectra_dictionary(args)
 
     args.survey.close()
