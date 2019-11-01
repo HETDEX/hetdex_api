@@ -71,6 +71,7 @@ if not sys.warnoptions:
 
 from input_utils import setup_logging
 
+import types
 
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
@@ -217,10 +218,79 @@ def return_astropy_table(Source_dict):
 
     return output
 
+def get_spectra_dictionary(args):
+
+    args.matched_sources = {}
+    shots_of_interest = []
+
+    count = 0
+
+    # this radius applies to the inital shot search and requires a large aperture for the wide FOV of VIRUS               
+    max_sep = 11.0 * u.arcminute
+
+    args.log.info('Finding shots of interest')
+
+    for i, coord in enumerate(args.survey.coords):
+        dist = args.coords.separation(coord)
+        sep_constraint = dist < max_sep
+        shotid = args.survey.shotid[i]
+        idx = np.where(sep_constraint)[0]
+        if np.size(idx) > 0:
+            args.matched_sources[shotid] = idx
+            count += np.size(idx)
+            if len(idx) > 0:
+                shots_of_interest.append(shotid)
+
+    args.log.info('Number of shots of interest: %i' % len(shots_of_interest))
+    args.log.info('Extracting %i sources' % count)
+
+    if args.multiprocess:
+
+        manager = Manager()
+        Sources = manager.dict()
+
+        start = time.time()
+        njobs = np.size(shots_of_interest)
+
+        ntasks = 32
+
+        for i in np.arange(0, njobs, ntasks):
+            jobs = [ Process(target=get_source_spectra_mp, args=(Sources, shotid, manager, args))
+                     for shotid in shots_of_interest[i: np.minimum(njobs, i+ntasks)]
+                 ]
+
+            for j in jobs:
+                j.start()
+            for j in jobs:
+                j.join()
+
+        end = time.time()
+        args.log.info( 'Extraction of sources completed in %.2f minutes.' % ((end-start)/60.))
+
+        #convert manager dict to a regular dictionary object to pickle                                                    
+        Source_dict = {}
+        count = 0
+        for ID in Sources.keys():
+            Source_dict[ID] = {}
+            for shotid in Sources[ID].keys():
+                count += 1
+                Source_dict[ID][shotid] = list( Sources[ID][shotid])
+
+    else:
+        Source_dict = {}
+        for shotid in shots_of_interest:
+            shot_source_dict = get_source_spectra(shotid, args)
+
+            if shot_source_dict:
+                Source_dict = merge( Source_dict, shot_source_dict)
+
+    return Source_dict
+
+
 def main(argv=None):
     ''' Main Function '''
     # Call initial parser from init_utils
-    parser = ap.ArgumentParser(description="""Create rsp tmpXXX.datfiles.""",
+    parser = ap.ArgumentParser(description="""Get Spectra for input coords""",
                                add_help=True)
 
     parser.add_argument("-s", "--shotid",
@@ -348,70 +418,9 @@ def main(argv=None):
 
     else:
         args.log.info('Searching through all shots')
-            
-    args.matched_sources = {}
-    shots_of_interest = []
 
-    count = 0
-
-    # this radius applies to the inital shot search and requires a large aperture for the wide FOV of VIRUS
-    max_sep = 11.0 * u.arcminute
-    
-    args.log.info('Finding shots of interest')
- 
-    for i, coord in enumerate(args.survey.coords):
-        dist = args.coords.separation(coord)
-        sep_constraint = dist < max_sep
-        shotid = args.survey.shotid[i]
-        idx = np.where(sep_constraint)[0]
-        if np.size(idx) > 0:
-            args.matched_sources[shotid] = idx
-            count += np.size(idx)
-            if len(idx) > 0:
-                shots_of_interest.append(shotid)
-        
-    args.log.info('Number of shots of interest: %i' % len(shots_of_interest))
-    args.log.info('Extracting %i sources' % count)
-
-    if args.multiprocess:
-
-        manager = Manager()
-        Sources = manager.dict()
-        
-        start = time.time()
-        njobs = np.size(shots_of_interest)
-
-        ntasks = 32
-
-        for i in np.arange(0, njobs, ntasks):
-            jobs = [ Process(target=get_source_spectra_mp, args=(Sources, shotid, manager, args)) 
-                     for shotid in shots_of_interest[i: np.minimum(njobs, i+ntasks)]
-                 ]
-            
-            for j in jobs:
-                j.start()
-            for j in jobs:
-                j.join()
-    
-        end = time.time()
-        args.log.info( 'Extraction of sources completed in %.2f minutes.' % ((end-start)/60.))
-        
-        #convert manager dict to a regular dictionary object to pickle
-        Source_dict = {}
-        count = 0
-        for ID in Sources.keys():
-            Source_dict[ID] = {}
-            for shotid in Sources[ID].keys():
-                count += 1
-                Source_dict[ID][shotid] = list( Sources[ID][shotid])
-
-    else:
-        Source_dict = {}
-        for shotid in shots_of_interest:
-            shot_source_dict = get_source_spectra(shotid, args)
-
-            if shot_source_dict:
-                Source_dict = merge( Source_dict, shot_source_dict)
+    # main function to retrieve spectra dictionary
+    Source_dict = get_spectra_dictionary(args)
 
     args.survey.close()
 
@@ -445,7 +454,33 @@ def main(argv=None):
         output = return_astropy_table(Source_dict)
         output.write( args.outfile + '.fits', format='fits', overwrite=True)
 
-tables.file._open_files.close_all()
+#tables.file._open_files.close_all()
 
 if __name__ == '__main__':
     main()
+
+
+def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
+
+    args = types.SimpleNamespace()
+
+    args.multiprocess = multiprocess
+    args.coords = coords
+    args.rad = rad
+    args.survey = Survey('hdr1')
+    args.log = setup_logging()
+    args.ID = ID
+    
+    if args.ID == None:
+        args.ID = 'DEX_' + str(args.coords.ra.value).zfill(4)+'_'+str(args.coords.dec.value).zfill(4)
+    
+    print(args)
+    Source_dict = get_spectra_dictionary(args)
+
+    args.survey.close()
+
+    output = return_astropy_table(Source_dict)
+
+    print('Retrieved spectra from ' + str(np.size(output)) + ' shots.')
+   
+    return output
