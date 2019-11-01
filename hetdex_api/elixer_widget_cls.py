@@ -17,6 +17,7 @@ import os.path as op
 
 from astropy.io import ascii
 from astropy.table import Table, Column
+from astropy.coordinates import SkyCoord
 
 import ipywidgets as widgets
 #from IPython import display#, HTML
@@ -26,9 +27,14 @@ from ipywidgets import interact, Layout #Style #, interactive
 from hetdex_api.detections import *
 import tables
 
+from get_spec import get_spectra
+
 #needed only if detection observered wavelength is not supplied
 HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
 HETDEX_DETECT_HDF5_HANDLE = None
+
+HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+ELIXER_H5= None
 
 elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
 elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
@@ -230,6 +236,42 @@ class ElixerWidget():
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
+
+        if op.exists(HETDEX_ELIXER_HDF5):
+
+            ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, 'r')
+            detectid_i = detectid
+
+            self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where('detectid == detectid_i')
+            
+            if np.size(self.CatalogMatch) == 1:
+                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                      self.e_blue_button]))
+            elif np.size(self.CatalogMatch) == 2:
+                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                      self.e_blue_button,
+                                      self.e_red_button]))
+            elif np.size(self.CatalogMatch) == 3:
+                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                      self.e_blue_button,
+                                      self.e_red_button,
+                                      self.e_green_button]))            
+            else:
+                pass
+                
+        else:
+            print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+
+        display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
+                              self.e_manual_ra,
+                              self.e_manual_dec,
+                              self.e_manual_button]))
+
+        self.e_blue_button.on_click(self.e_blue_button_click)
+        self.e_red_button.on_click(self.e_red_button_click)
+        self.e_green_button.on_click(self.e_green_button_click)
+        self.e_manual_button.on_click(self.e_manual_button_click)
+
     def setup_widget(self):
         if self.resume:
             try:
@@ -337,6 +379,16 @@ class ElixerWidget():
         self.c_other_button = widgets.Button(description='Other')#, button_style='success')
         self.c_other_button.style.button_color = 'orange'
 
+        self.e_blue_button = widgets.Button(description='Blue')#, button_style='success')
+        self.e_blue_button.style.button_color = 'blue'
+        self.e_red_button = widgets.Button(description='Red')#, button_style='success')
+        self.e_red_button.style.button_color = 'red'
+        self.e_green_button = widgets.Button(description='Green')#, button_style='success')
+        self.e_green_button.style.button_color = 'green'
+        self.e_manual_ra = widgets.FloatText(value=0.0, description='RA (deg):', layout=Layout(width='20%'))
+        self.e_manual_dec = widgets.FloatText(value=0.0, description='DEC (deg):', layout=Layout(width='20%'))
+        self.e_manual_button = widgets.Button(description='Go')
+        
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
 
@@ -550,7 +602,6 @@ class ElixerWidget():
         return self.line_id_drop.value, self.wave_box.value
 
 
-
     def rest_widget_values(self,idx=0):
 
         global current_wavelength
@@ -746,3 +797,49 @@ class ElixerWidget():
             print("%s not found" % path)
         else:
             display(Image(path))
+
+
+    def plot_spec(self, matchnum):
+        
+        global current_wavelength
+
+        match = self.CatalogMatch['match_num'] == matchnum
+        
+        if matchnum > 0:
+            object_label = 'Counterpart ' + str(matchnum)            
+            coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
+                              dec = self.CatalogMatch['cat_dec'][match] * u.deg,
+                              frame = 'icrs')
+        else:
+            object_label = 'RA=' + str(self.e_manual_ra.value).zfill(3) + ' DEC=' + str(self.e_manual_dec.value).zfill(3)
+            coords = SkyCoord(ra = self.e_manual_ra.value * u.deg,
+                              dec = self.e_manual_dec.value * u.deg,
+                              frame = 'icrs')
+
+        spec_table = get_spectra(coords, ID=self.detectbox.value)
+
+        if current_wavelength < 0:
+            current_wavelength = self.get_observed_wavelength()
+            
+        for row in spec_table:
+            plt.figure(figsize=(15,2))
+            plt.plot(row['wavelength'], row['spec'])
+            plt.title(object_label + '        SHOTID = ' + str(row['shotid']))
+            plt.xlabel('wavelength (A)')
+            plt.ylabel('spec')
+            plt.axvline(x=current_wavelength, color='r', linestyle='--') 
+
+    def e_blue_button_click(self, b):
+        self.plot_spec(1)
+
+    def e_red_button_click(self, b):
+        self.plot_spec(2)
+
+    def e_green_button_click(self, b):
+        self.plot_spec(3)
+
+    def e_manual_button_click(self, b):
+        self.plot_spec(0)
+
+    def get_spec(self, b):
+        pass
