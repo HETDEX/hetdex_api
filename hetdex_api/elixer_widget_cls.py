@@ -818,8 +818,8 @@ class ElixerWidget():
 
         spec_table = get_spectra(coords, ID=self.detectbox.value)
 
-        if current_wavelength < 0:
-            current_wavelength = self.get_observed_wavelength()
+        #if current_wavelength < 0:
+        current_wavelength = self.get_observed_wavelength()
             
         for row in spec_table:
             plt.figure(figsize=(15,2))
