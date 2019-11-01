@@ -819,7 +819,7 @@ class ElixerWidget():
         spec_table = get_spectra(coords, ID=self.detectbox.value)
 
         #if current_wavelength < 0:
-        current_wavelength = self.get_observed_wavelength()
+        #current_wavelength = self.get_observed_wavelength()
             
         for row in spec_table:
             plt.figure(figsize=(15,2))
@@ -827,7 +827,7 @@ class ElixerWidget():
             plt.title(object_label + '        SHOTID = ' + str(row['shotid']))
             plt.xlabel('wavelength (A)')
             plt.ylabel('spec')
-            plt.axvline(x=current_wavelength, color='r', linestyle='--') 
+            plt.axvline(x=self.get_observed_wavelength(), color='r', linestyle='--')
 
     def e_blue_button_click(self, b):
         self.plot_spec(1)
