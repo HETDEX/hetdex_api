@@ -174,6 +174,8 @@ class ElixerWidget():
 
     def main_display(self, x):
 
+        global ELIXER_H5,HETDEX_ELIXER_HDF5
+
         detectid = x
         show_selection_buttons = True
 
@@ -237,30 +239,32 @@ class ElixerWidget():
             print("Cannot load ELiXer Report image: ", fname)
 
 
-        if op.exists(HETDEX_ELIXER_HDF5):
-
-            ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, 'r')
-            detectid_i = detectid
-
-            self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where('detectid == detectid_i')
-            
-            if np.size(self.CatalogMatch) == 1:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button]))
-            elif np.size(self.CatalogMatch) == 2:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button,
-                                      self.e_red_button]))
-            elif np.size(self.CatalogMatch) == 3:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button,
-                                      self.e_red_button,
-                                      self.e_green_button]))            
+        if ELIXER_H5 is None:
+            if op.exists(HETDEX_ELIXER_HDF5):
+                ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, 'r')
             else:
-                pass
-                
+                print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+                return
+
+        #only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
+        detectid_i = detectid
+
+        self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where('detectid == detectid_i')
+
+        if np.size(self.CatalogMatch) == 1:
+            display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                  self.e_blue_button]))
+        elif np.size(self.CatalogMatch) == 2:
+            display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                  self.e_blue_button,
+                                  self.e_red_button]))
+        elif np.size(self.CatalogMatch) == 3:
+            display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                  self.e_blue_button,
+                                  self.e_red_button,
+                                  self.e_green_button]))
         else:
-            print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+            pass
 
         display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
                               self.e_manual_ra,
