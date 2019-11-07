@@ -23,7 +23,7 @@ import tables as tb
 import copy
 import matplotlib.pyplot as plt
 
-from astropy.table import Table, Column
+from astropy.table import vstack, Table, Column
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
@@ -349,9 +349,13 @@ class Detections:
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        badamps = ascii.read(config.badamp, 
+        badamps1 = ascii.read(config.badamp, 
                              names=['ifuslot', 'amp','date_start', 'date_end'])
 
+        badamps2 = ascii.read(config.badamp,
+                             names=['ifuslot', 'amp','date_start', 'date_end'])
+
+        badamps = vstack([badamps1,badamps2])
 
         for row in np.arange(np.size(badamps)):
             if badamps['amp'][row] == 'AA':
@@ -600,6 +604,8 @@ class Detections:
                 plt.ylim(ylim)
         plt.show()
 
+    def close(self):
+        self.hdfile.close()
 
 def show_elixer(detectid):
     '''

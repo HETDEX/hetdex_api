@@ -7,7 +7,7 @@ This repository contains software developed for the HETDEX Data Release. The tea
 This repository contains both the code to create HDF5 container files and also consists of a library of python modules to easily access data within the HDF5 files. To access and contribute to the HETDEX_API, the code library may be installed from github in a working directory on TACC by executing:
 
 ```
-git clone https://github.com/grzeimann/HETDEX_API.git
+git clone https://github.com/HETDEX/HETDEX_API.git
 ```
 
 ## Description of Code

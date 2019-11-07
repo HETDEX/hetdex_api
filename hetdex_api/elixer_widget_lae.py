@@ -134,8 +134,10 @@ class ElixerWidget():
         if show_selection_buttons:
             # clear_output()
             self.rest_widget_values(objnum)
-            display(widgets.HBox([self.s0_button,self.s1_button,self.s2_button,self.s3_button,
+            display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
+
+            self.sm1_button.on_click(self.sm1_button_click)
             self.s0_button.on_click(self.s0_button_click)
             self.s1_button.on_click(self.s1_button_click)
             self.s2_button.on_click(self.s2_button_click)
@@ -162,7 +164,7 @@ class ElixerWidget():
     def setup_widget(self):
         if self.resume:
             try:
-                i_start = np.max(np.where(self.vis_class != 0)) + 1
+                i_start = np.max(np.where(self.flag != 0)) + 1
 
                 if i_start is None:
                     i_start = 0
@@ -205,6 +207,7 @@ class ElixerWidget():
         # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
         # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
 
+        self.sm1_button = widgets.Button(description='NOT REAL (-1)', button_style='success')
         self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
         self.s1_button = widgets.Button(description='          (1) ', button_style='success')
         self.s2_button = widgets.Button(description='          (2) ', button_style='success')
@@ -274,6 +277,7 @@ class ElixerWidget():
             return
 
         # reset all to base
+        self.sm1_button.icon = ''
         self.s0_button.icon = ''
         self.s1_button.icon = ''
         self.s2_button.icon = ''
@@ -295,6 +299,8 @@ class ElixerWidget():
                 self.s4_button.icon = 'check'
             elif self.vis_class[idx] == 5:
                 self.s5_button.icon = 'check'
+            elif self.vis_class[idx] == -1:
+                self.sm1_button.icon = 'check'
 
 
 
@@ -304,7 +310,9 @@ class ElixerWidget():
     def on_next_click(self, b):
         self.goto_next_detect()
 
-
+    def sm1_button_click(self, b):
+        self.set_classification(-1)
+    
     def s0_button_click(self, b):
         self.set_classification(0)
 
