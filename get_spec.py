@@ -472,7 +472,7 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
     args.ID = ID
     
     if args.ID == None:
-        args.ID = 'DEX_' + str(args.coords.ra.value).zfill(4)+'_'+str(args.coords.dec.value).zfill(4)
+        args.ID = np.arange(1, np.size(args.coords) + 1)
 
     Source_dict = get_spectra_dictionary(args)
 
