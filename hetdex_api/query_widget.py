@@ -169,12 +169,13 @@ class QueryWidget():
     
     def extract_on_click(self, b):
         
-        spec_table = get_spectra(self.marker_tab['coord'], ID=np.arange(1, np.size(self.marker_tab) + 1))
+        spec_table = get_spectra(self.marker_tab['coord'])
 
         with self.spec_output:
             for row in spec_table:
-                plt.figure(figsize=(15,2))
+                plt.figure(figsize=(8,2))
                 plt.plot(row['wavelength'], row['spec'])
                 plt.title('Object ' + '        SHOTID = ' + str(row['shotid']))
                 plt.xlabel('wavelength (A)')
                 plt.ylabel('spec')
+                
