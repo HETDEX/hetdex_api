@@ -21,10 +21,11 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.nddata import NDData
+from astropy.table import Table
 
 from astrowidgets import ImageWidget
 import ipywidgets as widgets
-from ipywidgets import interact, Layout 
+from ipywidgets import interact, Layout, AppLayout 
 
 from hetdex_api.shot import *
 from get_spec import get_spectra
@@ -36,13 +37,13 @@ import catalogs
 
 class QueryWidget():
 
-    def __init__(self, coords=None, survey='hdr1', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin):
+    def __init__(self, coords=None, survey='hdr1', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
 
         self.survey = survey.lower()
 
         self.aperture = aperture
-
         self.cutout_size = cutout_size
+        self.zoom = zoom
 
         self.catlib = catalogs.CatalogLibrary()
 
@@ -53,29 +54,35 @@ class QueryWidget():
 
         #initialize the image widget from astrowidgets
         self.imw = ImageWidget(image_width=400, image_height=400)
-
+        
         self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))        
         self.im_ra = widgets.FloatText(value=self.coords.ra.value, description='RA (deg):', layout=Layout(width='20%'))
         self.im_dec = widgets.FloatText(value=self.coords.dec.value, description='DEC (deg):', layout=Layout(width='20%'))
         self.pan_to_coords = widgets.Button(description="Pan to coords", disabled=False, button_style='success')
         self.marking_button = widgets.Button(description='Mark Sources', button_style='success') 
-        self.marker_table 
-        
+        self.reset_marking_button = widgets.Button(description='Reset', button_style='success')
+        self.extract_button = widgets.Button(description='Extract Object', button_style='success')
+
+        self.marker_table_output = widgets.Output(layout={'border': '1px solid black'})        
+        self.spec_output = widgets.Output(layout={'border': '1px solid black'})
+
         self.textimpath = widgets.Text(description='Source: ', value='', layout=Layout(width='90%'))
 
         self.load_image()
 
+        self.topbox = widgets.HBox([self.survey_widget, self.im_ra, self.im_dec, self.pan_to_coords])
         self.leftbox = widgets.VBox([self.imw, self.textimpath])
+        self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
+                                      self.marker_table_output, self.spec_output])
 
-        self.rightbox = widgets.VBox([self.marking_button, self.marker_table])
-
-        display(widgets.HBox([self.survey_widget, self.im_ra, self.im_dec, self.pan_to_coords]))
+        display(self.topbox)
         display(widgets.HBox([self.leftbox, self.rightbox]))
                 
         self.pan_to_coords.on_click(self.pan_to_coords_click)
 
         self.marking_button.on_click(self.marking_on_click)
-
+        self.reset_marking_button.on_click(self.reset_marking_on_click)
+        self.extract_button.on_click(self.extract_on_click)
 
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
@@ -89,7 +96,6 @@ class QueryWidget():
             
     def load_image(self):
 
-        self.imw.zoom = 3
         im_size = self.cutout_size.to(u.arcsec).value
         mag_aperture = self.aperture.to(u.arcsec).value
 
@@ -112,7 +118,6 @@ class QueryWidget():
             im = NDData( self.cutouts[cutout_index]['cutout'].data, wcs=self.cutouts[cutout_index]['cutout'].wcs)
             self.im_path = self.cutouts[cutout_index]['path']
             self.imw.load_nddata(im)
-
         else:
             try:
                 sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
@@ -124,13 +129,13 @@ class QueryWidget():
             self.im_path = "SDSS Astroquery result"
             self.imw.load_fits(im)
 
+        self.imw.zoom_level = self.zoom
         self.textimpath.value= self.im_path
             
 
     def marking_on_click(self, b):
 
         if self.marking_button.button_style=='success':
-
             self.imw.start_marking(marker={'color': 'red', 'radius': 3, 'type': 'circle'},
                                    marker_name='clicked markers'
                                )
@@ -142,4 +147,34 @@ class QueryWidget():
             self.marking_button.description='Mark Sources'
             self.marking_button.button_style='success'
 
-#        self.marker_tab 
+            self.marker_tab = self.imw.get_markers(marker_name='clicked markers')
+            
+            with self.marker_table_output:
+                print('{:^5s} {:^8s} {:^8s} {:^28s}'.format('OBJECT', 'X', 'Y', 'Coordinates'))
+                
+                for index, row in enumerate(self.marker_tab):
+                    c = row['coord'].to_string('hmsdms')
+                    
+                    print('{:^5s} {:8.2f} {:8.2f} {}'.format(
+                        str(index+1), row['x'], row['y'], c))
+                    
+
+    def reset_marking_on_click(self, b):
+
+        self.marking_button.button_style='success'
+        self.marking_button.description='Mark Sources'
+        self.marker_table_output.clear_output()
+        self.imw.reset_markers()
+
+    
+    def extract_on_click(self, b):
+        
+        spec_table = get_spectra(self.marker_tab['coord'], ID=np.arange(1, np.size(self.marker_tab) + 1))
+
+        with self.spec_output:
+            for row in spec_table:
+                plt.figure(figsize=(15,2))
+                plt.plot(row['wavelength'], row['spec'])
+                plt.title('Object ' + '        SHOTID = ' + str(row['shotid']))
+                plt.xlabel('wavelength (A)')
+                plt.ylabel('spec')
