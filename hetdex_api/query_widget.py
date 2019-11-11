@@ -71,10 +71,10 @@ class QueryWidget():
         self.load_image()
 
         self.topbox = widgets.HBox([self.survey_widget, self.im_ra, self.im_dec, self.pan_to_coords])
-        self.leftbox = widgets.VBox([self.imw, self.textimpath])
+        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='45%'))
         self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
-                                      self.marker_table_output, self.spec_output])
-
+                                      self.marker_table_output, self.spec_output], layout=Layout(width='55%'))
+        
         display(self.topbox)
         display(widgets.HBox([self.leftbox, self.rightbox]))
                 
@@ -173,9 +173,10 @@ class QueryWidget():
 
         with self.spec_output:
             for row in spec_table:
-                plt.figure(figsize=(8,2))
+                fig, ax = plt.subplots(figsize=(8,2))
                 plt.plot(row['wavelength'], row['spec'])
                 plt.title('Object ' + '        SHOTID = ' + str(row['shotid']))
                 plt.xlabel('wavelength (A)')
-                plt.ylabel('spec')
+                plt.ylabel('spec (1e-17 ergs/s/cm^2/AA)')
                 
+            display(fig)
