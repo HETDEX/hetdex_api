@@ -43,29 +43,28 @@ class QueryWidget():
 
         self.survey = survey.lower()
 
+        self.detectid=detectid
         self.aperture = aperture
         self.cutout_size = cutout_size
         self.zoom = zoom
 
+        self.fileh5dets = tb.open_file(config.detecth5)
         self.catlib = catalogs.CatalogLibrary()
 
         if coords:
             self.coords = coords
-        else:
-            self.coords = SkyCoord(202.632278 * u.deg, 51.215137 * u.deg, frame='icrs')
-            
-        self.fileh5dets = tb.open_file(config.detecth5)
-            
-        if detectid:
+            self.detectid = 1000000000
+        elif detectid:
             self.detectid = detectid
             self.update_det_coords()
         else:
+            self.coords = SkyCoord(202.632278 * u.deg, 51.215137 * u.deg, frame='icrs')
             self.detectid = 1000117061
 
         #initialize the image widget from astrowidgets
         self.imw = ImageWidget(image_width=400, image_height=400)
         
-        self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))        
+        self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))
         self.detectbox = widgets.BoundedIntText(value=self.detectid,
                                                 min=1000000000,
                                                 max=1000690799,
@@ -75,6 +74,7 @@ class QueryWidget():
                                             )
         self.im_ra = widgets.FloatText(value=self.coords.ra.value, description='RA (deg):', layout=Layout(width='20%'))
         self.im_dec = widgets.FloatText(value=self.coords.dec.value, description='DEC (deg):', layout=Layout(width='20%'))
+        
         self.pan_to_coords = widgets.Button(description="Pan to coords", disabled=False, button_style='success')
         self.marking_button = widgets.Button(description='Mark Sources', button_style='success') 
         self.reset_marking_button = widgets.Button(description='Reset', button_style='success')
@@ -84,7 +84,7 @@ class QueryWidget():
         self.spec_output = widgets.Output(layout={'border': '1px solid black'})
 
         self.textimpath = widgets.Text(description='Source: ', value='', layout=Layout(width='90%'))
-
+    
         self.load_image()
 
         self.topbox = widgets.HBox([self.survey_widget, self.detectbox, self.im_ra, self.im_dec, self.pan_to_coords])
@@ -94,8 +94,8 @@ class QueryWidget():
         
         display(self.topbox)
         display(widgets.HBox([self.leftbox, self.rightbox]))
-                
-        self.detectbox.observe(self.update_det_coords)
+
+        self.detectbox.observe(self.on_det_change)
         self.pan_to_coords.on_click(self.pan_to_coords_click)
         self.marking_button.on_click(self.marking_on_click)
         self.reset_marking_button.on_click(self.reset_marking_on_click)
@@ -104,12 +104,16 @@ class QueryWidget():
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
-    def update_det_coords(self, b):
-        detectid_i = self.detectbox.value
+    def on_det_change(self, b):
+        self.detectid = self.detectbox.value
+        self.update_det_coords()
+        self.im_ra.value = self.coords.ra.value
+        self.im_dec.value = self.coords.dec.value
+
+    def update_det_coords(self):
+        detectid_i = self.detectid
         det_row = self.fileh5dets.root.Detections.read_where('detectid == detectid_i')
-        self.im_ra.value = det_row['ra']
-        self.im_dec.value = det_row['dec']
-        self.update_coords()
+        self.coords = SkyCoord(det_row['ra'][0] * u.deg, det_row['dec'][0] * u.deg)
             
     def pan_to_coords_click(self, b):
         self.update_coords()
@@ -142,6 +146,7 @@ class QueryWidget():
             im = NDData( self.cutouts[cutout_index]['cutout'].data, wcs=self.cutouts[cutout_index]['cutout'].wcs)
             self.im_path = self.cutouts[cutout_index]['path']
             self.imw.load_nddata(im)
+
         else:
             try:
                 sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
@@ -153,6 +158,7 @@ class QueryWidget():
             self.im_path = "SDSS Astroquery result"
             self.imw.load_fits(im)
 
+        self.imw.center_on(self.coords)
         self.imw.zoom_level = self.zoom
         self.textimpath.value= self.im_path
             
