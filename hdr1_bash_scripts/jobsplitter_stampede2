@@ -19,7 +19,7 @@
 #requires template.slurm, this will be copied over from hdr1 for now
 #
 
-cp /work/03946/hetdex/hdr1/software/HETDEX_API/hdr1_bash_scripts/template.slurm template.slurm
+cp /work/05350/ecooper/stampede2/HETDEX_API/hdr1_bash_scripts/template.slurm template.slurm
 
 #argument checking:
 

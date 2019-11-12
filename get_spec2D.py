@@ -7,12 +7,13 @@ Extracts 2D spectral image for a specific detection
 
 You can specify the size in pixels..more options to come
 
-python get_2D_spec.py -det 1000572696 -dx 40 -dy 100
+python3 /work/05350/ecooper/stampede2/HETDEX_API/get_spec2D.py -dets hdr1_sngt6pt5_for.tab -dx 32 -dy 9 --h5file -s 20190208035
 
 """
 
 from __future__ import print_function
 
+import sys
 import glob
 import re
 
@@ -35,14 +36,17 @@ from input_utils import setup_logging
 from hetdex_api.shot import *
 from hetdex_api.detections import *
 
-
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
     
     fiber_table = Table(detects.hdfile.root.Fibers.read_where("detectid == detectid_obj") )
     
+    fsort = fiber_table.argsort(keys='weight', reverse=True)
+    
+    fiber_table = fiber_table[fsort]
+
     weight_total = np.sum(fiber_table['weight'])
 
-    #open blank image to store summed image
+    # open blank image to store summed image and 4 brightest fibers
     im_sum = np.zeros((height, width))
 
     for fiber_i in fiber_table:
@@ -53,8 +57,35 @@ def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
         weight = fiber_i['weight']/weight_total
         im_fib = fibers.get_fib_image2D(wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=width, height=height)
         im_sum += weight * im_fib
-        
+
     return im_sum
+
+
+def get_2Dimage_array(detectid_obj, detects, fibers, width=100, height=50):
+
+    fiber_table = Table(detects.hdfile.root.Fibers.read_where("detectid == detectid_obj") )
+
+    fsort = fiber_table.argsort(keys='weight', reverse=True)
+
+    fiber_table = fiber_table[fsort]
+
+    weight_total = np.sum(fiber_table['weight'])
+
+    # open blank image to store summed image and 4 brightest fibers                                                            
+    nfib = np.size(fiber_table)
+
+    im_arr = np.zeros((4, height, width))
+
+    for i, fiber_i in enumerate(fiber_table[0:4]):
+        wave_obj = fiber_i['wavein']
+        multiframe_obj = fiber_i['multiframe']
+        expnum_obj = fiber_i['expnum']
+        fibnum_obj = fiber_i['fibnum']
+        weight = fiber_i['weight']/weight_total
+        im_fib = fibers.get_fib_image2D(wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=width, height=height)
+        im_arr[i] = im_fib
+
+    return im_arr, fiber_table
 
 def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
     fiber_table = Table(detects.hdfile.root.Fibers.read_where("detectid == detectid_obj") )
@@ -68,7 +99,7 @@ def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
 
     sel = np.where(im_fib >= wave_obj)[0][0]
     x1 = np.maximum(0, sel - int(width/2))
-    x2 = np.minimum(1031, sel + int(width/2))
+    x2 = np.minimum(1032, sel + int(width/2) + (width % 2))
     
     x1_slice = np.minimum(0, width - (x2-x1)) 
     x2_slice = x2-x1
@@ -77,7 +108,6 @@ def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
     im_wave[x1_slice:x2_slice] = im_fib[x1:x2]
     
     return im_wave
-
 
 def save_2Dimage(detectid_i, detects, fibers, width=100, height=20, path=os.getcwd()):
     #try:
@@ -102,7 +132,7 @@ def main(argv=None):
                         help='''ShotID, e.g., 20170321v009, YYYYMMDDvOBS''',
                         type=str, default=None)
     
-    parser.add_argument("-dets" "-detectlist",
+    parser.add_argument("-dets", "--dets",
                         help='''filelist of detectids''', default=None)
 
     parser.add_argument("-ra", "--ra",
@@ -125,35 +155,101 @@ def main(argv=None):
                         help='''delta wavelength in AA''',
                         type=float, default=50.0)
 
-    parser.add_argument("-dx", help='''Width of image in wavelength dim in pix''')
+    parser.add_argument("-dx", "--width", type=int,
+                        help='''Width of image in wavelength dim in pix''')
 
-    parser.add_argument("-dy", help='''Height of fiber image in pixels''')
+    parser.add_argument("-dy", "--height", type=int, 
+                        help='''Height of fiber image in pixels''')
 
     parser.add_argument("-p", "--path", help='''Path to save output''',
                         default=os.getcwd(), type=str)
 
+    parser.add_argument("-i", "--infile",
+                        help='''File with table of ID/RA/DEC''', default=None)
+
+    parser.add_argument("-h5", "--h5file", help='''Store output in an h5 file called SHOTID.h5''',
+                        required=False, action='store_true')
+
+    parser.add_argument("--merge", action='store_true', required=False,
+                        help='''Trigger to merge all im2D_SHOTID.h5 files after slurm job''')
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    # initiate Fibers and Detections Classes
     print(args)
 
+    class Image2D(tb.IsDescription):
+        detectid = tb.Int64Col(pos=0)
+        im_wave = tb.Float32Col(args.width, pos=1)
+        im_sum = tb.Float32Col((args.height, args.width), pos=2)
+        im_array = tb.Float32Col((4, args.height, args.width), pos=3)
+
+    if args.merge:
+        fileh = tb.open_file('merged_im2D.h5', 'w')
+        im2D_table = fileh.create_table(fileh.root, 'Images', Image2D)
+
+        files = sorted(glob.glob('im2D*.h5'))
+        for file in files:
+            fileh_i = tb.open_file(file,'r')
+            im2D_table_i = fileh_i.root.Images.read()
+
+            im2D_table.append(im2D_table_i)
+
+            fileh_i.close()
+        
+        im2D_table.flush()
+        fileh.close()
+        sys.exit('Merged h5 files in current directory. Exiting')
+        
     shotid_i = args.datevobs
 
     detects = Detections('hdr1').refine()
 
     print("opening shot: "+str(shotid_i))
     fibers = Fibers(args.datevobs)
-
-    #find detectids to extract
-    catalog = Table.read('/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab', format='ascii')
-    selcat = (catalog['shotid'] == int(shotid_i)) 
     
-    detectlist = np.array(catalog['detectid'][selcat])
+    if args.infile:
+        try:
+            catalog = Table.read(args.infile, format=ascii)
+        except:
+            catalog = Table.read('/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab', format='ascii')
+            
+        selcat = (catalog['shotid'] == int(shotid_i))     
+        detectlist = np.array(catalog['detectid'][selcat])
 
-    for detectid_i in detectlist:
-        print(detectid_i)
-        save_2Dimage(detectid_i, detects, fibers, width=100, height=20, path=args.path)
+    elif args.dets:
+        try:
+            catalog = Table.read(args.dets, format='ascii')
+            selcat = (catalog['shotid'] == int(shotid_i))
+            detectlist = np.array(catalog['detectid'][selcat])
+        except:
+            detectlist = np.loadtxt(args.dets, dtype=int)
+
+    if args.h5file:
+
+        fileh = tb.open_file('im2D_' + str(args.datevobs)+ '.h5', 'w')
+
+        im2D_table = fileh.create_table(fileh.root, 'Images', Image2D)
+        
+        for detectid_i in detectlist:
+            print(detectid_i)
+            # add data to HDF5 file
+            row = im2D_table.row
+            row['detectid'] = detectid_i
+            row['im_wave'] = get_2Dimage_wave(detectid_i, detects, fibers, width=args.width, height=args.height)
+            row['im_sum'] = get_2Dimage(detectid_i, detects, fibers, width=args.width, height=args.height)
+            im_arr, fiber_table = get_2Dimage_array(detectid_i, detects, fibers, width=args.width, height=args.height)
+            row['im_array'] = im_arr
+            row.append()
+            
+        im2D_table.flush()
+            
+        fileh.close()
+
+    else:
+        for detectid_i in detectlist:
+            print(detectid_i)      
+            save_2Dimage(detectid_i, detects, fibers, width=args.width, height=args.height, path=args.path)
             
     if args.ra and args.dec : 
 
@@ -177,6 +273,7 @@ def main(argv=None):
 
     fibers.close()
     
-    
+tb.file._open_files.close_all() 
+   
 if __name__ == '__main__':
     main()

@@ -36,7 +36,7 @@ pip install --user /work/03946/hetdex/hdr1/software/HETDEX_API
 Option 2: clone the GitHub HETDEX_API to somewhere on ``/work`` (Not necessary if you are pip installing from HDR1/software/HETDEX_API)
 
 ```
-git clone https://github.com/grzeimann/HETDEX_API.git
+git clone https://github.com/HETDEX/HETDEX_API.git
 ```
 
 Go into the HETDEX_API directory and install with pip. This will install the API & dependencies NOT including the ELiXer API.
