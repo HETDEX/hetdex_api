@@ -81,19 +81,24 @@ class QueryWidget():
         self.extract_button = widgets.Button(description='Extract Object', button_style='success')
 
         self.marker_table_output = widgets.Output(layout={'border': '1px solid black'})        
-        self.spec_output = widgets.Output(layout={'border': '1px solid black'})
+        #        self.spec_output = widgets.Output(layout={'border': '1px solid black'})
 
+        self.spec_output = widgets.Tab(description='Extracted Spectra:', layout={'border': '1px solid black'})
         self.textimpath = widgets.Text(description='Source: ', value='', layout=Layout(width='90%'))
     
-        self.load_image()
 
         self.topbox = widgets.HBox([self.survey_widget, self.detectbox, self.im_ra, self.im_dec, self.pan_to_coords])
         self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='45%'))
         self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
                                       self.marker_table_output, self.spec_output], layout=Layout(width='55%'))
-        
+
+        self.bottombox = widgets.Output(layout={'border': '1px solid black'})
+
+        self.load_image()
+
         display(self.topbox)
         display(widgets.HBox([self.leftbox, self.rightbox]))
+        display(self.bottombox)
 
         self.detectbox.observe(self.on_det_change)
         self.pan_to_coords.on_click(self.pan_to_coords_click)
@@ -126,8 +131,8 @@ class QueryWidget():
 
         im_size = self.cutout_size.to(u.arcsec).value
         mag_aperture = self.aperture.to(u.arcsec).value
-
-        self.cutouts = self.catlib.get_cutouts(position=self.coords, radius=im_size, aperture=mag_aperture, dynamic=False)
+        with self.bottombox:
+            self.cutouts = self.catlib.get_cutouts(position=self.coords, radius=im_size, aperture=mag_aperture, dynamic=False)
         
         # keep original coords of image for bounds checking later
         self.orig_coords = self.coords
@@ -166,6 +171,8 @@ class QueryWidget():
     def marking_on_click(self, b):
 
         if self.marking_button.button_style=='success':
+            self.marker_table_output.clear_output()
+            self.imw.reset_markers()
             self.imw.start_marking(marker={'color': 'red', 'radius': 3, 'type': 'circle'},
                                    marker_name='clicked markers'
                                )
@@ -195,18 +202,38 @@ class QueryWidget():
         self.marking_button.description='Mark Sources'
         self.marker_table_output.clear_output()
         self.imw.reset_markers()
+        self.spec_output.children = []
+        self.bottombox.clear_output()
 
-    
     def extract_on_click(self, b):
-        
-        spec_table = get_spectra(self.marker_tab['coord'])
+        self.bottombox.clear_output()
 
-        with self.spec_output:
-            for row in spec_table:
-                fig, ax = plt.subplots(figsize=(8,2))
-                plt.plot(row['wavelength'], row['spec'])
-                plt.title('Object ' + '        SHOTID = ' + str(row['shotid']))
-                plt.xlabel('wavelength (A)')
-                plt.ylabel('spec (1e-17 ergs/s/cm^2/AA)')
-                
-            display(fig)
+        with self.bottombox:            
+            self.spec_table = get_spectra(self.marker_tab['coord'])
+
+        # set up tabs for plotting
+        ID_list = np.unique(self.spec_table['ID'])
+
+        self.out_widgets = []
+
+        for i, obj in enumerate(ID_list):
+            self.out_widgets.append(widgets.Output(description=obj))
+        
+        self.spec_output.children = self.out_widgets
+
+        for i, obj in enumerate(ID_list):
+            self.spec_output.set_title(i, 'Obj='+str(obj))
+            with self.out_widgets[i]:
+                self.plot_spec(obj)
+            
+    def plot_spec(self, obj):
+        
+        selobj =  self.spec_table['ID'] == obj
+
+        for row in self.spec_table[selobj]:
+            fig, ax = plt.subplots(figsize=(8,2))
+            ax.plot(row['wavelength'], row['spec'])
+            ax.set_title('Object ' + str(row['ID']) + '       SHOTID = ' + str(row['shotid']))
+            ax.set_xlabel('wavelength (A)')
+            ax.set_ylabel('spec (1e-17 ergs/s/cm^2/A)')                
+            plt.show(fig)
