@@ -489,6 +489,6 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
 
     output = return_astropy_table(Source_dict)
 
-    print('Retrieved spectra from ' + str(np.size(output)) + ' shots.')
+    args.log.info('Retrieved ' + str(np.size(output)) + ' spectra.')
    
     return output
