@@ -66,6 +66,7 @@ import tables
 import numpy as np
 import pickle
 import warnings
+import logging
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
@@ -393,7 +394,7 @@ def main(argv=None):
 
     else:
         if args.ID == None:
-            args.ID = 'DEX_' + str(args.ra).zfill(4)+'_'+str(args.dec).zfill(4)
+            args.ID = str(np.arange(1, np.size(table_in) + 1)).zfill(9)
 
         args.log.info('Extracting for ID: %s' % args.ID)
 
@@ -402,7 +403,7 @@ def main(argv=None):
     try:
         args.coords = SkyCoord(args.ra, args.dec)
     except:
-        args.coords = SkyCoord(args.ra*u.deg, args.dec*u.deg)
+        args.coords = SkyCoord(args.ra, args.dec, unit=(u.hourangle, u.deg))
 
     args.survey = Survey('hdr1')
 
@@ -461,7 +462,7 @@ if __name__ == '__main__':
 
 
 def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
-
+    
     args = types.SimpleNamespace()
 
     args.multiprocess = multiprocess
@@ -469,10 +470,18 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
     args.rad = rad
     args.survey = Survey('hdr1')
     args.log = setup_logging()
+    
+    args.log.setLevel(logging.INFO)
+
     args.ID = ID
     
+    nobj = np.size(args.coords)
+
     if args.ID == None:
-        args.ID = np.arange(1, np.size(args.coords) + 1)
+        if nobj > 1:
+            args.ID = np.arange(1, nobj + 1)
+        else:
+            args.ID=1
 
     Source_dict = get_spectra_dictionary(args)
 
@@ -480,6 +489,6 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
 
     output = return_astropy_table(Source_dict)
 
-    print('Retrieved spectra from ' + str(np.size(output)) + ' shots.')
+    args.log.info('Retrieved ' + str(np.size(output)) + ' spectra.')
    
     return output
