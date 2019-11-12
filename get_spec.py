@@ -478,7 +478,10 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
     nobj = np.size(args.coords)
 
     if args.ID == None:
-        args.ID = np.arange(1, nobj + 1)
+        if nobj > 1:
+            args.ID = np.arange(1, nobj + 1)
+        else:
+            args.ID=1
 
     Source_dict = get_spectra_dictionary(args)
 
