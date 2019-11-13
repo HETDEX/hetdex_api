@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import os.path as op
 
 from astropy.wcs import WCS
+from astropy.wcs.utils import skycoord_to_pixel
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
@@ -123,44 +124,49 @@ class QueryWidget():
             
     def pan_to_coords_click(self, b):
         self.update_coords()
-        if self.coords.separation(self.orig_coords) < self.cutout_size/2.:
-            self.imw.center_on(self.coords)
+        
+        x,y = skycoord_to_pixel(self.coords, self.cutout['cutout'].wcs)
+        if (x > 0) and ( y > 0):
+            try:
+                value = self.cutout['cutout'].data[int(x),int(y)]
+                self.imw.center_on(self.coords)
+            except:
+                self.load_image()
         else:
-            self.load_image()
+                self.load_image()
             
     def load_image(self):
 
         im_size = self.cutout_size.to(u.arcsec).value
         mag_aperture = self.aperture.to(u.arcsec).value
-        with self.bottombox:
-            
-            self.cutout = self.catlib.get_cutouts(position=self.coords, radius=im_size, 
-                                                  aperture=mag_aperture, dynamic=False,
-                                                  filter=['r','g','f606W'], first=True)[0]
         
-        # keep original coords of image for bounds checking later
+        # keep original coords of image for bounds checking later                                                      
         self.orig_coords = self.coords
-        
-        if self.cutout:
 
-            im = NDData( self.cutout['cutout'].data, wcs=self.cutout['cutout'].wcs)
-            self.im_path = self.cutout['path']
-            self.imw.load_nddata(im)
-
-        else:
+        with self.bottombox:
             try:
-                sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
-                im = sdss_im[0][0]
-            except:
-                sdss_im = SDSS.get_images(coordinates=self.coords, band='g', radius=30.*u.arcsec)
-                im = sdss_im[0][0]
-            
-            self.im_path = "SDSS Astroquery result"
-            self.imw.load_fits(im)
+                self.cutout = self.catlib.get_cutouts(position=self.coords, radius=im_size, 
+                                                      aperture=mag_aperture, dynamic=False,
+                                                      filter=['r','g','f606W'], first=True)[0]
 
-        self.imw.center_on(self.coords)
-        self.imw.zoom_level = self.zoom
-        self.textimpath.value= self.im_path
+                im = NDData( self.cutout['cutout'].data, wcs=self.cutout['cutout'].wcs)
+                self.im_path = self.cutout['path']
+                self.imw.load_nddata(im)
+
+            except:
+                try:
+                    sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
+                    im = sdss_im[0][0]
+                except:
+                    sdss_im = SDSS.get_images(coordinates=self.coords, band='g', radius=30.*u.arcsec)
+                    im = sdss_im[0][0]
+            
+                self.im_path = "SDSS Astroquery result"
+                self.imw.load_fits(im)
+
+            self.imw.center_on(self.coords)
+            self.imw.zoom_level = self.zoom
+            self.textimpath.value= self.im_path
             
 
     def marking_on_click(self, b):
