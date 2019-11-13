@@ -33,7 +33,8 @@ from get_spec import get_spectra
 
 from astroquery.sdss import SDSS
 
-sys.path.append('/work/03946/hetdex/hdr1/software/elixer')
+#sys.path.append('/work/03946/hetdex/hdr1/software/elixer')
+sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
 
 import catalogs
 
@@ -88,9 +89,9 @@ class QueryWidget():
     
 
         self.topbox = widgets.HBox([self.survey_widget, self.detectbox, self.im_ra, self.im_dec, self.pan_to_coords])
-        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='45%'))
+        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='600px'))
         self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
-                                      self.marker_table_output, self.spec_output], layout=Layout(width='55%'))
+                                      self.marker_table_output, self.spec_output], layout=Layout(width='600px'))
 
         self.bottombox = widgets.Output(layout={'border': '1px solid black'})
 
@@ -122,7 +123,7 @@ class QueryWidget():
             
     def pan_to_coords_click(self, b):
         self.update_coords()
-        if self.coords.separation(self.orig_coords) < self.cutout_size:
+        if self.coords.separation(self.orig_coords) < self.cutout_size/2.:
             self.imw.center_on(self.coords)
         else:
             self.load_image()
@@ -132,24 +133,18 @@ class QueryWidget():
         im_size = self.cutout_size.to(u.arcsec).value
         mag_aperture = self.aperture.to(u.arcsec).value
         with self.bottombox:
-            self.cutouts = self.catlib.get_cutouts(position=self.coords, radius=im_size, aperture=mag_aperture, dynamic=False)
+            
+            self.cutout = self.catlib.get_cutouts(position=self.coords, radius=im_size, 
+                                                  aperture=mag_aperture, dynamic=False,
+                                                  filter=['r','g','f606W'], first=True)[0]
         
         # keep original coords of image for bounds checking later
         self.orig_coords = self.coords
+        
+        if self.cutout:
 
-        cutout_index = -1
-
-        for index in np.arange(0, np.size(self.cutouts)):
-            if self.cutouts[index]['filter'] == 'g':
-                cutout_index = index
-                break
-            else:
-                cutout_index = 0
-
-        if cutout_index >= 0:    
-
-            im = NDData( self.cutouts[cutout_index]['cutout'].data, wcs=self.cutouts[cutout_index]['cutout'].wcs)
-            self.im_path = self.cutouts[cutout_index]['path']
+            im = NDData( self.cutout['cutout'].data, wcs=self.cutout['cutout'].wcs)
+            self.im_path = self.cutout['path']
             self.imw.load_nddata(im)
 
         else:
