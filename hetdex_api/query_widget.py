@@ -145,7 +145,7 @@ class QueryWidget():
 
         with self.bottombox:
             try:
-                self.cutout = self.catlib.get_cutouts(position=self.coords, radius=im_size, 
+                self.cutout = self.catlib.get_cutouts(position=self.coords, side=im_size, 
                                                       aperture=mag_aperture, dynamic=False,
                                                       filter=['r','g','f606W'], first=True)[0]
 
