@@ -236,6 +236,7 @@ def get_spectra_dictionary(args):
         sep_constraint = dist < max_sep
         shotid = args.survey.shotid[i]
         idx = np.where(sep_constraint)[0]
+
         if np.size(idx) > 0:
             args.matched_sources[shotid] = idx
             count += np.size(idx)
@@ -394,16 +395,19 @@ def main(argv=None):
 
     else:
         if args.ID == None:
-            args.ID = str(np.arange(1, np.size(table_in) + 1)).zfill(9)
-
+            if np.size(args.ra) > 1:
+                args.ID = str(np.arange(1, np.size(table_in) + 1)).zfill(9)
+            else:
+                args.ID = 1
+                
         args.log.info('Extracting for ID: %s' % args.ID)
 
     #generate astropy coordinates object for searching
-
-    try:
-        args.coords = SkyCoord(args.ra, args.dec)
-    except:
+    
+    if re.search(':', str(args.ra)):
         args.coords = SkyCoord(args.ra, args.dec, unit=(u.hourangle, u.deg))
+    else:
+        args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
 
     args.survey = Survey('hdr1')
 
@@ -422,7 +426,7 @@ def main(argv=None):
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
-
+    
     args.survey.close()
 
     outfile = args.outfile+'.pkl'
