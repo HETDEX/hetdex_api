@@ -274,7 +274,7 @@ class Fibers:
         
         return table
 
-def get_fibers_table(shot, coords, radius):
+def get_fibers_table(shot, coords, radius, astropy=True):
     """
     Returns fiber specta for defined aperture
 
@@ -282,6 +282,8 @@ def get_fibers_table(shot, coords, radius):
     coords - astropy coordinate object
     radius - an astropy quantity object
     or radius in degrees
+
+    astropy - flag to make it an astropy table
 
     """
     fileh = open_shot_file(shot)
@@ -308,14 +310,15 @@ def get_fibers_table(shot, coords, radius):
     if any(ra_table):
         coords_table = SkyCoord(ra_table['ra']*u.deg, ra_table['dec']*u.deg, frame='icrs')
         idx = coords.separation(coords_table) < rad
-        print(idx)
         fibers_table = ra_table[idx]
+
+        if astropy:
+            fibers_table = Table(fibers_table)
     else:
         fibers_table = None
 
     fileh.close()
     return fibers_table
-
 
 def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image'):
     """
@@ -341,8 +344,6 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
     im0 = fibers.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
 
     return im0[imtype][0][x-int(width/2):x+int(width/2), y-int(height/2):y+int(height/2)]
-
-
 
 def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """
