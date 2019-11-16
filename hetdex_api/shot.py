@@ -26,7 +26,7 @@ from hetdex_api import config
 
 path_data = config.data_dir
 
-def open_shot_file(shot):
+def open_shot_file(shot, survey='hdr1'):
     """
     get the file for a shot. This is a
     global function. It basically just
@@ -38,6 +38,10 @@ def open_shot_file(shot):
           shotid (eg. 20180123009) or
           string datevobs (eg. 20180123v009)
 
+    survey : string
+            Data release you would like to load, i.e., 'HDR1', 'hdr2'
+            This is case insensitive.
+
     Example:
 
     fileh = open_shot_file(20180123009)
@@ -45,6 +49,14 @@ def open_shot_file(shot):
 
 
     """
+    
+    survey_options = {'hdr1': config.data_dir,
+                      'hdr2': config.data_dir}
+
+    if survey.lower() not in survey_options:
+        print('survey not in survey options')
+        print(survey_options)
+        return None
 
     if re.search('v', str(shot)):
         file = op.join(path_data, str(shot)+'.h5')
@@ -56,7 +68,7 @@ def open_shot_file(shot):
 
 
 class Fibers:
-    def __init__(self, shot):
+    def __init__(self, shot, survey='hdr1'):
         '''
         Initialize Fibers Class
 
@@ -69,6 +81,13 @@ class Fibers:
         an array of rectified wavelengths corresponding the the
         'calfib', 'calfibe', 'Amp2Amp', and 'Throughput' datasets
 
+        Input
+        
+        shot: either in the form of integer
+              shotid (eg. 20180123009) or
+              string datevobs (eg. 20180123v009)
+        survey : Data release you would like to load, i.e., 'HDR1', 'hdr2'
+                 This is case insensitive.
         '''
 
         self.hdfile = open_shot_file(shot)
@@ -274,7 +293,7 @@ class Fibers:
         
         return table
 
-def get_fibers_table(shot, coords, radius):
+def get_fibers_table(shot, coords, radius, survey='hdr1', astropy=True):
     """
     Returns fiber specta for defined aperture
 
@@ -283,19 +302,48 @@ def get_fibers_table(shot, coords, radius):
     radius - an astropy quantity object
     or radius in degrees
 
+    astropy - flag to make it an astropy table
+
     """
+
     fileh = open_shot_file(shot)
     fibers = fileh.root.Data.Fibers
-    ra_in = coords.ra.deg
-    dec_in = coords.dec.deg
-    rad = radius.degree
+    try:
+        ra_in = coords.ra.degree
+        dec_in = coords.dec.degree
+    except:
+        print("Coords argument must be an astropy coordinates object")
+        
+    try:
+        rad_in = radius.to(u.degree)
+        rad = radius
+    except:
+        print('Assuming radius in arcsec')
+        rad_in = radius/3600.
+        rad  = radius * u.arcsec
+        pass
+        
+    #search first along ra 
 
-    fibers_table = fibers.read_where("sqrt((ra - ra_in)**2 + (dec - dec_in)**2) < rad")
+    ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+
+    if any(ra_table):
+        coords_table = SkyCoord(ra_table['ra']*u.deg, ra_table['dec']*u.deg, frame='icrs')
+        idx = coords.separation(coords_table) < rad
+        fibers_table = ra_table[idx]
+
+        if survey == 'hdr1':
+            fibers_table['calfib'] = fibers_table['calfib']/ 2.
+            fibers_table['calfibe'] = fibers_table['calfibe']/ 2.
+        if astropy:
+            fibers_table = Table(fibers_table)
+    else:
+        fibers_table = None
+
     fileh.close()
     return fibers_table
 
-
-def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image'):
+def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image', survey='hdr1'):
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
@@ -319,8 +367,6 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
     im0 = fibers.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
 
     return im0[imtype][0][x-int(width/2):x+int(width/2), y-int(height/2):y+int(height/2)]
-
-
 
 def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
     """

@@ -148,7 +148,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         args.log.info('Working on shot: %s' % shotid)
         fwhm = args.survey.fwhm_moffat[ args.survey.shotid == shotid ][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
-        E.load_shot(shotid)
+        E.load_shot(shotid, fibers=False)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
@@ -178,7 +178,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         source_dict[args.ID] = manager.dict()
                         source_dict[args.ID][shotid] = [spectrum_aper, spectrum_aper_error, weights.sum(axis=0)]
 
-        E.fibers.close()
+        E.shoth5.close()
 
 def return_astropy_table(Source_dict):
     '''Returns an astropy table fom a source dictionary'''
