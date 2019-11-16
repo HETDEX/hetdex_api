@@ -13,7 +13,7 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
-from hetdex_api.shot import Fibers
+from hetdex_api.shot import *
 import imp
 
 input_utils = imp.load_source('input_utils',
@@ -74,7 +74,7 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, dither_pattern=None):
+    def load_shot(self, shot_input, dither_pattern=None, fibers=True):
         '''
         Load fiber info from hdf5 for given shot_input
         
@@ -84,7 +84,14 @@ class Extract:
             e.g., 20190208v024 or 20190208024
         '''
         self.shot = shot_input
-        self.fibers = Fibers(self.shot)
+        
+        if fibers:
+            self.fibers = Fibers(self.shot)
+            self.shoth5 = self.fibers.hdfile
+        else:
+            self.fibers = None
+            self.shoth5 = open_shot_file(self.shot)
+            
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
         
@@ -147,23 +154,45 @@ class Extract:
         mask: numpy 2d array (number of fibers by wavelength dimension)
             Mask of good values for each fiber and wavelength
         '''
-        idx = self.fibers.query_region_idx(coord, radius=radius/3600.)
-        fiber_lower_limit = 5
-        if len(idx) < fiber_lower_limit:
-            self.log.warning('Not enough fibers found within radius to do'
-                             ' an extraction')
+
+        if self.fibers:
+            idx = self.fibers.query_region_idx(coord, radius=radius/3600.)
+            fiber_lower_limit = 5
+            if len(idx) < fiber_lower_limit:
+                self.log.warning('Not enough fibers found within radius to do'
+                                 ' an extraction')
             return None
-        ifux = self.fibers.table.read_coordinates(idx, 'ifux')
-        ifuy = self.fibers.table.read_coordinates(idx, 'ifuy')
-        ra = self.fibers.table.read_coordinates(idx, 'ra')
-        dec = self.fibers.table.read_coordinates(idx, 'dec')
-        spec = self.fibers.table.read_coordinates(idx, 'calfib') / 2.
-        spece = self.fibers.table.read_coordinates(idx, 'calfibe') / 2.
-        ftf = self.fibers.table.read_coordinates(idx, 'fiber_to_fiber')
-        mask = self.fibers.table.read_coordinates(idx, 'Amp2Amp')
-        mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
-        expn = np.array(self.fibers.table.read_coordinates(idx, 'expnum'),
-                        dtype=int)
+
+            ifux = self.fibers.table.read_coordinates(idx, 'ifux')
+            ifuy = self.fibers.table.read_coordinates(idx, 'ifuy')
+            ra = self.fibers.table.read_coordinates(idx, 'ra')
+            dec = self.fibers.table.read_coordinates(idx, 'dec')
+            spec = self.fibers.table.read_coordinates(idx, 'calfib') / 2.
+            spece = self.fibers.table.read_coordinates(idx, 'calfibe') / 2.
+            ftf = self.fibers.table.read_coordinates(idx, 'fiber_to_fiber')
+            mask = self.fibers.table.read_coordinates(idx, 'Amp2Amp')
+            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            expn = np.array(self.fibers.table.read_coordinates(idx, 'expnum'),
+                            dtype=int)
+        else:
+            fib_table = get_fibers_table(self.shot, coord, radius = radius*u.arcsec)
+            fiber_lower_limit = 5
+            if np.size(fib_table) < fiber_lower_limit:
+                self.log.warning('Not enough fibers found within radius to do'
+                                 ' an extraction')
+                return None
+        
+            ifux = fib_table['ifux']
+            ifuy = fib_table['ifuy']
+            ra = fib_table['ra']
+            dec = fib_table['dec']
+            spec = fib_table['calfib']
+            spece = fib_table['calfibe']
+            ftf = fib_table['fiber_to_fiber']
+            mask = fib_table['Amp2Amp']
+            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            expn = np.array(fib_table['expnum'], dtype=int)
+            
         ifux[:] = ifux + self.dither_pattern[expn-1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn-1, 1]
         xc, yc = self.convert_radec_to_ifux_ifuy(ifux, ifuy, ra, dec,
@@ -183,13 +212,14 @@ class Extract:
         starid: numpy array (int)
             Object ID from the original catalog of the stars (e.g., SDSS)
         '''
-        if not hasattr(self, 'fibers'):
+        if not hasattr(self, 'shoth5'):
             self.log.warning('Please do load_shot to get star catalog params.')
             return None
-        ras = self.fibers.hdfile.root.Astrometry.StarCatalog.cols.ra_cat[:]
-        decs = self.fibers.hdfile.root.Astrometry.StarCatalog.cols.dec_cat[:]
-        gmag = self.fibers.hdfile.root.Astrometry.StarCatalog.cols.g[:]
-        starid = self.fibers.hdfile.root.Astrometry.StarCatalog.cols.star_ID[:]
+
+        ras = self.shoth5.root.Astrometry.StarCatalog.cols.ra_cat[:]
+        decs = self.shoth5.root.Astrometry.StarCatalog.cols.dec_cat[:]
+        gmag = self.shoth5.root.Astrometry.StarCatalog.cols.g[:]
+        starid = self.shoth5.root.Astrometry.StarCatalog.cols.star_ID[:]
 
         coords = SkyCoord(ras*u.deg, decs*u.deg, frame='fk5')
         return coords, gmag, starid
