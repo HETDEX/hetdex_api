@@ -286,11 +286,33 @@ def get_fibers_table(shot, coords, radius):
     """
     fileh = open_shot_file(shot)
     fibers = fileh.root.Data.Fibers
-    ra_in = coords.ra.deg
-    dec_in = coords.dec.deg
-    rad = radius.degree
+    try:
+        ra_in = coords.ra.degree
+        dec_in = coords.dec.degree
+    except:
+        print("Coords argument must be an astropy coordinates object")
+        
+    try:
+        rad_in = radius.to(u.degree)
+        rad = radius
+    except:
+        print('Assuming radius in arcsec')
+        rad_in = radius/3600.
+        rad  = radius * u.arcsec
+        pass
+        
+    #search first along ra 
 
-    fibers_table = fibers.read_where("sqrt((ra - ra_in)**2 + (dec - dec_in)**2) < rad")
+    ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+
+    if any(ra_table):
+        coords_table = SkyCoord(ra_table['ra']*u.deg, ra_table['dec']*u.deg, frame='icrs')
+        idx = coords.separation(coords_table) < rad
+        print(idx)
+        fibers_table = ra_table[idx]
+    else:
+        fibers_table = None
+
     fileh.close()
     return fibers_table
 
