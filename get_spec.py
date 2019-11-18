@@ -107,13 +107,17 @@ def get_source_spectra(shotid, args):
         args.log.info('Working on shot: %s' % shotid)
         fwhm = args.survey.fwhm_moffat[ args.survey.shotid == shotid ][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
-        E.load_shot(shotid)
-        
+ 
+        if len(args.matched_sources[shotid]) > 6:
+            E.load_shot(shotid, fibers=True)
+        else:
+            E.load_shot(shotid, fibers=False)
+
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
-                info_result = E.get_fiberinfo_for_coord(args.coords[ind], radius=7.)
+                info_result = E.get_fiberinfo_for_coord(args.coords[ind], radius=args.rad)
             else:
-                info_result = E.get_fiberinfo_for_coord(args.coords, radius=7.)
+                info_result = E.get_fiberinfo_for_coord(args.coords, radius=args.rad)
             if info_result is not None:
                 if np.size(args.ID) > 1:
                     args.log.info('Extracting %s' % args.ID[ind])
@@ -137,7 +141,7 @@ def get_source_spectra(shotid, args):
                         source_dict[args.ID] = dict()
                         source_dict[args.ID][shotid] = [spectrum_aper, spectrum_aper_error, weights.sum(axis=0)]
 
-        E.fibers.close()
+        E.shoth5.close()
         return source_dict
 
 
@@ -148,13 +152,17 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         args.log.info('Working on shot: %s' % shotid)
         fwhm = args.survey.fwhm_moffat[ args.survey.shotid == shotid ][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
-        E.load_shot(shotid, fibers=False)
+
+        if len(args.matched_sources[shotid]) > 6:
+            E.load_shot(shotid, fibers=True)
+        else:
+            E.load_shot(shotid, fibers=False)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
-                info_result = E.get_fiberinfo_for_coord(args.coords[ind], radius=7.)
+                info_result = E.get_fiberinfo_for_coord(args.coords[ind], radius=args.rad)
             else:
-                info_result = E.get_fiberinfo_for_coord(args.coords, radius=7.)
+                info_result = E.get_fiberinfo_for_coord(args.coords, radius=args.rad)
             if info_result is not None:
                 if np.size(args.ID) > 1:
                     args.log.info('Extracting %s' % args.ID[ind])
@@ -227,7 +235,7 @@ def get_spectra_dictionary(args):
     count = 0
 
     # this radius applies to the inital shot search and requires a large aperture for the wide FOV of VIRUS               
-    max_sep = 11.0 * u.arcminute
+    max_sep = 11.0 * u.arcmin
 
     args.log.info('Finding shots of interest')
 
@@ -238,6 +246,7 @@ def get_spectra_dictionary(args):
         idx = np.where(sep_constraint)[0]
 
         if np.size(idx) > 0:
+
             args.matched_sources[shotid] = idx
             count += np.size(idx)
             if len(idx) > 0:
@@ -255,7 +264,7 @@ def get_spectra_dictionary(args):
         njobs = np.size(shots_of_interest)
 
         ntasks = 32
-
+        
         for i in np.arange(0, njobs, ntasks):
             jobs = [ Process(target=get_source_spectra_mp, args=(Sources, shotid, manager, args))
                      for shotid in shots_of_interest[i: np.minimum(njobs, i+ntasks)]
