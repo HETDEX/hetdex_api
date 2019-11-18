@@ -159,9 +159,7 @@ class Extract:
             idx = self.fibers.query_region_idx(coord, radius=radius/3600.)
             fiber_lower_limit = 5
             if len(idx) < fiber_lower_limit:
-                self.log.warning('Not enough fibers found within radius to do'
-                                 ' an extraction')
-            return None
+                return None
 
             ifux = self.fibers.table.read_coordinates(idx, 'ifux')
             ifuy = self.fibers.table.read_coordinates(idx, 'ifuy')
@@ -178,8 +176,6 @@ class Extract:
             fib_table = get_fibers_table(self.shot, coord, radius = radius*u.arcsec)
             fiber_lower_limit = 5
             if np.size(fib_table) < fiber_lower_limit:
-                self.log.warning('Not enough fibers found within radius to do'
-                                 ' an extraction')
                 return None
         
             ifux = fib_table['ifux']
