@@ -157,7 +157,8 @@ class Extract:
 
         if self.fibers:
             idx = self.fibers.query_region_idx(coord, radius=radius/3600.)
-            fiber_lower_limit = 5
+            fiber_lower_limit = 7
+
             if len(idx) < fiber_lower_limit:
                 return None
 
@@ -174,7 +175,7 @@ class Extract:
                             dtype=int)
         else:
             fib_table = get_fibers_table(self.shot, coord, radius = radius*u.arcsec)
-            fiber_lower_limit = 5
+
             if np.size(fib_table) < fiber_lower_limit:
                 return None
         
