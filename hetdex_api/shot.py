@@ -318,7 +318,6 @@ def get_fibers_table(shot, coords, radius, survey='hdr1', astropy=True):
         rad_in = radius.to(u.degree)
         rad = radius
     except:
-        print('Assuming radius in arcsec')
         rad_in = radius/3600.
         rad  = radius * u.arcsec
         pass
