@@ -155,10 +155,11 @@ class Extract:
             Mask of good values for each fiber and wavelength
         '''
 
-        if self.fibers:
-            idx = self.fibers.query_region_idx(coord, radius=radius/3600.)
-            fiber_lower_limit = 7
+        fiber_lower_limit = 7
 
+        if self.fibers:
+            idx = self.fibers.query_region_idx(coord, radius=radius)
+ 
             if len(idx) < fiber_lower_limit:
                 return None
 
@@ -174,7 +175,7 @@ class Extract:
             expn = np.array(self.fibers.table.read_coordinates(idx, 'expnum'),
                             dtype=int)
         else:
-            fib_table = get_fibers_table(self.shot, coord, radius = radius*u.arcsec)
+            fib_table = get_fibers_table(self.shot, coord, radius = radius)
 
             if np.size(fib_table) < fiber_lower_limit:
                 return None
