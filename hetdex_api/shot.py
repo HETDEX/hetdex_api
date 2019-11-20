@@ -123,16 +123,19 @@ class Fibers:
         return self.table[idx]
 
 
-    def query_region_idx(self, coords, radius=3./3600.):
+    def query_region_idx(self, coords, radius=3.):
         """
         Returns an index for a Fibers class object to
         retrieve all fibers in the defined aperture
 
         self   - Fibers class object
         coords - astropy coordinate object
-        radius - astropy quantity object
+        radius - astropy quantity object or value in arcsec
         """
-        idx = coords.separation(self.coords) < radius * u.degree
+        try:
+            idx = coords.separation(self.coords) < radius
+        except:
+            idx = coords.separation(self.coords) < radius*u.arcsec
         return np.where(idx)[0]
 
 
