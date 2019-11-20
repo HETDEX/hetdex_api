@@ -109,8 +109,10 @@ def get_source_spectra(shotid, args):
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
  
         if len(args.matched_sources[shotid]) > 6:
+            args.log.info('Loading full fibers table')
             E.load_shot(shotid, fibers=True)
         else:
+            args.log.info('Accessing object one by one')
             E.load_shot(shotid, fibers=False)
 
         for ind in args.matched_sources[shotid]:
@@ -154,8 +156,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > 6:
+            args.log.info('Loading full fibers table')
             E.load_shot(shotid, fibers=True)
         else:
+            args.log.info('Accessing object one by one')
             E.load_shot(shotid, fibers=False)
 
         for ind in args.matched_sources[shotid]:
