@@ -58,7 +58,8 @@ class VIRUSFiber(tb.IsDescription):
     contid = tb.StringCol(8)
     amp = tb.StringCol(2)
     expnum = tb.Int32Col()
-
+    chi2 = tb.Float32Col((1032,))
+    rms = tb.Float32Col((1032,))
 
 class VIRUSImage(tb.IsDescription):
     obsind = tb.Int32Col()
@@ -66,6 +67,8 @@ class VIRUSImage(tb.IsDescription):
     image = tb.Float32Col((1032, 1032))
     error = tb.Float32Col((1032, 1032))
     clean_image = tb.Float32Col((1032, 1032))
+    flat = tb.Float32Col((1032,1032))
+    model2d = tb.Float32Col((1032,1032))
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
@@ -113,17 +116,24 @@ def append_shot_to_table(shot, shottable, fn, cnt):
     shot.append()
 
 
-def append_fibers_to_table(fib, im, fn, cnt, T):
+def append_fibers_to_table(fib, im, fn, cnt, T, args):
     F = fits.open(fn)
     idx = fn.find('multi')
     multiframe = fn[idx:idx+20]
     im['multiframe'] = multiframe
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
-    attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-            'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
-            'calfib', 'calfibe','Amp2Amp', 'Throughput']
-    imattr = ['image', 'error', 'clean_image']
+    if args.survey == 'hdr1':
+        attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
+                'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+                'calfib', 'calfibe','Amp2Amp', 'Throughput']
+        imattr = ['image', 'error', 'clean_image']
+    else:
+        attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
+                'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+                'calfib', 'calfibe','Amp2Amp', 'Throughput','chi2','rms']
+        imattr = ['image', 'error', 'clean_image','flat','model2d']
+
     for att in imattr:
         if att == 'image':
             im[att] = F['PRIMARY'].data * 1.
@@ -171,7 +181,11 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         fib['ifuid'] = '%03d' % int(F[0].header['IFUID'])
         fib['specid'] = '%03d' % int(F[0].header['SPECID'])
         fib['contid'] = F[0].header['CONTID']
-        fib['amp'] = '%s' % F[0].header['amp'][:2]
+        try:
+            fib['amp'] = '%s' % F[0].header['amp'][:2]
+        except:
+            fib['amp'] = '%s' % F[0].header['AMPNAME'][:2]
+        
         fib['expnum'] = int(expn[-2:])
         fib.append()
     im['obsind'] = cnt
@@ -179,7 +193,10 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     im['ifuid'] = '%03d' % int(F[0].header['IFUID'])
     im['specid'] = '%03d' % int(F[0].header['SPECID'])
     im['contid'] = F[0].header['CONTID']
-    im['amp'] = '%s' % F[0].header['amp'][:2]
+    try:
+        im['amp'] = '%s' % F[0].header['amp'][:2]
+    except:
+        im['amp'] = '%s' % F[0].header['AMPNAME'][:2]
     im['expnum'] = int(expn[-2:])
     im.append()
     return True
@@ -214,6 +231,9 @@ def main(argv=None):
     parser.add_argument("-dp", "--detect_path",
                         help='''Path to detections''',
                         type=str, default='/work/00115/gebhardt/maverick/detect')
+
+    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr3}''',
+                        type=str, default='hdr2')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -259,7 +279,7 @@ def main(argv=None):
         args.log.info('Working on %s' % fn)
         fib = fibtable.row
         im = imagetable.row
-        success = append_fibers_to_table(fib, im, fn, cnt, T)
+        success = append_fibers_to_table(fib, im, fn, cnt, T, args)
         if success:
             fibtable.flush()
             imagetable.flush()
