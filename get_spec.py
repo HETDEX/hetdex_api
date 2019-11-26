@@ -88,6 +88,8 @@ from collections.abc import Mapping
 from multiprocessing import Pool, Process, Manager
 import time
 
+source_num_switch = 20
+
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
     result = deepcopy(dict1)
@@ -108,7 +110,7 @@ def get_source_spectra(shotid, args):
         fwhm = args.survey.fwhm_moffat[ args.survey.shotid == shotid ][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
  
-        if len(args.matched_sources[shotid]) > 6:
+        if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info('Loading full fibers table')
             E.load_shot(shotid, fibers=True)
         else:
@@ -155,7 +157,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         fwhm = args.survey.fwhm_moffat[ args.survey.shotid == shotid ][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
-        if len(args.matched_sources[shotid]) > 6:
+        if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info('Loading full fibers table')
             E.load_shot(shotid, fibers=True)
         else:
@@ -379,21 +381,26 @@ def main(argv=None):
         try:
             try: 
                 table_in = Table.read(args.infile, format='ascii')
+                if table_in.colnames == ['col1', 'col2', 'col3']:
+                    table_in['col1'].name = 'ID'
+                    table_in['col2'].name = 'ra'
+                    table_in['col3'].name = 'dec'
+                elif np.size(table_in.colnames) != 3:
+                    args.log.error('Input file not in three column format')
+                    sys.exit('Exiting')
             except:
                 pass
             try:
                 table_in = Table.read(args.infile, format='fits')
             except:
                 pass
-            try:
-                table_in = Table.read(args.infile, format='no_header', names=['ID','ra','dec'])
-            except:
-                pass
         except:
             if op.exists(args.infile):
                 args.log.warning('Could not open input file')
+                sys.exit('Exiting')
             else:
                 args.log.warning('Input file not found')
+                sys.exit('Exiting')
         try:
             args.ID = table_in['ID']
         except:
@@ -478,7 +485,7 @@ if __name__ == '__main__':
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
+def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True, shotid=None):
     
     args = types.SimpleNamespace()
 
@@ -486,9 +493,18 @@ def get_spectra(coords, ID=None, rad=3.*u.arcsec, multiprocess=True):
     args.coords = coords
     args.rad = rad
     args.survey = Survey('hdr1')
+
+    if shotid:
+        try:
+            sel_shot = args.survey.shotid == int(shotid)
+        except:
+            sel_shot = args.survey.datevobs == str(shotid)
+
+        args.survey = args.survey[sel_shot]
+
     args.log = setup_logging()
     
-    args.log.setLevel(logging.INFO)
+    args.log.setLevel(logging.ERROR)
 
     args.ID = ID
     
