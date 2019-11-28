@@ -28,6 +28,7 @@ from hetdex_api.detections import *
 import tables
 
 from get_spec import get_spectra
+from hetdex_api.query_widget import QueryWidget
 
 #needed only if detection observered wavelength is not supplied
 HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
