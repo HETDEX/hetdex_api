@@ -1,0 +1,35 @@
+HETDEX API Reference
+====================
+
+The organization of `hetdex_api` breaks down data access into several categories.
+
+* Survey: provides canonical information for all obserational data in a given data release.
+* Shot: includes
+* Extractions
+* Detections 
+
+
+Survey
+------
+
+
+Shot
+----
+
+.. automodule:: hetdex_api.shot
+   :members:
+
+
+Fibers
+
+.. autoclass:: hetdex_api.shot.Fibers   
+   :members:
+
+Extract
+-------
+
+.. automodule:: hetdex_api.extract   
+   :members:
+
+Detections
+----------
