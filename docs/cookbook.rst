@@ -1,4 +1,3 @@
-Navigating the Data 
-=====================
+Navigating the Data
+===================
 
-The HETDEX data model is described
