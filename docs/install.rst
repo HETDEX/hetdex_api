@@ -4,9 +4,13 @@ Installation
 For TACC Users
 --------------
 
-First make sure you are using python3 by having this line in your .bashrc. 
+Currently, we suggest copying over the setup instructions
 
-``module load pyton3``
+.. code-block:: bash
 
-``pip3 install HETDEX_API --user``
+   module load pyton3
+   
+
+   pip3 install HETDEX_API --user
+
 

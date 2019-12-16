@@ -1,9 +1,9 @@
 get_spec.py
 ***********
 
-.. automodule:: hetdex_clt.get_spec
+.. automodule:: hetdex_tools.get_spec
 
 .. argparse::
-   :filename: ../hetdex_clt/get_spec.py
+   :filename: ../hetdex_tools/get_spec.py
    :func: get_parser
    :prog: get_spec.py

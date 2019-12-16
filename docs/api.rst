@@ -37,6 +37,11 @@ Extract Class
 Flux Limits
 -----------
 
+.. automodule:: hetdex_api.flux_limits.sensitivity_cube
+   :members:
+
+.. automodule:: hetdex_api.flux_limits.hdf5_sensitivity_cubes
+   :members:
 
 Detections Class
 ----------------

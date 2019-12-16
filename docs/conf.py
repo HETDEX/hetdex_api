@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'HETDEX API'
-copyright = '2019, Erin Mentuch Cooper'
+copyright = '2019, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
