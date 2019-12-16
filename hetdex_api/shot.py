@@ -22,7 +22,7 @@ from astropy.coordinates import SkyCoord
 from hetdex_api import config
 
 if not sys.warnoptions:
-        warnings.simplefilter("ignore")
+    warnings.simplefilter("ignore")
 
 path_data = config.data_dir
 
@@ -45,9 +45,13 @@ def open_shot_file(shotid, survey="hdr1"):
 
     Example
     -------
-    from hetdex_api.shot import open_shot_file
-    fileh = open_shot_file(20180123009)
-    fileh = open_shot_file('20180123v009')
+
+    >>> from hetdex_api.shot import open_shot_file
+    >>> fileh = open_shot_file(20180123009)
+
+    or
+
+    >>> fileh = open_shot_file('20180123v009')
 
     """
 
@@ -90,6 +94,18 @@ class Fibers:
         survey
             Data release you would like to load, i.e., 'HDR1', 'hdr2'
             This is case insensitive.
+
+        Attributes
+        ----------
+        hdfile
+            h5 file handle for the specified shotid
+        table
+            h5 table of Fiber data
+        coords
+            astropy sky coordinates for each fiber
+        wave_rect
+            rectified wavelength for interpolated spectral data 'calfib',
+            'calfibe'
         """
 
         self.hdfile = open_shot_file(shot)

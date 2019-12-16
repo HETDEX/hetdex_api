@@ -9,27 +9,35 @@ The organization of `hetdex_api` breaks down data access into several categories
 * Detections 
 
 
-Survey
-------
+Survey Class
+------------
 
+.. autoclass:: hetdex_api.survey.Survey
+   :members:
 
-Shot
-----
+Query functions
+----------------
 
 .. automodule:: hetdex_api.shot
    :members:
 
 
-Fibers
+Fibers Class
+------------
 
 .. autoclass:: hetdex_api.shot.Fibers   
    :members:
 
-Extract
--------
+Extract Class
+-------------
 
-.. automodule:: hetdex_api.extract   
+.. autoclass:: hetdex_api.extract.Extract
    :members:
 
-Detections
-----------
+Flux Limits
+-----------
+
+
+Detections Class
+----------------
+

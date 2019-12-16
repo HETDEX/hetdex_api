@@ -13,8 +13,8 @@ Welcome to HETDEX API's documentation!
    install
    introduction
    cookbook
-   api
    commandline
+   api
    support
 
 Indices and tables
