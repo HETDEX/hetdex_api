@@ -6,3 +6,4 @@ Command line utilities
 
    cmd_test
    cmd_get_shots_of_interest
+   cmd_get_spec

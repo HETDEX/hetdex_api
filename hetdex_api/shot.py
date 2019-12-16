@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 
-Functions to interact with the shot HDF5 file
-and the Fibers Class. 
-Requires a shotid or datevobs
+Functions to interact with the shot HDF5 file and the Fibers Class. Requires a
+shotid (interger: 20180123009) or datevobs (str: eg. '20180123v009')
 
 author = Erin Mentuch Cooper
 """
@@ -15,61 +14,63 @@ import numpy as np
 
 import warnings
 import sys
-if not sys.warnoptions:
-    warnings.simplefilter("ignore")
 
-from astropy.table import Table, Column
+from astropy.table import Table
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
 from hetdex_api import config
 
+if not sys.warnoptions:
+        warnings.simplefilter("ignore")
+
 path_data = config.data_dir
 
-def open_shot_file(shot, survey='hdr1'):
+
+def open_shot_file(shotid, survey="hdr1"):
     """
-    get the file for a shot. This is a
-    global function. It basically just
-    replaces dealing with a path name.
+    Open the H5 file for a shot. This is a global function that allows you
+    to open an H5 file based on its shotid and data release. 
 
-    Input
+    Parameters
+    ----------
 
-    shot: either in the form of integer
-          shotid (eg. 20180123009) or
-          string datevobs (eg. 20180123v009)
+    shotid
+        either in the form of integer shotid (eg. 20180123009) or
+        string datevobs (eg. '20180123v009')
 
     survey : string
             Data release you would like to load, i.e., 'HDR1', 'hdr2'
             This is case insensitive.
 
-    Example:
-
+    Example
+    -------
+    from hetdex_api.shot import open_shot_file
     fileh = open_shot_file(20180123009)
     fileh = open_shot_file('20180123v009')
 
-
     """
-    
-    survey_options = {'hdr1': config.data_dir,
-                      'hdr2': config.data_dir}
+
+    survey_options = {"hdr1": config.data_dir, "hdr2": config.data_dir}
 
     if survey.lower() not in survey_options:
-        print('survey not in survey options')
+        print("survey not in survey options")
         print(survey_options)
         return None
 
-    if re.search('v', str(shot)):
-        file = op.join(path_data, str(shot)+'.h5')
+    if re.search("v", str(shotid)):
+        file = op.join(path_data, str(shotid) + ".h5")
     else:
-        file = op.join(path_data, str(shot)[0:8]
-                            + 'v' + str(shot)[8:11] + '.h5')
-    fileh = tb.open_file(file, 'r')
+        file = op.join(path_data, str(shotid)[0:8]
+                       + "v" + str(shotid)[8:11]
+                       + ".h5")
+    fileh = tb.open_file(file, "r")
     return fileh
 
 
 class Fibers:
-    def __init__(self, shot, survey='hdr1'):
-        '''
+    def __init__(self, shot, survey="hdr1"):
+        """
         Initialize Fibers Class
 
         This creates an astropy coordinates array of all
@@ -81,49 +82,58 @@ class Fibers:
         an array of rectified wavelengths corresponding the the
         'calfib', 'calfibe', 'Amp2Amp', and 'Throughput' datasets
 
-        Input
-        
-        shot: either in the form of integer
-              shotid (eg. 20180123009) or
-              string datevobs (eg. 20180123v009)
-        survey : Data release you would like to load, i.e., 'HDR1', 'hdr2'
-                 This is case insensitive.
-        '''
+        Parameters
+        ----------
+        shot
+            either in the form of integer shotid (eg. 20180123009) or
+            string datevobs (eg. 20180123v009)
+        survey
+            Data release you would like to load, i.e., 'HDR1', 'hdr2'
+            This is case insensitive.
+        """
 
         self.hdfile = open_shot_file(shot)
-        self.table  = self.hdfile.root.Data.Fibers
-        self.coords = SkyCoord(self.table.cols.ra[:] * u.degree,
-                               self.table.cols.dec[:] * u.degree,
-                               frame='icrs')
-        self.wave_rect = 2.0 * np.arange(1036) + 3470.
+        self.table = self.hdfile.root.Data.Fibers
+        self.coords = SkyCoord(
+            self.table.cols.ra[:] * u.degree,
+            self.table.cols.dec[:] * u.degree,
+            frame="icrs",
+        )
+        self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
         colnames = self.hdfile.root.Data.Fibers.colnames
-        
+
         for name in colnames:
-            if isinstance(getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_):
-                setattr(self, name,
-                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str))
+            if isinstance(
+                getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
+            ):
+                setattr(
+                    self,
+                    name,
+                    getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str),
+                )
             else:
-                setattr(self, name,
-                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
-        
+                setattr(self, name, getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
 
-    def query_region(self, coords, radius=3./3600.):
+    def query_region(self, coords, radius=3.0 / 3600.0):
         """
-        returns an indexed fiber table
-        for a defined aperture.
+        Returns an indexed fiber table for a defined aperture.
 
-        self = Fibers class object
-        coords = astropy coordinate object
-        radius = radius in degrees
+        Parameters
+        ----------
+        self
+            Fibers class object
+        coords
+            astropy coordinate object
+        radius
+            radius in degrees
         """
 
         idx = coords.separation(self.coords) < radius * u.degree
 
         return self.table[idx]
 
-
-    def query_region_idx(self, coords, radius=3.):
+    def query_region_idx(self, coords, radius=3.0):
         """
         Returns an index for a Fibers class object to
         retrieve all fibers in the defined aperture
@@ -135,22 +145,26 @@ class Fibers:
         try:
             idx = coords.separation(self.coords) < radius
         except:
-            idx = coords.separation(self.coords) < radius*u.arcsec
+            idx = coords.separation(self.coords) < radius * u.arcsec
         return np.where(idx)[0]
-
 
     def get_closest_fiber(self, coords, exp=None):
         """
         Returns index to closest fiber to an RA/DEC
-        exp=dither number (used primarily for building 2D image
+
+        Parameters
+        ----------
+        coords
+            an astropy SkyCoords object
+        exp
+            exposure number.
         """
-        if exp in [1,2,3]:
-            sel = self.expnum=exp
-            fib_idx = coords.match_to_catalog_sky(self.coords[sel])[0] 
+        if exp in [1, 2, 3]:
+            sel = self.expnum = exp
+            fib_idx = coords.match_to_catalog_sky(self.coords[sel])[0]
         else:
             fib_idx = coords.match_to_catalog_sky(self.coords)[0]
         return fib_idx
-
 
     def get_image_xy(self, idx, wave_obj):
         """
@@ -164,119 +178,155 @@ class Fibers:
         wave_data = self.wavelength[idx]
         trace_data = self.trace[idx]
 
-        y = int(np.round(np.interp(wave_obj,wave_data,range(len(wave_data)))))
-        x = int(np.round(np.interp(y,range(len(trace_data)),trace_data)))
+        y = int(np.round(np.interp(wave_obj, wave_data, range(len(wave_data)))))
+        x = int(np.round(np.interp(y, range(len(trace_data)), trace_data)))
         return x, y
 
-
-    def plot_fiber_spectrum(self, idx, type='calfib', xlim=None, ylim=None):
+    def plot_fiber_spectrum(self, idx, type="calfib", xlim=None, ylim=None):
         import matplotlib.pyplot as plt
 
-        if type == 'calfib':
+        if type == "calfib":
             try:
-                plt.plot(self.wave_rect, self.table[idx]['calfib'])
+                plt.plot(self.wave_rect, self.table[idx]["calfib"])
                 if xlim is not None:
                     plt.xlim(xlim)
                 if ylim is not None:
                     plt.ylim(ylim)
-                plt.xlabel('wavelength')
+                plt.xlabel("wavelength")
                 plt.ylabel(type)
             except:
                 print("Error plotting calib spectrum")
         else:
             try:
-                plt.plot(self.table[idx]['wavelength'], self.table[idx][type])
+                plt.plot(self.table[idx]["wavelength"], self.table[idx][type])
                 if xlim is not None:
                     plt.xlim(xlim)
                 if ylim is not None:
                     plt.ylim(ylim)
-                plt.xlabel('wavelength')
+                plt.xlabel("wavelength")
                 plt.ylabel(type)
             except:
                 print("Error plotting spectrum")
 
-    def save_fiber_spectrum(self, idx, type='calfib', file='spec.dat'):
+    def save_fiber_spectrum(self, idx, type="calfib", file="spec.dat"):
         """
-        Saves a fiber spectrum
+        Saves a fiber spectrum at a defined index
 
-        self = Fibers class object
-        idx = index of the fiber in the Fibers Table
-        types = ['calfib', 'spectrum', 'sky_spectrum', 'twi_spectrum',
-                 'error1Dfib', fiber_to_fiber']
-        file = output file name
+        Parameters
+        ---------
+        self
+            Fibers class object
+        idx
+            index of the fiber in the Fibers Table
+        types
+            The fiber array type. Options are 'calfib', 'spectrum',
+            'sky_spectrum', 'twi_spectrum','error1Dfib', fiber_to_fiber'
+        file
+            output file name
 
+        Returns
+        -------
+        An astropy table of the fiber spectra with columns of wavelength,
+        spectrum data, error.
         """
 
         spectab = Table()
-        if type == 'calfib':
+        if type == "calfib":
             try:
                 print("Saving the flux-calibrated fiber spectrum")
-                spectab['wavelength'] = self.wave_rect
+                spectab["wavelength"] = self.wave_rect
                 spectab[type] = self.table[idx][type]
-                spectab['error'] = self.table[idx]['calfibe']
+                spectab["error"] = self.table[idx]["calfibe"]
             except:
                 print("Could not save calibrated fiber spectrum")
         else:
             try:
-                spectab['wavelength'] = self.table[idx]['wavelength']
+                spectab["wavelength"] = self.table[idx]["wavelength"]
                 spectab[type] = self.table[idx][type]
-                spectab['error'] = self.table[idx]['error1Dfib']
+                spectab["error"] = self.table[idx]["error1Dfib"]
             except:
                 print("Could not retrieve Fiber spectrum")
-        spectab.write(file, format='ascii', overwrite=True)
+        spectab.write(file, format="ascii", overwrite=True)
 
     def close(self):
+        """ Close the H5 file related to the Fibers call"""
         self.hdfile.close()
 
-    
-    def get_fib_image2D(self, wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=60, height=40, imtype='clean_image'):
+    def get_fib_image2D(
+        self,
+        wave_obj,
+        fibnum_obj,
+        multiframe_obj,
+        expnum_obj,
+        width=60,
+        height=40,
+        imtype="clean_image",
+    ):
         """
-        Returns an image from the 2D data for 
-        a specific fiber centered at a specifc wavelength
+        Returns an image from the 2D data for a  specific fiber centered at a
+        specific wavelength
 
-        self - fibers class object
-        wave_obj - astropy wavelength object
-        expnum - dither exposure number [1,2,3]
-        fibnum - fiber number
-        multiframe - amp multiframe ID
+        Parameters
+        ---------
+        self
+            fibers class object
+        wave_obj
+            astropy wavelength object
+        expnum
+            dither exposure number [1,2,3]
+        fibnum
+            fiber number (This comes from the detections table and relates to
+            the fiber index by fibnum = fibidx + 1)
+        multiframe
+            amp multiframe ID
+        imtype
+            image option to display
+        width
+            pixel width to be cutout (image size is 1032 pix)
+        height
+            pixel height to be cutout (image size is 1032 pix)
 
-        imtype - image option to display
-        width - pixel width to be cutout (image size is 1032 pix)
-        height - pixel height to be cutout (image size is 1032 pix)
-
+        Returns
+        -------
+        A 2D image of the specified fiber
         """
-        
-        idx = np.where((self.fibidx == (fibnum_obj - 1) ) * (self.multiframe == multiframe_obj) * (self.expnum == expnum_obj))[0][0]
-        
+
+        idx = np.where(
+            (self.fibidx == (fibnum_obj - 1))
+            * (self.multiframe == multiframe_obj)
+            * (self.expnum == expnum_obj))[0][0]
+
         x, y = self.get_image_xy(idx, wave_obj)
-            
-        im0 = self.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
 
-        #create image of forced dims of input width x height
+        im0 = self.hdfile.root.Data.Images.read_where(
+            "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
+        )
 
-        height= np.minimum(height, 1032)
+        # create image of forced dims of input width x height
+
+        height = np.minimum(height, 1032)
         width = np.minimum(width, 1032)
-        
+
         im_base = np.zeros((height, width))
 
-        dx = int(height/2)
-        dy = int(width/2)
+        dx = int(height / 2)
+        dy = int(width / 2)
 
-        x1 = np.maximum(0, x-dx)
-        x2 = np.minimum(x+ dx + (height % 2), 1032)
+        x1 = np.maximum(0, x - dx)
+        x2 = np.minimum(x + dx + (height % 2), 1032)
 
-        y1 = np.maximum(0, y-dy)
-        y2 = np.minimum(y+ dy + (width % 2), 1032)
-        
+        y1 = np.maximum(0, y - dy)
+        y2 = np.minimum(y + dy + (width % 2), 1032)
+
         x1_slice = np.minimum(0, height - (x2 - x1))
-        x2_slice = x2-x1
+        x2_slice = x2 - x1
         y1_slice = np.minimum(0, width - (y2 - y1))
-        y2_slice = y2-y1
-        
-        im_reg = im0[imtype][0][x1:x2,y1:y2]
+        y2_slice = y2 - y1
 
-        im_base[ x1_slice:x2_slice, y1_slice:y2_slice] = im_reg
-        
+        im_reg = im0[imtype][0][x1:x2, y1:y2]
+
+        im_base[x1_slice:x2_slice, y1_slice:y2_slice] = im_reg
+
         return im_base
 
     def return_astropy_table(self):
@@ -293,19 +343,29 @@ class Fibers:
         table = Table()
         for name in self.hdfile.root.Data.Fibers.colnames:
             table[name] = getattr(self, name)
-        
+
         return table
 
-def get_fibers_table(shot, coords, radius, survey='hdr1', astropy=True):
+
+def get_fibers_table(shot, coords, radius, survey="hdr1", astropy=True):
     """
-    Returns fiber specta for defined aperture
+    Returns fiber specta for a given shot.
 
-    shot - either shotid or datevobs
-    coords - astropy coordinate object
-    radius - an astropy quantity object
-    or radius in degrees
+    Parameters
+    ---------
+    shot
+        either shotid or datevobs
+    coords
+        astropy coordinate object
+    radius
+        an astropy quantity object or radius in degrees
+    astropy
+        flag to make it an astropy table
 
-    astropy - flag to make it an astropy table
+    Returns
+    -------
+    An table of fibers within the defined aperture. Will be an astropy table
+    object if astropy=True is set
 
     """
 
@@ -316,27 +376,29 @@ def get_fibers_table(shot, coords, radius, survey='hdr1', astropy=True):
         dec_in = coords.dec.degree
     except:
         print("Coords argument must be an astropy coordinates object")
-        
+
     try:
         rad_in = radius.to(u.degree)
         rad = radius
     except:
-        rad_in = radius/3600.
-        rad  = radius * u.arcsec
+        rad_in = radius / 3600.0
+        rad = radius * u.arcsec
         pass
-        
-    #search first along ra 
+
+    # search first along ra
 
     ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
 
     if any(ra_table):
-        coords_table = SkyCoord(ra_table['ra']*u.deg, ra_table['dec']*u.deg, frame='icrs')
+        coords_table = SkyCoord(
+            ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
+        )
         idx = coords.separation(coords_table) < rad
         fibers_table = ra_table[idx]
 
-        if survey == 'hdr1':
-            fibers_table['calfib'] = fibers_table['calfib']/ 2.
-            fibers_table['calfibe'] = fibers_table['calfibe']/ 2.
+        if survey == "hdr1":
+            fibers_table["calfib"] = fibers_table["calfib"] / 2.0
+            fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
         if astropy:
             fibers_table = Table(fibers_table)
     else:
@@ -345,19 +407,34 @@ def get_fibers_table(shot, coords, radius, survey='hdr1', astropy=True):
     fileh.close()
     return fibers_table
 
-def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clean_image', survey='hdr1'):
+
+def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
+                       imtype="clean_image", survey="hdr1"):
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
 
-    self - HDF5 file called from open_shot_file('shot')
-    coords - astropy coordinate object
-    wave_obj - astropy wavelength object
-    imtype - image option to display
-             options are 'clean_image', 'image', 'error':
-    width - pixel width to be cutout (image size is 1032 pix)
-    height - pixel height to be cutout (image size is 1032 pix)
+    Parameters
+    ----------
+    self
+        HDF5 file called from open_shot_file('shot')
+    coords
+        astropy coordinate object
+    wave_obj
+        astropy wavelength object
+    imtype
+        image option to display. Options are 'clean_image', 'image', and
+        'error'.
+    width
+        pixel width to be cutout (image size is 1032 pix)
+    height
+        pixel height to be cutout (image size is 1032 pix)
+    survey
+        string identifying data release
 
+    Returns
+    -------
+    
     """
     fibers = Fibers(shot)
 
@@ -366,25 +443,40 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40, imtype='clea
     expnum_obj = fibers.table.cols.expnum[idx]
     x, y = fibers.get_image_xy(idx, wave_obj)
 
-    im0 = fibers.hdfile.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
+    im0 = fibers.hdfile.root.Data.Images.read_where(
+        "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
+    )
 
-    return im0[imtype][0][x-int(width/2):x+int(width/2), y-int(height/2):y+int(height/2)]
+    return im0[imtype][0][
+        x - int(width / 2) : x + int(width / 2),
+        y - int(height / 2) : y + int(height / 2),
+    ]
 
-def get_image2D_amp(shot, multiframe_obj, imtype='clean_image', expnum_obj=1):
+
+def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", expnum_obj=1):
     """
     Returns an image from the 2D data based on
     an multiframe or a specid/amp/expnum combo
 
-    multiframe - unique amp identifier to display
-    imtype - image option to display
-             options are:['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-                         'sky_subtracted', 'trace', 'error1Dfib', 'calfib', 'calfibe',
-                         'Amp2Amp', 'Throughput']
-    expnum_obj - integer for the dither/exposure
+    Parameters
+    ---------
+    multiframe
+        unique amp identifier to display
+    imtype
+        image option to display
+        options are:['spectrum', 'error, clean_image']
+    expnum_obj
+        integer for the dither/exposure
+
+    Returns
+    -------
+    a 2D numpy array for the specified amp
 
     """
     fileh = open_shot_file(shot)
-    im0 = fileh.root.Data.Images.read_where("(multiframe == multiframe_obj) & (expnum == expnum_obj)")
+    im0 = fileh.root.Data.Images.read_where(
+        "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
+    )
     fileh.close()
 
     return im0[imtype][0]
