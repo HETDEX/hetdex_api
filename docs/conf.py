@@ -12,6 +12,7 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
@@ -32,9 +33,8 @@ release = '1.0'
 
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.coverage',
-              'sphinx.ext.napoleon']
-
-extensions += ['sphinxarg.ext']
+              'sphinx.ext.napoleon',
+              'sphinxarg.ext']
 
 napoleon_google_docstring = False
 napoleon_use_param = False

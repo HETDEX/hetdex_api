@@ -39,7 +39,7 @@ matplotlib.use("agg")
 
 
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
-    
+
     fiber_table = Table(
         detects.hdfile.root.Fibers.read_where("detectid == detectid_obj")
     )
@@ -148,7 +148,7 @@ def save_2Dimage(detectid_i, detects, fibers, width=100, height=20, path=os.getc
 
 def get_parser():
     """ Function that returns a parser"""
-    # Call initial parser from init_utils
+
     parser = ap.ArgumentParser(
         description="""Create fiber cutout for a given position or detectid""",
         add_help=True
@@ -229,10 +229,11 @@ def get_parser():
         help="""Trigger to merge all im2D_SHOTID.h5 files after slurm job""",
     )
     return parser
-    
-    
+
+
 def main(argv=None):
     """ Main Function """
+
     parser = get_parser()
     args = parser.parse_args(argv)
     args.log = setup_logging()
