@@ -18,6 +18,7 @@ beautifulsoup4==4.7.1
 black==19.10b0
 bleach==3.1.0
 brewer2mpl==1.4.1
+cachetools==3.1.1
 certifi==2018.11.29
 cffi==1.11.5
 chardet==3.0.4
@@ -32,6 +33,8 @@ entrypoints==0.3
 flake8==3.7.9
 gast==0.2.2
 ginga==3.0.1
+google-auth==1.9.0
+google-auth-oauthlib==0.4.1
 google-pasta==0.1.7
 grpcio==1.22.0
 gwcs==0.10.0
@@ -83,7 +86,9 @@ nose==1.3.7
 notebook==5.7.4
 numexpr==2.6.9
 numpy==1.16.1
+oauthlib==3.1.0
 opencv-python==4.1.1.26
+opt-einsum==3.1.0
 optional-django==0.1.0
 packaging==19.2
 pandas==0.24.1
@@ -108,7 +113,8 @@ psutil==5.5.0
 psycopg2==2.7.7
 ptyprocess==0.6.0
 py==1.7.0
-pyasn1==0.4.5
+pyasn1==0.4.8
+pyasn1-modules==0.2.7
 pybind11==2.2.4
 pycairo==1.15.1
 pycodestyle==2.5.0
@@ -125,7 +131,7 @@ pystuck==0.8.5
 pytest==4.2.0
 python-dateutil==2.8.0
 pytz==2018.9
-PyYAML==3.13
+PyYAML==5.2
 pyzmq==17.1.2
 qtconsole==4.4.3
 QtPy==1.9.0
@@ -133,8 +139,10 @@ readline==6.2.4.1
 readme-renderer==24.0
 regex==2019.12.9
 requests==2.22.0
+requests-oauthlib==1.3.0
 requests-toolbelt==0.9.1
 rpyc==4.0.2
+rsa==4.0
 scipy==1.2.0
 SecretStorage==3.1.1
 semantic-version==2.6.0
@@ -148,6 +156,8 @@ speclite==0.8
 specutils==0.5.2
 Sphinx==2.2.1
 sphinx-argparse==0.2.5
+# Editable install with no version control (sphinx-rtd-theme==0.4.3)
+-e /home1/05350/ecooper/.local/lib/python3.7/site-packages
 sphinxcontrib-applehelp==1.0.1
 sphinxcontrib-argdoc==0.1.3
 sphinxcontrib-autoprogram==0.1.5
@@ -156,13 +166,14 @@ sphinxcontrib-htmlhelp==1.0.2
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.2
 sphinxcontrib-serializinghtml==1.1.3
+-e git+https://github.com/grzeimann/stellarSEDfits@c4a79e5e6ef45aac60022489682752708b80dc55#egg=stellarSEDfits
 stevedore==1.30.0
 sympy==1.3
 synphot==0.1.3
 tables==3.5.2
-tensorboard==1.13.1
-tensorflow==1.13.1
-tensorflow-estimator==1.13.0
+tensorboard==2.0.2
+tensorflow==2.0.0
+tensorflow-estimator==2.0.1
 termcolor==1.1.0
 terminado==0.8.1
 testpath==0.4.2
