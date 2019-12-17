@@ -148,8 +148,6 @@ speclite==0.8
 specutils==0.5.2
 Sphinx==2.2.1
 sphinx-argparse==0.2.5
-# Editable install with no version control (sphinx-rtd-theme==0.4.3)
--e /home1/05350/ecooper/.local/lib/python3.7/site-packages
 sphinxcontrib-applehelp==1.0.1
 sphinxcontrib-argdoc==0.1.3
 sphinxcontrib-autoprogram==0.1.5
@@ -158,7 +156,6 @@ sphinxcontrib-htmlhelp==1.0.2
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.2
 sphinxcontrib-serializinghtml==1.1.3
--e git+https://github.com/grzeimann/stellarSEDfits@c4a79e5e6ef45aac60022489682752708b80dc55#egg=stellarSEDfits
 stevedore==1.30.0
 sympy==1.3
 synphot==0.1.3
