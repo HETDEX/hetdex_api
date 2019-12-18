@@ -251,6 +251,7 @@ def main(argv=None):
         im_array = tb.Float32Col((4, args.height, args.width), pos=3)
         im_phot = tb.Float32Col((60, 60), pos=4)
         im_phot_hdr = tb.StringCol(2880)
+        
     if args.merge:
         fileh = tb.open_file("merged_im2D.h5", "w")
         im2D_table = fileh.create_table(fileh.root, "Images", Image2D)
