@@ -17,12 +17,12 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'HETDEX API'
+project = 'hetdex_api'
 copyright = '2019, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0'
+release = '0.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -33,8 +33,9 @@ release = '1.0'
 
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.coverage',
-              'sphinx.ext.napoleon',
-              'sphinxarg.ext']
+              'sphinx.ext.napoleon']
+
+extensions += ['sphinxarg.ext']
 
 napoleon_google_docstring = False
 napoleon_use_param = False
@@ -63,4 +64,4 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-autodoc_mock_imports = ['astropy', 'tables', 'ipywidgets', 'setuptools']
+autodoc_mock_imports = ['astropy', 'tables', 'ipywidgets', 'elixer']
