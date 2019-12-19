@@ -82,7 +82,7 @@ from input_utils import setup_logging
 import types
 
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
+from astropy.table import Table, Column
 
 from hetdex_api.extract import Extract
 from hetdex_api.survey import Survey
@@ -280,6 +280,7 @@ def return_astropy_table(Source_dict):
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
+
     output.add_column(Column(id_arr), name="ID")
     output.add_column(Column(shotid_arr), name="shotid")
     output.add_column(Column(wave_arr, unit=u.AA, name="wavelength"))
