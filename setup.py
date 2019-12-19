@@ -7,10 +7,12 @@ extras = {}
 
 setup(
     # package description and version
-    name="HETDEX API",
+    name="hetdex_api",
     version="0.1",
     author="The HETDEX Collaboration",
-    author_email='erin@astro.as.utexas.edu'
+    author_email='erin@astro.as.utexas.edu',
+    url='https://github.com/HETDEX/hetdex_api',
+    download_url='https://github.com/HETDEX/hetdex_api/archive/0.1.tar.gz',
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
