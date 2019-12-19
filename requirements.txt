@@ -1,1 +1,6 @@
+astrowidgets==0.1.1
+astropy==3.2.3
+astroquery==0.3.10.dev0
+ipywidgets==7.5.1
 numpy==1.16.1
+scipy==1.2.0
