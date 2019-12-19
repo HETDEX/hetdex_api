@@ -8,9 +8,9 @@ extras = {}
 setup(
     # package description and version
     name="HETDEX API",
-    version="0.0,2",
+    version="0.1",
     author="The HETDEX Collaboration",
-    author_email="dfarrow@mpe.mpg.de",
+    author_email='erin@astro.as.utexas.edu'
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
@@ -41,7 +41,9 @@ setup(
                         'collapse_combine_sensitivity = hetdex_api.flux_limits.collapse_cubes:collapse_datacubes_command',
                         'biweight_fluxlims_hdf5 = hetdex_api.flux_limits.collapse_cubes:return_biwt_cmd',
                         'add_sensitivity_cube_to_hdf5 =  hetdex_api.flux_limits.hdf5_sensitivity_cubes:add_sensitivity_cube_to_hdf5',
-                        'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube'
+                        'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube',
+                        'hetdex_get_spec = hetdex_tools.get_spec',
+                        'hetdex_get_spec2D = hetdex_tools.get_spec2D'
                      ]
                    },
 
