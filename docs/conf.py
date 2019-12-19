@@ -64,3 +64,4 @@ html_theme = 'sphinx_rtd_theme'
 
 autodoc_mock_imports = ['astropy', 'tables', 'ipywidgets', 'elixer',
                         'astroquery']
+master_doc = 'index'
