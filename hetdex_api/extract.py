@@ -14,11 +14,13 @@ from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
 from hetdex_api.shot import *
-import imp
+import input_utils
 
-input_utils = imp.load_source(
-    "input_utils", "/work/03946/hetdex/hdr1/software/HETDEX_API/" "input_utils.py"
-)
+#import imp
+
+#input_utils = imp.load_source(
+#    "input_utils", "/work/03946/hetdex/hdr1/software/HETDEX_API/" "input_utils.py"
+#)
 
 
 class Extract:
