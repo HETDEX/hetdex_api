@@ -4,3 +4,5 @@ astropy==3.2.3
 ipywidgets==7.5.1
 numpy==1.16.1
 scipy==1.2.0
+matplotlib==2.0.0
+tables==3.5.2
