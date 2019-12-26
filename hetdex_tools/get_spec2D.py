@@ -35,10 +35,9 @@ from astropy.visualization import ZScaleInterval
 from input_utils import setup_logging
 from hetdex_api.shot import *
 from hetdex_api.detections import *
+from elixer import catalogs
 
 matplotlib.use("agg")
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
-import catalogs
 
 
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
