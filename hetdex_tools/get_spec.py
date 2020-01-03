@@ -72,6 +72,7 @@ import argparse as ap
 import os
 import os.path as op
 import glob
+import re
 
 import numpy as np
 import pickle
@@ -82,11 +83,11 @@ from input_utils import setup_logging
 import types
 
 from astropy.coordinates import SkyCoord
-from astropy.table import Table, Column
+from astropy.table import Table, Column, vstack
+import astropy.units as u
 
 from hetdex_api.extract import Extract
 from hetdex_api.survey import Survey
-from hetdex_api.shot import *
 
 from copy import deepcopy
 from collections.abc import Mapping
@@ -398,7 +399,7 @@ def get_parser():
     parser.add_argument(
         "-o",
         "--outfile",
-        help="""File to store pickled dictionary output""",
+        help="""File to store dictionary output""",
         default="output",
         type=str,
     )
@@ -446,7 +447,7 @@ def get_parser():
     parser.add_argument(
         "--merge",
         "-merge",
-        help="""Boolean trigger to merger are pickle files in cwd""",
+        help="""Boolean trigger to merge all 2*.fits files in cwd""",
         default=False,
         required=False,
         action="store_true",
@@ -455,7 +456,7 @@ def get_parser():
     parser.add_argument(
         "--mergepath",
         "-mpath",
-        help="""Path to location of pickle files to merge""",
+        help="""Path to location of files to merge""",
         default=os.getcwd(),
         type=str,
     )
@@ -472,9 +473,17 @@ def get_parser():
     parser.add_argument(
         "--fits",
         "-fit",
-        help="""Store spectra in an astropy table""",
+        help="""Flag to spectra in an astropy table saved as a fits file.""",
+        default=True,
+        action="store_true"
+    )
+
+    parser.add_argument(
+        "--pickle",
+        "-pkl",
+        help="""Flag to store spectra in a pkl file""",
         default=False,
-        action="store_true",
+        action="store_true"
     )
 
     return parser
@@ -487,19 +496,32 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
+    if args.pickle:
+        args.fits = False
+
     if args.merge:
-        all_source_dict = {}
-        files = glob.glob(op.join(args.mergepath, "*.pkl"))
-        args.log.info("Merging all pickle files in " + args.mergepath)
-        for file in files:
-            file_dict = pickle.load(open(file, "rb"))
-            all_source_dict = merge(all_source_dict, file_dict)
 
         if args.fits:
-            output = return_astropy_table(all_source_dict)
+            master_table = Table()
+            files = glob.glob(op.join(args.mergepath, "*.fits"))
+            args.log.info("Merging all fits files in " + args.mergepath)
+
+            for file in files:
+                file_table = Table.read(open(file, "rb"))
+                if np.size(file_table) > 0:
+                    master_table = vstack([master_table, file_table])
             outfile = args.outfile + ".fits"
-            output.write(outfile, format="fits", overwrite=True)
+            master_table.write(outfile, format="fits", overwrite=True)
+
         else:
+            all_source_dict = {}
+            files = glob.glob(op.join(args.mergepath, "*.pkl"))
+            args.log.info("Merging all pickle files in " + args.mergepath)
+            for file in files:
+                file_dict = pickle.load(open(file, "rb"))
+                if len(file_dict) > 0:
+                    all_source_dict = merge(all_source_dict, file_dict)
+
             outfile = args.outfile + ".pkl"
             pickle.dump(all_source_dict, open(outfile, "wb"))
 
@@ -518,15 +540,14 @@ def main(argv=None):
                     table_in["col2"].name = "ra"
                     table_in["col3"].name = "dec"
                 elif np.size(table_in.colnames) != 3:
-                    args.log.error("Input file not in three column format")
-                    sys.exit("Exiting")
-            except:
+                    args.log.info("Input file not in three column format")
+            except Exception:
                 pass
             try:
                 table_in = Table.read(args.infile, format="fits")
-            except:
+            except Exception:
                 pass
-        except:
+        except Exception:
             if op.exists(args.infile):
                 args.log.warning("Could not open input file")
                 sys.exit("Exiting")
@@ -568,7 +589,7 @@ def main(argv=None):
     if args.shotid:
         try:
             sel_shot = args.survey.shotid == int(args.shotid)
-        except:
+        except Exception:
             sel_shot = args.survey.datevobs == str(args.shotid)
 
         args.survey = args.survey[sel_shot]
@@ -581,8 +602,9 @@ def main(argv=None):
 
     args.survey.close()
 
-    outfile = args.outfile + ".pkl"
-    pickle.dump(Source_dict, open(outfile, "wb"))
+    if args.pickle:
+        outfile = args.outfile + ".pkl"
+        pickle.dump(Source_dict, open(outfile, "wb"))
 
     if args.single:
         # loop over every ID/observation combo:
@@ -616,7 +638,6 @@ def main(argv=None):
                     )
 
     if args.fits:
-
         output = return_astropy_table(Source_dict)
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
@@ -639,7 +660,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
     if shotid:
         try:
             sel_shot = args.survey.shotid == int(shotid)
-        except:
+        except Exception:
             sel_shot = args.survey.datevobs == str(shotid)
 
         args.survey = args.survey[sel_shot]
@@ -652,7 +673,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
 
     nobj = np.size(args.coords)
 
-    if args.ID == None:
+    if args.ID is None:
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
