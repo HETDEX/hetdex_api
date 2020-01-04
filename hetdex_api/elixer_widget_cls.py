@@ -24,10 +24,9 @@ import ipywidgets as widgets
 from IPython.display import Image
 from ipywidgets import interact, Layout #Style #, interactive
 #from IPython.display import clear_output
-from hetdex_api.detections import *
 import tables
 
-from get_spec import get_spectra
+from hetdex_api.get_spec import get_spectra
 from hetdex_api.query_widget import QueryWidget
 
 #needed only if detection observered wavelength is not supplied

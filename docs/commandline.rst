@@ -6,5 +6,5 @@ Command line utilities
 
    cmd/cmd_get_shots_of_interest
    cmd/cmd_get_spec
-   cmd/cmd_get_spec2D
+
 
