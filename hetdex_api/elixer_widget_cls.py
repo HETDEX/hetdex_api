@@ -26,8 +26,7 @@ from ipywidgets import interact, Layout #Style #, interactive
 #from IPython.display import clear_output
 import tables
 
-from hetdex_api.get_spec import get_spectra
-from hetdex_api.query_widget import QueryWidget
+from hetdex_tools.get_spec import get_spectra
 
 #needed only if detection observered wavelength is not supplied
 HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
@@ -137,17 +136,7 @@ class ElixerWidget():
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
-
-       #now, just a list of detections
-        elif type(detectlist) is np.ndarray:
-            self.detectid = detectlist
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
-        else:
+        elif detectlist is None:
             self.detectid = np.arange(1000000000, 1000690799, 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
@@ -155,6 +144,13 @@ class ElixerWidget():
             self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
             self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
+        else:
+            self.detectid = np.array(detectlist)
+            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+            self.flag = np.zeros(np.size(self.detectid), dtype=int)
+            self.z = np.full(np.size(self.detectid), -1.0)
+            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
         # store outfile name if given
         if outfile:
@@ -795,9 +791,9 @@ class ElixerWidget():
 
     def on_elixer_neighborhood(self,b):
         detectid = self.detectbox.value
-        path = os.path.join(elix_dir, "%dnei.png" % (detectid))
+        path = op.join(elix_dir, "%dnei.png" % (detectid))
 
-        if not os.path.isfile(path):
+        if not op.isfile(path):
             print("%s not found" % path)
         else:
             display(Image(path))
