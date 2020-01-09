@@ -1,5 +1,5 @@
-The Survey Class
-****************
+Survey Class
+============
 
    The survey HDF5 file is a master look up table for each observation
    made by VIRUS for HETDEX. It can be accessed directly through the
@@ -391,5 +391,5 @@ The Survey Class
            byteorder := 'little'
            chunkshape := (229,)
 
-.. |image0| image:: e7756a3617e78cadc12e00309b46270779e03d50.png
-.. |image1| image:: ab6bb373fe75c03fbdb059b0c10e89e1e2aa9546.png
+.. |image0| image:: rst/e7756a3617e78cadc12e00309b46270779e03d50.png
+.. |image1| image:: rst/ab6bb373fe75c03fbdb059b0c10e89e1e2aa9546.png

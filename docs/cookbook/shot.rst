@@ -1,5 +1,5 @@
-Shot Functions
-**************
+Fibers and Images Classes: Functions that interact with a single shot
+=====================================================================
 
    All data for a single HETDEX observation, a dither set of three
    exposures, is stored in one HDF5 file. This file contains the
@@ -265,5 +265,5 @@ Shot Functions
 
       |image1|
 
-.. |image0| image:: cc6f620da3ea38d3c148e7305d43b6844f8623fd.png
-.. |image1| image:: 199682cdd638c8603a0b47c78ec4ca652c10f911.png
+.. |image0| image:: rst/cc6f620da3ea38d3c148e7305d43b6844f8623fd.png
+.. |image1| image:: rst/199682cdd638c8603a0b47c78ec4ca652c10f911.png
