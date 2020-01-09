@@ -1,6 +1,9 @@
 Installation
 ============
 
+Pip Install
+-----------
+
 To install hetdex_api you can grab the python package from pypi with a pip3 install. Be sure to use pip3 to install it for use in python3. Use the --user tag when installing on TACC.
 
 .. code-block:: bash
