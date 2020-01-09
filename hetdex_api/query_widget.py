@@ -30,7 +30,7 @@ from ipywidgets import interact, Layout, AppLayout
 
 from hetdex_api.shot import *
 from hetdex_api import config
-from get_spec import get_spectra
+from hetdex_tools.get_spec import get_spectra
 
 from astroquery.sdss import SDSS
 
