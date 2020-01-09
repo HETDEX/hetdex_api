@@ -27,3 +27,30 @@ Then install all required python packages:
    pip3 install --user speclite
    
 You should now exit the terminal/ssh shell to make sure all your permissions are set.
+
+For Contributors
+----------------
+
+Copy the git clone repository of hetdex_api 
+
+.. code-block:: bash
+		
+   git clone https://github.com/HETDEX/hetdex_api
+
+
+Then pip3 install with the -e parameter to update as the repository evolves
+
+.. code-block:: bash
+   
+   pip3 install -e hetdex_api --user
+
+
+To contribute to github
+
+.. code-block:: bash
+   
+   git add filename
+   git commit -m "Reason for update or file creation"
+   git push
+
+Please ask to become a member of HETDEX organization on github once you have an account. Please branch your development if you are doing major code work.
