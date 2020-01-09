@@ -1,7 +1,5 @@
-.. container:: cell markdown
-
-   .. rubric:: 07 - Accessing Astrometry Data
-      :name: 07---accessing-astrometry-data
+Accessing Astrometry Data
+=========================
 
 .. container:: cell markdown
 

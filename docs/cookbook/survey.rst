@@ -391,5 +391,5 @@ Survey Class
            byteorder := 'little'
            chunkshape := (229,)
 
-.. |image0| image:: rst/e7756a3617e78cadc12e00309b46270779e03d50.png
-.. |image1| image:: rst/ab6bb373fe75c03fbdb059b0c10e89e1e2aa9546.png
+.. |image0| image:: images/e7756a3617e78cadc12e00309b46270779e03d50.png
+.. |image1| image:: images/ab6bb373fe75c03fbdb059b0c10e89e1e2aa9546.png
