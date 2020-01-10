@@ -5,7 +5,7 @@ Config file for HETDEX data release paths
 import os.path as op
 
 
-class HDRConfig:
+class HDRconfig:
     def __init__(self, survey='hdr1'):
         self.hdr_dir = {'hdr1': '/work/03946/hetdex/hdr1',
                         'hdr2': '/scratch/05350/ecooper/hdr2'}
