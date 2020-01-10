@@ -45,6 +45,7 @@ Then pip3 install with the -e parameter to update as the repository evolves
    
    pip3 install -e hetdex_api --user
 
+Be sure to remove any PYTHONPATH to HETDEX_API in your .bashrc
 
 For Contributors
 ----------------
