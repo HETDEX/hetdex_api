@@ -31,12 +31,12 @@ import pickle
 import speclite.filters
 
 from hetdex_api.survey import Survey
-from hetdex_api import config
+from hetdex_api.config import HDRconfig
 
 np.warnings.filterwarnings('ignore')
 
 class Detections:
-    def __init__(self, survey):
+    def __init__(self, survey='hdr1', catalog_type='lines'):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -46,15 +46,29 @@ class Detections:
             Data release you would like to load, i.e., 'DR1' or 'cont_sources'.
             This is case insensitive.
         '''
-        survey_options = {'hdr1': config.detecth5,
-                          'cont_sources': config.contsourceh5}
+        survey_options = ['hdr1', 'hdr2']
+        catalog_type_options = ['lines', 'continuum']
+
         if survey.lower() not in survey_options:
             print('survey not in survey options')
             print(survey_options)
             return None
 
+        if catalog_type.lower() not in catalog_type_options:
+            print('catalog_type not in catalog_type options')
+            print(catalog_type_options)
+            return None
+
+        global config
+        config = HDRconfig(survey=survey)
+
         self.survey = survey
-        self.filename = survey_options[survey]
+
+        if catalog_type == 'lines':
+            self.filename = config.detecth5
+        elif catalog_type == 'continuum':
+            self.filename = config.contsourceh5
+
         self.hdfile = tb.open_file(self.filename, mode='r')
         colnames = self.hdfile.root.Detections.colnames
         for name in colnames:
@@ -323,7 +337,7 @@ class Detections:
         Don't use for machine learning or other
         classifying algorithms tests.
         '''
-        
+        global config
         # set an empty mask to start
         mask = np.zeros(np.size(self.detectid), dtype=bool)
         baddetects = np.loadtxt(config.baddetect, dtype=int)
@@ -344,7 +358,7 @@ class Detections:
         It will also assign a 0 to signify an artifact
         in vis_class
         '''
-
+        global config
         # set an empty mask to start
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
@@ -414,7 +428,7 @@ class Detections:
         to detections in these shots so they are not used 
         in any MLing analysis
         '''
-
+        global config
         mask = np.zeros(np.size(self.detectid), dtype=bool)
         badshots = np.loadtxt(config.badshot, dtype=int)
 
