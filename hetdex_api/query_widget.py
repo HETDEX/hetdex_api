@@ -29,7 +29,7 @@ import ipywidgets as widgets
 from ipywidgets import interact, Layout, AppLayout 
 
 from hetdex_api.shot import *
-from hetdex_api import config
+from hetdex_api.config import HDRconfig
 from hetdex_tools.get_spec import get_spectra
 
 from astroquery.sdss import SDSS
@@ -50,6 +50,8 @@ class QueryWidget():
         self.cutout_size = cutout_size
         self.zoom = zoom
 
+        config = HDRconfig(survey=survey)
+        
         self.fileh5dets = tb.open_file(config.detecth5)
         self.catlib = catalogs.CatalogLibrary()
 
