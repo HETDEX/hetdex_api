@@ -13,9 +13,11 @@ import logging
 from os.path import isfile, join
 from re import compile
 import tables as tb
-from hetdex_api.config import flim_dir
+from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
+config = HDRconfig('hdr1')
+flim_dir = config.flim_dir
 
 _logger = logging.getLogger()
 _logger.setLevel("INFO")
