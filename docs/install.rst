@@ -28,17 +28,15 @@ Then install all required python packages:
    pip3 install --pre --user astroquery 
    pip3 install --user ipywidgets
    pip3 install --user speclite
-   
-You should now exit the terminal/ssh shell to make sure all your permissions are set.
-
-For Contributors
-----------------
+   pip3 install --user ipyevents
+   pip3 install --user astrowidgets
+   pip3 install --user jsonschema==3.1.1
 
 Copy the git clone repository of hetdex_api 
 
 .. code-block:: bash
 		
-   git clone https://github.com/HETDEX/hetdex_api
+   git clone https://github.com/HETDEX/hetdex_api.git
 
 
 Then pip3 install with the -e parameter to update as the repository evolves
@@ -47,6 +45,9 @@ Then pip3 install with the -e parameter to update as the repository evolves
    
    pip3 install -e hetdex_api --user
 
+
+For Contributors
+----------------
 
 To contribute to github
 
