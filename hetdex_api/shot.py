@@ -19,12 +19,10 @@ from astropy.table import Table
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-from hetdex_api import config
+from hetdex_api.config import HDRconfig
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
-
-path_data = config.data_dir
 
 
 def open_shot_file(shotid, survey="hdr1"):
@@ -55,17 +53,13 @@ def open_shot_file(shotid, survey="hdr1"):
 
     """
 
-    survey_options = {"hdr1": config.data_dir, "hdr2": config.data_dir}
-
-    if survey.lower() not in survey_options:
-        print("survey not in survey options")
-        print(survey_options)
-        return None
+    global config
+    config = HDRconfig(survey=survey.lower())
 
     if re.search("v", str(shotid)):
-        file = op.join(path_data, str(shotid) + ".h5")
+        file = op.join(config.data_dir, str(shotid) + ".h5")
     else:
-        file = op.join(path_data, str(shotid)[0:8]
+        file = op.join(config.data_dir, str(shotid)[0:8]
                        + "v" + str(shotid)[8:11]
                        + ".h5")
     fileh = tb.open_file(file, "r")
