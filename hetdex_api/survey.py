@@ -16,11 +16,11 @@ import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 
-from hetdex_api import config
+from hetdex_api.config import HDRconfig
 
 
 class Survey:
-    def __init__(self, survey):
+    def __init__(self, survey='hdr1'):
         """
         Initialize the Survey class for a given data release
 
@@ -34,12 +34,11 @@ class Survey:
         -------
         Survey class object with the following attributes
         """
-        survey_options = {"hdr1": config.surveyh5, "parallel": "PATHNAME"}
-        if survey.lower() not in survey_options:
-            print("survey not in survey options")
-            print(survey_options)
-            return None
-        self.filename = survey_options[survey]
+
+        global config
+        config = HDRconfig(survey=survey.lower())
+
+        self.filename = config.surveyh5
         self.hdfile = tb.open_file(self.filename, mode="r")
         colnames = self.hdfile.root.Survey.colnames
         for name in colnames:
@@ -103,6 +102,7 @@ class Survey:
         They are engineering shots that were accidentally included in the
         release.
         """
+        global config
 
         mask = np.zeros(np.size(self.shotid), dtype=bool)
         badshots = np.loadtxt(config.badshot, dtype=int)
