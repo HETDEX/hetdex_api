@@ -45,9 +45,9 @@ setup(
                         'biweight_fluxlims_hdf5 = hetdex_api.flux_limits.collapse_cubes:return_biwt_cmd',
                         'add_sensitivity_cube_to_hdf5 =  hetdex_api.flux_limits.hdf5_sensitivity_cubes:add_sensitivity_cube_to_hdf5',
                         'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube',
-                        'hetdex_get_spec = hetdex_api.hetdex_tools.get_spec:main',
-                        'hetdex_get_spec2D = hetdex_api.hetdex_tools.get_spec2D:main',
-                        'hetdex_get_shots = hetdex_api.hetdex_tools.get_shots_of_interest:main'
+                        'hetdex_get_spec = hetdex_tools.get_spec:main',
+                        'hetdex_get_spec2D = hetdex_tools.get_spec2D:main',
+                        'hetdex_get_shots = hetdex_tools.get_shots_of_interest:main'
                      ]
                    },
 
