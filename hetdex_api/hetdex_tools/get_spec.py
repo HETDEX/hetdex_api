@@ -595,7 +595,9 @@ def main(argv=None):
         args.survey = args.survey[sel_shot]
 
     else:
-        args.log.info("Searching through all shots")
+        sel_shot = args.survey.shotid > 20171200
+        args.survey = args.survey[sel_shot]
+        args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
