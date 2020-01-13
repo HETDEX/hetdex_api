@@ -595,7 +595,7 @@ def main(argv=None):
         args.survey = args.survey[sel_shot]
 
     else:
-        sel_shot = args.survey.shotid > 20171200
+        sel_shot = args.survey.shotid > 20171200000
         args.survey = args.survey[sel_shot]
         args.log.info("Searching through all shots later than 20171201")
 
@@ -666,6 +666,10 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
             sel_shot = args.survey.datevobs == str(shotid)
 
         args.survey = args.survey[sel_shot]
+    else:
+        sel_shot = args.survey.shotid > 20171200000
+        args.survey = args.survey[sel_shot]
+        args.log.info("Searching through all shots later than 20171201")
 
     args.log = setup_logging()
 
