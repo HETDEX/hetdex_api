@@ -31,6 +31,9 @@ Then install all required python packages:
    pip3 install --user ipyevents
    pip3 install --user astrowidgets
    pip3 install --user jsonschema==3.1.1
+   pip3 install --user sep
+   pip3 install --user specutils
+   pip3 install --user photutils
 
 Copy the git clone repository of hetdex_api 
 
