@@ -1,40 +1,39 @@
-###!/usr/bin/env python2
-# -*- coding: utf-8 -*-
 """
-Created on Fri Mar  8 12:21:35 2019
+Config file for HETDEX data release paths
+"""
 
-@author: gregz
-"""
 import os.path as op
 
-hdr_dir = '/work/03946/hetdex/hdr1'
-software_dir = op.join(hdr_dir, 'software')
-red_dir = op.join(hdr_dir, 'reduction')
-data_dir = op.join(red_dir, 'data')
-tp_dir = op.join(red_dir, 'throughput')
-calib_dir = op.join(hdr_dir, 'calib')
-raw_dir = op.join(hdr_dir, 'raw')
-flim_dir = op.join(red_dir, 'flim')
-elix_dir = op.join(hdr_dir, 'detect', 'ergfiles')
 
-path_gpinfo = op.join(calib_dir,'DR1FWHM.txt')
-path_acc_flags = op.join(red_dir, 'status_summary_hdr1.txt')
-path_radec = op.join(calib_dir, 'radec.all')
+class HDRconfig:
+    def __init__(self, survey='hdr1'):
+        self.hdr_dir = {'hdr1': '/work/03946/hetdex/hdr1',
+                        'hdr2': '/scratch/05350/ecooper/hdr2'}
+        self.software_dir = op.join(self.hdr_dir[survey], 'software')
+        self.red_dir = op.join(self.hdr_dir[survey], 'reduction')
+        self.data_dir = op.join(self.red_dir, 'data')
+        self.tp_dir = op.join(self.red_dir, 'throughput')
+        self.calib_dir = op.join(self.hdr_dir[survey], 'calib')
+        self.raw_dir = op.join(self.hdr_dir[survey], 'raw')
+        self.flim_dir = op.join(self.red_dir, 'flim')
+        self.elix_dir = op.join(self.hdr_dir[survey], 'detect', 'ergfiles')
+        self.path_gpinfo = op.join(self.calib_dir, 'DR1FWHM.txt')
+        self.path_acc_flags = op.join(self.red_dir, 'status_summary_hdr1.txt')
+        self.path_radec = op.join(self.calib_dir, 'radec.all')
+        self.survey_list = op.join(self.red_dir, 'hdr1.scilist')
+        self.cal_list = op.join(self.red_dir, 'hdr1.callist')
+        self.surveyh5 = op.join(self.hdr_dir[survey],'survey','survey_' + survey + '.h5')
+        self.detecth5 = op.join(self.hdr_dir[survey],'detect','detect_' + survey + '.h5')
+        self.elixerh5 = op.join(self.hdr_dir[survey],'detect','elixer.h5')
+        self.contsourceh5 = op.join(self.hdr_dir[survey],'detect','continuum_sources.h5')
 
-survey_list = op.join(red_dir, 'hdr1.scilist')
-cal_list = op.join(red_dir, 'hdr1.callist')
-
-surveyh5 = op.join(hdr_dir,'survey','survey_hdr1.h5')
-detecth5 = op.join(hdr_dir,'detect','detect_hdr1.h5')
-elixerh5 = op.join(hdr_dir,'detect','elixer.h5')
-contsourceh5 = op.join(hdr_dir,'detect','continuum_sources.h5')
-
-# here are files that are changing since HDR1 release
-bad_dir = '/work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1'
-baddetect = op.join(bad_dir, 'baddetects.list')
-badshot = op.join(bad_dir, 'badshots.list')
-badamp = op.join(bad_dir, 'badamps.list')
-badpix = op.join(bad_dir, 'posthdr1badpix.list')
-gmags = op.join(bad_dir,'gmags.pickle')
-gmags_cont = op.join(bad_dir, 'gmags_cont.pickle')
-plae_poii_hetdex_gmag = op.join(bad_dir,'plae_poii_hetdex_gmag.pickle')
+        if (survey=='hdr1'):
+            # here are files that are changing since HDR1 release
+            self.bad_dir = '/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1'
+            self.baddetect = op.join(self.bad_dir, 'baddetects.list')
+            self.badshot = op.join(self.bad_dir, 'badshots.list')
+            self.badamp = op.join(self.bad_dir, 'badamps.list')
+            self.badpix = op.join(self.bad_dir, 'posthdr1badpix.list')
+            self.gmags = op.join(self.bad_dir, 'gmags.pickle')
+            self.gmags_cont = op.join(self.bad_dir, 'gmags_cont.pickle')
+            self.plae_poii_hetdex_gmag = op.join(self.bad_dir, 'plae_poii_hetdex_gmag.pickle')

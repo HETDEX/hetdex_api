@@ -6,6 +6,10 @@ Created on Wed Nov 29 09:52:35 2017
 """
 import glob
 import re
+import os
+import shutil
+import tarfile
+import sys
 
 import tables as tb
 import argparse as ap
@@ -16,6 +20,10 @@ from astropy.io import fits
 from input_utils import setup_logging
 from astropy.table import Table
 
+# hard coded variable to initialize 'rms', 'chi' arrays
+# and remove 'twi_spectrum' for all realeases past hdr1
+global hdr_survey
+hdr_survey = 'hdr2'
 
 def build_path(reduction_folder, instr, date, obsid, expn):
     folder = op.join(date, instr, "{:s}{:07d}".format(instr, int(obsid)),
@@ -24,9 +32,50 @@ def build_path(reduction_folder, instr, date, obsid, expn):
 
 
 def get_files(args):
-    files = glob.glob(op.join(args.rootdir, args.date, 'virus',
-                              'virus%07d' % int(args.observation),
-                              'exp*', 'virus', 'multi_*.fits'))
+    if args.survey == 'hdr1':
+        files = glob.glob(op.join(args.rootdir, args.date, 'virus',
+                                  'virus%07d' % int(args.observation),
+                                  'exp*', 'virus', 'multi_*.fits'))
+    else:
+
+        datestr = 'd%ss%03d' % (args.date, int(args.observation))
+
+        tmppath = op.join(os.getcwd(), 'tmp')
+        # remove any old temporary multifits
+        try:
+            os.mkdir(tmppath)
+        except FileExistsError:
+            pass
+            
+        datepath = op.join(tmppath, datestr)
+        if op.isdir(datepath):
+            shutil.rmtree(datepath, ignore_errors=True)
+
+        os.mkdir(datepath)
+
+        tarfiles = glob.glob(op.join(args.rootdir,
+                                     'sci' + str(args.date)[0:6],
+                                     datestr + 'exp0?',
+                                     datestr + 'exp0?_mu.tar'))
+
+        if np.size(tarfiles) == 3:
+            for exp in ['exp01', 'exp02', 'exp03']:
+                expfile = op.join(args.rootdir,
+                                  'sci' + str(args.date)[0:6],
+                                  datestr + exp,
+                                  datestr + exp + '_mu.tar')
+                tar = tarfile.open(name=expfile, mode='r')
+                dir_exp = op.join(datepath, exp)
+
+                os.mkdir(dir_exp)
+                tar.extractall(path=dir_exp)
+
+            files = glob.glob(op.join(datepath, 'exp*/multi*.fits'))
+
+        else:
+            args.log.error('Could not locate tar files for three dithers.')
+            sys.exit()
+
     return files
 
 
@@ -43,7 +92,12 @@ class VIRUSFiber(tb.IsDescription):
     spectrum = tb.Float32Col((1032,))
     wavelength = tb.Float32Col((1032,))
     fiber_to_fiber = tb.Float32Col((1032,))
-    twi_spectrum = tb.Float32Col((1032,))
+    global hdr_survey
+    if hdr_survey == 'hdr1':
+        twi_spectrum = tb.Float32Col((1032,))
+    else:
+        chi2 = tb.Float32Col((1032,))
+        rms = tb.Float32Col((1032,))
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     sky_spectrum = tb.Float32Col((1032,))
@@ -58,7 +112,7 @@ class VIRUSFiber(tb.IsDescription):
     contid = tb.StringCol(8)
     amp = tb.StringCol(2)
     expnum = tb.Int32Col()
-
+    
 
 class VIRUSImage(tb.IsDescription):
     obsind = tb.Int32Col()
@@ -108,29 +162,43 @@ def append_shot_to_table(shot, shottable, fn, cnt):
     shot['dewpoint'] = F[0].header['DEWPOINT']
     shot['pressure'] = F[0].header['BAROMPRE']
     shot['exptime'] = F[0].header['EXPTIME']
-    shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
+    try:
+        shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
+    except:
+        shot['expn'] = int(op.dirname(F.filename())[-2:])
     shottable.attrs['HEADER'] = F[0].header
     shot.append()
 
 
-def append_fibers_to_table(fib, im, fn, cnt, T):
+def append_fibers_to_table(fib, im, fn, cnt, T, args):
     F = fits.open(fn)
     idx = fn.find('multi')
     multiframe = fn[idx:idx+20]
     im['multiframe'] = multiframe
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
-    attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
-            'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
-            'calfib', 'calfibe','Amp2Amp', 'Throughput']
-    imattr = ['image', 'error', 'clean_image']
+    if args.survey == 'hdr1':
+        attr = ['spectrum', 'wavelength', 'fiber_to_fiber', 'twi_spectrum',
+                'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+                'calfib', 'calfibe','Amp2Amp', 'Throughput']
+        imattr = ['image', 'error', 'clean_image']
+    else:
+        attr = ['spectrum', 'wavelength', 'fiber_to_fiber',
+                'sky_spectrum','sky_subtracted', 'trace', 'error1Dfib',
+                'calfib', 'calfibe','Amp2Amp', 'Throughput','chi2','rms']
+        imattr = ['image', 'error', 'clean_image']
+
     for att in imattr:
         if att == 'image':
             im[att] = F['PRIMARY'].data * 1.
         else:
             im[att] = F[att].data * 1.
     mname = op.basename(fn)[:-5]
-    expn = op.basename(op.dirname(op.dirname(fn)))
+    if args.survey == 'hdr1':
+        expn = op.basename(op.dirname(op.dirname(fn)))
+    else:
+        expn = op.basename((op.dirname(fn)))
+
     if T is not None:
         sel = T['col8'] == (mname + '_001.ixy')
         sel1 = T['col10'] == expn
@@ -171,7 +239,10 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
         fib['ifuid'] = '%03d' % int(F[0].header['IFUID'])
         fib['specid'] = '%03d' % int(F[0].header['SPECID'])
         fib['contid'] = F[0].header['CONTID']
-        fib['amp'] = '%s' % F[0].header['amp'][:2]
+        try:
+            fib['amp'] = '%s' % F[0].header['amp'][:2]
+        except:
+            fib['amp'] = '%s' % F.filename()[-7:-5]
         fib['expnum'] = int(expn[-2:])
         fib.append()
     im['obsind'] = cnt
@@ -179,7 +250,10 @@ def append_fibers_to_table(fib, im, fn, cnt, T):
     im['ifuid'] = '%03d' % int(F[0].header['IFUID'])
     im['specid'] = '%03d' % int(F[0].header['SPECID'])
     im['contid'] = F[0].header['CONTID']
-    im['amp'] = '%s' % F[0].header['amp'][:2]
+    try:
+        im['amp'] = '%s' % F[0].header['amp'][:2]
+    except:
+        im['amp'] = '%s' % F.filename()[-7:-5]
     im['expnum'] = int(expn[-2:])
     im.append()
     return True
@@ -215,9 +289,18 @@ def main(argv=None):
                         help='''Path to detections''',
                         type=str, default='/work/00115/gebhardt/maverick/detect')
 
+    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr3}''',
+                        type=str, default='hdr2')
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
+    global hdr_survey
+    hdr_survey = args.survey
+    if args.survey != hdr_survey:
+        args.log.warning('Hard coded hdr_survey does not match input survey.')
+        sys.exit()
+        
     # Get the daterange over which reduced files will be collected
     files = get_files(args)
     datestr = '%sv%03d' % (args.date, int(args.observation))
@@ -259,7 +342,7 @@ def main(argv=None):
         args.log.info('Working on %s' % fn)
         fib = fibtable.row
         im = imagetable.row
-        success = append_fibers_to_table(fib, im, fn, cnt, T)
+        success = append_fibers_to_table(fib, im, fn, cnt, T, args)
         if success:
             fibtable.flush()
             imagetable.flush()
@@ -274,6 +357,12 @@ def main(argv=None):
 
     fileh.close()
 
+    # remove all temporary multifits
+    if args.survey != 'hdr1':
+        datestr = 'd%ss%03d' % (args.date, int(args.observation))
+        tmppath = op.join(os.getcwd(), 'tmp')
+        datepath = op.join(tmppath, datestr)
+        shutil.rmtree(datepath, ignore_errors=True)
 
 if __name__ == '__main__':
     main()
