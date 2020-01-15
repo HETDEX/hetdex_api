@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os.path as op
 
+import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
