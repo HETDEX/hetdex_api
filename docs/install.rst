@@ -1,23 +1,39 @@
 Installation
 ============
 
-Pip Install
------------
-
-To install hetdex_api you can grab the python package from pypi with a pip3 install. Be sure to use pip3 to install it for use in python3. Use the --user tag when installing on TACC.
-
-.. code-block:: bash
-
-   pip3 install hetdex_api --user
-
 For TACC Users
 --------------
 
-If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions and copy over Karl's .bashrc. This will set both your home and work directories to be readable to everyone on TACC.
+If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that both your home and work directories to be readable to everyone on TACC. Use at your own discretion.
 
 .. code-block:: bash
+
+   ssh wrangler or stampede2
+   chmod a+rx ../username
+   cdw
+   chmod a+rx ../*
+   chomd a+rx ../../username
+   chmod a+rx ../wrangler
+   chmod a+rx ../stampede2
+
+Then get the default bash script from TACC by running this script
    
-   cp ~gebhardt/rsetup
+.. code-block:: bash
+
+   /usr/local/startup_scripts/install_default_scripts
+
+Then uncomment this line:
+.. text-block:: 
+
+   umask 022
+
+and add in the following module loads/unloads:
+
+.. text-block::
+
+   module unload python
+   module unload python2
+   module load python3
 
 Then install all required python packages:
 
@@ -41,20 +57,12 @@ Copy the git clone repository of hetdex_api
 		
    git clone https://github.com/HETDEX/hetdex_api.git
 
-
 Then pip3 install with the -e parameter to update as the repository evolves
 
 .. code-block:: bash
    
    pip3 install -e hetdex_api --user
 
-Be sure to remove any PYTHONPATH to HETDEX_API in your .bashrc. And then add the line
-
-.. code-block:: bash
-
-   export PATH="~/.local/bin:$PATH"
-
-in your .bashrc so the command line quick entry points work.
 
 For Contributors
 ----------------
