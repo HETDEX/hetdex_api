@@ -34,6 +34,13 @@ and add in the following module loads/unloads:
    module unload python
    module unload python2
    module load python3
+   alias python='python3'
+
+and add in the following line to your $PATH
+
+.. text-block::
+
+   export PATH=$PATH:$HOME/bin:$HOME/.local/bin
 
 Then install all required python packages:
 
