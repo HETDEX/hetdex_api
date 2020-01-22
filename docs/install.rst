@@ -80,7 +80,7 @@ This will allow you to go to your work directory when you log onto vis.
 You can now open up a jupyter notebook and explore some of the notebooks in 
 hetdex-api/notebooks or just pop in some of the commands you see throughout this website. 
 
-In your favourite browser goto _vis.tacc.utexas.edu and log onto stampede2. Choose the 
+In your favourite browser goto <vis.tacc.utexas.edu> and log onto stampede2. Choose the 
 jupyter notebook option and pick the skx-dev queue. 
 
 For Contributors
