@@ -32,7 +32,7 @@ def build_path(reduction_folder, instr, date, obsid, expn):
 
 
 def get_files(args):
-    if args.survey == 'hdr1':
+    if args.tar == False:
         files = glob.glob(op.join(args.rootdir, args.date, 'virus',
                                   'virus%07d' % int(args.observation),
                                   'exp*', 'virus', 'multi_*.fits'))
@@ -40,7 +40,7 @@ def get_files(args):
 
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
 
-        tmppath = '/tmp'
+        tmppath = 'tmp'
         # remove any old temporary multifits
         try:
             os.mkdir(tmppath)
@@ -78,10 +78,21 @@ def get_files(args):
 
     return files
 
+class VIRUSFiberIndex(tb.IsDescription):
+    multiframe = tb.StringCol((20), pos=0)
+    fiber_id = tb.StringCol((38), pos=4)
+    fibidx = tb.Int32Col()
+    ifux = tb.Float32Col()
+    ifuy = tb.Float32Col()
+    fpx = tb.Float32Col()
+    fpy = tb.Float32Col()
+    ra = tb.Float32Col(pos=1)
+    dec = tb.Float32Col(pos=2)
 
 class VIRUSFiber(tb.IsDescription):
     obsind = tb.Int32Col()
     multiframe = tb.StringCol((20), pos=0)
+    fiber_id = tb.StringCol((38), pos=4)
     fibidx = tb.Int32Col()
     ifux = tb.Float32Col()
     ifuy = tb.Float32Col()
@@ -170,8 +181,9 @@ def append_shot_to_table(shot, shottable, fn, cnt):
     shot.append()
 
 
-def append_fibers_to_table(fib, im, fn, cnt, T, args):
+def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
     F = fits.open(fn)
+    shotid = int(args.date) * 1000 + int(args.observation) 
     idx = fn.find('multi')
     multiframe = fn[idx:idx+20]
     im['multiframe'] = multiframe
@@ -194,10 +206,11 @@ def append_fibers_to_table(fib, im, fn, cnt, T, args):
         else:
             im[att] = F[att].data * 1.
     mname = op.basename(fn)[:-5]
-    if args.survey == 'hdr1':
-        expn = op.basename(op.dirname(op.dirname(fn)))
-    else:
+
+    if args.tar:
         expn = op.basename((op.dirname(fn)))
+    else:
+        expn = op.basename(op.dirname(op.dirname(fn)))
 
     if T is not None:
         sel = T['col8'] == (mname + '_001.ixy')
@@ -207,6 +220,10 @@ def append_fibers_to_table(fib, im, fn, cnt, T, args):
         fib['obsind'] = cnt
         fib['fibidx'] = i
         fib['multiframe'] = multiframe
+        fibindex['multiframe'] = fib['multiframe']
+        fib['fiber_id'] = str(shotid) + '_' + str(expn) + '_' + multiframe + '_' + str(i+1).zfill(3)
+        fibindex['fiber_id'] = fib['fiber_id']
+
         if T is not None:
             if len(loc):
                 loci = loc[0] + i
@@ -230,8 +247,17 @@ def append_fibers_to_table(fib, im, fn, cnt, T, args):
             fib['dec'] = np.nan
             fib['fpx'] = np.nan
             fib['fpy'] = np.nan
+        
+        fibindex['ra'] = fib['ra']
+        fibindex['dec'] = fib['dec']
+        fibindex['fpx'] = fib['fpx']
+        fibindex['fpy'] = fib['fpy']
+        
         fib['ifux'] = F['ifupos'].data[i, 0]
         fib['ifuy'] = F['ifupos'].data[i, 1]
+        fibindex['ifux'] = fib['ifux']
+        fibindex['ifuy'] = fib['ifuy']
+
         for att in attr:
             if att in F:
                 fib[att] = F[att].data[i, :]
@@ -243,8 +269,11 @@ def append_fibers_to_table(fib, im, fn, cnt, T, args):
             fib['amp'] = '%s' % F[0].header['amp'][:2]
         except:
             fib['amp'] = '%s' % F.filename()[-7:-5]
+        
         fib['expnum'] = int(expn[-2:])
         fib.append()
+        fibindex.append()
+
     im['obsind'] = cnt
     im['ifuslot'] = '%03d' % int(F[0].header['IFUSLOT'])
     im['ifuid'] = '%03d' % int(F[0].header['IFUID'])
@@ -291,6 +320,9 @@ def main(argv=None):
 
     parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr3}''',
                         type=str, default='hdr2')
+    
+    parser.add_argument("-tar", "--tar", help='''Flag to open tarred multifits''',
+                        action='store_true')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -323,11 +355,13 @@ def main(argv=None):
         fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
         fileh.create_table(fileh.root, 'Shot', VIRUSShot, 'Shot Info')
         fileh.create_table(group, 'Images', VIRUSImage, 'Image Info')
+        fileh.create_table(group, 'FiberIndex', VIRUSFiberIndex, 'Fiber Coord Info')
 
     # Grab the fiber table and amplifier table for writing
     fibtable = fileh.root.Data.Fibers
     shottable = fileh.root.Shot
     imagetable = fileh.root.Data.Images
+    fibindextable = fileh.root.Data.FiberIndex
 
     if does_exist:
         cnt = shottable[-1]['obsind']
@@ -342,7 +376,9 @@ def main(argv=None):
         args.log.info('Working on %s' % fn)
         fib = fibtable.row
         im = imagetable.row
-        success = append_fibers_to_table(fib, im, fn, cnt, T, args)
+        fibindex = fibindextable.row
+ 
+        success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
         if success:
             fibtable.flush()
             imagetable.flush()
@@ -358,9 +394,9 @@ def main(argv=None):
     fileh.close()
 
     # remove all temporary multifits
-    if args.survey != 'hdr1':
+    if args.tar:
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
-        tmppath = '/tmp'
+        tmppath = 'tmp'
         datepath = op.join(tmppath, datestr)
         shutil.rmtree(datepath, ignore_errors=True)
 
