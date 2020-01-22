@@ -68,6 +68,20 @@ Then pip3 install with the -e parameter to update as the repository evolves
    
    pip3 install -e hetdex_api --user
 
+One final suggestion is to add a link from your home to your work directory. For example, I would do:
+
+.. code-block:: 
+   
+   cd
+   ln -s /work/05350/ecooper/ work-stampede2
+
+This will allow you to go to your work directory when you log onto vis.
+
+You can now open up a jupyter notebook and explore some of the notebooks in 
+hetdex-api/notebooks or just pop in some of the commands you see throughout this website. 
+
+In your favourite browser goto _vis.tacc.utexas.edu and log onto stampede2. Choose the 
+jupyter notebook option and pick the skx-dev queue. 
 
 For Contributors
 ----------------
