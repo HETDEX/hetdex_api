@@ -17,28 +17,26 @@ If this is your first time on a TACC cluster we recommend a few setup steps. Fir
    chmod a+rx ../stampede2
 
 Then get the default bash script from TACC by running this script
-   
+
 .. code-block:: bash
 
    /usr/local/startup_scripts/install_default_scripts
 
 Then uncomment this line:
-.. text-block:: 
+::
 
    umask 022
 
 and add in the following module loads/unloads:
-
-.. text-block::
+::
 
    module unload python
    module unload python2
    module load python3
    alias python='python3'
 
-and add in the following line to your $PATH
-
-.. text-block::
+and add in the following line to your $PATH:
+::
 
    export PATH=$PATH:$HOME/bin:$HOME/.local/bin
 
