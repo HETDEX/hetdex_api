@@ -70,7 +70,7 @@ Then pip3 install with the -e parameter to update as the repository evolves
 
 One final suggestion is to add a link from your home to your work directory. For example, I would do:
 
-.. code-block:: 
+.. code-block:: bash
    
    cd
    ln -s /work/05350/ecooper/ work-stampede2
