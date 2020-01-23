@@ -219,6 +219,8 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
+                sel = np.isfinite(spectrum_aper)
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -286,7 +288,7 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(shotid_arr), name="shotid")
     output.add_column(Column(wave_arr, unit=u.AA, name="wavelength"))
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
-    output.add_column(Column(spec_arr, unit=fluxden_u, name="spec_err"))
+    output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
 
     return output
