@@ -221,7 +221,7 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
         fib['fibidx'] = i
         fib['multiframe'] = multiframe
         fibindex['multiframe'] = fib['multiframe']
-        fib['fiber_id'] = str(shotid) + '_' + str(expn) + '_' + multiframe + '_' + str(i+1).zfill(3)
+        fib['fiber_id'] = str(shotid) + '_' + str(int(expn[-2:])) + '_' + multiframe + '_' + str(i+1).zfill(3)
         fibindex['fiber_id'] = fib['fiber_id']
 
         if T is not None:
