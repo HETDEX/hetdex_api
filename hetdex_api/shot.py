@@ -463,7 +463,8 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
     ]
 
 
-def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", expnum_obj=1):
+def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", 
+                    expnum_obj=1, survey='hdr1'):
     """
     Returns an image from the 2D data based on
     an multiframe or a specid/amp/expnum combo
@@ -483,7 +484,7 @@ def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", expnum_obj=1):
     a 2D numpy array for the specified amp
 
     """
-    fileh = open_shot_file(shot)
+    fileh = open_shot_file(shot, survey=survey)
     im0 = fileh.root.Data.Images.read_where(
         "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
     )
