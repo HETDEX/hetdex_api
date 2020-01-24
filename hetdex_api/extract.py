@@ -645,9 +645,9 @@ class Extract:
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
         )
-        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0)) / np.sum(
-            mask * weights ** 2, axis=0
-        )
+        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0) / np.sum(
+            mask * weights ** 2, axis=0))
+
         # Only use wavelengths with enough weight to avoid large noise spikes
         w = np.sum(mask * weights ** 2, axis=0)
         sel = w < np.median(w) * 0.1
