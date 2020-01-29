@@ -102,7 +102,7 @@ class Fibers:
             'calfibe'
         """
 
-        self.hdfile = open_shot_file(shot)
+        self.hdfile = open_shot_file(shot, survey=survey)
         self.table = self.hdfile.root.Data.Fibers
         self.coords = SkyCoord(
             self.table.cols.ra[:] * u.degree,
