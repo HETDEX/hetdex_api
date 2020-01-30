@@ -285,6 +285,9 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
         im['amp'] = '%s' % F.filename()[-7:-5]
     im['expnum'] = int(expn[-2:])
     im.append()
+
+    #close the fits file
+    F.close()
     return True
 
 
