@@ -597,9 +597,10 @@ def main(argv=None):
         args.survey = args.survey[sel_shot]
 
     else:
-        sel_shot = args.survey.shotid > 20171200000
-        args.survey = args.survey[sel_shot]
-        args.log.info("Searching through all shots later than 20171201")
+        pass
+        #sel_shot = args.survey.shotid > 20171200000
+        #args.survey = args.survey[sel_shot]
+        #args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
@@ -669,8 +670,9 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
 
         args.survey = args.survey[sel_shot]
     else:
-        sel_shot = args.survey.shotid > 20171200000
-        args.survey = args.survey[sel_shot]
+        pass
+        #sel_shot = args.survey.shotid > 20171200000
+        #args.survey = args.survey[sel_shot]
 
 
     args.log = setup_logging()
