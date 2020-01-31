@@ -119,8 +119,11 @@ def main(argv=None):
                 idx = (cal_table['expnum'] == fibrow['expnum']) * (cal_table['multiframe'] == fibrow['multiframe'].decode()) * (cal_table['fibidx'] == fibrow['fibidx'])
                 fibrow['calfib']  = cal_table['calfib'][idx]
                 fibrow['calfibe'] = cal_table['calfibe'][idx]
+                # Add soon!!!!
+                #fibrow['calfib_counts'] = cal_table['calfib_counts']
+                #fibrow['calfibe_counts'] = cal_table['calfibe_counts']
                 fibrow.update()
-    args.info('Flushing and closing H5 file')
+    args.log.info('Flushing and closing H5 file')
     fibtable.flush()
     fileh.close()
 
