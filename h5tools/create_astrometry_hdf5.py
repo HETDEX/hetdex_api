@@ -50,6 +50,19 @@ class NominalVals(tb.IsDescription):
     als_filename = tb.StringCol((23))
 
 
+class Dithall(tb.IsDescription):
+    ra = tb.Float32Col(pos=0)
+    dec = tb.Float32Col(pos=1)
+    ifuslot = tb.StringCol((3))
+    XS = tb.Float32Col()
+    YS = tb.Float32Col()
+    xfplane = tb.Float32Col()
+    yfplane = tb.Float32Col()
+    multifits = tb.StringCol((28))
+    timestamp = tb.StringCol((17))
+    exposure = tb.StringCol((5))
+
+
 def main(argv=None):
     ''' Main Function '''
     # Call initial parser from init_utils
@@ -66,7 +79,7 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Shifts''',
-                        type=str, default='/work/00115/gebhardt/maverick/vdrp/shifts/')
+                        type=str, default='/data/00115/gebhardt/vdrp/shifts')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5
@@ -91,6 +104,11 @@ def main(argv=None):
         args.log.info('Creating new file for astrometry %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'w')
 
+    try: 
+        fileh.remove_node(fileh.root.Astrometry, recursive=True)
+    except:
+        args.log.info('Creating new Astrometry group')
+
     groupAstrometry = fileh.create_group(fileh.root, 'Astrometry', 'Astrometry Info')
     groupCoadd = fileh.create_group(groupAstrometry, 'CoaddImages', 'Coadd Images')
     groupDithall = fileh.create_group(groupAstrometry, 'Dithall', 'Fiber Astrometry Info')
@@ -109,7 +127,7 @@ def main(argv=None):
                           'shuffle.cfg')
     try:
         f = open(fileshuffle, 'r')
-        shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read())
+        shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read().encode())
         shuffle.set_attr('filename','shuffle.cfg')
         f.close()
     except:
@@ -119,7 +137,7 @@ def main(argv=None):
                       str(args.date) + 'v' + str(args.observation).zfill(3) + '.log')
     try: 
         f = open(logfile)
-        fileh.create_array(groupAstrometry, 'LogInfo', f.read())
+        fileh.create_array(groupAstrometry, 'LogInfo', f.read().encode())
         f.close()
     except: 
         args.log.warning('Could not include %s' % logfile)
@@ -227,21 +245,22 @@ def main(argv=None):
 
         matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            'match_' + expn + '.pdf')
-        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn
-
+        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
+        
+        os.system('convert ' + matchpdf + ' ' + matchpng)
         try:
-            os.system('pdftoppm ' + matchpdf + ' ' + matchpng + ' -png')  
-            plt_matchim = plt.imread(matchpng + '-1.png')
+            os.system('convert ' + matchpdf + ' ' + matchpng)  
+            plt_matchim = plt.imread(matchpng)
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
-            matchim.attrs['filename'] = 'match_exp??.pdf'
+            matchim.attrs['filename'] = matchpdf
         except:
             args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
         file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                               'getoff_' + expn + '.out')
-            
+
         try:
             f_getoff = ascii.read(file_getoff, names=['xoffset', 'yoffset', 'ra_dex',
                                                       'dec_dex', 'ra_cat', 'dec_cat',
@@ -251,14 +270,30 @@ def main(argv=None):
         except:
             args.log.warning('Could not include %s' % file_getoff)
             
-
         # populate fiber astrometry data
         file_dith = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                             'dith_' + expn + '.all')    
         try:
             f_dith = ascii.read(file_dith)
-            dithinfo = fileh.create_table(groupDithall, expn, f_dith.as_array())
-            dithinfo.set_attr('filename', 'dith_exp??.all')
+            dithtab = fileh.create_table(groupDithall, expn, Dithall)
+            
+            for f_dith_row in f_dith:
+                dithrow = dithtab.row
+                
+                dithrow['ra'] = f_dith_row['ra']
+                dithrow['dec'] = f_dith_row['dec']
+                dithrow['ifuslot'] = f_dith_row['ifuslot']
+                dithrow['XS'] = f_dith_row['XS']
+                dithrow['YS'] = f_dith_row['YS']
+                dithrow['xfplane'] = f_dith_row['xfplane']
+                dithrow['yfplane'] = f_dith_row['yfplane']
+                dithrow['multifits'] = f_dith_row['multifits']
+                dithrow['timestamp'] = f_dith_row['timestamp']
+                dithrow['exposure'] = f_dith_row['exposure']
+                dithrow.append()
+           
+            dithtab.set_attr('filename', file_dith)
+            dithtab.flush()
         except:
             args.log.warning('Could not include %s' % file_dith)
             
