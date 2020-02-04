@@ -58,7 +58,8 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/work/03946/hetdex/hdr1/reduction/throughput')
+                        default='/data/00115/gebhardt/detect/tp')
+                        #default='/work/03946/hetdex/hdr1/reduction/throughput')
 
     parser.add_argument("-am", "--ampdir",
                         help='''Directory for Amp to Amp''',
@@ -87,6 +88,11 @@ def main(argv=None):
     else:
         fileh = tb.open_file(args.outfilename, 'w')
         args.log.info('Writingcalibration info to %s'% args.outfilename)
+
+    try: 
+        fileh.remove_node(fileh.root.Calibration, recursive=True)
+    except:
+        args.log.info('Creating new Calibration group')
 
     group = fileh.create_group(fileh.root, 'Calibration',
                                'HETDEX Calibration Info')
@@ -123,7 +129,7 @@ def main(argv=None):
         args.log.warning('Could not include %s' % tpfile)
 
     tppngfile = op.join(args.tpdir, str(args.date) + 'v' +
-                     str(args.observation.zfill(3)) + 'sedtpa.png')
+                     str(args.observation.zfill(3)) + 'sed.png')
 
     try:
         pngimarr = plt.imread(tppngfile)
