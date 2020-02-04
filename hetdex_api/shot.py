@@ -442,13 +442,24 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
             
             fibers_table["calfib"] = fibers_table["calfib"] / 2.0
             fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
+            
+            if astropy:
+                fibers_table = Table(fibers_table)
+
+        else:
+            fibers_table = None
+
     else:
+
         #use FiberIndex table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region( coords)        
-        
-    if astropy:
-        fibers_table = Table(fibers_table)
+        fibers_table = fiberindex.query_region(coords)        
+    
+        if np.size(fibers_table) > 0:
+            if astropy:
+                fibers_table = Table(fibers_table)
+        else:
+            fibers_table = None
 
     fileh.close()
     return fibers_table
