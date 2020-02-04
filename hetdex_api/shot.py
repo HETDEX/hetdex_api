@@ -103,27 +103,48 @@ class Fibers:
         """
 
         self.hdfile = open_shot_file(shot, survey=survey)
+        
         self.table = self.hdfile.root.Data.Fibers
+        
+        # Grab attributes from FiberIndex table if survey!='hdr1'
+
+        if survey == 'hdr1':
+            colnames = self.hdfile.root.Data.Fibers.colnames
+            for name in colnames:
+
+                if isinstance(
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
+                ):
+                    setattr(
+                    self,
+                        name,
+                        getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str),
+                    )
+                else:
+                    setattr(self, name, 
+                            getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
+        else:
+            colnames = self.hdfile.root.Data.FiberIndex.colnames
+            for name in colnames:
+
+                if isinstance(
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                ):
+                    setattr(
+                    self,
+                        name,
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                    )
+                else:
+                    setattr(self, name, 
+                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+
         self.coords = SkyCoord(
-            self.table.cols.ra[:] * u.degree,
-            self.table.cols.dec[:] * u.degree,
+            self.ra[:] * u.degree,
+            self.dec[:] * u.degree,
             frame="icrs",
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
-
-        colnames = self.hdfile.root.Data.Fibers.colnames
-
-        for name in colnames:
-            if isinstance(
-                getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
-            ):
-                setattr(
-                    self,
-                    name,
-                    getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str),
-                )
-            else:
-                setattr(self, name, getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
 
     def query_region(self, coords, radius=3.0 / 3600.0):
         """
@@ -185,8 +206,8 @@ class Fibers:
         image arrays produced by Panacea.
         """
 
-        wave_data = self.wavelength[idx]
-        trace_data = self.trace[idx]
+        wave_data = self.table[idx]['wavelength']
+        trace_data = self.table[idx]['trace']
 
         y = int(np.round(np.interp(wave_obj, wave_data, range(len(wave_data)))))
         x = int(np.round(np.interp(y, range(len(trace_data)), trace_data)))
@@ -264,10 +285,11 @@ class Fibers:
 
     def get_fib_image2D(
         self,
-        wave_obj,
-        fibnum_obj,
-        multiframe_obj,
-        expnum_obj,
+        wave_obj=None,
+        fiber_id=None,
+        fibnum_obj=None,
+        multiframe_obj=None,
+        expnum_obj=None,
         width=60,
         height=40,
         imtype="clean_image",
@@ -282,6 +304,8 @@ class Fibers:
             fibers class object
         wave_obj
             astropy wavelength object
+        fiber_id
+            fiber_id for a fiber: shotid_exp_multiframe_fibnum
         expnum
             dither exposure number [1,2,3]
         fibnum
@@ -301,11 +325,20 @@ class Fibers:
         A 2D image of the specified fiber
         """
 
-        idx = np.where(
-            (self.fibidx == (fibnum_obj - 1))
-            * (self.multiframe == multiframe_obj)
-            * (self.expnum == expnum_obj))[0][0]
-
+        if fiber_id:
+            idx = np.where(self.fiber_id == fiber_id)[0]
+        else:
+            idx = np.where(
+                (self.fibidx == (fibnum_obj - 1))
+                * (self.multiframe == multiframe_obj)
+                * (self.expnum == expnum_obj))[0][0]
+        if len(idx) > 1:
+            print('Somethings is wrong, found {} fibers'.format(len(idx)))
+            sys.exit()
+        elif len(idx) == 0:
+            print('Could not find a fiber match. Check inputs')
+            sys.exit()
+        
         x, y = self.get_image_xy(idx, wave_obj)
 
         im0 = self.hdfile.root.Data.Images.read_where(
@@ -357,7 +390,7 @@ class Fibers:
         return table
 
 
-def get_fibers_table(shot, coords, radius, survey="hdr1", astropy=True):
+def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astropy=True):
     """
     Returns fiber specta for a given shot.
 
@@ -374,7 +407,7 @@ def get_fibers_table(shot, coords, radius, survey="hdr1", astropy=True):
 
     Returns
     -------
-    An table of fibers within the defined aperture. Will be an astropy table
+    A table of fibers within the defined aperture. Will be an astropy table
     object if astropy=True is set
 
     """
@@ -395,24 +428,27 @@ def get_fibers_table(shot, coords, radius, survey="hdr1", astropy=True):
         rad = radius * u.arcsec
         pass
 
-    # search first along ra
-
-    ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
-
-    if any(ra_table):
-        coords_table = SkyCoord(
-            ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
-        )
-        idx = coords.separation(coords_table) < rad
-        fibers_table = ra_table[idx]
-
-        if survey == "hdr1":
+    if survey=='hdr1':
+        # search first along ra
+        
+        ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+        
+        if any(ra_table):
+            coords_table = SkyCoord(
+                ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
+            )
+            idx = coords.separation(coords_table) < rad
+            fibers_table = ra_table[idx]
+            
             fibers_table["calfib"] = fibers_table["calfib"] / 2.0
             fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
-        if astropy:
-            fibers_table = Table(fibers_table)
     else:
-        fibers_table = None
+        #use FiberIndex table to find fiber_ids
+        fiberindex = Fibers(shot, survey=survey)
+        fibers_table = fiberindex.query_region( coords)        
+        
+    if astropy:
+        fibers_table = Table(fibers_table)
 
     fileh.close()
     return fibers_table
