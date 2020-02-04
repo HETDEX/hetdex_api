@@ -109,6 +109,8 @@ class VIRUSFiber(tb.IsDescription):
     else:
         chi2 = tb.Float32Col((1032,))
         rms = tb.Float32Col((1032,))
+        calfib_counts = tb.Float32Col((1036,))
+        calfibe_counts = tb.Float32Col((1036,))
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     sky_spectrum = tb.Float32Col((1032,))
