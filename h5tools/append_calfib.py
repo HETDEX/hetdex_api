@@ -37,7 +37,7 @@ def get_cal_table(calfile):
     cal_f = fits.open(calfile)
 
     cal_table = Table([cal_f[0].data, cal_f[1].data, cal_f[2].data, cal_f[3].data], 
-                      names=['calfib','calfibe', 'calfib_counts',' calfibe_counts'])
+                      names=['calfib','calfibe', 'calfib_counts','calfibe_counts'])
 
     multi = calfile[42:53]
 
@@ -101,7 +101,7 @@ def main(argv=None):
         args.log.warning('Problem opening : ' + args.outfilename)
         sys.exit('Exiting Script')
     
-    args.log.info('Appending calibrated fiber arrays')
+    args.log.info('Appending calibrated fiber arrays to ' + args.outfilename)
 
     fibtable = fileh.root.Data.Fibers
 
@@ -119,9 +119,8 @@ def main(argv=None):
                 idx = (cal_table['expnum'] == fibrow['expnum']) * (cal_table['multiframe'] == fibrow['multiframe'].decode()) * (cal_table['fibidx'] == fibrow['fibidx'])
                 fibrow['calfib']  = cal_table['calfib'][idx]
                 fibrow['calfibe'] = cal_table['calfibe'][idx]
-                # Add soon!!!!
-                #fibrow['calfib_counts'] = cal_table['calfib_counts']
-                #fibrow['calfibe_counts'] = cal_table['calfibe_counts']
+                fibrow['calfib_counts'] = cal_table['calfib_counts'][idx]
+                fibrow['calfibe_counts'] = cal_table['calfibe_counts'][idx]
                 fibrow.update()
     args.log.info('Flushing and closing H5 file')
     fibtable.flush()
