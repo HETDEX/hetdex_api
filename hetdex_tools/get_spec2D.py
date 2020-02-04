@@ -251,6 +251,9 @@ def main(argv=None):
         im_array = tb.Float32Col((4, args.height, args.width), pos=3)
         im_phot = tb.Float32Col((60, 60), pos=4)
         im_phot_hdr = tb.StringCol(2880)
+        spec1D = tb.Float32Col((1036,))
+        spec1D_err = tb.Float32Col((1036,))
+
     if args.merge:
         fileh = tb.open_file("merged_im2D.h5", "w")
         im2D_table = fileh.create_table(fileh.root, "Images", Image2D)
@@ -319,6 +322,10 @@ def main(argv=None):
             )
             row["im_array"] = im_arr
 
+            spec_tab = detects.get_spectrum(detectid_i)
+            row["spec1D"] = spec_tab['spec1d']
+            row["spec1D_err"] = spec_tab['spec1d_err']
+
             # add in phot image, need RA/DEC from catalog
             sel_det = detects.detectid == detectid_i
             coord = SkyCoord(detects.ra[sel_det] * u.degree,
@@ -340,7 +347,7 @@ def main(argv=None):
             row.append()
 
         im2D_table.flush()
-
+        
         fileh.close()
 
     else:
@@ -378,7 +385,6 @@ def main(argv=None):
         ascii.write(output, "fib_coords.dat", overwrite=True)
 
     fibers.close()
-
 
 tb.file._open_files.close_all()
 
