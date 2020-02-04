@@ -76,7 +76,7 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, dither_pattern=None, fibers=True):
+    def load_shot(self, shot_input, survey='hdr1', dither_pattern=None, fibers=True):
         """
         Load fiber info from hdf5 for given shot_input
         
@@ -88,11 +88,11 @@ class Extract:
         self.shot = shot_input
 
         if fibers:
-            self.fibers = Fibers(self.shot)
+            self.fibers = Fibers(self.shot, survey=survey)
             self.shoth5 = self.fibers.hdfile
         else:
             self.fibers = None
-            self.shoth5 = open_shot_file(self.shot)
+            self.shoth5 = open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
