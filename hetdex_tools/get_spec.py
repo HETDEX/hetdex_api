@@ -119,7 +119,7 @@ def get_source_spectra(shotid, args):
     source_dict = {}
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey.fwhm_moffat[args.survey.shotid == shotid][0]
+        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -188,7 +188,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey.fwhm_moffat[args.survey.shotid == shotid][0]
+        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -307,10 +307,10 @@ def get_spectra_dictionary(args):
 
     args.log.info("Finding shots of interest")
 
-    for i, coord in enumerate(args.survey.coords):
+    for i, coord in enumerate(args.survey_class.coords):
         dist = args.coords.separation(coord)
         sep_constraint = dist < max_sep
-        shotid = args.survey.shotid[i]
+        shotid = args.survey_class.shotid[i]
         idx = np.where(sep_constraint)[0]
 
         if np.size(idx) > 0:
@@ -488,6 +488,13 @@ def get_parser():
         action="store_true"
     )
 
+    parser.add_argument(
+        "--survey",
+        "-survey",
+        type=str,
+        help='''Data Release you want to access''',
+        default='hdr1')
+
     return parser
 
 
@@ -583,29 +590,30 @@ def main(argv=None):
         args.coords = SkyCoord(args.ra, args.dec, unit=(u.hourangle, u.deg))
     else:
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
-
-    args.survey = Survey("hdr1")
+    
+    
+    args.survey_class = Survey(args.survey)
 
     # if args.shotidid exists, only select that shot
 
     if args.shotid:
         try:
-            sel_shot = args.survey.shotid == int(args.shotid)
+            sel_shot = args.survey_class.shotid == int(args.shotid)
         except Exception:
-            sel_shot = args.survey.datevobs == str(args.shotid)
+            sel_shot = args.survey_class.datevobs == str(args.shotid)
 
-        args.survey = args.survey[sel_shot]
+        args.survey_class = args.survey_class[sel_shot]
 
     else:
         pass
-        #sel_shot = args.survey.shotid > 20171200000
-        #args.survey = args.survey[sel_shot]
+        #sel_shot = args.survey_class.shotid > 20171200000
+        #args.survey_class = args.survey_class[sel_shot]
         #args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
 
-    args.survey.close()
+    args.survey_class.close()
 
     if args.pickle:
         outfile = args.outfile + ".pkl"
@@ -653,26 +661,26 @@ if __name__ == "__main__":
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
+def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey='hdr1'):
 
     args = types.SimpleNamespace()
 
     args.multiprocess = multiprocess
     args.coords = coords
     args.rad = rad * u.arcsec
-    args.survey = Survey("hdr1")
+    args.survey_class = Survey(survey)
 
     if shotid:
         try:
-            sel_shot = args.survey.shotid == int(shotid)
+            sel_shot = args.survey_class.shotid == int(shotid)
         except Exception:
-            sel_shot = args.survey.datevobs == str(shotid)
+            sel_shot = args.survey_class.datevobs == str(shotid)
 
-        args.survey = args.survey[sel_shot]
+        args.survey_class = args.survey_class[sel_shot]
     else:
         pass
-        #sel_shot = args.survey.shotid > 20171200000
-        #args.survey = args.survey[sel_shot]
+        #sel_shot = args.survey_class.shotid > 20171200000
+        #args.survey_class = args.survey_class[sel_shot]
 
 
     args.log = setup_logging()
@@ -691,7 +699,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
 
     Source_dict = get_spectra_dictionary(args)
 
-    args.survey.close()
+    args.survey_class.close()
 
     output = return_astropy_table(Source_dict)
 
