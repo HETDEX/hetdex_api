@@ -98,7 +98,7 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-source_num_switch = 20
+source_num_switch = 0
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
