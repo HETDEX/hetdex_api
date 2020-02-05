@@ -85,6 +85,7 @@ class Extract:
             e.g., 20190208v024 or 20190208024
         """
         self.shot = shot_input
+        self.survey = survey
 
         if fibers:
             self.fibers = Fibers(self.shot, survey=survey)
@@ -178,7 +179,7 @@ class Extract:
             )
         else:
 
-            fib_table = get_fibers_table(self.shot, coord, radius=radius)
+            fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
 
             if np.size(fib_table) < fiber_lower_limit:
                 return None
