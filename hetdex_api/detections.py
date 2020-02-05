@@ -45,6 +45,9 @@ class Detections:
         survey : string
             Data release you would like to load, i.e., 'DR1' or 'cont_sources'.
             This is case insensitive.
+        catalog_type : string
+            Catalog to laod up. Either 'lines' or 'continuum'. Default is 
+            'lines'.
         '''
         survey_options = ['hdr1', 'hdr2']
         catalog_type_options = ['lines', 'continuum']
