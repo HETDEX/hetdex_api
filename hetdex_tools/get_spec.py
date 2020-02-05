@@ -98,7 +98,7 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-source_num_switch = 20
+source_num_switch = 6
 
 
 def merge(dict1, dict2):
@@ -120,6 +120,7 @@ def get_source_spectra(shotid, args):
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
         fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -147,9 +148,13 @@ def get_source_spectra(shotid, args):
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
+                # temp solution for mask issue:
+                if args.survey == 'hdr2':
+                    mask = np.invert(mask)
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -217,7 +222,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+                # temp solution for mask issue:                                                       
+                if args.survey == 'hdr2':
+                    mask = np.invert(mask)
                 result = E.get_spectrum(data, error, mask, weights)
+
                 spectrum_aper, spectrum_aper_error = [res for res in result]
                 sel = np.isfinite(spectrum_aper)
 
@@ -266,13 +275,15 @@ def return_astropy_table(Source_dict):
     # loop over every ID/observation combo:
 
     for ID in Source_dict.keys():
+        
         for shotid in Source_dict[ID].keys():
             wave_rect = 2.0 * np.arange(1036) + 3470.0
             spec = Source_dict[ID][shotid][0]
             spec_err = Source_dict[ID][shotid][1]
             weights = Source_dict[ID][shotid][2]
-
+            
             sel = np.isfinite(spec)
+
             if np.sum(sel) > 0:
                 id_arr.append(ID)
                 shotid_arr.append(shotid)
@@ -280,6 +291,7 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
+            
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -613,6 +625,7 @@ def main(argv=None):
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
 
+
     args.survey_class.close()
 
     if args.pickle:
@@ -652,6 +665,7 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
+        
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
