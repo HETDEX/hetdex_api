@@ -124,10 +124,10 @@ def get_source_spectra(shotid, args):
 
         if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info("Loading full fibers table")
-            E.load_shot(shotid, fibers=True)
+            E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
             args.log.info("Accessing object one by one")
-            E.load_shot(shotid, fibers=False)
+            E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
@@ -193,10 +193,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
         if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info("Loading full fibers table")
-            E.load_shot(shotid, fibers=True)
+            E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
             args.log.info("Accessing object one by one")
-            E.load_shot(shotid, fibers=False)
+            E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
@@ -668,6 +668,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey
     args.multiprocess = multiprocess
     args.coords = coords
     args.rad = rad * u.arcsec
+    args.survey = survey
     args.survey_class = Survey(survey)
 
     if shotid:
