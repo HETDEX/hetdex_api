@@ -98,7 +98,6 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-source_num_switch = 0
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
@@ -116,6 +115,12 @@ def merge(dict1, dict2):
 def get_source_spectra(shotid, args):
     E = Extract()
     source_dict = {}
+    
+    if args.survey == 'hdr1':
+        source_num_switch = 20
+    else:
+        source_num_switch = 0
+
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
         fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
@@ -189,6 +194,11 @@ def get_source_spectra(shotid, args):
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
     E = Extract()
+
+    if args.survey == 'hdr1':
+        source_num_switch = 20
+    else:
+        source_num_switch = 0
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
