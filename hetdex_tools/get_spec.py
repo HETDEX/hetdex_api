@@ -152,9 +152,7 @@ def get_source_spectra(shotid, args):
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
-                # temp solution for mask issue:
-                if args.survey == 'hdr2':
-                    mask = np.invert(mask)
+
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
@@ -231,9 +229,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
-                # temp solution for mask issue:                                                       
-                if args.survey == 'hdr2':
-                    mask = error == 0.0
+
                 result = E.get_spectrum(data, error, mask, weights)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
