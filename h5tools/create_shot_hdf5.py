@@ -82,6 +82,7 @@ class VIRUSFiberIndex(tb.IsDescription):
     multiframe = tb.StringCol((20), pos=0)
     fiber_id = tb.StringCol((38), pos=4)
     fibidx = tb.Int32Col()
+    fibnum = tb.Int32Col()
     ifux = tb.Float32Col()
     ifuy = tb.Float32Col()
     fpx = tb.Float32Col()
@@ -94,6 +95,7 @@ class VIRUSFiber(tb.IsDescription):
     multiframe = tb.StringCol((20), pos=0)
     fiber_id = tb.StringCol((38), pos=4)
     fibidx = tb.Int32Col()
+    fibnum = tb.Int32Col()
     ifux = tb.Float32Col()
     ifuy = tb.Float32Col()
     fpx = tb.Float32Col()
@@ -221,6 +223,9 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
     for i in np.arange(n):
         fib['obsind'] = cnt
         fib['fibidx'] = i
+        fib['fibnum'] = i + 1
+        fibindex['fibidx'] = i
+        fibindex['fibnum'] = i + 1
         fib['multiframe'] = multiframe
         fibindex['multiframe'] = fib['multiframe']
         fib['fiber_id'] = str(shotid) + '_' + str(int(expn[-2:])) + '_' + multiframe + '_' + str(i+1).zfill(3)

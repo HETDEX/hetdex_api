@@ -615,7 +615,7 @@ def main(argv=None):
     
     args.survey_class = Survey(args.survey)
 
-    # if args.shotidid exists, only select that shot
+    # if args.shotidid exists, only select those shots
 
     if args.shotid:
         try:
@@ -696,7 +696,16 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey
 
     if shotid:
         try:
-            sel_shot = args.survey_class.shotid == int(shotid)
+            if len(shotid) == 1:
+                sel_shot = args.survey_class.shotid == int(shotid)
+            else:
+                sel_shot = np.zeroes(np.size(args.survey_class.shotid), dtype=bool)
+                
+                for shot in shotid:
+                    sel_i = args.survey_class.shotid == int(shotid)
+                    sel_shot = np.logical_or(sel_shot, sel_i)
+                print(args.survey_class.shotid[sel_shot])
+
         except Exception:
             sel_shot = args.survey_class.datevobs == str(shotid)
 
