@@ -690,7 +690,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey
     args.survey = survey
     args.survey_class = Survey(survey)
 
-    if shotid:
+    if shotid not None:
         try:
             if np.size(shotid) == 1:
                 sel_shot = args.survey_class.shotid == int(shotid)
