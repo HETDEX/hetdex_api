@@ -138,7 +138,9 @@ class Detections:
                 # 3 = star
                 # 4 = nearby galaxies (HBeta, OIII usually)
                 # 5 = other line
-
+            # close the survey HDF5 file
+            S.close()
+            
             self.vis_class = -1 * np.ones(np.size(self.detectid))
 
             
@@ -157,6 +159,12 @@ class Detections:
                     self.plae_poii_hetdex_gmag = np.array(pickle.load(
                         open(config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
 
+        else:
+            #just get coordinates and detectid
+            ra = self.hdfile.root.Detections.cols.ra[:]
+            dec = self.hdfile.root.Detections.cols.dec[:]
+            self.coords = SkyCoord(ra*u.deg, dec*u.deg)
+            
     def __getitem__(self, indx):
         ''' 
         This allows for slicing of the Detections class
@@ -214,7 +222,7 @@ class Detections:
         or 1*u.degree. Will assume arcsec if no units given
         
         '''
-        sep = self.coords.separation(coords) 
+        sep = self.coords.separation(coords)
         try:
             maskcoords = sep < radius
         except:
@@ -502,6 +510,9 @@ class Detections:
         return np.invert(mask)
 
     def get_spectrum(self, detectid_i):
+        '''
+        Grabs the 1D spectrum used to measure fitted parameters.
+        '''
         spectra = self.hdfile.root.Spectra
         spectra_table = spectra.read_where("detectid == detectid_i")
         data = Table()
@@ -510,11 +521,14 @@ class Detections:
         data['spec1d'] = Column( spectra_table['spec1d'][0], unit= 1.e-17 * intensityunit)
         data['spec1d_err'] = Column( spectra_table['spec1d_err'][0], unit= 1.e-17 * intensityunit)
 
-        # convert from 2AA binning to 1AA binning:
-        data['spec1d'] /= 2.
-        data['spec1d_err'] /= 2.
+        if self.survey == 'hdr1':
+            # convert from 2AA binning to 1AA binning:
+            data['spec1d'] /= 2.
+            data['spec1d_err'] /= 2.
+            data['cont'] /= 2.
+            data['cont_err'] /= 2.
 
-        return data        
+        return data
 
     def get_gband_mag(self, detectid_i):
         '''
@@ -526,7 +540,7 @@ class Detections:
         flux, wlen = gfilt.pad_spectrum(np.array(1.e-17*spec_table['spec1d']), 
                                         np.array(spec_table['wave1d']))
         mag = gfilt.get_ab_magnitudes(flux, wlen)
-        
+
         return mag
 
     def add_hetdex_gmag(self, loadpickle=True, picklefile='gmags.pickle'):
@@ -564,7 +578,6 @@ class Detections:
                 else:
                     self.gmag[idx] = np.nan
 
-
     def get_hetdex_mag(self, detectid_i, filter='sdss2010-g'):
         ''' 
         filter = can be any filter used in the speclite
@@ -579,7 +592,6 @@ class Detections:
         mag = filt.get_ab_magnitudes(flux, wlen)[0][0]
 
         return mag
-
 
     def return_astropy_table(self):
         """
@@ -634,13 +646,13 @@ class Detections:
     def close(self):
         self.hdfile.close()
 
-def show_elixer(detectid):
-    '''
-    Takes a detectid and pulls out the elixer PDF from the
-    elixer tar files on hdr1 and shows it in matplotlib
-    '''
-    elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
-    file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
-    plt.figure(figsize=(10,8))
-    im = plt.imread(file_jpg)
-    plt.imshow(im)
+    def show_elixer(self, detectid):
+        '''
+        Takes a detectid and pulls out the elixer PDF from the
+        elixer tar files on hdr1 and shows it in matplotlib
+        '''
+        elix_dir =  '/work/05350/ecooper/stampede2/elixer/jpgs/'
+        file_jpg = op.join(elix_dir, "egs_%d" %(detectid//100000), str(detectid) + '.jpg')
+        plt.figure(figsize=(10,8))
+        im = plt.imread(file_jpg)
+        plt.imshow(im)
