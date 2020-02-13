@@ -565,8 +565,6 @@ class Detections:
             # convert from 2AA binning to 1AA binning:
             data["spec1d"] /= 2.0
             data["spec1d_err"] /= 2.0
-            data["cont"] /= 2.0
-            data["cont_err"] /= 2.0
 
         return data
 
