@@ -17,6 +17,7 @@ from __future__ import print_function
 import sys
 import glob
 
+import os
 import tables as tb
 import argparse as ap
 import os.path as op
@@ -33,11 +34,12 @@ from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 
 from input_utils import setup_logging
-from hetdex_api.shot import *
-from hetdex_api.detections import *
+from hetdex_api.shot import Fibers
+from hetdex_api.detections import Detections
 
 matplotlib.use("agg")
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
+#sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
+sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer') 
 import catalogs
 
 
@@ -273,7 +275,7 @@ def main(argv=None):
 
     shotid_i = args.datevobs
 
-    detects = Detections("hdr1").refine()
+    detects = Detections("hdr1", loadtable=False)
 
     # open up catalog library from elixer
     catlib = catalogs.CatalogLibrary()
@@ -328,8 +330,7 @@ def main(argv=None):
 
             # add in phot image, need RA/DEC from catalog
             sel_det = detects.detectid == detectid_i
-            coord = SkyCoord(detects.ra[sel_det] * u.degree,
-                             detects.dec[sel_det] * u.degree)
+            coord = detects.coords[sel_det]
 
             try:
                 cutout = catlib.get_cutouts(position=coord,
