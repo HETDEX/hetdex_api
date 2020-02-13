@@ -13,10 +13,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import sys
-PYTHON_MAJOR_VERSION = sys.version_info[0]
-PYTHON_VERSION = sys.version_info
-
-import os
 import os.path as op
 import numpy as np
 import tables as tb
@@ -34,9 +30,12 @@ from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 
 np.warnings.filterwarnings('ignore')
+PYTHON_MAJOR_VERSION = sys.version_info[0]
+PYTHON_VERSION = sys.version_info
+
 
 class Detections:
-    def __init__(self, survey='hdr1', catalog_type='lines'):
+    def __init__(self, survey='hdr1', catalog_type='lines', loadtable=True):
         '''
         Initialize the detection catalog class for a given data release
 
@@ -48,6 +47,10 @@ class Detections:
         catalog_type : string
             Catalog to laod up. Either 'lines' or 'continuum'. Default is 
             'lines'.
+        load_table : bool
+           Boolean flag to load all detection table info upon initialization.
+           For example, if you just want to grab a spectrum this isn't needed.
+        
         '''
         survey_options = ['hdr1', 'hdr2']
         catalog_type_options = ['lines', 'continuum']
@@ -73,77 +76,86 @@ class Detections:
             self.filename = config.contsourceh5
 
         self.hdfile = tb.open_file(self.filename, mode='r')
-        colnames = self.hdfile.root.Detections.colnames
-        for name in colnames:
-            if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0],np.bytes_):
-                setattr(self, name,
-                    getattr(self.hdfile.root.Detections.cols, name)[:].astype(str))
-            else:
-                setattr(self, name,
-                    getattr(self.hdfile.root.Detections.cols, name)[:])
-        
-        # set the SkyCoords
-        self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
 
+        # store to class
+        self.loadtable = loadtable
 
-        # add in the elixer probabilties and associated info:
-        if survey == 'hdr1':
-            self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
-            colnames2 = self.hdfile_elix.root.Classifications.colnames
-            for name2 in colnames2:
-                if name2 == 'detectid':
-                    setattr(self, 'detectid_elix', self.hdfile_elix.root.Classifications.cols.detectid[:])
+        if loadtable:
+            colnames = self.hdfile.root.Detections.colnames
+            for name in colnames:
+                if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0],np.bytes_):
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Detections.cols, name)[:].astype(str))
                 else:
-                    if isinstance(getattr(self.hdfile_elix.root.Classifications.cols, name2)[0], np.bytes_):
-                        setattr(self, name2,
-                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:].astype(str))
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Detections.cols, name)[:])
+                    
+            # set the SkyCoords
+            self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame='icrs')
+
+            # add in the elixer probabilties and associated info:
+            if self.survey == 'hdr1':
+                self.hdfile_elix = tb.open_file(config.elixerh5, mode='r')
+                colnames2 = self.hdfile_elix.root.Classifications.colnames
+                for name2 in colnames2:
+                    if name2 == 'detectid':
+                        setattr(self,
+                                'detectid_elix',
+                                self.hdfile_elix.root.Classifications.cols.detectid[:])
                     else:
-                        setattr(self, name2,
-                            getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
+                        if isinstance(getattr(
+                                self.hdfile_elix.root.Classifications.cols, name2)[0], np.bytes_):
+                            setattr(self, name2,
+                                    getattr(
+                                        self.hdfile_elix.root.Classifications.cols, name2)[:].astype(str))
+                        else:
+                            setattr(self, name2,
+                                    getattr(self.hdfile_elix.root.Classifications.cols, name2)[:])
         
-        # also assign a field and some QA identifiers
-        self.field = np.chararray(np.size(self.detectid),12)
-        self.fwhm = np.zeros(np.size(self.detectid))
-        self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
-        self.throughput = np.zeros(np.size(self.detectid))
-        self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
+            # also assign a field and some QA identifiers
+            self.field = np.chararray(np.size(self.detectid),12)
+            self.fwhm = np.zeros(np.size(self.detectid))
+            self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
+            self.throughput = np.zeros(np.size(self.detectid))
+            self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
-        S = Survey('hdr1')
+            S = Survey(self.survey)
         
-        for index, shot in enumerate(S.shotid):
-            ix = np.where(self.shotid == shot)
-            self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
-            self.fwhm[ix] = S.fwhm_moffat[index]
-            self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
-            self.throughput[ix] = S.response_4540[index]
-            self.n_ifu[ix] = S.n_ifu[index]
+            for index, shot in enumerate(S.shotid):
+                ix = np.where(self.shotid == shot)
+                self.field[ix] = S.field[index] #NOTE: python2 to python3 strings now unicode
+                self.fwhm[ix] = S.fwhm_moffat[index]
+                self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
+                self.throughput[ix] = S.response_4540[index]
+                self.n_ifu[ix] = S.n_ifu[index]
 
-        # assign a vis_class field for future classification
-        # -2 = ignore (bad detectid, shot)
-        # -1 = no assignemnt
-        # 0 = artifact
-        # 1 = OII emitter
-        # 2 = LAE emitter
-        # 3 = star
-        # 4 = nearby galaxies (HBeta, OIII usually)
-        # 5 = other line
+                # assign a vis_class field for future classification
+                # -2 = ignore (bad detectid, shot)
+                # -1 = no assignemnt
+                # 0 = artifact
+                # 1 = OII emitter
+                # 2 = LAE emitter
+                # 3 = star
+                # 4 = nearby galaxies (HBeta, OIII usually)
+                # 5 = other line
 
-        self.vis_class = -1 * np.ones(np.size(self.detectid))
+            self.vis_class = -1 * np.ones(np.size(self.detectid))
 
-
-        if survey == 'hdr1':
-            self.add_hetdex_gmag(loadpickle=True, 
-                                picklefile=config.gmags)
-        elif survey == 'cont_sources':
-            self.add_hetdex_gmag(loadpickle=True, 
-                                 picklefile=config.gmags_cont)
-        
-        if survey == 'hdr1':
-            if PYTHON_MAJOR_VERSION < 3:
-                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb" )))
-            else:
-                self.plae_poii_hetdex_gmag = np.array(pickle.load( open( config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
             
+            if survey == 'hdr1':
+                self.add_hetdex_gmag(loadpickle=True, 
+                                     picklefile=config.gmags)
+            elif survey == 'cont_sources':
+                self.add_hetdex_gmag(loadpickle=True, 
+                                     picklefile=config.gmags_cont)
+                
+            if survey == 'hdr1':
+                if PYTHON_MAJOR_VERSION < 3:
+                    self.plae_poii_hetdex_gmag = np.array(pickle.load(
+                        open(config.plae_poii_hetdex_gmag, "rb")))
+                else:
+                    self.plae_poii_hetdex_gmag = np.array(pickle.load(
+                        open(config.plae_poii_hetdex_gmag, "rb"), encoding='bytes'))
 
     def __getitem__(self, indx):
         ''' 
@@ -209,9 +221,7 @@ class Detections:
             maskcoords = sep.arcmin < radius
         return maskcoords
 
-
     def query_by_dictionary(self, limits):
-        
         '''
         Takes a dictionary of query limits
         and reduces the detections database. This 
