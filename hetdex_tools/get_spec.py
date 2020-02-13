@@ -152,9 +152,7 @@ def get_source_spectra(shotid, args):
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
-                # temp solution for mask issue:
-                if args.survey == 'hdr2':
-                    mask = np.invert(mask)
+
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
@@ -231,9 +229,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
-                # temp solution for mask issue:                                                       
-                if args.survey == 'hdr2':
-                    mask = np.invert(mask)
+
                 result = E.get_spectrum(data, error, mask, weights)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
@@ -684,7 +680,8 @@ if __name__ == "__main__":
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey='hdr1'):
+def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
+                survey='hdr1'):
 
     args = types.SimpleNamespace()
 
@@ -694,17 +691,19 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey
     args.survey = survey
     args.survey_class = Survey(survey)
 
-    if shotid:
+    if shotid is not None:
         try:
-            if len(shotid) == 1:
+            if np.size(shotid) == 1:
                 sel_shot = args.survey_class.shotid == int(shotid)
+                # shut off multiproces flag if its just one shot
+                args.multiprocess = False
             else:
-                sel_shot = np.zeroes(np.size(args.survey_class.shotid), dtype=bool)
+                sel_shot = np.zeros(np.size(args.survey_class.shotid), dtype=bool)
                 
-                for shot in shotid:
-                    sel_i = args.survey_class.shotid == int(shotid)
+                for shot_i in shotid:
+
+                    sel_i = args.survey_class.shotid == int(shot_i)
                     sel_shot = np.logical_or(sel_shot, sel_i)
-                print(args.survey_class.shotid[sel_shot])
 
         except Exception:
             sel_shot = args.survey_class.datevobs == str(shotid)

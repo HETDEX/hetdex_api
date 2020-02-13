@@ -326,19 +326,25 @@ class Fibers:
         """
 
         if fiber_id:
-            idx = np.where(self.fiber_id == fiber_id)[0]
+            idx = np.where(self.fiber_id == fiber_id)[0][0]
+            shotid = int(fiber_id[0:11])
+            expnum_obj = int(fiber_id[12:13])
+            multiframe_obj = fiber_id[14:34]
+            fibnum_obj = int(fiber_id[35:39])
         else:
             idx = np.where(
                 (self.fibidx == (fibnum_obj - 1))
                 * (self.multiframe == multiframe_obj)
                 * (self.expnum == expnum_obj))[0][0]
-        if len(idx) > 1:
-            print('Somethings is wrong, found {} fibers'.format(len(idx)))
+        if np.size(idx) > 1:
+            print('Somethings is wrong, found {} fibers'.format(np.size(idx)))
             sys.exit()
-        elif len(idx) == 0:
+        elif np.size(idx) == 0:
             print('Could not find a fiber match. Check inputs')
             sys.exit()
-        
+        else:
+            pass
+
         x, y = self.get_image_xy(idx, wave_obj)
 
         im0 = self.hdfile.root.Data.Images.read_where(

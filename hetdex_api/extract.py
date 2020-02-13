@@ -172,8 +172,12 @@ class Extract:
             spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
-            mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
-            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            if self.survey == 'hdr1':
+                mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            else:
+                mask = self.fibers.table.read_coordinates(idx, "calfibe")
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
@@ -191,8 +195,13 @@ class Extract:
             spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
-            mask = fib_table["Amp2Amp"]
-            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            if self.survey == 'hdr1':
+                mask = fib_table["Amp2Amp"]
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            else:
+                mask = fib_table["calfibe"]
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+
             expn = np.array(fib_table["expnum"], dtype=int)
 
         ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
