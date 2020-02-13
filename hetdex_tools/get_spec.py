@@ -680,7 +680,8 @@ if __name__ == "__main__":
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None, survey='hdr1'):
+def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
+                survey='hdr1'):
 
     args = types.SimpleNamespace()
 

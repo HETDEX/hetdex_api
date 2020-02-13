@@ -40,7 +40,7 @@ def get_files(args):
 
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
 
-        tmppath = 'tmp'
+        tmppath = '/tmp'
         # remove any old temporary multifits
         try:
             os.mkdir(tmppath)
@@ -406,7 +406,7 @@ def main(argv=None):
     # remove all temporary multifits
     if args.tar:
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
-        tmppath = 'tmp'
+        tmppath = '/tmp'
         datepath = op.join(tmppath, datestr)
         shutil.rmtree(datepath, ignore_errors=True)
 
