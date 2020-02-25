@@ -19,6 +19,7 @@ import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
+import sqlite_utils as sql
 
 import ipywidgets as widgets
 #from IPython import display#, HTML
@@ -80,6 +81,7 @@ class ElixerWidget():
 
         global elix_dir
 
+        self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
         self.show_counterpart_btns=counterpart
 
@@ -220,18 +222,25 @@ class ElixerWidget():
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
         try:
-            fname = op.join(elix_dir, "%d.png" % (detectid))
 
-            if op.exists(fname):
-                display(Image(fname))
-            else: #try the archive location
-                print("Cannot load ELiXer Report image: ", fname)
-                print("Trying archive location...")
-                fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+            try:
+                #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
+                display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
+            except Exception as e:
+                print(e)
+
+                fname = op.join(elix_dir, "%d.png" % (detectid))
+
                 if op.exists(fname):
                     display(Image(fname))
-                else:
+                else: #try the archive location
                     print("Cannot load ELiXer Report image: ", fname)
+                    print("Trying archive location...")
+                    fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+                    if op.exists(fname):
+                        display(Image(fname))
+                    else:
+                        print("Cannot load ELiXer Report image: ", fname)
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
@@ -792,12 +801,19 @@ class ElixerWidget():
 
     def on_elixer_neighborhood(self,b):
         detectid = self.detectbox.value
-        path = op.join(elix_dir, "%dnei.png" % (detectid))
 
-        if not op.isfile(path):
-            print("%s not found" % path)
-        else:
-            display(Image(path))
+        try:
+            #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
+            display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
+        except Exception as e:
+            print(e)
+
+            path = op.join(elix_dir, "%dnei.png" % (detectid))
+
+            if not op.isfile(path):
+                print("%s not found" % path)
+            else:
+                display(Image(path))
 
 
     def plot_spec(self, matchnum):

@@ -21,10 +21,12 @@ import numpy as np
 
 import os.path as op
 FILENAME_PREFIX = "elixer_reports_" #keep the trailing underscore
+REPORT_TYPES = ["report","nei","mini"]
 
 #key is the HDR version number, value is list of directories that contain ELiXer imaging databses
 DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
                      "/work/05350/ecooper/stampede2/elixer/image_db",
+                     "/data/03261/polonius/hdr1_classify_image_db",
                      "/data/03261/polonius/image_db"
                      ],
                  2: ["/work/03946/hetdex/hdr2/detect/image_db",
@@ -32,12 +34,12 @@ DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
                  }
 
 
-def get_elixer_report_db_path(detectid,type="report"):
+def get_elixer_report_db_path(detectid,report_type="report"):
     """
     Return the top (first found) path to database file based on the detectid (assumes the HDR version is part of the
     prefix, i.e. HDR1 files are 1000*, HDR2 are 2000*, and so on)
     :param detectid:
-    :param type: choose one of "report" (normal ELiXer report image) [default]
+    :param report_type: choose one of "report" (normal ELiXer report image) [default]
                                "nei" (ELiXer neighborhood image)
                                "mini" (ELiXer mini-report image for phone app)
     :return: None or database filename
@@ -50,11 +52,11 @@ def get_elixer_report_db_path(detectid,type="report"):
         hdr_prefix = int(np.int64(detectid)/1e9)
 
         #keep the leading underscore
-        if type == "report":
+        if report_type == "report":
             ext = ""
-        elif type == "nei":
+        elif report_type == "nei":
             ext = "_nei"
-        elif type == "mini":
+        elif report_type == "mini":
             ext = "_mini"
         else: #assume same as report
             ext = ""
@@ -89,14 +91,15 @@ def get_db_connection(fn):
 
     conn = None
     try:
-        conn = sqlite3.connect(fn)
+        if fn is not None:
+            conn = sqlite3.connect(fn)
     except Error as e:
         print(e)
 
     return conn
 
 
-def fetch_elixer_reort_image(conn,detectid):
+def fetch_elixer_report_image(conn,detectid):
     """
     Return a single image (image type (png, jpg) and report type (report, neighborhood, mini) depend on the database connection
 
@@ -306,3 +309,46 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
         print(e)
 
 
+class ConnMgr():
+    """
+    Primitive container for managing SQLite connection (to avoid repeated path search and connection building)
+    Just for reading
+    """
+
+    def __init__(self):
+        self.conn_dict = {} #key = detectid_prefix + type (i.e. "10003" or "10004nei" or "20007mini"
+
+    def __del__(self):
+        self.close_conns()
+
+    def get_connection(self,detectid,report_type="report"):
+        conn = None
+        try:
+            if not report_type in REPORT_TYPES:
+                return None
+
+            detect_prefix = int(np.int64(detectid) / 1e5)
+            dkey = str(detect_prefix)+report_type
+            if dkey in self.conn_dict.keys():
+                conn = self.conn_dict[dkey]
+            else:
+                try:
+                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type))
+                    if type(conn) != sqlite3.Connection:
+                        conn = None
+                    else:
+                        self.conn_dict[dkey] = conn
+                except Exception as e:
+                    print(e)
+        except Exception as e:
+            print(e)
+
+        return conn
+
+    def close_conns(self):
+        for key in self.conn_dict.keys():
+            try:
+                self.conn_dict[key].close()
+                del self.conn_dict[key]
+            except:
+                pass
