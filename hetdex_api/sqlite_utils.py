@@ -349,9 +349,10 @@ class ConnMgr():
         for key in self.conn_dict.keys():
             try:
                 self.conn_dict[key].close()
-                del self.conn_dict[key]
             except:
                 pass
+
+        self.conn_dict.clear()
 
 
     def fetch_image(self,detectid,report_type="report"):
