@@ -352,3 +352,25 @@ class ConnMgr():
                 del self.conn_dict[key]
             except:
                 pass
+
+
+    def fetch_image(self,detectid,report_type="report"):
+        """
+        wrapper just to make code cleaner
+
+        :param detectid:
+        :param report_type:
+        :return:
+        """
+
+        img = None
+        try:
+            conn = self.get_connection(detectid,report_type)
+            if type(conn) == sqlite3.Connection:
+                img = fetch_elixer_report_image(conn,detectid)
+
+        except Exception as e:
+            print(e)
+            raise
+
+        return img
