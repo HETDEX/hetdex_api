@@ -40,14 +40,10 @@ def get_files(args):
 
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
 
-        tmppath = '/tmp'
-        # remove any old temporary multifits
-        try:
-            os.mkdir(tmppath)
-        except FileExistsError:
-            pass
-            
-        datepath = op.join(tmppath, datestr)
+        #remove any old files on tmp
+
+        datepath = op.join(args.tmppath, datestr)
+
         if op.isdir(datepath):
             shutil.rmtree(datepath, ignore_errors=True)
 
@@ -334,6 +330,8 @@ def main(argv=None):
     parser.add_argument("-tar", "--tar", help='''Flag to open tarred multifits''',
                         action='store_true')
 
+    parser.add_argument("-tp", "--tmppath", type=str, default='tmp')
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -359,7 +357,8 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, 'a')
         does_exist = True
     else:
-        fileh = tb.open_file(args.outfilename, 'w')
+        outfile = op.join(args.tmppath, args.outfilename) 
+        fileh = tb.open_file(outfile, 'w')
         group = fileh.create_group(fileh.root, 'Data',
                                    'VIRUS Fiber Data and Metadata')
         fileh.create_table(group, 'Fibers', VIRUSFiber, 'Fiber Info')
@@ -406,9 +405,14 @@ def main(argv=None):
     # remove all temporary multifits
     if args.tar:
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
-        tmppath = '/tmp'
-        datepath = op.join(tmppath, datestr)
+        datepath = op.join(args.tmppath, datestr)
         shutil.rmtree(datepath, ignore_errors=True)
+        outfile = op.join(args.tmppath, args.outfilename)
+        try:
+            shutil.move(outfile, args.outfilename)
+        except:
+            os.remove(args.outfilename)
+            shututil.move(outfile, args.outfilename)
 
 if __name__ == '__main__':
     main()
