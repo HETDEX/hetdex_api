@@ -19,7 +19,7 @@ import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
-import sqlite_utils as sql
+import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 #from IPython import display#, HTML
