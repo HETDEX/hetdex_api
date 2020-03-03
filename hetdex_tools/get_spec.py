@@ -719,15 +719,18 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
 
     args.log.setLevel(logging.INFO)
 
-    args.ID = ID
+    print(ID)
 
     nobj = np.size(args.coords)
 
-    if args.ID is None:
+    if ID is None:
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
             args.ID = 1
+    else:
+        args.ID = ID
+
 
     Source_dict = get_spectra_dictionary(args)
 
