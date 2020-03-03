@@ -719,8 +719,6 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
 
     args.log.setLevel(logging.INFO)
 
-    print(ID)
-
     nobj = np.size(args.coords)
 
     if ID is None:
