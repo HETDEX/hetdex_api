@@ -154,9 +154,11 @@ class SensitivityCube(object):
         if aper_corr:
             self.aper_corr = aper_corr
         elif "APCOR" in self.header:
-            self.aper_corr = self.header["APCOR"] 
+            self.aper_corr = self.header["APCOR"]
+        elif "APCOR0" in self.header: 
+            self.aper_corr = self.header["APCOR0"]
             # XXX HACK HACK HACK
-            ## self.aper_corr = 1.0
+            # self.aper_corr = 1.0
         else:
             self.aper_corr = 1.0        
 
