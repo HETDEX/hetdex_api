@@ -13,7 +13,7 @@ from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
 from hetdex_api.shot import *
-import hetdex_api.input_utils
+from hetdex_api.input_utils import setup_logging
 
 
 class Extract:
@@ -32,7 +32,7 @@ class Extract:
         else:
             self.wave = self.get_wave()
         self.get_ADR()
-        self.log = input_utils.setup_logging("Extract")
+        self.log = setup_logging("Extract")
 
     def set_dither_pattern(self, dither_pattern=None):
         """ 
