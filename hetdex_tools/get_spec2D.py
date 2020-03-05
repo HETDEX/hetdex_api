@@ -33,15 +33,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 from hetdex_api.shot import Fibers
 from hetdex_api.detections import Detections
+from elixer import catalogs
 
 matplotlib.use("agg")
-#sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer') 
-import catalogs
-
 
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
 
