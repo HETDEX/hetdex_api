@@ -78,7 +78,7 @@ import numpy as np
 import pickle
 import warnings
 import logging
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 import types
 
