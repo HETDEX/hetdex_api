@@ -117,7 +117,7 @@ def main(argv=None):
     groupMatches = fileh.create_group(groupAstrometry, 'CatalogMatches', 'Match Catalog Info')
 
     tableQA = fileh.create_table(groupAstrometry, 'QA', QualityAssessment, 
-                             'Qulity Assessment')
+                             'Quality Assessment')
     tableNV = fileh.create_table(groupAstrometry,'NominalVals', NominalVals,
                                  'Nominal Values')
 
