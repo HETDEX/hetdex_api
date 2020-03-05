@@ -14,7 +14,7 @@ from astropy.table import Table, vstack
 from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container
 
 
-def rdz_flux_from_hdf_cubes(filename, minfrac=0.1, maxfrac=20.0, nperifu=1000):
+def rdz_flux_from_hdf_cubes(filename, minfrac=0.1, maxfrac=20.0, nperifu=1000, sncut=6.0):
     """
     Generate ra, dec, redshift and
     flux from
@@ -44,16 +44,16 @@ def rdz_flux_from_hdf_cubes(filename, minfrac=0.1, maxfrac=20.0, nperifu=1000):
     for ifuslot, scube in hdfcont.itercubes():
 
         # Generate randoms in pixel space then transform
-        xsize = scube.f50vals.shape[2] 
-        ysize = scube.f50vals.shape[1]
-        zsize = scube.f50vals.shape[0]
+        xsize = scube.sigmas.shape[2] 
+        ysize = scube.sigmas.shape[1]
+        zsize = scube.sigmas.shape[0]
         # Pixels centers start at 0.0 end at xsize - 1
         x = uniform(-0.5, xsize + 0.5, size=nperifu)
         y = uniform(-0.5, ysize + 0.5, size=nperifu)
         # Not redshift!
         z = uniform(0, zsize - 1, size=nperifu)
         r, d, l = scube.wcs.all_pix2world(x, y, z, 0)
-        flim = scube.get_f50(r, d, l)
+        flim = scube.get_f50(r, d, l, sncut)
 
         flim[flim < 1e-30] = 100
         flim[logical_not(isfinite(flim))] = 100

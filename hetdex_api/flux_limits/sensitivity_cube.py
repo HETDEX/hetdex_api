@@ -20,7 +20,7 @@ https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 
 """
 from __future__ import (absolute_import, print_function)
-from numpy import (rint, array, around, multiply, 
+from numpy import (rint, array, around, multiply, isnan, 
                    sqrt, divide, linspace, ones, log10, loadtxt, polyval)
 from numpy import any as nany
 from scipy.interpolate import interp1d
@@ -102,8 +102,10 @@ class SensitivityCube(object):
 
     Parameters
     ----------
-    f50vals : array
-        3D datacube of datascale/flux_limit
+    sigmas : array
+        3D datacube of datascale/noise
+        where noise is the noise on
+        a point source detection
     wcs : astropy.wcs:WCS
         world coordinate system to
         convert between ra, dec, lambda
@@ -121,23 +123,36 @@ class SensitivityCube(object):
         the cubes with. If None, read
         from header. If not in header
         and aper_corr=None do nothing
-
+    nsigma : float
+        If the cubes don't contain
+        1 sigma noise (e.g. in the HDR1
+        cubes it's 6 sigma) specify it here
+    conversion_poly : array
+        this polynomial is used to 
+        convert between the cut in
+        detection significance and
+        50% completeness values. If
+        you specify it (as an array to
+        feed into numpy.ployval) this
+        value is used. If None try to
+        read this info from the header
+        if that fails default to assuming
+        detection significance = Signal/Noise.
 
     Attributes
     ----------
-    f50vals : array
-        50% 'limiting flux' to
-        be used in the Fleming function,
-        stored as lambda_, dec_, ra_
+    sigmas : array
+        an array of the noise values
 
     alpha_func : callable
         returns the Fleming alpha
         for an input wavelength
 
     """
-    def __init__(self, f50vals, header, wavelengths, alphas, aper_corr=None):
+    def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, nsigma=1.0,
+                 conversion_poly=None):
 
-        self.f50vals = f50vals
+        self.sigmas = sigmas/nsigma
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -161,10 +176,16 @@ class SensitivityCube(object):
             # self.aper_corr = 1.0
         else:
             self.aper_corr = 1.0        
+ 
+        if conversion_poly:
+            self.conversion_poly = conversion_poly
+        elif "CONVPOLY" in header:
+            raise Exception("Using the header not implemented")
+        else:
+            # Assume sn = Signal/Noise
+            self.conversion_poly = [1.0, 0.0]
 
-        self.f50vals = self.f50vals*self.aper_corr
-
-
+        self.sigmas = self.sigmas*self.aper_corr
 
         self.alphas = alphas
         self.wavelengths = wavelengths
@@ -197,9 +218,9 @@ class SensitivityCube(object):
             these are passed to the SensitivityCube init
         """
 
-        f50vals, header = read_cube(fn_sensitivity_cube, datascale=datascale)
+        sigmas, header = read_cube(fn_sensitivity_cube, datascale=datascale)
 
-        return SensitivityCube(f50vals, header, wavelengths, alphas, **kwargs)
+        return SensitivityCube(sigmas, header, wavelengths, alphas, **kwargs)
 
 
     def apply_flux_recalibration(self, rescale, flux_calib_correction_file=None):
@@ -226,16 +247,16 @@ class SensitivityCube(object):
         if flux_calib_correction_file:
             pvals = loadtxt(flux_calib_correction_file)
 
-        for iz in range(self.f50vals.shape[0]):
+        for iz in range(self.sigmas.shape[0]):
             ra, dec, wl = self.wcs.wcs_pix2world(0, 0, iz, 0)
 
             if wl < 3850.0:
                 wl = 3850.0
 
             if flux_calib_correction_file:
-                self.f50vals[iz, :, :] = rescale*self.f50vals[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
+                self.sigmas[iz, :, :] = rescale*self.sigmas[iz, :, :]*(1.0 - polyval(pvals, wl - 4600.0)) 
             else: 
-                self.f50vals[iz, :, :] = rescale*self.f50vals[iz, :, :]  
+                self.sigmas[iz, :, :] = rescale*self.sigmas[iz, :, :]  
 
 
     def radecwltoxyz(self, ra, dec, lambda_):
@@ -267,9 +288,9 @@ class SensitivityCube(object):
         return array(around(ix), dtype=int), array(around(iy), dtype=int), \
                array(around(iz), dtype=int)
 
-    def get_f50(self, ra, dec, lambda_):
+    def get_f50(self, ra, dec, lambda_, sncut):
         """
-        Get flim from cube at
+        Get 50% completeness flux from the cube at
         ra, dec, lambda
 
         Parameters
@@ -278,6 +299,9 @@ class SensitivityCube(object):
             right ascension and dec in degrees
         lambda_ : array
             wavelength in Angstroms
+        sncut : float
+            cut in detection significance 
+            that defines this catalogue
 
         Returns
         -------
@@ -297,26 +321,26 @@ class SensitivityCube(object):
         ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
 
         # Check for stuff outside of cube
-        bad_vals = (ix >= self.f50vals.shape[2]) | (ix < 0) 
-        bad_vals = bad_vals | (iy >= self.f50vals.shape[1]) | (iy < 0) 
-        bad_vals = bad_vals | (iz >= self.f50vals.shape[0]) | (iz < 0) 
+        bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.sigmas.shape[0]) | (iz < 0) 
  
-        ix[(ix >= self.f50vals.shape[2]) | (ix < 0)] = 0
-        iy[(iy >= self.f50vals.shape[1]) | (iy < 0)] = 0
-        iz[(iz >= self.f50vals.shape[0]) | (iz < 0)] = 0
+        ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50vals[iz, iy, ix]
+        f50s = polyval(self.conversion_poly, sncut*self.sigmas[iz, iy, ix])
 
         # Support arrays and floats
         try:
             f50s[bad_vals] = 999.0
         except TypeError:
-            if nany(bad_vals):
+            if isnan(bad_vals):
                 f50s = 999.0
 
         return f50s
 
-    def return_completeness(self, flux, ra, dec, lambda_):
+    def return_completeness_hdr1(self, flux, ra, dec, lambda_):
         """
         Return completeness at a 3D position
 
@@ -348,10 +372,102 @@ class SensitivityCube(object):
                                              sure it's in Angstrom?""")
         
 
-        f50s = self.get_f50(ra, dec, lambda_)
+        # hard coded sncut for HDR1
+        f50s = self.get_f50(ra, dec, lambda_, 6.0)
         alphas = self.alpha_func(lambda_)
 
         return fleming_function(flux, f50s, alphas)
+
+    def compute_snr(self, flux, ra, dec, lambda_):
+        """
+        Compute the flux divided by the noise for 
+        a given source. This differs from the
+        detection significance in that there
+        is no PSF model weighting
+
+        Parameters
+        ----------
+        flux : array
+            fluxes of objects
+        ra, dec : array
+            right ascension and dec in degrees
+        lambda_ : array
+            wavelength in Angstrom
+
+        Return
+        ------
+        snr : array
+            signal divided by noise
+
+
+        """
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.sigmas.shape[0]) | (iz < 0) 
+
+        ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
+
+        noise = self.sigmas[iz, iy, ix]
+        snr = flux/noise
+
+        # Support arrays and floats
+        try:
+            snr[bad_vals] = 0.0
+        except TypeError:
+            if isnan(snr):
+                snr = 0.0
+
+        return snr
+
+
+    def return_completeness(self, flux, ra, dec, lambda_, sncut):
+        """
+        Return completeness at a 3D position. This computes stuff
+        in terms of SNR in the Fleming (1995) function but
+        it's actually equivalent to computing the 50% flux
+        and computing everthing in terms of flux
+
+        Parameters
+        ----------
+        flux : array
+            fluxes of objects
+        ra, dec : array
+            right ascension and dec in degrees
+        lambda_ : array
+            wavelength in Angstrom
+        sncut : float
+            the detection significance (S/N) cut
+            applied to the data
+
+        Return
+        ------
+        fracdet : array
+            fraction detected 
+
+        """
+
+        try: 
+            if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
+
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+        except TypeError as e:
+             if lambda_ < 3000.0 or lambda_ > 6000.0:
+
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+        
+
+        snr = self.compute_snr(flux, ra, dec, lambda_)
+        snr50 = polyval(self.conversion_poly, sncut)
+        alphas = self.alpha_func(lambda_)
+
+        return fleming_function(snr, snr50, alphas)
 
 
     def write(self, filename, datascale=1e-17, **kwargs):
@@ -373,7 +489,7 @@ class SensitivityCube(object):
             passed to the astropy.io.fits:writeto
             function
         """
-        fits.writeto(filename , self.aper_corr*datascale/self.f50vals, header=self.header, **kwargs)
+        fits.writeto(filename , self.aper_corr*datascale/self.sigmas, header=self.header, **kwargs)
 
 
 def plot_completeness(args=None):
