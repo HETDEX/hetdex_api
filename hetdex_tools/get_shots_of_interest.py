@@ -30,7 +30,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord
 
 from hetdex_api.survey import Survey
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 
 def get_parser():
