@@ -27,7 +27,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 
 class QualityAssessment(tb.IsDescription):

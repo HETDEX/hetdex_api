@@ -29,7 +29,7 @@ import tables as tb
 import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 
 class AmpToAmp(tb.IsDescription):

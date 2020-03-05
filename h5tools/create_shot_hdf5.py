@@ -17,7 +17,7 @@ import os.path as op
 import numpy as np
 
 from astropy.io import fits
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 from astropy.table import Table
 
 # hard coded variable to initialize 'rms', 'chi' arrays

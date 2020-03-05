@@ -41,7 +41,7 @@ import argparse as ap
 from astropy.io import ascii
 from astropy.io import fits
 from astropy.table import vstack, Table
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 from hetdex_api import config
 

@@ -33,7 +33,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from astropy.io import fits
 import astropy.units as u
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 from hetdex_api import config
 
