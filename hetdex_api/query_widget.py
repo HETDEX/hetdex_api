@@ -108,7 +108,7 @@ class QueryWidget():
         self.extract_button.on_click(self.extract_on_click)
         self.survey_widget.observe(self.on_survey_change)
 
-    def on_survey_change(self):
+    def on_survey_change(self, b):
         self.survey = self.survey_widget.value.lower()
 
     def update_coords(self):
