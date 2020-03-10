@@ -213,7 +213,7 @@ class QueryWidget():
         self.bottombox.clear_output()
 
         with self.bottombox:            
-            self.spec_table = get_spectra(self.marker_tab['coord'])
+            self.spec_table = get_spectra(self.marker_tab['coord'], survey=self.survey)
 
         # set up tabs for plotting
         ID_list = np.unique(self.spec_table['ID'])
