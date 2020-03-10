@@ -106,7 +106,11 @@ class QueryWidget():
         self.marking_button.on_click(self.marking_on_click)
         self.reset_marking_button.on_click(self.reset_marking_on_click)
         self.extract_button.on_click(self.extract_on_click)
-                              
+        self.survey_widget.observe(self.on_survey_change)
+
+    def on_survey_change(self):
+        self.survey = self.survey_widget.value.lower()
+
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
