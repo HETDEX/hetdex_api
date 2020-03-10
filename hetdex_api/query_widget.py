@@ -33,11 +33,8 @@ from hetdex_api.config import HDRconfig
 from hetdex_tools.get_spec import get_spectra
 
 from astroquery.sdss import SDSS
+from elixer import catalogs
 
-#sys.path.append('/work/03946/hetdex/hdr1/software/elixer')
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
-
-import catalogs
 
 class QueryWidget():
 
