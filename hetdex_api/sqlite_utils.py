@@ -26,6 +26,7 @@ REPORT_TYPES = ["report","nei","mini"]
 #key is the HDR version number, value is list of directories that contain ELiXer imaging databses
 DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
                      "/work/05350/ecooper/stampede2/elixer/image_db",
+                     "/work/03261/polonius/hdr1_classify/image_db",
                      "/data/03261/polonius/hdr1_classify_image_db",
                      "/data/03261/polonius/image_db"
                      ],
