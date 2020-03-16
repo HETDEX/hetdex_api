@@ -22,8 +22,7 @@ import numpy as np
 import os.path as op
 FILENAME_PREFIX = "elixer_reports_" #keep the trailing underscore
 REPORT_TYPES = ["report","nei","mini"]
-HETDEX_API_CONFIG = None
-HDR_VALID_VERSIONS = [1,2]
+
 try:
     from hetdex_api.config import HDRconfig
 except:
@@ -44,13 +43,12 @@ DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
 #
 # add paths from hetdex_api to search (place in first position)
 #
-if HETDEX_API_CONFIG is None:
-    for v in HDR_VALID_VERSIONS:
-        try:
-            DICT_DB_PATHS[int(v)].insert(0,op.join(HDRconfig(survey=f"hdr{v}").elix_dir,"image_db"))
-        except:# Exception as e:
-            #print(e)
-            continue
+for v in DICT_DB_PATHS.keys():
+    try:
+        DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=f"hdr{v}").elix_dir,"image_db"))
+    except:# Exception as e:
+        #print(e)
+        continue
 
 
 def get_elixer_report_db_path(detectid,report_type="report"):
