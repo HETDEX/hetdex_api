@@ -46,9 +46,8 @@ DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
 #
 if HETDEX_API_CONFIG is None:
     for v in HDR_VALID_VERSIONS:
-        strHDRVersion = f"hdr{v}"
         try:
-            DICT_DB_PATHS[int(v)].insert(0,op.join(HDRconfig(survey=strHDRVersion).elix_dir,"image_db"))
+            DICT_DB_PATHS[int(v)].insert(0,op.join(HDRconfig(survey=f"hdr{v}").elix_dir,"image_db"))
         except:# Exception as e:
             #print(e)
             continue
