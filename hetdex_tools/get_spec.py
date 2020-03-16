@@ -123,8 +123,11 @@ def get_source_spectra(shotid, args):
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
-        
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+            
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -200,7 +203,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+                                                        
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
