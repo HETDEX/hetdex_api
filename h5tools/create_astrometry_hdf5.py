@@ -46,7 +46,7 @@ class NominalVals(tb.IsDescription):
     parangle = tb.Float32Col(pos=3)
     x_dither_pos = tb.Float32Col(pos=4)
     y_dither_pos = tb.Float32Col(pos=5)
-    norm = tb.Float32Col(pos=6)
+    relflux_virus = tb.Float32Col(pos=6)
     als_filename = tb.StringCol((23))
 
 
@@ -89,6 +89,10 @@ def main(argv=None):
                         help='''Appending to existing file.''',
                         action="count", default=0)
 
+    parser.add_argument("-tp", "--tpdir",
+                        help='''Directory for Throughput Info''',
+                        type=str,
+                        default='/data/00115/gebhardt/detect')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -100,15 +104,15 @@ def main(argv=None):
         args.log.info('Appending astrometry to %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'a')
         does_exist = True
+        try:
+            fileh.remove_node(fileh.root.Astrometry, recursive=True)
+        except:
+            pass
     else:
         args.log.info('Creating new file for astrometry %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'w')
 
-    try: 
-        fileh.remove_node(fileh.root.Astrometry, recursive=True)
-    except:
-        args.log.info('Creating new Astrometry group')
-
+        
     groupAstrometry = fileh.create_group(fileh.root, 'Astrometry', 'Astrometry Info')
     groupCoadd = fileh.create_group(groupAstrometry, 'CoaddImages', 'Coadd Images')
     groupDithall = fileh.create_group(groupAstrometry, 'Dithall', 'Fiber Astrometry Info')
@@ -120,6 +124,8 @@ def main(argv=None):
                              'Quality Assessment')
     tableNV = fileh.create_table(groupAstrometry,'NominalVals', NominalVals,
                                  'Nominal Values')
+
+    datevshot = str(args.date) + 'v' + str(args.observation).zfill(3)
 
     # store shuffle.cfg and DATEvOBS.log files
 
@@ -188,7 +194,7 @@ def main(argv=None):
         args.log.warning('Could not include %s' % fileallmch)
 
         
-    filenorm = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),'norm.dat')
+    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),'norm.dat')
     try:
         norm = ascii.read(filenorm)
     except:
@@ -211,11 +217,11 @@ def main(argv=None):
 
         try:
             if idx == 0:
-                rowNV['norm'] = norm['col1']
+                rowNV['relflux_virus'] = norm['col1']
             elif idx == 1:
-                rowNV['norm'] = norm['col2']
+                rowNV['relflux_virus'] = norm['col2']
             elif idx == 2:
-                rowNV['norm'] = norm['col3']
+                rowNV['relflux_virus'] = norm['col3']
         except:
             args.log.warning('Could not include norm.dat')
         
@@ -311,6 +317,7 @@ def main(argv=None):
             row['yrms'] = f_getoff2['col4']
             row['nstars'] = f_getoff2['col5']
             row.append()
+
         except:
             args.log.warning('Could not include %s' % file_getoff2)
         
@@ -323,15 +330,43 @@ def main(argv=None):
             tableXY.set_attr('filename','xy_exp??.dat')
         except:
             args.log.warning('Could not include %s' % file_xy)
-
+            
     tableQA.set_attr('filename', 'getoff2_exp??.out')
     tableNV.set_attr('dither_file', 'all.mch')
     tableNV.set_attr('norm_file', 'norm.dat')
     tableNV.set_attr('radec_file', 'radec2_exp??.dat')
     tableQA.flush()
     tableNV.flush()
-    fileh.close()
 
+    tableQA = fileh.root.Astrometry.QA
+    tableNV = fileh.root.Astrometry.NominalVals
+
+    radecfinalfile = op.join(args.rootdir,
+                             str(args.date) + 'v' + str(args.observation).zfill(3),
+                             'radec2_final.dat')
+    radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
+
+    shottable = fileh.root.Shot
+
+
+    if True:#try:
+        for shot in shottable:
+            shot['ra'] = radectab['ra'][0]
+            shot['dec'] = radectab['dec'][0]
+            shot['pa'] = radectab['pa'][0]
+            shot['xoffset'] = tableQA.cols.xoffset[:]
+            shot['yoffset'] = tableQA.cols.yoffset[:]
+            shot['xrms'] = tableQA.cols.xrms[:]
+            shot['yrms'] = tableQA.cols.yrms[:]
+            shot['nstars_fit'] = tableQA.cols.nstars[:]
+            shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
+            shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+            shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
+            shot.update()
+    else:#except:
+        args.log.error('Could not include astrometry shot info for %s' % datevshot)
+
+    fileh.close()
 
 if __name__ == '__main__':
     main()
