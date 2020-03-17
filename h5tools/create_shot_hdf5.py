@@ -37,43 +37,35 @@ def get_files(args):
                                   'virus%07d' % int(args.observation),
                                   'exp*', 'virus', 'multi_*.fits'))
     else:
-
         datestr = 'd%ss%03d' % (args.date, int(args.observation))
 
-        #remove any old files on tmp
-
-        datepath = op.join(args.tmppath, datestr)
-
-        if op.isdir(datepath):
-            shutil.rmtree(datepath, ignore_errors=True)
-
-        os.mkdir(datepath)
-
-        tarfiles = glob.glob(op.join(args.rootdir,
+        files = glob.glob(op.join(args.rootdir,
                                      'sci' + str(args.date)[0:6],
                                      datestr + 'exp0?',
                                      datestr + 'exp0?_mu.tar'))
-
-        if np.size(tarfiles) == 3:
-            for exp in ['exp01', 'exp02', 'exp03']:
-                expfile = op.join(args.rootdir,
-                                  'sci' + str(args.date)[0:6],
-                                  datestr + exp,
-                                  datestr + exp + '_mu.tar')
-                tar = tarfile.open(name=expfile, mode='r')
-                dir_exp = op.join(datepath, exp)
-
-                os.mkdir(dir_exp)
-                tar.extractall(path=dir_exp)
-
-            files = glob.glob(op.join(datepath, 'exp*/multi*.fits'))
-
-        else:
-            args.log.error('Could not locate tar files for three dithers.')
-            sys.exit()
-
+    
     return files
 
+    
+def define_field(objname):
+        if re.match('par', str(objname)):
+            field = 'parallel'
+        elif re.match('COS|cos|DEXcos', str(objname)):
+            field = 'cosmos'
+        elif re.match('EGS', str(objname)):
+            field = 'egs'
+        elif re.match('GN', str(objname)):
+            field = 'goods-n'
+        elif re.match('DEX0|DEXfl', str(objname)):
+            field = 'dex-fall'
+        elif re.match('HS|DEXsp', str(objname)):
+            field = 'dex-spring'
+        else:
+            field = 'other'
+
+        return field
+
+    
 class VIRUSFiberIndex(tb.IsDescription):
     multiframe = tb.StringCol((20), pos=0)
     fiber_id = tb.StringCol((38), pos=4)
@@ -140,52 +132,116 @@ class VIRUSImage(tb.IsDescription):
 
 
 class VIRUSShot(tb.IsDescription):
-    obsind = tb.Int32Col()
-    objid = tb.StringCol((18), pos=4)
-    date = tb.Int32Col(pos=0)
-    mjd = tb.Float32Col(pos=6)
-    obsid = tb.Int32Col(pos=1)
-    ra = tb.Float32Col(pos=2)
-    dec = tb.Float32Col(pos=3)
-    pa = tb.Float32Col(pos=5)
-    expn = tb.Int32Col()
+    shotid = tb.Int64Col(pos=0)
+    date = tb.Int32Col(pos=3)
+    obsid = tb.Int32Col(pos=4)
+    objid = tb.StringCol((18), pos=2)
+    field = tb.StringCol((12), pos=1)
+    ra = tb.Float64Col(pos=5)
+    dec = tb.Float64Col(pos=6)
+    pa = tb.Float64Col(pos=7)
+    n_ifu = tb.Int32Col(pos=8)
+    datevobs = tb.StringCol((12))
+    trajcra = tb.Float32Col()
+    trajcdec = tb.Float32Col()
+    trajcpa = tb.Float32Col()
+    structaz = tb.Float32Col()
     time = tb.StringCol(7)
     ambtemp = tb.Float32Col()
     humidity = tb.Float32Col()
     dewpoint = tb.Float32Col()
     pressure = tb.Float32Col()
-    exptime = tb.Float32Col()
-
+    expnum = tb.Int32Col((3))
+    exptime = tb.Float32Col((3))
+    darktime = tb.Float32Col((3))
+    mjd = tb.Float32Col((3))
+    fwhm_virus = tb.Float32Col(pos=9)
+    fwhm_virus_err = tb.Float32Col(pos=10)
+    nstars_fit_fwhm = tb.Int32Col()
+    #relflux_guider = tb.Float32Col((3),pos=13)
+    relflux_virus = tb.Float32Col((3),pos=14)
+    response_4540 = tb.Float32Col(pos=11)  # normalized for 360s
+    xditherpos = tb.Float32Col((3))
+    yditherpos = tb.Float32Col((3))
+    xoffset = tb.Float32Col((3))
+    yoffset = tb.Float32Col((3))
+    xrms = tb.Float32Col((3))
+    yrms = tb.Float32Col((3))
+    nstars_fit = tb.Int32Col((3))
+    
+    obsind = tb.Int32Col()
 
 def append_shot_to_table(shot, shottable, fn, cnt):
     F = fits.open(fn)
-    shot['obsind'] = cnt
-    shot['date'] = int(''.join(F[0].header['DATE-OBS'].split('-')))
-    shot['objid'] = F[0].header['OBJECT']
-    shot['time'] = ''.join(re.split('[:,.]', F[0].header['UT']))[:7]
-    shot['mjd'] = F[0].header['MJD']
-    shot['obsid'] = int(F[0].header['OBSID'])
-    shot['ra'] = F[0].header['TRAJCRA'] * 15.
-    shot['dec'] = F[0].header['TRAJCDEC']
-    shot['pa'] = F[0].header['PARANGLE']
-    shot['ambtemp'] = F[0].header['AMBTEMP']
-    shot['humidity'] = F[0].header['HUMIDITY']
-    shot['dewpoint'] = F[0].header['DEWPOINT']
-    shot['pressure'] = F[0].header['BAROMPRE']
-    shot['exptime'] = F[0].header['EXPTIME']
+
     try:
-        shot['expn'] = int(op.basename(op.dirname(op.dirname(F.filename())))[-2:])
+        filename = fn.name
     except:
-        shot['expn'] = int(op.dirname(F.filename())[-2:])
-    shottable.attrs['HEADER'] = F[0].header
-    shot.append()
+        filename = fn
+    
+    idx = filename.find('exp')
+    expn = filename[idx:idx+5]
+
+    if expn == 'exp01':
+        shot['obsind'] = cnt
+        date = int(''.join(F[0].header['DATE-OBS'].split('-')))
+        obsid = int(F[0].header['OBSID'])
+        shot['date'] = date
+        shot['obsid'] = obsid
+
+        shot['datevobs'] = str(date) + 'v' + str(obsid).zfill(3)
+        shot['shotid'] = int(str(date)+str(obsid).zfill(3))
+        
+        shot['objid'] = F[0].header['OBJECT']
+        shot['field'] = define_field( F[0].header['OBJECT'])
+
+        shot['time'] = ''.join(re.split('[:,.]', F[0].header['UT']))[:7]
+
+        shot['trajcra'] = F[0].header['TRAJCRA'] * 15.
+        shot['trajcdec'] = F[0].header['TRAJCDEC']
+        shot['trajcpa'] = F[0].header['PARANGLE']
+        shot['structaz'] = F[0].header['STRUCTAZ']
+        shot['ambtemp'] = F[0].header['AMBTEMP']
+        shot['humidity'] = F[0].header['HUMIDITY']
+        shot['dewpoint'] = F[0].header['DEWPOINT']
+        shot['pressure'] = F[0].header['BAROMPRE']
+        shot['expnum'] = shot['expnum'] + [int(expn[3:5]), 0, 0]
+        shot['darktime'] = shot['darktime'] + [ F[0].header['DARKTIME'], 0, 0]
+        shot['exptime'] = shot['exptime'] + [ F[0].header['EXPTIME'], 0, 0]
+        shot['mjd'] = shot['mjd'] + [ F[0].header['MJD'], 0, 0]
+                
+    elif expn == 'exp02':
+        shot['expnum'] = shot['expnum'] + [0, int(expn[3:5]), 0]
+        shot['darktime'] = shot['darktime'] + [ 0, F[0].header['DARKTIME'], 0]
+        shot['exptime'] = shot['exptime'] + [ 0, F[0].header['EXPTIME'], 0]
+        shot['mjd'] = shot['mjd'] + [ 0, F[0].header['MJD'], 0]
+        
+    elif expn == 'exp03':
+        shot['expnum'] = shot['expnum'] + [0, 0, int(expn[3:5])]
+        shot['darktime'] = shot['darktime'] + [ 0, 0, F[0].header['DARKTIME']]
+        shot['exptime'] = shot['exptime'] + [ 0, 0, F[0].header['EXPTIME']]
+        shot['mjd'] = shot['mjd'] + [ 0, 0, F[0].header['MJD']]
+
+    header = 'header_' + expn
+    shottable.attrs[header] = F[0].header
+    
+    return True
 
 
 def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
     F = fits.open(fn)
     shotid = int(args.date) * 1000 + int(args.observation) 
-    idx = fn.find('multi')
-    multiframe = fn[idx:idx+20]
+    
+    if args.tar==True:
+        ifuslot = '%03d' % int(F[0].header['IFUSLOT'])
+        ifuid = '%03d' % int(F[0].header['IFUID'])
+        specid = '%03d' % int(F[0].header['SPECID'])
+        amp = F[0].header['NAME0'][21:23]
+        multiframe = 'multi_' + specid + '_' + ifuslot + '_' + ifuid + '_' + amp
+    else:
+        idx = fn.find('multi')
+        multiframe = fn[idx:idx+20]
+
     im['multiframe'] = multiframe
     n = F['spectrum'].data.shape[0]
     d = F['spectrum'].data.shape[1]
@@ -205,15 +261,14 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             im[att] = F['PRIMARY'].data * 1.
         else:
             im[att] = F[att].data * 1.
-    mname = op.basename(fn)[:-5]
-
+    
     if args.tar:
-        expn = op.basename((op.dirname(fn)))
+        expn = fn.name[-12:-7]
     else:
         expn = op.basename(op.dirname(op.dirname(fn)))
 
     if T is not None:
-        sel = T['col8'] == (mname + '_001.ixy')
+        sel = T['col8'] == (multiframe + '_001.ixy')
         sel1 = T['col10'] == expn
         loc = np.where(sel * sel1)[0]
     for i in np.arange(n):
@@ -271,7 +326,7 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
         try:
             fib['amp'] = '%s' % F[0].header['amp'][:2]
         except:
-            fib['amp'] = '%s' % F.filename()[-7:-5]
+            fib['amp'] = '%s' % F[0].header['NAME0'][21:23]
         
         fib['expnum'] = int(expn[-2:])
         fib.append()
@@ -310,7 +365,7 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Reductions''',
-                        type=str, default='/work/03946/hetdex/maverick/red1/reductions/')
+                        type=str, default='/data/05350/ecooper/')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5
@@ -330,7 +385,7 @@ def main(argv=None):
     parser.add_argument("-tar", "--tar", help='''Flag to open tarred multifits''',
                         action='store_true')
 
-    parser.add_argument("-tp", "--tmppath", type=str, default='tmp')
+    parser.add_argument("-tp", "--tmppath", type=str, default=os.getcwd())
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -349,6 +404,7 @@ def main(argv=None):
         T = Table.read(filepath, format='ascii')
     except:
         T = None
+        args.log
 
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
@@ -377,27 +433,73 @@ def main(argv=None):
     else:
         cnt = 1
 
-    shot = shottable.row
-    success = append_shot_to_table(shot, shottable, files[0], cnt)
-    if success:
-        shottable.flush()
-    for fn in files:
-        args.log.info('Working on %s' % fn)
-        fib = fibtable.row
-        im = imagetable.row
-        fibindex = fibindextable.row
+
+    if args.tar==True:        
+
+        shot = shottable.row
+        n_ifu = {}        
+        for file_i in files:
+            tar = tarfile.open(name=file_i, mode='r')
+            
+            members = tar.getmembers()
+            fn = tar.extractfile(members[0])
+
+            filename = fn.name
+            idx = filename.find('exp')
+            expn = filename[idx:idx+5]
+
+            n_ifu[expn] = int(len(members)/4)
+
+            success = append_shot_to_table(shot, shottable, fn, cnt)
+
+            for member in members:
+                fn = tar.extractfile(member)
+                args.log.info('Working on %s' % member.name)
+                fib = fibtable.row
+                im = imagetable.row
+                fibindex = fibindextable.row
+                
+                success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
+                if success:
+                    fibtable.flush()
+                    imagetable.flush()
+
+        shot['n_ifu'] = n_ifu['exp01']
+        shot.append()
+
+    else:
+
+        shot = shottable.row
+        success = append_shot_to_table(shot, shottable, files[0], cnt)
  
-        success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
-        if success:
-            fibtable.flush()
-            imagetable.flush()
+        for fn in files:
+            args.log.info('Working on %s' % fn)
+            fib = fibtable.row
+            im = imagetable.row
+            fibindex = fibindextable.row
+            
+            success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
+            if success:
+                fibtable.flush()
+                imagetable.flush()
+                fibindextable.flush()
 
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.multiframe.create_csindex()
+    fibtable.cols.ra.create_csindex()
+    fibindextable.cols.ra.create_csindex()
+
     imagetable.cols.multiframe.create_csindex()
+    fibindextable.cols.multiframe.create_csindex()
+    fibtable.cols.multiframe.create_csindex()
+    
+    fibindextable.cols.expnum.create_csindex()
+    fibtable.cols.expnum.create_csindex()
+    
+    shottable.flush()
     fibtable.flush()
+    fibindextable.flush()
     imagetable.flush()
 
     fileh.close()
