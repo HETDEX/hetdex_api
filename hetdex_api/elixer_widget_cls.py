@@ -15,19 +15,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os.path as op
 
+import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
+import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 #from IPython import display#, HTML
 from IPython.display import Image
 from ipywidgets import interact, Layout #Style #, interactive
 #from IPython.display import clear_output
-from hetdex_api.detections import *
 import tables
 
-from get_spec import get_spectra
+from hetdex_tools.get_spec import get_spectra
 
 #needed only if detection observered wavelength is not supplied
 HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
@@ -80,6 +81,7 @@ class ElixerWidget():
 
         global elix_dir
 
+        self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
         self.show_counterpart_btns=counterpart
 
@@ -137,17 +139,7 @@ class ElixerWidget():
             except:
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
-
-       #now, just a list of detections
-        elif type(detectlist) is np.ndarray:
-            self.detectid = detectlist
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
-        else:
+        elif detectlist is None:
             self.detectid = np.arange(1000000000, 1000690799, 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
@@ -155,6 +147,13 @@ class ElixerWidget():
             self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
             self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
+        else:
+            self.detectid = np.array(detectlist)
+            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+            self.flag = np.zeros(np.size(self.detectid), dtype=int)
+            self.z = np.full(np.size(self.detectid), -1.0)
+            self.comment = np.full(np.size(self.detectid), '?',dtype='|S80').astype(str)
+            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
         # store outfile name if given
         if outfile:
@@ -223,18 +222,26 @@ class ElixerWidget():
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
         try:
-            fname = op.join(elix_dir, "%d.png" % (detectid))
 
-            if op.exists(fname):
-                display(Image(fname))
-            else: #try the archive location
-                print("Cannot load ELiXer Report image: ", fname)
-                print("Trying archive location...")
-                fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+            try:
+                #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
+                #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
+                display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+            except Exception as e:
+                print(e)
+
+                fname = op.join(elix_dir, "%d.png" % (detectid))
+
                 if op.exists(fname):
                     display(Image(fname))
-                else:
+                else: #try the archive location
                     print("Cannot load ELiXer Report image: ", fname)
+                    print("Trying archive location...")
+                    fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+                    if op.exists(fname):
+                        display(Image(fname))
+                    else:
+                        print("Cannot load ELiXer Report image: ", fname)
         except:
             print("Cannot load ELiXer Report image: ", fname)
 
@@ -795,12 +802,20 @@ class ElixerWidget():
 
     def on_elixer_neighborhood(self,b):
         detectid = self.detectbox.value
-        path = os.path.join(elix_dir, "%dnei.png" % (detectid))
 
-        if not os.path.isfile(path):
-            print("%s not found" % path)
-        else:
-            display(Image(path))
+        try:
+            #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
+            #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
+            display(Image(self.elixer_conn_mgr.fetch_image(detectid,report_type="nei")))
+        except Exception as e:
+            print(e)
+
+            path = op.join(elix_dir, "%dnei.png" % (detectid))
+
+            if not op.isfile(path):
+                print("%s not found" % path)
+            else:
+                display(Image(path))
 
 
     def plot_spec(self, matchnum):

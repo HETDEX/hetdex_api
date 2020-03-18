@@ -29,16 +29,16 @@ import tables as tb
 import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 
-class AmpToAmp(tb.IsDescription):
-    ampid = tb.StringCol(20)
-    ifuslot = tb.StringCol(3)
-    ifuid = tb.StringCol(3)
-    specid = tb.StringCol(3)
-    amp = tb.StringCol(2)
-    normdata = tb.Float32Col((2, 100))
+#class AmpToAmp(tb.IsDescription):
+#    ampid = tb.StringCol(20)
+#    ifuslot = tb.StringCol(3)
+#    ifuid = tb.StringCol(3)
+#    specid = tb.StringCol(3)
+#    amp = tb.StringCol(2)
+#    normdata = tb.Float32Col((2, 100))
 
 
 def main(argv=None):
@@ -58,7 +58,8 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/work/03946/hetdex/hdr1/reduction/throughput')
+                        default='/data/00115/gebhardt/detect')
+                        #default='/work/03946/hetdex/hdr1/reduction/throughput')
 
     parser.add_argument("-am", "--ampdir",
                         help='''Directory for Amp to Amp''',
@@ -88,42 +89,51 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, 'w')
         args.log.info('Writingcalibration info to %s'% args.outfilename)
 
+    try: 
+        fileh.remove_node(fileh.root.Calibration, recursive=True)
+    except:
+        args.log.info('Creating new Calibration group')
+
     group = fileh.create_group(fileh.root, 'Calibration',
                                'HETDEX Calibration Info')
-    groupAmpToAmp = fileh.create_group(group, 'AmpToAmp',
-                                       'Amp to amp Fiber Normalization')
+#    groupAmpToAmp = fileh.create_group(group, 'AmpToAmp',
+#                                       'Amp to amp Fiber Normalization')
     groupThroughput = fileh.create_group(group, 'Throughput',
-                                         'Throughput Curves')
+                                         'Throughput Curve')
 
     # populate the AmpToAmp group with normalization curves and metadata
 
-    amptoampfiles = glob.glob(op.join(args.ampdir, 'multi*.norm'))
+ #   amptoampfiles = glob.glob(op.join(args.ampdir, 'multi*.norm'))
 
-    for filen in amptoampfiles:
-        idx = filen.find('multi_')
-        ampid = filen[idx:idx+20]
-        try:
-            data = ascii.read(filen, names=['wave', 'norm'])
-            fileh.create_table(groupAmpToAmp, str(ampid), data.as_array())
-        except:
-            args.log.warning('Could not include %s' % filen)
+ #   for filen in amptoampfiles:
+ #       idx = filen.find('multi_')
+ #       ampid = filen[idx:idx+20]
+ #       try:
+ #           data = ascii.read(filen, names=['wave', 'norm'])
+ #           fileh.create_table(groupAmpToAmp, str(ampid), data.as_array())
+ #       except:
+ #           args.log.warning('Could not include %s' % filen)
     # populate Throughput group with throughput curves
 
-    tpfile = op.join(args.tpdir, str(args.date) + 'v' +
-                     str(args.observation.zfill(3)) + 'sedtp_f.dat')
-
-    idx = tpfile.find('/20')
-    datevshot = tpfile[idx+1:idx+13]
+    datevshot = str(args.date) + 'v' + str(args.observation.zfill(3))
+    
+    tpfile = op.join(args.tpdir,'tp', datevshot + 'sedtp_f.dat')
+    
     try:
-        tp_data = ascii.read(tpfile, names=['wavelength','throughput','tp_low', 'tp_high', 
-                                            'rat_poly', 'tp_gband'])
+        tp_data = ascii.read(tpfile,names=['wavelength','throughput','tp_low', 'tp_high',
+                                           'rat_poly', 'tp_gband'])
+        tp_4540 = tp_data['throughput'][np.where(tp_data['wavelength'] == 4540.)][0]
+        
         tp_array = fileh.create_table(groupThroughput, 'throughput', tp_data.as_array())
         tp_array.set_attr('filename', tpfile)
     except:
         args.log.warning('Could not include %s' % tpfile)
 
-    tppngfile = op.join(args.tpdir, str(args.date) + 'v' +
-                     str(args.observation.zfill(3)) + 'sedtpa.png')
+    tppngfile = op.join(args.tpdir,
+                        str(args.date) + 'v' + str(args.observation.zfill(3)),
+                        'res',
+                        str(args.date) + 'v' +
+                        str(args.observation.zfill(3)) + 'sedtpa.png')
 
     try:
         pngimarr = plt.imread(tppngfile)
@@ -132,8 +142,29 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % tppngfile)
 
-    fileh.close()
 
+    # add virus FWHM and response_4540 to the Shot table
+    
+    shottable = fileh.root.Shot
+    fwhm_file =  op.join(args.tpdir,
+                         str(args.date) + 'v' +
+                         str(args.observation.zfill(3)),
+                         'fwhm.out')
+    try:
+        fwhm_arr = np.loadtxt(fwhm_file)
+
+        for row in shottable:
+            row['fwhm_virus'] = fwhm_arr[0]
+            row['fwhm_virus_err'] = fwhm_arr[1]
+            row['nstars_fit_fwhm'] = int(fwhm_arr[2])
+            row['response_4540'] = tp_4540
+            row.update()
+
+    except:
+        args.log.error('Could not include cal info in shot table for %s' % datevshot) 
+
+
+    fileh.close()
 
 if __name__ == '__main__':
     main()

@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import os.path as op
 
 from astropy.wcs import WCS
+from astropy.wcs.utils import skycoord_to_pixel
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
@@ -28,14 +29,12 @@ import ipywidgets as widgets
 from ipywidgets import interact, Layout, AppLayout 
 
 from hetdex_api.shot import *
-from hetdex_api import config
-from get_spec import get_spectra
+from hetdex_api.config import HDRconfig
+from hetdex_tools.get_spec import get_spectra
 
 from astroquery.sdss import SDSS
+from elixer import catalogs
 
-sys.path.append('/work/03946/hetdex/hdr1/software/elixer')
-
-import catalogs
 
 class QueryWidget():
 
@@ -48,6 +47,8 @@ class QueryWidget():
         self.cutout_size = cutout_size
         self.zoom = zoom
 
+        config = HDRconfig(survey=survey)
+        
         self.fileh5dets = tb.open_file(config.detecth5)
         self.catlib = catalogs.CatalogLibrary()
 
@@ -88,9 +89,9 @@ class QueryWidget():
     
 
         self.topbox = widgets.HBox([self.survey_widget, self.detectbox, self.im_ra, self.im_dec, self.pan_to_coords])
-        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='45%'))
+        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='600px'))
         self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
-                                      self.marker_table_output, self.spec_output], layout=Layout(width='55%'))
+                                      self.marker_table_output, self.spec_output], layout=Layout(width='600px'))
 
         self.bottombox = widgets.Output(layout={'border': '1px solid black'})
 
@@ -105,7 +106,11 @@ class QueryWidget():
         self.marking_button.on_click(self.marking_on_click)
         self.reset_marking_button.on_click(self.reset_marking_on_click)
         self.extract_button.on_click(self.extract_on_click)
-                              
+        self.survey_widget.observe(self.on_survey_change)
+
+    def on_survey_change(self, b):
+        self.survey = self.survey_widget.value.lower()
+
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
@@ -122,50 +127,49 @@ class QueryWidget():
             
     def pan_to_coords_click(self, b):
         self.update_coords()
-        if self.coords.separation(self.orig_coords) < self.cutout_size:
-            self.imw.center_on(self.coords)
+        
+        x,y = skycoord_to_pixel(self.coords, self.cutout['cutout'].wcs)
+        if (x > 0) and ( y > 0):
+            try:
+                value = self.cutout['cutout'].data[int(x),int(y)]
+                self.imw.center_on(self.coords)
+            except:
+                self.load_image()
         else:
-            self.load_image()
+                self.load_image()
             
     def load_image(self):
 
         im_size = self.cutout_size.to(u.arcsec).value
         mag_aperture = self.aperture.to(u.arcsec).value
-        with self.bottombox:
-            self.cutouts = self.catlib.get_cutouts(position=self.coords, radius=im_size, aperture=mag_aperture, dynamic=False)
         
-        # keep original coords of image for bounds checking later
+        # keep original coords of image for bounds checking later                                                      
         self.orig_coords = self.coords
 
-        cutout_index = -1
-
-        for index in np.arange(0, np.size(self.cutouts)):
-            if self.cutouts[index]['filter'] == 'g':
-                cutout_index = index
-                break
-            else:
-                cutout_index = 0
-
-        if cutout_index >= 0:    
-
-            im = NDData( self.cutouts[cutout_index]['cutout'].data, wcs=self.cutouts[cutout_index]['cutout'].wcs)
-            self.im_path = self.cutouts[cutout_index]['path']
-            self.imw.load_nddata(im)
-
-        else:
+        with self.bottombox:
             try:
-                sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
-                im = sdss_im[0][0]
-            except:
-                sdss_im = SDSS.get_images(coordinates=self.coords, band='g', radius=30.*u.arcsec)
-                im = sdss_im[0][0]
-            
-            self.im_path = "SDSS Astroquery result"
-            self.imw.load_fits(im)
+                self.cutout = self.catlib.get_cutouts(position=self.coords, side=im_size, 
+                                                      aperture=mag_aperture, dynamic=False,
+                                                      filter=['r','g','f606W'], first=True)[0]
 
-        self.imw.center_on(self.coords)
-        self.imw.zoom_level = self.zoom
-        self.textimpath.value= self.im_path
+                im = NDData( self.cutout['cutout'].data, wcs=self.cutout['cutout'].wcs)
+                self.im_path = self.cutout['path']
+                self.imw.load_nddata(im)
+
+            except:
+                try:
+                    sdss_im = SDSS.get_images(coordinates=self.coords, band='g')
+                    im = sdss_im[0][0]
+                except:
+                    sdss_im = SDSS.get_images(coordinates=self.coords, band='g', radius=30.*u.arcsec)
+                    im = sdss_im[0][0]
+            
+                self.im_path = "SDSS Astroquery result"
+                self.imw.load_fits(im)
+
+            self.imw.center_on(self.coords)
+            self.imw.zoom_level = self.zoom
+            self.textimpath.value= self.im_path
             
 
     def marking_on_click(self, b):
@@ -209,7 +213,7 @@ class QueryWidget():
         self.bottombox.clear_output()
 
         with self.bottombox:            
-            self.spec_table = get_spectra(self.marker_tab['coord'])
+            self.spec_table = get_spectra(self.marker_tab['coord'], survey=self.survey)
 
         # set up tabs for plotting
         ID_list = np.unique(self.spec_table['ID'])
