@@ -174,6 +174,9 @@ class SensitivityCubeHDF5Container(object):
             alphas = ifu.attrs.alphas
             sigmas = ifu.read()/ifu.attrs.aper_corr
 
+            # XXX HACK HACK HACK to change alpha
+            #alphas = [-1.9, -1.9]
+
             yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas)
 
 

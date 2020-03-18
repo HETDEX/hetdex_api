@@ -149,7 +149,8 @@ class SensitivityCube(object):
         for an input wavelength
 
     """
-    def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, nsigma=1.0,
+    # XXX might need a better name than nsigma as this is already used elsewhere
+    def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, nsigma=6.0,
                  conversion_poly=None):
 
         self.sigmas = sigmas/nsigma
@@ -187,10 +188,47 @@ class SensitivityCube(object):
 
         self.sigmas = self.sigmas*self.aper_corr
 
-        self.alphas = alphas
+        self.alphas = array(alphas)
         self.wavelengths = wavelengths
-        self.alpha_func = interp1d(wavelengths, alphas, 
-                                   fill_value="extrapolate")
+
+        # Depends if alphas depend on wavelength or
+        # is specified per cube cell
+        if len(self.alphas.shape) == 3:
+            self.alpha_is_cube = True 
+        else: 
+            self.alpha_is_cube = False 
+            self.alpha_func = interp1d(wavelengths, alphas, 
+                                       fill_value="extrapolate")
+
+    def get_alpha(self, ra, dec, lambda_):
+
+        # If alpha is just an array versus wavelength
+        # return the value here
+        if not self.alpha_is_cube:
+            return self.alpha_func(lambda_)
+
+        # Alpha stored in a cube 
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.alphas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.alphas.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.alphas.shape[0]) | (iz < 0) 
+ 
+        ix[(ix >= self.alphas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.alphas.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.alphas.shape[0]) | (iz < 0)] = 0
+
+        alphas_here = self.alphas[iz, iy, ix]
+
+        # Support arrays and floats
+        try:
+            alphas_here[bad_vals] = 999.0
+        except TypeError:
+            if isnan(bad_vals):
+                aphas_here = 999.0
+
+        return alphas_here
 
 
     @classmethod
@@ -374,7 +412,7 @@ class SensitivityCube(object):
 
         # hard coded sncut for HDR1
         f50s = self.get_f50(ra, dec, lambda_, 6.0)
-        alphas = self.alpha_func(lambda_)
+        alphas = self.get_alpha(ra, dec, lambda_)
 
         return fleming_function(flux, f50s, alphas)
 
@@ -465,7 +503,7 @@ class SensitivityCube(object):
 
         snr = self.compute_snr(flux, ra, dec, lambda_)
         snr50 = polyval(self.conversion_poly, sncut)
-        alphas = self.alpha_func(lambda_)
+        alphas = self.get_alpha(ra, dec, lambda_)
 
         return fleming_function(snr, snr50, alphas)
 
