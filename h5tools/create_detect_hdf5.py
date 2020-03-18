@@ -104,7 +104,8 @@ class Fibers(tb.IsDescription):
     x_ifu = tb.Float32Col(pos=5)
     y_ifu = tb.Float32Col(pos=6)
     multiframe = tb.StringCol((20), pos=3)
-    fibnum = tb.Int32Col(pos=4)
+    fibnum = tb.Int32Col()
+    fiber_id = tb.StringCol((38), pos=4)        
     expnum = tb.Int32Col(pos=9)
     distance = tb.Float32Col(pos=10)
     wavein = tb.Float32Col(pos=12)
@@ -165,26 +166,26 @@ def get_detect_cat(detectidx, catfile):
         ifuid.append( multiframe_i[14:17])
         amp.append( multiframe_i[18:20])
         
-        detectcat['detectid'] = detectid
-        detectcat['shotid'] = shotid
-        detectcat['multiframe'] = np.array(multiframe).astype(bytes)
-        detectcat['fiber_id'] = np.array(fiber_id).astype(bytes)
-        detectcat['ifuslot'] = np.array(ifuslot).astype(bytes)
-        detectcat['specid'] = np.array(specid).astype(bytes)
-        detectcat['ifuid'] = np.array(ifuid).astype(bytes)
-        detectcat['fibnum'] = fibnum
-        detectcat['amp'] = np.array(amp).astype(bytes)
-        
-        detectcat['X_amp'].name = 'x_raw'
-        detectcat['Y_amp'].name = 'y_raw'
-        detectcat['X_FP'].name = 'x_ifu'
-        detectcat['Y_FP'].name = 'y_ifu'
-        detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
-        
-        detectcat['expnum'] = detectcat['expnum'].astype(bytes)
-        detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id'])
-
-        return detectcat
+    detectcat['detectid'] = detectid
+    detectcat['shotid'] = shotid
+    detectcat['multiframe'] = np.array(multiframe).astype(bytes)
+    detectcat['fiber_id'] = np.array(fiber_id).astype(bytes)
+    detectcat['ifuslot'] = np.array(ifuslot).astype(bytes)
+    detectcat['specid'] = np.array(specid).astype(bytes)
+    detectcat['ifuid'] = np.array(ifuid).astype(bytes)
+    detectcat['fibnum'] = fibnum
+    detectcat['amp'] = np.array(amp).astype(bytes)
+    
+    detectcat['X_amp'].name = 'x_raw'
+    detectcat['Y_amp'].name = 'y_raw'
+    detectcat['X_FP'].name = 'x_ifu'
+    detectcat['Y_FP'].name = 'y_ifu'
+    detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
+    
+    detectcat['expnum'] = detectcat['expnum'].astype(bytes)
+    detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id'])
+    
+    return detectcat
                                                                         
                                                                         
 def append_detection(detectidx, date, obs, det, detect_path, tableMain,
@@ -390,13 +391,12 @@ def main(argv=None):
     catfile = op.join(args.detect_path, args.month, args.month + '.cat')
 
     detectcat = get_detect_cat(detectidx, catfile)
-
+    
     # add main detections table
     tableMain = fileh.create_table(fileh.root, 'Detections', detectcat.as_array())
 
     # add spectra for each detectid in the detections table
     tableSpectra = fileh.root.Spectra
-
 
     for row in tableMain:
         try:
@@ -425,7 +425,7 @@ def main(argv=None):
 
     for row in tableMain:
         inputid_i = row['inputid'].decode()
-        filefiberinfo = '/data/05178/cxliu/detect/201901/rf/list/' + inputid_i + '.list'
+        filefiberinfo = op.join(args.detect_path, args.month, 'rf', 'list', inputid_i + '.list')
         
         try:
             datafiber = Table.read(filefiberinfo, format='ascii.no_header')
