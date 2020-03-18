@@ -7,6 +7,10 @@ Created: 2019/01/25
 This file contains all information related to the HETDEX line detections
 catalog
 
+To create for a month:
+
+python3 create_detect_hdf5.py -m 201901 -of detect_201901.h5
+
 """
 from __future__ import print_function
 
@@ -23,6 +27,7 @@ import tables as tb
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from astropy.io import fits
+from astropy.table import Table
 import astropy.units as u
 from hetdex_api.input_utils import setup_logging
 
@@ -88,7 +93,9 @@ class Spectra(tb.IsDescription):
     counts1d_err = tb.Float32Col(1036, pos=5)
     apsum_counts = tb.Float32Col(1036, pos=6)
     apsum_counts_err = tb.Float32Col(1036, pos=7)
-
+    spec1d_nc = tb.Float32Col(1036)
+    spec1d_nc_err = tb.Float32Col(1036)
+    apcor = tb.Float32Col(1036)
 
 class Fibers(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -111,10 +118,81 @@ class Fibers(tb.IsDescription):
     ifuslot = tb.StringCol((3))
     ifuid = tb.StringCol((3))
     amp = tb.StringCol((2))
+    x_raw = tb.Int32Col()
+    y_raw = tb.Int32Col()
 
 
+def get_detect_cat(detectidx, catfile):
+    '''
+    This is for Chenxu's latest .cat files
+    '''
+
+    detectid = []
+    multiframe = []
+    fiber_id = []
+    ifuslot = []
+    specid = []
+    ifuid = []
+    fibnum = []
+    shotid = []
+    amp = []
+
+    detectid_i = detectidx
+
+    detectcat = Table.read(catfile, format='ascii')
+    
+    for row in detectcat:
+        detectid.append(detectid_i)
+        detectid_i += 1
+        
+        fiber_name = row['fiber_name']
+        
+        multiframe_i = fiber_name[0:20]
+        multiframe.append(multiframe_i)
+        
+        fibnum_i = int(fiber_name[21:24])
+        fibnum.append(fibnum_i)
+        
+        p = re.compile('v')
+        shotid_i = int(p.sub('', row['datevshot']))
+        
+        fiber_id_i = str(shotid_i) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe_i + '_' + str(fibnum_i).zfill(3)
+        
+        shotid.append( shotid_i)
+        fiber_id.append( fiber_id_i)
+        specid.append( multiframe_i[6:9])
+        ifuslot.append( multiframe_i[10:13])
+        ifuid.append( multiframe_i[14:17])
+        amp.append( multiframe_i[18:20])
+        
+        detectcat['detectid'] = detectid
+        detectcat['shotid'] = shotid
+        detectcat['multiframe'] = np.array(multiframe).astype(bytes)
+        detectcat['fiber_id'] = np.array(fiber_id).astype(bytes)
+        detectcat['ifuslot'] = np.array(ifuslot).astype(bytes)
+        detectcat['specid'] = np.array(specid).astype(bytes)
+        detectcat['ifuid'] = np.array(ifuid).astype(bytes)
+        detectcat['fibnum'] = fibnum
+        detectcat['amp'] = np.array(amp).astype(bytes)
+        
+        detectcat['X_amp'].name = 'x_raw'
+        detectcat['Y_amp'].name = 'y_raw'
+        detectcat['X_FP'].name = 'x_ifu'
+        detectcat['Y_FP'].name = 'y_ifu'
+        detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
+        
+        detectcat['expnum'] = detectcat['expnum'].astype(bytes)
+        detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id'])
+
+        return detectcat
+                                                                        
+                                                                        
 def append_detection(detectidx, date, obs, det, detect_path, tableMain,
                      tableFibers, tableSpectra):
+    '''
+    This was for HDR1
+    '''
+    
     print("Ingesting Date=" + date + "  OBSID="+ obs + "  ID=" + det)
     detectfile = build_mcres_path(detect_path, date, obs, det)
     datevobs_det = str(date) + 'v' + str(obs).zfill(3) + '_' + str(det)
@@ -225,6 +303,10 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create HDF5 file.""",
                                add_help=True)
 
+    parser.add_argument("-m", "--month",
+                        help='''Month to run: 201901''',
+                        type=str, default=None)
+                        
     parser.add_argument("-d", "--date",
                         help='''Date, e.g., 20170321, YYYYMMDD''',
                         type=str, default=None)
@@ -251,7 +333,7 @@ def main(argv=None):
     
     parser.add_argument("-dp", "--detect_path",
                         help='''Path to detections''',
-                        type=str, default='/scratch/05350/ecooper/detects/')
+                        type=str, default='/data/05178/cxliu/detect/')
 
     parser.add_argument("-md", "--mergedir",
                         help='''Merge all HDF5 files in the defined merge 
@@ -265,71 +347,119 @@ def main(argv=None):
     # does not already exist.
     does_exist = False
     if op.exists(args.outfilename) and args.append:
-        fileh = tb.open_file(args.outfilename, 'a', 'HDR1 Detections Database')
+        fileh = tb.open_file(args.outfilename, 'a', 'HDR2 Detections Database')
         does_exist = True
         # initiate new unique detect index
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
-        fileh = tb.open_file(args.outfilename, 'w', 'HDR1 Detections Database')
-        fileh.create_table(fileh.root, 'Detections', Detections,
-                           'HETDEX Line Detection Catalog')
+        fileh = tb.open_file(args.outfilename, 'w', 'HDR2 Detections Database')
+        #fileh.create_table(fileh.root, 'Detections', Detections,
+        #                   'HETDEX Line Detection Catalog')
+        
         fileh.create_table(fileh.root, 'Fibers', Fibers,
                            'Fiber info for each detection')
         fileh.create_table(fileh.root, 'Spectra', Spectra,
                            '1D Spectra for each Line Detection')
-        index_buff = 1000000000
+        index_buff = 2000000000
         detectidx = index_buff
 
-    tableMain = fileh.root.Detections
-    tableFibers = fileh.root.Fibers
-    tableSpectra = fileh.root.Spectra
-
-    if args.dets:
-        f = open(args.dets,"r")
-        print (args.dets)
-        for line in f:
-            datevobs_det = line.rstrip()
-            datevobs = datevobs_det[0:12]
-            date = datevobs_det[0:8]
-            obs = datevobs_det[10:12]
-            det = datevobs_det[13:]    
-            detectidx = append_detection(detectidx, date, obs, det, args.detect_path, tableMain,
-                                         tableFibers, tableSpectra)
-    elif args.mergedir:
+    if args.mergedir:
         files = sorted(glob.glob(op.join(args.mergedir,'detect*.h5')))
-
+        
         detectid_max = 1
-
+        
         for file in files:
             fileh_i = tb.open_file(file, 'r')
             tableMain_i = fileh_i.root.Detections.read()
             tableFibers_i = fileh_i.root.Fibers.read()
             tableSpectra_i = fileh_i.root.Spectra.read()
-
+        
             tableMain_i['detectid'] += detectid_max
             tableFibers_i['detectid'] += detectid_max
-            tableSpectra_i['detectid'] += detectid_max 
+            tableSpectra_i['detectid'] += detectid_max
             
             tableMain.append(tableMain_i)
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff 
-
-            fileh_i.close()
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff
             
-    else:
-        if not args.date:
-            print ("No date or dets list given. Exiting program.")
-            return
-        if not args.observation:
-            print ("No observation number was given. Exiting program.")
-            return
-        if not args.inputid:
-            print ("No inputid given. Exiting program.")
-            return
-        append_detection(detectidx, args.date, args.observation, args.inputid, 
-                         args.detect_path, tableMain, tableFibers, tableSpectra)
+            fileh_i.close()
+            sys.exit('Detect files merged, exiting')
+        
+    catfile = op.join(args.detect_path, args.month, args.month + '.cat')
+
+    detectcat = get_detect_cat(detectidx, catfile)
+
+    # add main detections table
+    tableMain = fileh.create_table(fileh.root, 'Detections', detectcat.as_array())
+
+    # add spectra for each detectid in the detections table
+    tableSpectra = fileh.root.Spectra
+
+
+    for row in tableMain:
+        try:
+            inputid_i = row['inputid'].decode()
+            specfile = op.join(args.detect_path, args.month, 'rf', 'spec', inputid_i + '.spec')
+            dataspec = Table.read(specfile, format='ascii.no_header')
+            rowspectra = tableSpectra.row
+            rowspectra['detectid'] = row['detectid']
+            rowspectra['spec1d'] = dataspec['col2']/dataspec['col9']
+            rowspectra['spec1d_err'] = dataspec['col3']/dataspec['col9']
+            rowspectra['wave1d'] = dataspec['col1']
+            rowspectra['spec1d_nc'] = dataspec['col2']
+            rowspectra['spec1d_nc_err'] = dataspec['col3']
+            rowspectra['counts1d'] = dataspec['col4']
+            rowspectra['counts1d_err'] = dataspec['col5']
+            rowspectra['apsum_counts'] = dataspec['col6']
+            rowspectra['apsum_counts_err'] = dataspec['col7']
+            #rowspectra['flag'] = dataspec['col8']
+            rowspectra['apcor'] = dataspec['col9']
+            rowspectra.append()
+        except:
+            args.log.error('Could not ingest %s' % specfile)
+
+    # add fiber info for each detection
+    tableFibers = fileh.root.Fibers
+
+    for row in tableMain:
+        inputid_i = row['inputid'].decode()
+        filefiberinfo = '/data/05178/cxliu/detect/201901/rf/list/' + inputid_i + '.list'
+        
+        try:
+            datafiber = Table.read(filefiberinfo, format='ascii.no_header')
+            
+            for ifiber in np.arange(np.size(datafiber)):
+                rowfiber = tableFibers.row
+                rowfiber['detectid'] = row['detectid']
+                rowfiber['ra'] = datafiber['col1'][ifiber]
+                rowfiber['dec'] = datafiber['col2'][ifiber]
+                rowfiber['x_ifu'] = datafiber['col3'][ifiber]
+                rowfiber['y_ifu'] = datafiber['col4'][ifiber]
+                multiname = datafiber['col5'][ifiber]
+                multiframe = multiname[0:20]
+                fiber_id_i = str(row['shotid']) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe + '_' + str(int(multiname[21:24])).zfill(3)
+                rowfiber['fiber_id'] = fiber_id_i
+                rowfiber['multiframe'] = multiframe
+                rowfiber['specid'] = multiframe[6:9]
+                rowfiber['ifuslot'] = multiframe[10:13]
+                rowfiber['ifuid'] = multiframe[14:17]
+                rowfiber['amp'] = multiframe[18:20]
+                rowfiber['fibnum'] = int(multiname[21:24])
+                rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
+                rowfiber['distance'] = datafiber['col7'][ifiber]
+                rowfiber['wavein'] = datafiber['col8'][ifiber]
+                rowfiber['timestamp'] = datafiber['col9'][ifiber]
+                rowfiber['date'] = datafiber['col10'][ifiber]
+                rowfiber['obsid'] = str(datafiber['col11'][ifiber])[0:3]
+                rowfiber['x_raw'] = datafiber['col12'][ifiber]
+                rowfiber['y_raw'] = datafiber['col13'][ifiber]
+                rowfiber['flag'] = datafiber['col15'][ifiber]
+                rowfiber['weight'] = datafiber['col14'][ifiber]
+                rowfiber.append()
+        except:
+            args.log.error('Could not ingest %s' % filefiberinfo)
 
     tableMain.flush()
     tableFibers.flush()
