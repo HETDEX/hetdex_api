@@ -365,14 +365,18 @@ def main(argv=None):
         index_buff = 2000000000
         detectidx = index_buff
         
-        tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
-                                      'HETDEX Line Detection Catalog')
-        tableFibers = fileh.create_table(fileh.root, 'Fibers', Fibers,
-                                         'Fiber info for each detection')
-        tableSpectra = fileh.create_table(fileh.root, 'Spectra', Spectra,
-                                          '1D Spectra for each Line Detection')
-        
+
     if args.mergedir:
+        tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
+                                       'HETDEX Line Detection Catalog',
+                                       expectedrows=1000000)
+        tableFibers = fileh.create_table(fileh.root, 'Fibers', Fibers,
+                                         'Fiber info for each detection',
+                                         expectedrows=1000000)
+        tableSpectra = fileh.create_table(fileh.root, 'Spectra', Spectra,
+                                          '1D Spectra for each Line Detection',
+                                          expectedrows=15000000)
+        
         files = sorted(glob.glob(op.join(args.mergedir,'detect*.h5')))
 
         detectid_max = 1
@@ -401,6 +405,16 @@ def main(argv=None):
         catfile = op.join(args.detect_path, args.month, args.month + '.cat')
 
         detectcat = get_detect_cat(detectidx, catfile)
+        
+        tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
+                                       'HETDEX Line Detection Catalog',
+                                       expectedrows=np.size(detectcat))
+        tableFibers = fileh.create_table(fileh.root, 'Fibers', Fibers,
+                                         'Fiber info for each detection',
+                                         expectedrows=np.size(detectcat))
+        tableSpectra = fileh.create_table(fileh.root, 'Spectra', Spectra,
+                                          '1D Spectra for each Line Detection',
+                                          expectedrows=15*np.size(detectcat))
         
         #tableMain = fileh.create_table(fileh.root, 'Detections', detectcat.as_array())
         det_cols = fileh.root.Detections.colnames
