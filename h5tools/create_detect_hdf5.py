@@ -443,7 +443,7 @@ def main(argv=None):
             inputid_i = row['inputid'].decode()
             filefiberinfo = op.join(args.detect_path, args.month, 'rf', 'list', inputid_i + '.list')
             
-            if True:#try:
+            try:
                 datafiber = Table.read(filefiberinfo, format='ascii.no_header')
             
                 for ifiber in np.arange(np.size(datafiber)):
@@ -474,7 +474,7 @@ def main(argv=None):
                     rowfiber['flag'] = datafiber['col15'][ifiber]
                     rowfiber['weight'] = datafiber['col14'][ifiber]
                     rowfiber.append()
-            else:#except:
+            except:
                 args.log.error('Could not ingest %s' % filefiberinfo)
 
         tableMain.flush()
