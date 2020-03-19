@@ -493,8 +493,6 @@ def main(argv=None):
     imagetable.cols.multiframe.create_csindex()
     fibindextable.cols.multiframe.create_csindex()
     fibtable.cols.multiframe.create_csindex()
-    
-    fibindextable.cols.expnum.create_csindex()
     fibtable.cols.expnum.create_csindex()
     
     shottable.flush()
