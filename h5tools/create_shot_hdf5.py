@@ -77,7 +77,8 @@ class VIRUSFiberIndex(tb.IsDescription):
     fpy = tb.Float32Col()
     ra = tb.Float32Col(pos=1)
     dec = tb.Float32Col(pos=2)
-
+    expnum = tb.Int32Col()
+    
 class VIRUSFiber(tb.IsDescription):
     obsind = tb.Int32Col()
     multiframe = tb.StringCol((20), pos=0)
@@ -329,6 +330,7 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             fib['amp'] = '%s' % F[0].header['NAME0'][21:23]
         
         fib['expnum'] = int(expn[-2:])
+        fibindex['expnum'] = int(expn[-2:])
         fib.append()
         fibindex.append()
 
@@ -493,8 +495,7 @@ def main(argv=None):
     imagetable.cols.multiframe.create_csindex()
     fibindextable.cols.multiframe.create_csindex()
     fibtable.cols.multiframe.create_csindex()
-    fibtable.cols.expnum.create_csindex()
-    
+
     shottable.flush()
     fibtable.flush()
     fibindextable.flush()
