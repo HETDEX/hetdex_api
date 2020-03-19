@@ -144,7 +144,10 @@ class Detections:
                 self.field[ix] = S.field[
                     index
                 ]  # NOTE: python2 to python3 strings now unicode
-                self.fwhm[ix] = S.fwhm_moffat[index]
+                if self.survey == 'hdr1':
+                    self.fwhm[ix] = S.fwhm_moffat[index]
+                else:
+                    self.fwhm[ix] = S.fwhm_virus[index]
                 self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
                 self.throughput[ix] = S.response_4540[index]
                 self.n_ifu[ix] = S.n_ifu[index]
