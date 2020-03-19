@@ -112,8 +112,12 @@ def main(argv=None):
     for calfile in calfiles:
 
         multi  = calfile[49:60]
-        cal_table = get_cal_table(calfile)
-    
+        try:
+            cal_table = get_cal_table(calfile)
+        except:
+            continue
+            args.log.error('Could not ingest calfile: %s' % calfile)
+            
         args.log.info('Working on IFU ' + multi )
         for amp_i in ['LL','LU','RL','RU']:
             
