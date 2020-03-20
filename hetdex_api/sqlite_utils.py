@@ -38,6 +38,8 @@ DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
                      "/data/03261/polonius/image_db"
                      ],
                  2: ["/work/03946/hetdex/hdr2/detect/image_db",
+                     "/work/03261/polonius/hdr2/detect/image_db",
+                     "/data/03261/polonius/hdr2/detect/image_db",
                      ],
                  }
 #
