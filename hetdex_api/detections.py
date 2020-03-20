@@ -420,6 +420,9 @@ class Detections:
 
         badamps = vstack([badamps1, badamps2])
 
+        if self.survey == 'hdr2':
+            self.date = (self.shotid/1000).astype(int)
+        
         for row in np.arange(np.size(badamps)):
             if badamps["amp"][row] == "AA":
                 maskamp = (
