@@ -7,9 +7,16 @@ Created: 2019/01/25
 This file contains all information related to the HETDEX line detections
 catalog
 
+Examples
+--------
+
 To create for a month:
 
 python3 create_detect_hdf5.py -m 201901 -of detect_201901.h5
+
+Then once all months are done, merge into one file:
+
+python3 create_detect_hdf5.py --merge -of detect_hdr2.h5
 
 """
 from __future__ import print_function
