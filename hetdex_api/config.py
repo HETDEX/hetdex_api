@@ -37,3 +37,9 @@ class HDRconfig:
             self.gmags = op.join(self.bad_dir, 'gmags.pickle')
             self.gmags_cont = op.join(self.bad_dir, 'gmags_cont.pickle')
             self.plae_poii_hetdex_gmag = op.join(self.bad_dir, 'plae_poii_hetdex_gmag.pickle')
+
+        if (survey=='hdr2'):
+            self.bad_dir = '/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr1'
+            self.baddetect = op.join(self.bad_dir, 'baddetects.list')
+            self.badshot = op.join(self.bad_dir, 'badshots.list')
+            self.badamp = op.join(self.bad_dir, 'badamps.list')
