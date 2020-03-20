@@ -310,7 +310,7 @@ class ElixerWidget():
             value=detectstart,
             #min=1,
             min=1000000000,
-            max=1000690799,
+            max=2001690799,
             step=1,
             description='DetectID:',
             disabled=False
