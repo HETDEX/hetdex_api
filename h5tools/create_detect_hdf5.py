@@ -414,7 +414,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1
             
             fileh_i.close()
             tableFibers.flush() #just to be safe
