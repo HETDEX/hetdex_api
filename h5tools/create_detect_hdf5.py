@@ -347,7 +347,14 @@ def main(argv=None):
     parser.add_argument("-md", "--mergedir",
                         help='''Merge all HDF5 files in the defined merge 
                         directory. Can append to existing file using --append option''',
-                        type=str, default=None)
+                        type=str, default=os.getcwd())
+
+    parser.add_argument("--merge",
+                        "-merge",
+                        help="""Boolean trigger to merge all 2*.fits files in cwd""",
+                        default=False,
+                        required=False,
+                        action="store_true")
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -366,7 +373,8 @@ def main(argv=None):
         detectidx = index_buff
         
 
-    if args.mergedir:
+    if args.merge:
+        
         tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
                                        'HETDEX Line Detection Catalog',
                                        expectedrows=1000000)
@@ -377,12 +385,14 @@ def main(argv=None):
                                           '1D Spectra for each Line Detection',
                                           expectedrows=15000000)
         
-        files = sorted(glob.glob(op.join(args.mergedir,'detect*.h5')))
-
+        files = sorted(glob.glob(op.join(args.mergedir,'detect_2*.h5')))
+        
         detectid_max = 1
 
         for file in files:
 
+            print('Appending detect H5 file: %s' % file)
+            
             fileh_i = tb.open_file(file, 'r')
             
             tableMain_i = fileh_i.root.Detections.read()                
@@ -400,6 +410,9 @@ def main(argv=None):
             detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff
             
             fileh_i.close()
+            tableFibers.flush() #just to be safe
+            tableSpectra.flush()
+            tableMain.flush()
 
     else:
         catfile = op.join(args.detect_path, args.month, args.month + '.cat')
@@ -450,7 +463,9 @@ def main(argv=None):
                 rowspectra.append()
             except:
                 args.log.error('Could not ingest %s' % specfile)
-
+            
+        tableSpectra.flush()
+        
         # add fiber info for each detection
     
         for row in tableMain:
@@ -491,10 +506,8 @@ def main(argv=None):
             except:
                 args.log.error('Could not ingest %s' % filefiberinfo)
 
-        tableMain.flush()
         tableFibers.flush()
-        tableSpectra.flush()
-
+        
     # create completely sorted index on the detectid 
     # to make queries against that column much faster
     if (args.append): 
