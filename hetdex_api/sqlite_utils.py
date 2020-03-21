@@ -270,6 +270,9 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
 
         print(f"Inserting {estimated_total} images ... ")
 
+        if estimated_total < 1:
+            return #nothing to do
+
         start_time = int(round(time.time() * 1000))
 
         for f in filelist:
