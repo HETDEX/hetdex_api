@@ -31,15 +31,15 @@ except:
 
 #key is the HDR version number, value is list of directories that contain ELiXer imaging databses
 #Base paths
-DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
-                     "/work/05350/ecooper/stampede2/elixer/image_db",
-                     "/work/03261/polonius/hdr1_classify/image_db",
+DICT_DB_PATHS = {1: ["/data/03261/polonius/image_db",
                      "/data/03261/polonius/hdr1_classify_image_db",
-                     "/data/03261/polonius/image_db"
+                     "/work/03261/polonius/hdr1_classify/image_db",
+                     "/work/05350/ecooper/stampede2/elixer/image_db",
+                     "/work/03946/hetdex/hdr1/detect/image_db"
                      ],
-                 2: ["/work/03946/hetdex/hdr2/detect/image_db",
+                 2: ["/data/03261/polonius/hdr2/detect/image_db",
                      "/work/03261/polonius/hdr2/detect/image_db",
-                     "/data/03261/polonius/hdr2/detect/image_db",
+                     "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
                  }
 #
