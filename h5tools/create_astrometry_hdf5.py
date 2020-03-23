@@ -253,7 +253,6 @@ def main(argv=None):
                            'match_' + expn + '.pdf')
         matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
-        os.system('convert ' + matchpdf + ' ' + matchpng)
         try:
             os.system('convert ' + matchpdf + ' ' + matchpng)  
             plt_matchim = plt.imread(matchpng)
