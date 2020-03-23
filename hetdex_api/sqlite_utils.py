@@ -209,6 +209,15 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
             cursor.execute(sql_create_report_image_table)
             cursor.close()
             conn.commit()
+
+
+            #create index: not necessary; is autocreated with BIGING Primary Key
+            # sql_create_index = """ CREATE UNIQUE INDEX idx_detectid ON report (detectid); """
+            # cursor = conn.cursor(sql_create_index)
+            # cursor.execute()
+            # cursor.close()
+            # conn.commit()
+
             return True
         except Exception as e:
             print(e)
