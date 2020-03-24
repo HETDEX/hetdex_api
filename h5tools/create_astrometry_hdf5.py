@@ -151,8 +151,8 @@ def main(argv=None):
         
     # store fplane table
 
-    filefplane = op.join(args.rootdir, str(args.date) + "v" + str(args.observation).zfill(3),
-                         'fplane.txt')    
+    filefplane = op.join(args.tpdir, str(args.date) + "v" + str(args.observation).zfill(3),
+                         'coords','fplane.txt')    
     try:
         f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
                                           'specslot', 'ifuid', 'ifurot', 'platesc'])
@@ -163,13 +163,13 @@ def main(argv=None):
 
     # store catalogs of stars used in astrometric fit
 
-    file_stars = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                         'shout.ifustars')    
+    file_stars = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
+                         str(args.date) + 'v' + str(args.observation).zfill(3) + '.ifu')    
     try:
         f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
                                                 'u', 'g', 'r', 'i', 'z'])
         starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array())
-        starstable.set_attr('filename', 'shout.ifustars')
+        starstable.set_attr('filename', 'DATEvOBS.ifu')
         if any(f_stars['z'] > 0):
             starstable.set_attr('catalog', 'SDSS')
         else:
@@ -187,14 +187,16 @@ def main(argv=None):
         pngim.attrs['filename'] = pngfile
         pngnum += 1
 
-    fileallmch = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),'all.mch')
+    fileallmch = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                         'coords', 'all.mch')
     try:
         allmch = ascii.read(fileallmch)
     except:
         args.log.warning('Could not include %s' % fileallmch)
 
         
-    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),'norm.dat')
+    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                       'norm.dat')
     try:
         norm = ascii.read(filenorm)
     except:
@@ -340,15 +342,14 @@ def main(argv=None):
     tableQA = fileh.root.Astrometry.QA
     tableNV = fileh.root.Astrometry.NominalVals
 
-    radecfinalfile = op.join(args.rootdir,
+    radecfinalfile = op.join(args.tpdir,
                              str(args.date) + 'v' + str(args.observation).zfill(3),
-                             'radec2_final.dat')
+                             'coords', 'radec2.dat')
     radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
 
     shottable = fileh.root.Shot
 
-
-    if True:#try:
+    try:
         for shot in shottable:
             shot['ra'] = radectab['ra'][0]
             shot['dec'] = radectab['dec'][0]
@@ -362,7 +363,7 @@ def main(argv=None):
             shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
             shot.update()
-    else:#except:
+    except:
         args.log.error('Could not include astrometry shot info for %s' % datevshot)
 
     fileh.close()
