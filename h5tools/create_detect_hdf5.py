@@ -62,8 +62,8 @@ def emission_line_to_IAU_string(coord, lambda_in_A):
 
 class Detections(tb.IsDescription):
     shotid = tb.Int64Col(pos=2)
-    #date = tb.Int32Col(pos=3)
-    #obsid = tb.Int32Col(pos=4)
+    date = tb.Int32Col(pos=3)
+    obsid = tb.Int32Col(pos=4)
     detectid = tb.Int64Col(pos=0) 
     fiber_id = tb.StringCol((38), pos=1)
     #detectname = tb.StringCol((40))  
@@ -148,6 +148,8 @@ def get_detect_cat(detectidx, catfile):
     fibnum = []
     shotid = []
     amp = []
+    date = []
+    obsid = []
     expnum = []
     
     detectid_i = detectidx
@@ -171,7 +173,9 @@ def get_detect_cat(detectidx, catfile):
         shotid_i = int(p.sub('', row['datevshot']))
         
         fiber_id_i = str(shotid_i) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe_i + '_' + str(fibnum_i).zfill(3)
-        
+
+        date.append( int(str(shotid_i)[0:8]))
+        obsid.append( int(str(shotid)[8:11]))
         shotid.append( shotid_i)
         fiber_id.append( fiber_id_i)
         specid.append( multiframe_i[6:9])
@@ -180,6 +184,8 @@ def get_detect_cat(detectidx, catfile):
         amp.append( multiframe_i[18:20])
         expnum.append(int(row['expnum'][-2:]))
 
+    detectcat['date'] = date
+    detectcat['obsid'] = obsid
     detectcat['expnum'] = np.array(expnum).astype(int)
     detectcat['detectid'] = detectid
     detectcat['shotid'] = shotid
