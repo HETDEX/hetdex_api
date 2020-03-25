@@ -1,91 +1,63 @@
-# List of known issues
+ List of known issues
 
 
 ## Bad shots
 
 A list of badshots that should be removed according to science goals are contained in:
 
-badshots.list
-
-Any detections contained in the shot are removed upon initialization of Detections() API. Users not using this call should remove the detections in their code.
-
-These engineering shots were accidentally labelled as science shots. Should be ignored for main science. 
-* 20180511v015 189.25340 62.20436 324.60000 
-* 20180308v002 87.00297 56.10039 303.60000 
-* 20180309v001 78.00181 56.09970 303.48000 
-* 20180309v002 83.00311 56.09934 303.48000 
-* 20180309v003 89.00241 56.09940 303.54000 
-* 20180309v004 97.00384 56.09990 303.50000 
-* 20181205v012 41.85607 19.36482 117.50000
-
-These shots have bad astrometry:
-* 20190106008 - was flagged as borderline accepted by RAs due to clouds in 3rd dither, but fails due to astrometry (could be related to the clouds in 3rd dither. Its automatically moved in detections with the TP = 0.0813 so not adding to the bad list for now.
-
-These shots were rejected due to Human Error (ie. any dither has an 'H' ra_flag)
-
-[20170124013, 20170306018, 20170306020, 20170306021, 20170306022,
-       20170421016, 20170427006, 20170615009, 20171025009, 20180210009,
-       20180421009, 20180519007, 20190208035]
-      
-
-These shots were rejected due to Equipment Error ie. RA_flag = E
-
-[20170126003, 20170127007, 20170922025, 20170922028, 20171014007,
-       20171016114, 20171029022, 20171222013, 20180213015, 20180310002,
-       20180310007, 20180313015, 20180313016, 20180313017, 20180316015,
-       20180316016, 20180317012, 20180320009, 20180517015, 20180714007,
-       20190104017]
-
-These shots are rejected due to duplicate dither frames:
-
-* 20170126v003    
-* 20170127v007    
-* 20171012v014   
-* 20171012v015   
-* 20171012v016    
-* 20171012v017    
-* 20171222v013   
-* 20180308v002    
-* 20180310v002  
-* 20180310v007   
-* 20180320v009  
-
-These shots are removed for an extremely high number of detections on most amps.. possible reasons given in brackets if known
-
-* 20180211v019 (['B'] ra_flags ) 
-* 20180321v012 (response_4540 = 0.0923)
-
-These shots weren't reduced well.. probably used a bad twilight. 
-
-* 20180509007
-* 20180509009
-* 20180509010
-
-## Some Weird Shots
-
-These shots have lines everywhere.. should look into. They have NOT been removed from Detections.refine()
-* 20180113012
-* 20180212011
-* 20180221010
+hetdex_api/known_issues/hdr2/badshots.list
 
 
-# Weird detections
+HDR1 bad shots that we will remove again
+		
+20170127v007 = no exp02/03 match pdf
+20170306v020 = no exp02/03 match pdf
+20170306v021 = only 1 star for astrometry
+20170427v006 = questionable astrometry.. only two stars
+20171014v007 = trackign went off on last track
+20171025v009 = tracking went bad on last track
+20171222v013 = no exp02/03 match pdf
+20180313v017 = astrometry is bad
+20180316v016 = tracking went bad on last track
+20180517v015 = no exp02/03 match pdf
+20181205v012 = streaks all over on last dither
+20190413v014 = astrometry failed, bad shot
+20190907v020 = astrometry failed, bad shot
+20191004v019 = astrometry failed, bad shot
+20191227v028 = astrometry failed, bad shot
 
-These detectids have ra or decs with 0.0 values. Still unclear why.
+These shots are all bad for various reasons, no 3rd dither, or really low flux in 3rd dither or multiple reasons. They made it into hdr2.dex list but most were not in HDR1 and those that were aren't useful
 
-sel = detects.ra == 0.0 
-print(detects.detectid[sel])
-[1000034866 1000034922 1000034925 1000034926 1000034927 1000035648
- 1000035658 1000038799 1000038835 1000040473 1000040474 1000044930
- 1000044931 1000044932 1000044933 1000047027 1000047052 1000047055
- 1000047058 1000047080 1000047118 1000047248 1000061232 1000082583
- 1000115641 1000115657 1000193138 1000253379 1000253386 1000253415
- 1000253478 1000253481 1000268209 1000396108 1000437529 1000437530
- 1000437531 1000437534 1000437535 1000437538 1000437541 1000437542
- 1000437544 1000437545 1000437546 1000437547 1000437549 1000437550
- 1000437552 1000437555 1000437557 1000437558 1000437559 1000437560
- 1000437561 1000437564 1000437565 1000437566 1000437568 1000437570
- 1000437574 1000437576 1000437577 1000437579 1000437583 1000437584
- 1000437585 1000437590 1000437592 1000437593 1000437595 1000437601
- 1000437603 1000437604 1000437605 1000437606 1000437608 1000437609
- 1000437611 1000437612 1000437613 1000437614]
+20170202v006
+20170225v011
+20170325v006
+20170921v019
+20170921v024
+20171020v003
+20171021v010
+20171110v004
+20171123v003
+20171123v005
+20171123v007
+20171123v008
+20171222v013
+20180202v005
+20180210v005
+20180211v021
+20180514v015
+20180517v015
+20180810v011
+20180905v024
+20181017v008
+20181017v009
+20181017v010
+20181017v011
+20181112v015
+20190113v017
+20190413v014
+20190905v013
+20190907v020
+20191004v019
+20191227v028
+20200131v026
+
