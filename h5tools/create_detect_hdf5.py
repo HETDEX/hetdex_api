@@ -134,7 +134,7 @@ class Fibers(tb.IsDescription):
     y_raw = tb.Int32Col()
 
 
-def get_detect_cat(detectidx, catfile):
+def get_detect_cat(detectidx, catfile, args):
     '''
     This is for Chenxu's latest .cat files
     '''
@@ -160,53 +160,63 @@ def get_detect_cat(detectidx, catfile):
 
         detectid.append(detectid_i)
         detectid_i += 1
-        
-        fiber_name = row['fiber_name']
-        
-        multiframe_i = fiber_name[0:20]
-        multiframe.append(multiframe_i)
-        
-        fibnum_i = int(fiber_name[21:24])
-        fibnum.append(fibnum_i)
-        
+
         p = re.compile('v')
         shotid_i = int(p.sub('', row['datevshot']))
-        
-        fiber_id_i = str(shotid_i) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe_i + '_' + str(fibnum_i).zfill(3)
 
         date.append( int(str(shotid_i)[0:8]))
         obsid.append( int(str(shotid_i)[8:11]))
         shotid.append( shotid_i)
-        fiber_id.append( fiber_id_i)
-        specid.append( multiframe_i[6:9])
-        ifuslot.append( multiframe_i[10:13])
-        ifuid.append( multiframe_i[14:17])
-        amp.append( multiframe_i[18:20])
-        expnum.append(int(row['expnum'][-2:]))
+
+        if args.cxcat:
+            continue
+        else:
+        
+            fiber_name = row['fiber_name']
+        
+            multiframe_i = fiber_name[0:20]
+            multiframe.append(multiframe_i)
+        
+            fibnum_i = int(fiber_name[21:24])
+            fibnum.append(fibnum_i)
+        
+            fiber_id_i = str(shotid_i) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe_i + '_' + str(fibnum_i).zfill(3)
+
+            fiber_id.append( fiber_id_i)
+            specid.append( multiframe_i[6:9])
+            ifuslot.append( multiframe_i[10:13])
+            ifuid.append( multiframe_i[14:17])
+            amp.append( multiframe_i[18:20])
+            expnum.append(int(row['expnum'][-2:]))
 
     detectcat['date'] = date
     detectcat['obsid'] = obsid
-    detectcat['expnum'] = np.array(expnum).astype(int)
     detectcat['detectid'] = detectid
     detectcat['shotid'] = shotid
-    detectcat['multiframe'] = np.array(multiframe).astype(bytes)
-    detectcat['fiber_id'] = np.array(fiber_id).astype(bytes)
-    detectcat['ifuslot'] = np.array(ifuslot).astype(bytes)
-    detectcat['specid'] = np.array(specid).astype(bytes)
-    detectcat['ifuid'] = np.array(ifuid).astype(bytes)
-    detectcat['fibnum'] = fibnum
-    detectcat['amp'] = np.array(amp).astype(bytes)
-    
-    detectcat['X_amp'].name = 'x_raw'
-    detectcat['Y_amp'].name = 'y_raw'
-    detectcat['X_FP'].name = 'x_ifu'
-    detectcat['Y_FP'].name = 'y_ifu'
     detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
-
-    detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id',
-                              'linewidth_fix', 'linewidth_fix_err','chi2_fix'])
     
-    return detectcat
+    if args.cxcat:
+        return detectcat 
+    else:
+        detectcat['expnum'] = np.array(expnum).astype(int)
+        detectcat['multiframe'] = np.array(multiframe).astype(bytes)
+        detectcat['fiber_id'] = np.array(fiber_id).astype(bytes)
+        detectcat['ifuslot'] = np.array(ifuslot).astype(bytes)
+        detectcat['specid'] = np.array(specid).astype(bytes)
+        detectcat['ifuid'] = np.array(ifuid).astype(bytes)
+        detectcat['fibnum'] = fibnum
+        detectcat['amp'] = np.array(amp).astype(bytes)
+        
+        detectcat['X_amp'].name = 'x_raw'
+        detectcat['Y_amp'].name = 'y_raw'
+        detectcat['X_FP'].name = 'x_ifu'
+        detectcat['Y_FP'].name = 'y_ifu'
+        detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
+
+        detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id',
+                                  'linewidth_fix', 'linewidth_fix_err','chi2_fix'])
+    
+        return detectcat
                                                                         
                                                                         
 def append_detection(detectidx, date, obs, det, detect_path, tableMain,
@@ -360,7 +370,11 @@ def main(argv=None):
     parser.add_argument("-cs","--contsource",
                         help='''Path to Karls rext1 catalog''',
                         type=str, default=None)
-    
+
+    parser.add_argument("-cxcat", "--cxcat",
+                        help='''Path to chenxus catalog''',
+                        type=str, default=None)
+                         
     parser.add_argument("-md", "--mergedir",
                         help='''Merge all HDF5 files in the defined merge 
                         directory. Can append to existing file using --append option''',
@@ -436,9 +450,9 @@ def main(argv=None):
         if args.month:
             catfile = op.join(args.detect_path, args.month, args.month + '.cat')
 
-            detectcat = get_detect_cat(detectidx, catfile)
+            detectcat = get_detect_cat(detectidx, catfile, args)
 
-        if args.contsource:
+        elif args.contsource:
             detectcat = Table.read(args.contsource, format='ascii')
             detectcat.remove_columns(['col1','col4','col5','col6','col9','col10',
                                       'col11','col12','col13','col14'])
@@ -459,7 +473,7 @@ def main(argv=None):
                 p = re.compile('v')
                 shotid_i = int(p.sub('', row['datevshot']))
                 inputid_i = str(row['datevshot']) + '_' + str(row['obnum'])
-
+            
                 detectid.append(detectid_i)
                 inputid.append(inputid_i)
                 date.append( int(str(shotid_i)[0:8]))
@@ -474,8 +488,9 @@ def main(argv=None):
             detectcat['detectid'] = detectid
             detectcat['shotid'] = shotid
 
-                
-                
+        elif args.cxcat:
+            detectcat = get_detect_cat(detectidx, args.cxcat, args)
+            
         tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
                                        'HETDEX Line Detection Catalog',
                                        expectedrows=np.size(detectcat))
