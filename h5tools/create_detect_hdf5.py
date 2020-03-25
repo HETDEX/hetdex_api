@@ -175,7 +175,7 @@ def get_detect_cat(detectidx, catfile):
         fiber_id_i = str(shotid_i) + '_' + str(int(row['expnum'][-2:])) + '_' + multiframe_i + '_' + str(fibnum_i).zfill(3)
 
         date.append( int(str(shotid_i)[0:8]))
-        obsid.append( int(str(shotid)[8:11]))
+        obsid.append( int(str(shotid_i)[8:11]))
         shotid.append( shotid_i)
         fiber_id.append( fiber_id_i)
         specid.append( multiframe_i[6:9])
@@ -357,6 +357,10 @@ def main(argv=None):
                         help='''Path to detections''',
                         type=str, default='/data/05178/cxliu/detect/')
 
+    parser.add_argument("-cs","--contsource",
+                        help='''Path to Karls rext1 catalog''',
+                        type=str, default=None)
+    
     parser.add_argument("-md", "--mergedir",
                         help='''Merge all HDF5 files in the defined merge 
                         directory. Can append to existing file using --append option''',
@@ -428,10 +432,50 @@ def main(argv=None):
             tableMain.flush()
 
     else:
-        catfile = op.join(args.detect_path, args.month, args.month + '.cat')
 
-        detectcat = get_detect_cat(detectidx, catfile)
-        
+        if args.month:
+            catfile = op.join(args.detect_path, args.month, args.month + '.cat')
+
+            detectcat = get_detect_cat(detectidx, catfile)
+
+        if args.contsource:
+            detectcat = Table.read(args.contsource, format='ascii')
+            detectcat.remove_columns(['col1','col4','col5','col6','col9','col10',
+                                      'col11','col12','col13','col14'])
+            detectcat['col2'].name = 'ra'
+            detectcat['col3'].name = 'dec'
+            detectcat['col7'].name = 'obnum'
+            detectcat['col8'].name = 'datevshot'
+
+            shotid = []
+            date = []
+            obsid = []
+            inputid = []
+            detectid = []
+            
+            detectid_i = detectidx
+
+            for row in detectcat:
+                p = re.compile('v')
+                shotid_i = int(p.sub('', row['datevshot']))
+                inputid_i = str(row['datevshot']) + '_' + str(row['obnum'])
+
+                detectid.append(detectid_i)
+                inputid.append(inputid_i)
+                date.append( int(str(shotid_i)[0:8]))
+                obsid.append( int(str(shotid_i)[8:11]))
+                shotid.append( shotid_i)
+                detectid_i += 1
+
+            detectcat['detectid'] = detectid
+            detectcat['inputid'] = inputid
+            detectcat['date'] = date
+            detectcat['obsid'] = obsid
+            detectcat['detectid'] = detectid
+            detectcat['shotid'] = shotid
+
+                
+                
         tableMain = fileh.create_table(fileh.root, 'Detections', Detections,
                                        'HETDEX Line Detection Catalog',
                                        expectedrows=np.size(detectcat))
@@ -449,8 +493,12 @@ def main(argv=None):
             rowMain = tableMain.row
             
             for col in det_cols:
-                rowMain[col] = row[col]
+                try:
+                    rowMain[col] = row[col]
+                except:
+                    rowMain[col] = 0.0
             rowMain.append()
+
         
         # add spectra for each detectid in the detections table
         tableMain.flush()
@@ -458,7 +506,12 @@ def main(argv=None):
         for row in tableMain:
             try:
                 inputid_i = row['inputid'].decode()
-                specfile = op.join(args.detect_path, args.month, 'rf', 'spec', inputid_i + '.spec')
+
+                if args.month:
+                    specfile = op.join(args.detect_path, args.month, 'rf', 'spec', inputid_i + '.spec')
+                else:
+                    specfile = op.join(args.detect_path, inputid_i + '.spec')
+
                 dataspec = Table.read(specfile, format='ascii.no_header')
                 rowspectra = tableSpectra.row
                 rowspectra['detectid'] = row['detectid']
@@ -483,8 +536,12 @@ def main(argv=None):
     
         for row in tableMain:
             inputid_i = row['inputid'].decode()
-            filefiberinfo = op.join(args.detect_path, args.month, 'rf', 'list', inputid_i + '.list')
-            
+
+            if args.month:
+                filefiberinfo = op.join(args.detect_path, args.month, 'rf', 'list', inputid_i + '.list')
+            else:
+                filefiberinfo = op.join(args.detect_path, inputid_i + '.list')
+                
             try:
                 datafiber = Table.read(filefiberinfo, format='ascii.no_header')
             
