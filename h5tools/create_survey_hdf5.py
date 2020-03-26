@@ -27,7 +27,7 @@ Updates for HDR2:
 
 To run:
 
-pyton create_survey_hdf5.py -of survey_hdr1.h5
+pyton create_survey_hdf5.py -of survey_hdr2.h5 -sl dex.hdr2.shotlist 
 
 """
 
@@ -80,7 +80,7 @@ def main(argv=None):
 
     parser.add_argument("-sl", "--shotlist", 
                         help='''Text file of DATE OBS list''',
-                        type=str, default='hdr2_shotlist')
+                        type=str, default='dex.hdr2.shotlist')
 
     parser.add_argument("-ad", "--astrometry_dir",
                         help='''Directory for Shifts''',
@@ -94,12 +94,16 @@ def main(argv=None):
                         help='''Path to flim look up table''',
                         type=str, default='/work/04120/dfarrow/wrangler/flims/hdr1/average_flims_4500_4600.txt')
 
+    parser.add_argument("-survey", "--survey", type=str, default='hdr2')
+    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     fileh = tb.open_file(args.outfilename, mode="w", title= args.survey.upper() + "Survey file ")
     
     shotlist = Table.read(args.shotlist, format='ascii.no_header', names=['date','obs'])
+
+    survey = Table()
 
     for shotrow in shotlist:
         try:
@@ -109,11 +113,10 @@ def main(argv=None):
             survey = vstack([survey, shottable])
             file_obs.close()
         except:
-            args.log.Error('could not ingest %s' % datevshot)
+            args.log.error('could not ingest %s' % datevshot)
 
     tableMain = fileh.create_table(fileh.root, 'Survey', obj=survey.as_array())
     fileh.close()
-
 
 if __name__ == '__main__':
     main()
