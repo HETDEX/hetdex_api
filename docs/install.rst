@@ -55,6 +55,7 @@ Then install all required python packages:
    pip3 install --user sep
    pip3 install --user specutils
    pip3 install --user photutils
+   pip3 install --user matplotlib==2.0.0
 
 Copy the git clone repository of hetdex_api 
 
