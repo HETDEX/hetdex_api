@@ -342,25 +342,31 @@ def main(argv=None):
     tableQA = fileh.root.Astrometry.QA
     tableNV = fileh.root.Astrometry.NominalVals
 
-    radecfinalfile = op.join(args.tpdir,
-                             str(args.date) + 'v' + str(args.observation).zfill(3),
-                             'coords', 'radec2.dat')
-    radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
+    try:
+        radecfinalfile = op.join(args.tpdir,
+                                 str(args.date) + 'v' + str(args.observation).zfill(3),
+                                 'coords', 'radec2.dat')
+        radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
 
+    except:
+        args.log.error('Could not open %s' % radecfinalfile)
+        
     shottable = fileh.root.Shot
 
     try:
+
         for shot in shottable:
-            shot['ra'] = radectab['ra'][0]
-            shot['dec'] = radectab['dec'][0]
-            shot['pa'] = radectab['pa'][0]
-            shot['xoffset'] = tableQA.cols.xoffset[:]
-            shot['yoffset'] = tableQA.cols.yoffset[:]
-            shot['xrms'] = tableQA.cols.xrms[:]
-            shot['yrms'] = tableQA.cols.yrms[:]
-            shot['nstars_fit'] = tableQA.cols.nstars[:]
-            shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
-            shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+            if op.exists(radecfinalfile):
+                shot['ra'] = radectab['ra'][0]
+                shot['dec'] = radectab['dec'][0]
+                shot['pa'] = radectab['pa'][0]
+                shot['xoffset'] = tableQA.cols.xoffset[:]
+                shot['yoffset'] = tableQA.cols.yoffset[:]
+                shot['xrms'] = tableQA.cols.xrms[:]
+                shot['yrms'] = tableQA.cols.yrms[:]
+                shot['nstars_fit'] = tableQA.cols.nstars[:]
+                shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
+                shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
             shot.update()
     except:

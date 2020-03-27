@@ -453,8 +453,8 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/work/00115/gebhardt/maverick/detect",
-    )
+#        default="/work/00115/gebhardt/maverick/detect",
+        default="/data/00115/gebhardt/detect")
 
     parser.add_argument(
         "-survey", "--survey", help="""{hdr1, hdr2, hdr3}""", type=str, default="hdr2"
@@ -483,7 +483,7 @@ def main(argv=None):
         T = Table.read(filepath, format="ascii")
     except:
         T = None
-        args.log
+        args.log.error("Could not open the dithall file from %s" % filepath)
 
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
@@ -512,7 +512,7 @@ def main(argv=None):
         cnt = 1
 
     if args.tar == True:
-
+        
         shot = shottable.row
         n_ifu = {}
         for file_i in files:

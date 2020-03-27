@@ -12,11 +12,16 @@ Examples
 
 To create for a month:
 
-python3 create_detect_hdf5.py -m 201901 -of detect_201901.h5
+>>> python3 create_detect_hdf5.py -m 201901 -of detect_201901.h5
 
 Then once all months are done, merge into one file:
 
-python3 create_detect_hdf5.py --merge -of detect_hdr2.h5
+>>> python3 create_detect_hdf5.py --merge -of detect_hdr2.h5
+
+To run continuum sources:
+
+>>> python3 create_detect_hdf5.py -dp /data/00115/gebhardt/cs/spec /
+-cs /data/00115/gebhardt/cs/rext1 -of continuum_sources.h5
 
 """
 from __future__ import print_function
@@ -81,19 +86,19 @@ class Detections(tb.IsDescription):
     sn_err = tb.Float32Col(pos=16)
     chi2 = tb.Float32Col(pos=17)
     chi2_err = tb.Float32Col(pos=18)
-    x_raw = tb.Int32Col(pos=21)
-    y_raw = tb.Int32Col(pos=22)
-    x_ifu = tb.Float32Col()
-    y_ifu = tb.Float32Col()
-    weight = tb.Float32Col()
-    fibnum = tb.Int32Col(pos=20)
-    multiframe = tb.StringCol((20), pos=19)
-    specid = tb.StringCol((3))
-    ifuslot = tb.StringCol((3))
-    ifuid = tb.StringCol((3))
-    amp = tb.StringCol((2))
-    inputid = tb.StringCol((40), pos=3) 
-    expnum = tb.Int32Col()
+    inputid = tb.StringCol((40), pos=3)
+#    x_raw = tb.Int32Col(pos=21)
+#    y_raw = tb.Int32Col(pos=22)
+#    x_ifu = tb.Float32Col()
+#    y_ifu = tb.Float32Col()
+#    weight = tb.Float32Col()
+#    fibnum = tb.Int32Col(pos=20)
+#    multiframe = tb.StringCol((20), pos=19)
+#    specid = tb.StringCol((3))
+#    ifuslot = tb.StringCol((3))
+#    ifuid = tb.StringCol((3))
+#    amp = tb.StringCol((2))
+#    expnum = tb.Int32Col()
 
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -168,7 +173,7 @@ def get_detect_cat(detectidx, catfile, args):
         obsid.append( int(str(shotid_i)[8:11]))
         shotid.append( shotid_i)
 
-        if args.cxcat:
+        if True: #args.cxcat:
             continue
         else:
         
@@ -195,7 +200,7 @@ def get_detect_cat(detectidx, catfile, args):
     detectcat['shotid'] = shotid
     detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
     
-    if args.cxcat:
+    if True:
         return detectcat 
     else:
         detectcat['expnum'] = np.array(expnum).astype(int)
@@ -211,8 +216,7 @@ def get_detect_cat(detectidx, catfile, args):
         detectcat['Y_amp'].name = 'y_raw'
         detectcat['X_FP'].name = 'x_ifu'
         detectcat['Y_FP'].name = 'y_ifu'
-        detectcat['inputid'] = detectcat['hdr2_id'].astype(bytes)
-
+        
         detectcat.remove_columns(['datevshot', 'original_name', 'fiber_name', 'hdr2_id',
                                   'linewidth_fix', 'linewidth_fix_err','chi2_fix'])
     
@@ -501,7 +505,6 @@ def main(argv=None):
                                           '1D Spectra for each Line Detection',
                                           expectedrows=15*np.size(detectcat))
         
-        #tableMain = fileh.create_table(fileh.root, 'Detections', detectcat.as_array())
         det_cols = fileh.root.Detections.colnames
 
         for row in detectcat:
@@ -523,7 +526,7 @@ def main(argv=None):
                 inputid_i = row['inputid'].decode()
 
                 if args.month:
-                    specfile = op.join(args.detect_path, args.month, 'rf', 'spec', inputid_i + '.spec')
+                    specfile = op.join(args.detect_path, args.month, 'rf', inputid_i + '.spec')
                 else:
                     specfile = op.join(args.detect_path, inputid_i + '.spec')
 
@@ -539,7 +542,6 @@ def main(argv=None):
                 rowspectra['counts1d_err'] = dataspec['col5']
                 rowspectra['apsum_counts'] = dataspec['col6']
                 rowspectra['apsum_counts_err'] = dataspec['col7']
-                #rowspectra['flag'] = dataspec['col8']
                 rowspectra['apcor'] = dataspec['col9']
                 rowspectra.append()
             except:
@@ -553,7 +555,7 @@ def main(argv=None):
             inputid_i = row['inputid'].decode()
 
             if args.month:
-                filefiberinfo = op.join(args.detect_path, args.month, 'rf', 'list', inputid_i + '.list')
+                filefiberinfo = op.join(args.detect_path, args.month, 'rf', inputid_i + '.list')
             else:
                 filefiberinfo = op.join(args.detect_path, inputid_i + '.list')
                 
@@ -567,9 +569,10 @@ def main(argv=None):
                     rowfiber['dec'] = datafiber['col2'][ifiber]
                     rowfiber['x_ifu'] = datafiber['col3'][ifiber]
                     rowfiber['y_ifu'] = datafiber['col4'][ifiber]
+                    rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
                     multiname = datafiber['col5'][ifiber]
                     multiframe = multiname[0:20]
-                    fiber_id_i = str(row['shotid']) + '_' + str(int(row['expnum'])) + '_' + multiframe + '_' + str(int(multiname[21:24])).zfill(3)
+                    fiber_id_i = str(row['shotid']) + '_' + str(int(rowfiber['expnum'])) + '_' + multiframe + '_' + str(int(multiname[21:24])).zfill(3)
                     rowfiber['fiber_id'] = fiber_id_i
                     rowfiber['multiframe'] = multiframe
                     rowfiber['specid'] = multiframe[6:9]
@@ -577,7 +580,6 @@ def main(argv=None):
                     rowfiber['ifuid'] = multiframe[14:17]
                     rowfiber['amp'] = multiframe[18:20]
                     rowfiber['fibnum'] = int(multiname[21:24])
-                    rowfiber['expnum'] = str(datafiber['col6'][ifiber])[3:5]
                     rowfiber['distance'] = datafiber['col7'][ifiber]
                     rowfiber['wavein'] = datafiber['col8'][ifiber]
                     rowfiber['timestamp'] = datafiber['col9'][ifiber]
