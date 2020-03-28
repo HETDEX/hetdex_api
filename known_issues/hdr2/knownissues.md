@@ -64,3 +64,6 @@ These shots are all bad for various reasons, no 3rd dither, or really low flux i
 20180814v009 = bad astrometry, bad 3rd dither
 20171121v009 = bad tracking 
 20190808v020 = bad tracking
+
+20190605v010 = Bad weather/remove
+20190605v008 = Bad weather/remove
