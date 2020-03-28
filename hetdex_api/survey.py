@@ -15,6 +15,7 @@ import numpy
 import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 
 from hetdex_api.config import HDRconfig
 
@@ -98,9 +99,24 @@ class Survey:
 
     def remove_shots(self):
         """
-        function to remove shots that should be exluded from most analysis.
-        They are engineering shots that were accidentally included in the
-        release.
+        Function to remove shots that should be exluded from most analysis.
+
+        Parameters
+        ----------
+        self
+           Survey class object
+
+        Returns
+        -------
+        ind_good
+           Boolean mask of good shots
+
+        Examples
+        --------
+        S = Survey('hdr2')
+        ind_good_shots = S.remove_shots()
+        S_good = S[ind_good_shots]
+        
         """
         global config
 
@@ -168,6 +184,34 @@ class Survey:
         return self.shotid[idx]
 
 
+    def return_astropy_table(self, return_good=True):
+        """
+        Function to return an astropy table that is machine readable
+
+        Parameters
+        ----------
+        self
+            Survey Class object 
+        return_good
+            Boolean flag to only exclude shots in config.badshot
+
+        Returns
+        -------
+        survey_table
+            astropy table of the Survey class object
+        """
+
+        survey_table = Table(self.hdfile.root.Survey.read())
+
+        good_shots = self.remove_shots()
+
+        survey_table['shot_flag'] = good_shots
+        
+        if return_good:
+            return survey_table[good_shots]
+        else:
+            return survey_table
+            
     def close(self):
         """
         Close the HDF5 file when you are done using
