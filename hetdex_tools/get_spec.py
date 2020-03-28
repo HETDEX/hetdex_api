@@ -78,7 +78,7 @@ import numpy as np
 import pickle
 import warnings
 import logging
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 import types
 
@@ -123,8 +123,11 @@ def get_source_spectra(shotid, args):
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
-        
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+            
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -200,7 +203,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+                                                        
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -719,15 +726,16 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
 
     args.log.setLevel(logging.INFO)
 
-    args.ID = ID
-
     nobj = np.size(args.coords)
 
-    if args.ID is None:
+    if ID is None:
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
             args.ID = 1
+    else:
+        args.ID = ID
+
 
     Source_dict = get_spectra_dictionary(args)
 

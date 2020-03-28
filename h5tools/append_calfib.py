@@ -20,14 +20,15 @@ import os.path as op
 import numpy as np
 
 from astropy.io import fits
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 from astropy.table import Table, join
 
 
 def get_cal_files(args):
     datestr = '%sv%03d' % (args.date, int(args.observation))
 
-    files = glob.glob(op.join(args.rootdir, datestr + '*cal.fits')) 
+    datemonth = datestr[0:6]
+    files = glob.glob(op.join(args.rootdir, datemonth, datestr + '*cal.fits')) 
 
     return files
 
@@ -38,8 +39,7 @@ def get_cal_table(calfile):
 
     cal_table = Table([cal_f[0].data, cal_f[1].data, cal_f[2].data, cal_f[3].data], 
                       names=['calfib','calfibe', 'calfib_counts','calfibe_counts'])
-
-    multi = calfile[42:53]
+    multi  = calfile[49:60]
 
     amp_col = []
     exp_col = []
@@ -94,34 +94,48 @@ def main(argv=None):
     calfiles = get_cal_files(args)
 
     datestr = '%sv%03d' % (args.date, int(args.observation))
+        
+    if len(calfiles) == 0:
+        args.log.error("No calfits file to append for %s" % datestr)
+        sys.exit('Exiting cal append script for %s' % datestr)
 
     if op.exists(args.outfilename):
         fileh = tb.open_file(args.outfilename, 'a')
     else:
-        args.log.warning('Problem opening : ' + args.outfilename)
+        args.log.error('Problem opening : ' + args.outfilename)
         sys.exit('Exiting Script')
     
     args.log.info('Appending calibrated fiber arrays to ' + args.outfilename)
 
     fibtable = fileh.root.Data.Fibers
-
     
     for calfile in calfiles:
-    
-        multi = calfile[42:53]
-        cal_table = get_cal_table(calfile)
+
+        multi  = calfile[49:60]
+        try:
+            cal_table = get_cal_table(calfile)
+        except:
+            continue
+            args.log.error('Could not ingest calfile: %s' % calfile)
+            
         args.log.info('Working on IFU ' + multi )
         for amp_i in ['LL','LU','RL','RU']:
             
             multiframe_i = 'multi_'+ multi + '_' + amp_i
-        
+
             for fibrow in fibtable.where('multiframe == multiframe_i'):
+                
                 idx = (cal_table['expnum'] == fibrow['expnum']) * (cal_table['multiframe'] == fibrow['multiframe'].decode()) * (cal_table['fibidx'] == fibrow['fibidx'])
-                fibrow['calfib']  = cal_table['calfib'][idx]
-                fibrow['calfibe'] = cal_table['calfibe'][idx]
-                fibrow['calfib_counts'] = cal_table['calfib_counts'][idx]
-                fibrow['calfibe_counts'] = cal_table['calfibe_counts'][idx]
-                fibrow.update()
+
+                if np.sum(idx) >= 1:
+                    fibrow['calfib']  = cal_table['calfib'][idx]
+                    fibrow['calfibe'] = cal_table['calfibe'][idx]
+                    fibrow['calfib_counts'] = cal_table['calfib_counts'][idx]
+                    fibrow['calfibe_counts'] = cal_table['calfibe_counts'][idx]
+                    fibrow.update()
+                #else:
+                   # args.log.warning("No fiber match for %s" % fibrow['fiber_id'])
+                    
     args.log.info('Flushing and closing H5 file')
     fibtable.flush()
     fileh.close()

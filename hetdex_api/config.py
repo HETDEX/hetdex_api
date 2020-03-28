@@ -8,7 +8,11 @@ import os.path as op
 class HDRconfig:
     def __init__(self, survey='hdr1'):
         self.hdr_dir = {'hdr1': '/work/03946/hetdex/hdr1',
+<<<<<<< HEAD
                         'hdr2': '/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2/'}
+=======
+                        'hdr2': '/work/05350/ecooper/stampede2/hdr2'}
+>>>>>>> 762603bd3c05efc283350c11d9f93dcb07e581ee
         self.software_dir = op.join(self.hdr_dir[survey], 'software')
         self.red_dir = op.join(self.hdr_dir[survey], 'reduction')
         self.data_dir = op.join(self.red_dir, 'data')
@@ -37,3 +41,9 @@ class HDRconfig:
             self.gmags = op.join(self.bad_dir, 'gmags.pickle')
             self.gmags_cont = op.join(self.bad_dir, 'gmags_cont.pickle')
             self.plae_poii_hetdex_gmag = op.join(self.bad_dir, 'plae_poii_hetdex_gmag.pickle')
+
+        if (survey=='hdr2'):
+            self.bad_dir = '/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2'
+            self.baddetect = op.join(self.bad_dir, 'baddetects.list')
+            self.badshot = op.join(self.bad_dir, 'badshots.list')
+            self.badamp = op.join(self.bad_dir, 'badamps.list')

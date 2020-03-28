@@ -17,6 +17,7 @@ from __future__ import print_function
 import sys
 import glob
 
+import os
 import tables as tb
 import argparse as ap
 import os.path as op
@@ -32,14 +33,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 
-from input_utils import setup_logging
-from hetdex_api.shot import *
-from hetdex_api.detections import *
+from hetdex_api.input_utils import setup_logging
+from hetdex_api.shot import Fibers
+from hetdex_api.detections import Detections
+from elixer import catalogs
 
 matplotlib.use("agg")
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
-import catalogs
-
 
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
 
@@ -63,8 +62,12 @@ def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
         fibnum_obj = fiber_i["fibnum"]
         weight = fiber_i["weight"] / weight_total
         im_fib = fibers.get_fib_image2D(
-            wave_obj, fibnum_obj, multiframe_obj, expnum_obj, width=width, height=height
-        )
+            wave_obj=wave_obj,
+            fibnum_obj=fibnum_obj,
+            multiframe_obj=multiframe_obj,
+            expnum_obj=expnum_obj,
+            width=width,
+            height=height)
         im_sum += weight * im_fib
 
     return im_sum
@@ -91,9 +94,12 @@ def get_2Dimage_array(detectid_obj, detects, fibers, width=100, height=50):
         fibnum_obj = fiber_i["fibnum"]
         weight = fiber_i["weight"] / weight_total
         im_fib = fibers.get_fib_image2D(
-            wave_obj, fibnum_obj, multiframe_obj, expnum_obj,
-            width=width, height=height
-        )
+            wave_obj=wave_obj,
+            fibnum_obj=fibnum_obj,
+            multiframe_obj=multiframe_obj,
+            expnum_obj=expnum_obj,
+            width=width,
+            height=height)
         im_arr[i] = im_fib
 
     return im_arr, fiber_table
@@ -110,8 +116,8 @@ def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
     idx = np.where(
         (fibers.fibidx == (fibnum_obj - 1))
         * (fibers.multiframe == multiframe_obj)
-        * (fibers.expnum == expnum_obj)
-    )[0][0]
+        * (fibers.expnum == expnum_obj))[0][0]
+
     im_fib = fibers.wavelength[idx]
 
     sel = np.where(im_fib >= wave_obj)[0][0]
@@ -160,11 +166,18 @@ def get_parser():
 
     parser.add_argument(
         "-s",
-        "--datevobs",
-        help="""ShotID, e.g., 20170321v009, YYYYMMDDvOBS""",
-        type=str,
+        "--shotid",
+        help="""ShotID, e.g., 20170321009""",
+        type=int,
         default=None,
     )
+
+    parser.add_argument(
+        "--survey",
+        "-survey",
+        type=str,
+        help='''Data Release you want to access''',
+        default='hdr1')
 
     parser.add_argument(
         "-dets", "--dets", help="""filelist of detectids""", default=None
@@ -271,27 +284,20 @@ def main(argv=None):
         fileh.close()
         sys.exit("Merged h5 files in current directory. Exiting")
 
-    shotid_i = args.datevobs
+    shotid_i = args.shotid
 
-    detects = Detections("hdr1").refine()
-
-    # open up catalog library from elixer
-    catlib = catalogs.CatalogLibrary()
-    print("opening shot: " + str(shotid_i))
-    fibers = Fibers(args.datevobs)
-
+    detects = Detections("hdr1", loadtable=False)
+    
     if args.infile:
         try:
-            catalog = Table.read(args.infile, format=ascii)
+            catalog = Table.read(args.infile)
         except:
-            catalog = Table.read(
-                "/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab",
-                format="ascii",
-            )
+            catalog = Table.read(args.infile, format=ascii)
 
-        selcat = catalog["shotid"] == int(shotid_i)
+        selcat = catalog["shotid"] == args.shotid
+
         detectlist = np.array(catalog["detectid"][selcat])
-
+    
     elif args.dets:
         try:
             catalog = Table.read(args.dets, format="ascii")
@@ -300,9 +306,18 @@ def main(argv=None):
         except:
             detectlist = np.loadtxt(args.dets, dtype=int)
 
+    if len(detectlist) == 0:
+        sys.exit('No detections for shotid: {}'.format(shotid_i))
+        
+    # open up catalog library from elixer
+    catlib = catalogs.CatalogLibrary()
+    print("opening shot: " + str(shotid_i))
+
+    fibers = Fibers(args.shotid, survey=args.survey)
+    
     if args.h5file:
 
-        fileh = tb.open_file("im2D_" + str(args.datevobs) + ".h5", "w")
+        fileh = tb.open_file("im2D_" + str(args.shotid) + ".h5", "w")
 
         im2D_table = fileh.create_table(fileh.root, "Images", Image2D)
 
@@ -328,26 +343,29 @@ def main(argv=None):
 
             # add in phot image, need RA/DEC from catalog
             sel_det = detects.detectid == detectid_i
-            coord = SkyCoord(detects.ra[sel_det] * u.degree,
-                             detects.dec[sel_det] * u.degree)
-
-            try:
-                cutout = catlib.get_cutouts(position=coord,
-                                            radius=5,
-                                            aperture=None,
-                                            dynamic=False,
-                                            filter='r')[0]
-                if cutout['instrument'] == 'HSC':
-                    row["im_phot"] = cutout['cutout'].data
-                    header = cutout['cutout'].wcs.to_header()
-                    row['im_phot_hdr'] = header.tostring()
-            except IndexError:
-                print('No imaging available for source')
-
+            coord = detects.coords[sel_det]
+            
+            # ignore the Fall data for now
+            if coord.dec.value > 10:
+                try:
+                    cutout = catlib.get_cutouts(position=coord,
+                                                radius=5,
+                                                aperture=None,
+                                                dynamic=False,
+                                                filter='r',
+                                                first=True)[0]
+                    if cutout['instrument'] == 'HSC':
+                        row["im_phot"] = cutout['cutout'].data
+                        header = cutout['cutout'].wcs.to_header()
+                        row['im_phot_hdr'] = header.tostring()
+                except IndexError:
+                    print('No imaging available for source')
+            else:
+                print('At dec<10 deg, not including imaging')
+                    
             row.append()
 
         im2D_table.flush()
-        
         fileh.close()
 
     else:
@@ -385,8 +403,8 @@ def main(argv=None):
         ascii.write(output, "fib_coords.dat", overwrite=True)
 
     fibers.close()
-
-tb.file._open_files.close_all()
+    detects.close()
+    tb.file._open_files.close_all()
 
 if __name__ == "__main__":
     main()
