@@ -67,13 +67,13 @@ def emission_line_to_IAU_string(coord, lambda_in_A):
 
 class Detections(tb.IsDescription):
     shotid = tb.Int64Col(pos=2)
-    date = tb.Int32Col(pos=3)
-    obsid = tb.Int32Col(pos=4)
+    date = tb.Int32Col(pos=5)
+    obsid = tb.Int32Col(pos=6)
     detectid = tb.Int64Col(pos=0) 
-    fiber_id = tb.StringCol((38), pos=1)
+    fiber_id = tb.StringCol((38))
     #detectname = tb.StringCol((40))  
-    ra = tb.Float32Col(pos=5)
-    dec = tb.Float32Col(pos=6)
+    ra = tb.Float32Col(pos=3)
+    dec = tb.Float32Col(pos=4)
     wave = tb.Float32Col(pos=7)
     wave_err = tb.Float32Col(pos=8)
     flux = tb.Float32Col(pos=9)
@@ -86,20 +86,20 @@ class Detections(tb.IsDescription):
     sn_err = tb.Float32Col(pos=16)
     chi2 = tb.Float32Col(pos=17)
     chi2_err = tb.Float32Col(pos=18)
-    inputid = tb.StringCol((40), pos=3)
-#    x_raw = tb.Int32Col(pos=21)
-#    y_raw = tb.Int32Col(pos=22)
-#    x_ifu = tb.Float32Col()
-#    y_ifu = tb.Float32Col()
-#    weight = tb.Float32Col()
-#    fibnum = tb.Int32Col(pos=20)
-#    multiframe = tb.StringCol((20), pos=19)
-#    specid = tb.StringCol((3))
-#    ifuslot = tb.StringCol((3))
-#    ifuid = tb.StringCol((3))
-#    amp = tb.StringCol((2))
-#    expnum = tb.Int32Col()
-
+    inputid = tb.StringCol((40))
+    x_raw = tb.Int32Col(pos=21)
+    y_raw = tb.Int32Col(pos=22)
+    x_ifu = tb.Float32Col()
+    y_ifu = tb.Float32Col()
+    weight = tb.Float32Col()
+    fibnum = tb.Int32Col(pos=20)
+    multiframe = tb.StringCol((20), pos=19)
+    specid = tb.StringCol((3))
+    ifuslot = tb.StringCol((3))
+    ifuid = tb.StringCol((3))
+    amp = tb.StringCol((2))
+    expnum = tb.Int32Col()
+    
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
     wave1d = tb.Float32Col(1036, pos=1)
@@ -452,10 +452,14 @@ def main(argv=None):
     else:
 
         if args.month:
-            catfile = op.join(args.detect_path, args.month, args.month + '.cat')
-
+            if args.month in ['201701', '201702', '201703', '201704', '201705', '201706']:
+                catfile = op.join(args.detect_path, args.month, args.month + '.cat_v3')
+            else: 
+                catfile = op.join(args.detect_path, args.month, args.month + '.cat')
+            args.log.info('Using catfile: %s' % catfile)
+            
             detectcat = get_detect_cat(detectidx, catfile, args)
-
+            detectcat = detectcat[0:100]
         elif args.contsource:
             detectcat = Table.read(args.contsource, format='ascii')
             detectcat.remove_columns(['col1','col4','col5','col6','col9','col10',
@@ -590,6 +594,27 @@ def main(argv=None):
                     rowfiber['flag'] = datafiber['col15'][ifiber]
                     rowfiber['weight'] = datafiber['col14'][ifiber]
                     rowfiber.append()
+                
+                # Now append brightest fiber info to Detections table:
+                ifiber = np.argmax(datafiber['col14'])
+                multiname = datafiber['col5'][ifiber]
+                multiframe = multiname[0:20]
+                fiber_id_i = str(row['shotid']) + '_' + str(int(rowfiber['expnum'])) + '_' + multiframe + '_' + str(int(multiname[21:24])).zfill(3)
+                row['fiber_id'] = fiber_id_i
+                row['multiframe'] = multiframe
+                row['specid'] = multiframe[6:9]
+                row['ifuslot'] = multiframe[10:13]
+                row['ifuid'] = multiframe[14:17]
+                row['amp'] = multiframe[18:20]
+                row['fibnum'] = int(multiname[21:24])
+                row['x_raw'] = datafiber['col12'][ifiber]
+                row['y_raw'] = datafiber['col13'][ifiber]
+                row['x_ifu'] = datafiber['col3'][ifiber]
+                row['y_ifu'] = datafiber['col4'][ifiber]
+                row['expnum'] = str(datafiber['col6'][ifiber])[3:5]
+                row['weight'] = datafiber['col14'][ifiber]
+                row.update()
+                
             except:
                 args.log.error('Could not ingest %s' % filefiberinfo)
 
