@@ -67,3 +67,8 @@ These shots are all bad for various reasons, no 3rd dither, or really low flux i
 
 20190605v010 = Bad weather/remove
 20190605v008 = Bad weather/remove
+
+20170305v011 = bad astrometry
+20170920v012 = bad astrometry
+20180214v010 = bad astrometry
+20190622v008 = bad astrometry
