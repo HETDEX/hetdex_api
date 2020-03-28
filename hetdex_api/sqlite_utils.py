@@ -297,9 +297,9 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
                     time_diff = int(round(time.time() * 1000)) - start_time
                     total_inserts += ct
                     per_insert_time = time_diff / ct / 1000.
-                    print(f"Inserted {ct} ({per_insert_time:#0.3f}s per insert). Total {total_inserts}/{estimated_total} "
+                    print(f"{db_name}: Inserted {ct} ({per_insert_time:#0.3f}s per insert). Total {total_inserts}/{estimated_total} "
                           f"({float(total_inserts / estimated_total) * 100.:#0.1f}%). "
-                          f"Remaining time ({datetime.timedelta(seconds=per_insert_time * (estimated_total - total_inserts))}) ...")
+                          f"Remaining time ({datetime.timedelta(seconds=round(per_insert_time * (estimated_total - total_inserts)))}) ...")
                     start_time = int(round(time.time() * 1000))  # reset the timer
                     ct = 0
                 except:
