@@ -35,14 +35,14 @@ PYTHON_VERSION = sys.version_info
 
 
 class Detections:
-    def __init__(self, survey="hdr1", catalog_type="lines", loadtable=True):
+    def __init__(self, survey="hdr2", catalog_type="lines", loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
         Input
         -----
         survey : string
-            Data release you would like to load, i.e., 'DR1' or 'cont_sources'.
+            Data release you would like to load, i.e., 'hdr2','HDR1'
             This is case insensitive.
         catalog_type : string
             Catalog to laod up. Either 'lines' or 'continuum'. Default is 
