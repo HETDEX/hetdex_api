@@ -481,6 +481,10 @@ def main(argv=None):
 
             fileh_i = tb.open_file(file, "r")
 
+            if '201707' in file:
+                detectid_max = 114957 + 1
+                args.log.info('Set detectid for 201707')
+                
             tableMain_i = fileh_i.root.Detections.read()
             tableFibers_i = fileh_i.root.Fibers.read()
             tableSpectra_i = fileh_i.root.Spectra.read()
@@ -503,17 +507,8 @@ def main(argv=None):
     else:
 
         if args.month:
-            if args.month in [
-                "201701",
-                "201702",
-                "201703",
-                "201704",
-                "201705",
-                "201706",
-            ]:
-                catfile = op.join(args.detect_path, args.month, args.month + ".cat_v3")
-            else:
-                catfile = op.join(args.detect_path, args.month, args.month + ".cat")
+
+            catfile = op.join(args.detect_path, args.month, args.month + ".cat_v4")
             args.log.info("Using catfile: %s" % catfile)
 
             detectcat = get_detect_cat(detectidx, catfile, args)
