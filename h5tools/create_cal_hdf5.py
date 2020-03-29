@@ -32,15 +32,6 @@ from astropy.io import fits
 from hetdex_api.input_utils import setup_logging
 
 
-# class AmpToAmp(tb.IsDescription):
-#    ampid = tb.StringCol(20)
-#    ifuslot = tb.StringCol(3)
-#    ifuid = tb.StringCol(3)
-#    specid = tb.StringCol(3)
-#    amp = tb.StringCol(2)
-#    normdata = tb.Float32Col((2, 100))
-
-
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
@@ -71,22 +62,12 @@ def main(argv=None):
         type=str,
         default="/data/00115/gebhardt/detect",
     )
-    # default='/work/03946/hetdex/hdr1/reduction/throughput')
-
-    parser.add_argument(
-        "-am",
-        "--ampdir",
-        help="""Directory for Amp to Amp""",
-        type=str,
-        default="/work/00115/gebhardt/maverick/getampnorm/all/",
-    )
 
     parser.add_argument(
         "-of",
         "--outfilename",
         type=str,
-        help="""Relative or absolute path for output HDF5
-                        file.""",
+        help="""Relative or absolute path for output HDF5file.""",
         default=None,
     )
 
@@ -119,23 +100,8 @@ def main(argv=None):
         args.log.info("Creating new Calibration group")
 
     group = fileh.create_group(fileh.root, "Calibration", "HETDEX Calibration Info")
-    #    groupAmpToAmp = fileh.create_group(group, 'AmpToAmp',
-    #                                       'Amp to amp Fiber Normalization')
+
     groupThroughput = fileh.create_group(group, "Throughput", "Throughput Curve")
-
-    # populate the AmpToAmp group with normalization curves and metadata
-
-    #   amptoampfiles = glob.glob(op.join(args.ampdir, 'multi*.norm'))
-
-    #   for filen in amptoampfiles:
-    #       idx = filen.find('multi_')
-    #       ampid = filen[idx:idx+20]
-    #       try:
-    #           data = ascii.read(filen, names=['wave', 'norm'])
-    #           fileh.create_table(groupAmpToAmp, str(ampid), data.as_array())
-    #       except:
-    #           args.log.warning('Could not include %s' % filen)
-    # populate Throughput group with throughput curves
 
     datevshot = str(args.date) + "v" + str(args.observation.zfill(3))
 
