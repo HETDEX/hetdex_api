@@ -255,13 +255,13 @@ def main(argv=None):
                            'match_' + expn + '.pdf')
         matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
-        try:
+        if op.exists(matchpdf):
             os.system('convert ' + matchpdf + ' ' + matchpng)  
             plt_matchim = plt.imread(matchpng)
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = matchpdf
-        except:
+        else:
             args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
@@ -353,24 +353,32 @@ def main(argv=None):
         
     shottable = fileh.root.Shot
 
-    try:
-
-        for shot in shottable:
-            if op.exists(radecfinalfile):
-                shot['ra'] = radectab['ra'][0]
-                shot['dec'] = radectab['dec'][0]
-                shot['pa'] = radectab['pa'][0]
-                shot['xoffset'] = tableQA.cols.xoffset[:]
-                shot['yoffset'] = tableQA.cols.yoffset[:]
-                shot['xrms'] = tableQA.cols.xrms[:]
-                shot['yrms'] = tableQA.cols.yrms[:]
-                shot['nstars_fit'] = tableQA.cols.nstars[:]
-                shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
-                shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+    for shot in shottable:
+        if op.exists(radecfinalfile):
+            shot['ra'] = radectab['ra'][0]
+            shot['dec'] = radectab['dec'][0]
+            shot['pa'] = radectab['pa'][0]
+        else:
+            args.error('Could not include %s' % radecfinalfile)
+        try:
+            shot['xoffset'] = tableQA.cols.xoffset[:]
+            shot['yoffset'] = tableQA.cols.yoffset[:]
+            shot['xrms'] = tableQA.cols.xrms[:]
+            shot['yrms'] = tableQA.cols.yrms[:]
+            shot['nstars_fit'] = tableQA.cols.nstars[:]
+        except:
+            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        try:
+            shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
+            shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+        except:
+            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        try:
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
-            shot.update()
-    except:
-        args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        except:
+            args.log.error('Could not include relflux_virus info for %s' % datevshot)
+
+        shot.update()
 
     fileh.close()
 
