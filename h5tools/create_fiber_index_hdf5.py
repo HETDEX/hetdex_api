@@ -29,7 +29,20 @@ from hetdex_api.input_utils import setup_logging
 from hetdex_api.shot import open_shot_file
 from hetdex_api import config
 
+class VIRUSFiberIndex(tb.IsDescription):
+        multiframe = tb.StringCol((20), pos=0)
+        fiber_id = tb.StringCol((38), pos=4)
+        fibidx = tb.Int32Col()
+        fibnum = tb.Int32Col()
+        ifux = tb.Float32Col()
+        ifuy = tb.Float32Col()
+        fpx = tb.Float32Col()
+        fpy = tb.Float32Col()
+        ra = tb.Float32Col(pos=1)
+        dec = tb.Float32Col(pos=2)
+        expnum = tb.Int32Col()
 
+                                                
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
@@ -75,22 +88,27 @@ def main(argv=None):
         args.shotlist, format="ascii.no_header", names=["date", "obs"]
     )
 
-    master_fiber = Table()
+    tableFibers = fileh.create_table(fileh.root, "FiberIndex",
+                                     VIRUSFiberIndex, "Survey Fiber Coord Info",
+                                     expectedrows=140369264)
 
     for shotrow in shotlist:
         try:
             datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
-            fibertable = Table(file_obs.root.Data.FiberIndex.read())
-            master_fiber = vstack([fibertable, master_fiber])
+            tableFibers_i = file_obs.root.Data.FiberIndex.read()
+            tableFibers.append(tableFibers_i)
             file_obs.close()
             args.log.info("Ingesting %s" % datevshot)
         except:
             args.log.error("could not ingest %s" % datevshot)
 
-    tableMain = fileh.create_table(fileh.root, "FiberIndex", obj=master_fiber.as_array())
+    tableFibers.flush()
+    tableFibers.cols.ra.create_csindex()
+    tableFibers.cols.fiber_id.create_csindex()
+    tableFibers.flush()
     fileh.close()
 
-
+    
 if __name__ == "__main__":
     main()
