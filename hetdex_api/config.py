@@ -27,7 +27,8 @@ class HDRconfig:
         self.detecth5 = op.join(self.hdr_dir[survey],'detect','detect_' + survey + '.h5')
         self.elixerh5 = op.join(self.hdr_dir[survey],'detect','elixer.h5')
         self.contsourceh5 = op.join(self.hdr_dir[survey],'detect','continuum_sources.h5')
-
+        self.fiberindexh5 = op.join(self.hdr_dir[survey],'survey','fiber_index_' + survey + '.h5')
+        
         if (survey=='hdr1'):
             # here are files that are changing since HDR1 release
             self.bad_dir = '/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1'
@@ -44,3 +45,4 @@ class HDRconfig:
             self.baddetect = op.join(self.bad_dir, 'baddetects.list')
             self.badshot = op.join(self.bad_dir, 'badshots.list')
             self.badamp = op.join(self.bad_dir, 'badamps.list')
+            
