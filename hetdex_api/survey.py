@@ -4,6 +4,8 @@
 Initiates survey class and provides an API to query the survey class based
 on astropy coordinates
 
+Added 2020/03/29 = FiberIndex class to query all fibers in the survey
+
 Created on Tue Jan 22 11:02:53 2019
 @author: gregz/Erin Mentuch Cooper
 """
@@ -21,7 +23,7 @@ from hetdex_api.config import HDRconfig
 
 
 class Survey:
-    def __init__(self, survey='hdr1'):
+    def __init__(self, survey='hdr2'):
         """
         Initialize the Survey class for a given data release
 
@@ -224,3 +226,87 @@ class Survey:
         """
 
         self.hdfile.close()
+
+class FiberIndex:
+    def __init__(self, survey='hdr2', loadall=False):
+        """
+        Initialize the Fiber class for a given data release
+        
+        Parameters
+        ----------
+        survey : string
+            Data release you would like to load, i.e., 'hdr1','HDR2'
+            This is case insensitive.
+        
+        Returns
+        -------
+        FiberIndex class object
+        """
+
+        if self.survey == 'hdr1':
+            print('Sorry there is no FiberIndex for hdr1')
+            return None
+
+        global config
+        config = HDRconfig(survey=survey.lower())
+        
+        self.filename = config.fiberindexh5
+        self.hdfile = tb.open_file(self.filename, mode="r")
+
+        if loadall:
+            colnames = self.hdfile.root.FiberIndex.colnames
+            
+            for name in colnames:
+            
+                if isinstance(
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                ):
+                    setattr(
+                        self,
+                        name,
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                    )
+                else:
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+                    
+            self.coords = SkyCoord(self.ra[:] * u.degree,
+                                   self.dec[:] * u.degree,
+                                   frame="icrs")
+
+    def query_region(self, coords, radius=3.*u.arcsec, shotid=None):
+        """
+        Function to retrieve the indexes of the FiberIndex table
+        for a specific region
+
+        Parameters
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        coords
+            center coordinate you want to search. This should
+            be an astropy SkyCoord object
+        radius
+            radius you want to search. An astropy quantity object
+        shotid
+            Specific shotid (dtype=int) you want
+        """
+        
+        ra_obj = coords.ra.deg
+        ra_sep = radius.deg + 3./3600. #search a wider radius
+        
+        tab = self.hdfile.root.FiberIndex
+        seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra < ra_obj - ra_sep)')
+
+        fibcoords = SkyCoord(seltab['ra'] * u.degree, seltab['dec'] * u.degree, frame='icrs')
+
+        if shotid:
+            idx = (coords.separation(fibcoords) < radius) * (seltab['shotid'] == shotid)
+        else:
+            idx = coords.separation(fibcoords) < radius
+
+        return idx
+
+    def get_fib_from_hp(self, hp):
+
+        return self.hdfile.root.FiberIndex.read_where('healpix == hp')
