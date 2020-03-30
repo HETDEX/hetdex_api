@@ -39,7 +39,6 @@ class VIRUSFiberIndex(tb.IsDescription):
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
-    contid = tb.StringCol(8)
     amp = tb.StringCol(2)
     fibidx = tb.Int32Col()
     fibnum = tb.Int32Col()
@@ -137,12 +136,13 @@ def main(argv=None):
                 except:
                     row_main["healpix"] = 0
 
-            row_main["shotid"] = int(fiberid[0:10])
-            row_main["specid"] = fiberid[20:23]
-            row_main["ifuslot"] = fiberid[24:27]
-            row_main["ifuid"] = fiberid[28:31]
-            row_main["amp"] = fiberid[32:34]
-            row_main.append()
+                row_main["shotid"] = int(fiberid[0:10])
+                row_main["specid"] = fiberid[20:23]
+                row_main["ifuslot"] = fiberid[24:27]
+                row_main["ifuid"] = fiberid[28:31]
+                row_main["amp"] = fiberid[32:34]
+                row_main.append()
+
             file_obs.close()
 
         except:            
