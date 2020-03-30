@@ -22,27 +22,36 @@ import os.path as op
 import numpy as np
 import tables as tb
 import argparse as ap
+import healpy as hp
 
 from astropy.table import vstack, Table
 from hetdex_api.input_utils import setup_logging
 
 from hetdex_api.shot import open_shot_file
-from hetdex_api import config
+from hetdex_api.config import HDRconfig
+
 
 class VIRUSFiberIndex(tb.IsDescription):
-        multiframe = tb.StringCol((20), pos=0)
-        fiber_id = tb.StringCol((38), pos=4)
-        fibidx = tb.Int32Col()
-        fibnum = tb.Int32Col()
-        ifux = tb.Float32Col()
-        ifuy = tb.Float32Col()
-        fpx = tb.Float32Col()
-        fpy = tb.Float32Col()
-        ra = tb.Float32Col(pos=1)
-        dec = tb.Float32Col(pos=2)
-        expnum = tb.Int32Col()
+    multiframe = tb.StringCol((20), pos=0)
+    fiber_id = tb.StringCol((38), pos=4)
+    shotid = tb.Int64Col()
+    healpix = tb.Int64Col(pos=5)
+    ifuslot = tb.StringCol(3)
+    ifuid = tb.StringCol(3)
+    specid = tb.StringCol(3)
+    contid = tb.StringCol(8)
+    amp = tb.StringCol(2)
+    fibidx = tb.Int32Col()
+    fibnum = tb.Int32Col()
+    ifux = tb.Float32Col()
+    ifuy = tb.Float32Col()
+    fpx = tb.Float32Col()
+    fpy = tb.Float32Col()
+    ra = tb.Float32Col(pos=1)
+    dec = tb.Float32Col(pos=2)
+    expnum = tb.Int32Col()
 
-                                                
+
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
@@ -88,27 +97,66 @@ def main(argv=None):
         args.shotlist, format="ascii.no_header", names=["date", "obs"]
     )
 
-    tableFibers = fileh.create_table(fileh.root, "FiberIndex",
-                                     VIRUSFiberIndex, "Survey Fiber Coord Info",
-                                     expectedrows=140369264)
+    tableFibers = fileh.create_table(
+        fileh.root,
+        "FiberIndex",
+        VIRUSFiberIndex,
+        "Survey Fiber Coord Info",
+        expectedrows=140369264,
+    )
+
+    # set up HEALPIX options
+    Nside = 2 ** 17
+    hp.max_pixrad(Nside, degrees=True) * 3600  # in unit of arcsec
+
+    config = HDRconfig(survey=args.survey)
+
+    badshot = np.loadtxt(config.badshot, dtype=int)
 
     for shotrow in shotlist:
+        datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
+        shotid = int(str(shotrow["date"]) + str(shotrow["obs"]).zfill(3))
+        
         try:
-            datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
-            file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
-            tableFibers_i = file_obs.root.Data.FiberIndex.read()
-            tableFibers.append(tableFibers_i)
-            file_obs.close()
             args.log.info("Ingesting %s" % datevshot)
-        except:
-            args.log.error("could not ingest %s" % datevshot)
+            file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+            tableFibers_i = file_obs.root.Data.FiberIndex
 
-    tableFibers.flush()
+            for row_i in tableFibers_i:
+
+                row_main = tableFibers.row
+
+                for col in tableFibers_i.colnames:
+                    row_main[col] = row_i[col]
+
+                fiberid = row_i["fiber_id"]
+
+                try:
+                    row_main["healpix"] = hp.ang2pix(
+                        Nside, row_i["ra"], row_i["dec"], lonlat=True)
+                except:
+                    row_main["healpix"] = 0
+
+            row_main["shotid"] = int(fiberid[0:10])
+            row_main["specid"] = fiberid[20:23]
+            row_main["ifuslot"] = fiberid[24:27]
+            row_main["ifuid"] = fiberid[28:31]
+            row_main["amp"] = fiberid[32:34]
+            row_main.append()
+            file_obs.close()
+
+        except:            
+            if shotid in badshot:
+                pass
+            else:
+                args.log.error("could not ingest %s" % datevshot)
+
+    tableFibers.cols.healpix.create_csindex()
     tableFibers.cols.ra.create_csindex()
     tableFibers.cols.fiber_id.create_csindex()
     tableFibers.flush()
     fileh.close()
 
-    
+
 if __name__ == "__main__":
     main()
