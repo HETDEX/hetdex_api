@@ -242,14 +242,15 @@ class FiberIndex:
         -------
         FiberIndex class object
         """
-
+        self.survey = survey
+        
         if self.survey == 'hdr1':
             print('Sorry there is no FiberIndex for hdr1')
             return None
 
         global config
         config = HDRconfig(survey=survey.lower())
-        
+
         self.filename = config.fiberindexh5
         self.hdfile = tb.open_file(self.filename, mode="r")
 
