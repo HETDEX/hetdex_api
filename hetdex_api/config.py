@@ -30,6 +30,7 @@ class HDRconfig:
         self.imaging_dir = op.join(self.hdr_dir[survey],'imaging')
         self.contsourceh5 = op.join(self.hdr_dir[survey],'detect','continuum_sources.h5')
         self.fiberindexh5 = op.join(self.hdr_dir[survey],'survey','fiber_index_' + survey + '.h5')
+        self.detectml = op.join(self.hdr_dir[survey],'detect','detect_ml_'+ survey + '.h5')
         
         if (survey=='hdr1'):
             # here are files that are changing since HDR1 release
