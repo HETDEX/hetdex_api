@@ -294,10 +294,10 @@ class FiberIndex:
         """
         
         ra_obj = coords.ra.deg
-        ra_sep = radius.deg + 3./3600. #search a wider radius
+        ra_sep = radius.to(u.degree) + 3./3600. #search a wider radius
         
         tab = self.hdfile.root.FiberIndex
-        seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra < ra_obj - ra_sep)')
+        seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))')
 
         fibcoords = SkyCoord(seltab['ra'] * u.degree, seltab['dec'] * u.degree, frame='icrs')
 
