@@ -169,7 +169,7 @@ class Survey:
                 self.ra * u.degree, self.dec * u.degree, frame="icrs"
             )
 
-        if radius:
+        if radius is not None:
             try:
                 idx = self.coords.separation(coords) < radius
             except:
