@@ -314,6 +314,6 @@ class FiberIndex:
     def get_fib_from_hp(self, hp, astropy=True):
 
         if astropy:
-            Table(self.hdfile.root.FiberIndex.read_where('healpix == hp'))
+            return Table(self.hdfile.root.FiberIndex.read_where('healpix == hp'))
         else:
             return self.hdfile.root.FiberIndex.read_where('healpix == hp')
