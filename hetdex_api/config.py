@@ -27,6 +27,7 @@ class HDRconfig:
         self.surveyh5 = op.join(self.hdr_dir[survey],'survey','survey_' + survey + '.h5')
         self.detecth5 = op.join(self.hdr_dir[survey],'detect','detect_' + survey + '.h5')
         self.elixerh5 = op.join(self.hdr_dir[survey],'detect','elixer.h5')
+        self.imaging_dir = op.join(self.hdr_dir[survey],'imaging')
         self.contsourceh5 = op.join(self.hdr_dir[survey],'detect','continuum_sources.h5')
         self.fiberindexh5 = op.join(self.hdr_dir[survey],'survey','fiber_index_' + survey + '.h5')
         
