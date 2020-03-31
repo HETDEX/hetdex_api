@@ -306,7 +306,7 @@ class FiberIndex:
         else:
             idx = coords.separation(fibcoords) < radius
 
-        return idx
+        return seltab[idx]
 
     def get_fib_from_hp(self, hp):
 
