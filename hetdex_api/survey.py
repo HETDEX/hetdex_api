@@ -275,7 +275,7 @@ class FiberIndex:
                                    self.dec[:] * u.degree,
                                    frame="icrs")
 
-    def query_region(self, coords, radius=3.*u.arcsec, shotid=None):
+    def query_region(self, coords, radius=3.*u.arcsec, shotid=None, astropy=True):
         """
         Function to retrieve the indexes of the FiberIndex table
         for a specific region
@@ -306,8 +306,14 @@ class FiberIndex:
         else:
             idx = coords.separation(fibcoords) < radius
 
-        return seltab[idx]
+        if astropy:
+            return Table(seltab[idx])
+        else:
+            return seltab[idx]
 
-    def get_fib_from_hp(self, hp):
+    def get_fib_from_hp(self, hp, astropy=True):
 
-        return self.hdfile.root.FiberIndex.read_where('healpix == hp')
+        if astropy:
+            Table(self.hdfile.root.FiberIndex.read_where('healpix == hp'))
+        else:
+            return self.hdfile.root.FiberIndex.read_where('healpix == hp')
