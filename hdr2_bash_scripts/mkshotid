@@ -1,0 +1,6 @@
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_shot_hdf5.py -d $1 -o $2 -of $1v$2.h5 -r '/data/00115/gebhardt/red1/reductions' -dp '/data/00115/gebhardt/detect'
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/append_calfib.py -d $1 -o $2 -of $1v$2.h5
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_astrometry_hdf5.py -d $1 -o $2 -of $1v$2.h5 --append
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_cal_hdf5.py -d $1 -o $2 -of $1v$2.h5 --append
+
+
