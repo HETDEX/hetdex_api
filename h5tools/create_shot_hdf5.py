@@ -322,8 +322,8 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
         fibindex["fibidx"] = i
         fibindex["fibnum"] = i + 1
         fib["multiframe"] = multiframe
-        fibindex["multiframe"] = fib["multiframe"]
-        fib["fiber_id"] = (
+        fibindex["multiframe"] = multiframe
+        fiberid = (
             str(shotid)
             + "_"
             + str(int(expn[-2:]))
@@ -332,7 +332,8 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             + "_"
             + str(i + 1).zfill(3)
         )
-        fibindex["fiber_id"] = fib["fiber_id"]
+        fib["fiber_id"] = fiberid
+        fibindex["fiber_id"] = fiberid
 
         if T is not None:
             if len(loc):
@@ -540,7 +541,8 @@ def main(argv=None):
                 if success:
                     fibtable.flush()
                     imagetable.flush()
-
+                    fibindextable.flush()
+                    
         shot["n_ifu"] = n_ifu["exp01"]
         shot.append()
 
