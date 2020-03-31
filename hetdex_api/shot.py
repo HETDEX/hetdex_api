@@ -25,7 +25,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-def open_shot_file(shotid, survey="hdr1"):
+def open_shot_file(shotid, survey="hdr2"):
     """
     Open the H5 file for a shot. This is a global function that allows you
     to open an H5 file based on its shotid and data release. 
@@ -67,7 +67,7 @@ def open_shot_file(shotid, survey="hdr1"):
 
 
 class Fibers:
-    def __init__(self, shot, survey="hdr1"):
+    def __init__(self, shot, survey="hdr2"):
         """
         Initialize Fibers Class
 
@@ -396,7 +396,7 @@ class Fibers:
         return table
 
 
-def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astropy=True):
+def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr2", astropy=True):
     """
     Returns fiber specta for a given shot.
 
@@ -472,7 +472,7 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
 
 
 def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
-                       imtype="clean_image", survey="hdr1"):
+                       imtype="clean_image", survey="hdr2"):
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
@@ -517,7 +517,7 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
 
 
 def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", 
-                    expnum_obj=1, survey='hdr1'):
+                    expnum_obj=1, survey='hdr2'):
     """
     Returns an image from the 2D data based on
     an multiframe or a specid/amp/expnum combo
