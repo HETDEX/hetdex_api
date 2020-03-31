@@ -99,7 +99,7 @@ def get_elixer_report_db_path(detectid,report_type="report"):
 
 
 
-def get_db_connection(fn):
+def get_db_connection(fn,readonly=True):
     """
     return a SQLite3 databse connection object for the provide databse filename
 
@@ -111,7 +111,10 @@ def get_db_connection(fn):
     conn = None
     try:
         if fn is not None:
-            conn = sqlite3.connect(fn)
+            if readonly:
+                conn = sqlite3.connect("file:" +fn + "?mode=ro",uri=True)
+            else:
+                conn = sqlite3.connect(fn)
     except Error as e:
         print(e)
 
@@ -132,7 +135,7 @@ def fetch_elixer_report_image(conn,detectid):
         if type(conn) != sqlite3.Connection:
             #could be a file
             if op.isfile(conn):
-                conn = get_db_connection(conn)
+                conn = get_db_connection(conn,readonly=True)
 
                 if type(conn) != sqlite3.Connection:
                     print("Invalid databse connection.")
@@ -321,7 +324,7 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
     try:
 
         if not op.isfile(db_name):
-            conn = sqlite3.connect(db_name)
+            conn = sqlite3.connect(db_name) #not read only
             if type(conn) != sqlite3.Connection:
                 print("Failed to create db connection")
                 return False
@@ -329,7 +332,7 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
                 print("Failed to build schema")
                 return False
         else:
-            conn = get_db_connection(db_name)
+            conn = get_db_connection(db_name,readonly=False)
             if type(conn) != sqlite3.Connection:
                 print("Failed to create db connection")
                 return False
@@ -364,7 +367,8 @@ class ConnMgr():
                 conn = self.conn_dict[dkey]
             else:
                 try:
-                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type))
+                    #all ConnMgr connections are read-only (uri=True)
+                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type),readonly=True)
                     if type(conn) != sqlite3.Connection:
                         conn = None
                     else:
