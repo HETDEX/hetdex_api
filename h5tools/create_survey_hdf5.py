@@ -16,7 +16,7 @@ this just a table stack of all the HDR2 Shot tables
 
 To run:
 
-pyton create_survey_hdf5.py -of survey_hdr2.h5 -sl dex.hdr2.shotlist 
+python3 create_survey_hdf5.py -of survey_hdr2.h5 -sl dex.hdr2.shotlist 
 
 """
 
