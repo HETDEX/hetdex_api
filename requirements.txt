@@ -6,5 +6,5 @@ numpy==1.16.1
 scipy==1.2.0
 matplotlib==2.0.0
 tables==3.5.2
--e git+https://github.com/HETDEX/elixer@82771fc11bf408531b1ad89f27dc5323883ef27a#egg=elixer
+
 
