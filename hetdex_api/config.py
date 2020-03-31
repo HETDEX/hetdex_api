@@ -50,5 +50,6 @@ class HDRconfig:
             self.badamp = op.join(self.bad_dir, 'badamps.list')
             self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
             self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
+            self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
             
