@@ -15,6 +15,7 @@ class HDRconfig:
         self.data_dir = op.join(self.red_dir, 'data')
         self.tp_dir = op.join(self.red_dir, 'throughput')
         self.calib_dir = op.join(self.hdr_dir[survey], 'calib')
+        self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], 'raw')
         self.flim_dir = op.join(self.red_dir, 'flim')
         self.elix_dir = op.join(self.hdr_dir[survey], 'detect', 'ergfiles')
@@ -47,4 +48,5 @@ class HDRconfig:
             self.badamp = op.join(self.bad_dir, 'badamps.list')
             self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
             self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
+
             
