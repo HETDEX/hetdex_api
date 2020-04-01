@@ -16,8 +16,8 @@ shown later. For example the spectra produced from get\_spec.py can be
 translated to line intensities, or approximate pass-band magnitudes with
 a few extra steps.
 
-Import all necessary python packages.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Import all necessary python packages
+------------------------------------
 
 These are mainly for working within the notebook. The command line tool
 already has the necessary preamble built in.
@@ -44,7 +44,7 @@ already has the necessary preamble built in.
 
 
 IMPORTANT NOTE OF CAUTION WITH RUNNING ON TACC!!!
-=================================================
+-------------------------------------------------
 
 Because this script involves opening the Fibers class object which
 contains all fiber spectra from a 3 dither observation, you will be
@@ -138,7 +138,7 @@ input.
     sources = get_spectra(input_coords, ID=input_cat['ID'])
 
 Reading in the output - astropy FITS files
-==========================================
+------------------------------------------
 
 .. code:: ipython3
 
@@ -281,7 +281,7 @@ like
 
 
 Examples of running get\_spec as a command line job:
-====================================================
+----------------------------------------------------
 
 You can run these commands from the command line by removing the "!"
 command but be sure you are on a compute node by calling ``idev`` first.
