@@ -2,7 +2,7 @@ Navigating the Data
 ===================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
    cookbook/extract_list.rst
    cookbook/api-notebooks/01-Accessing_the_Survey_Class/01-Accessing_the_Survey_Class.rst
