@@ -517,7 +517,9 @@ def get_parser():
         "-survey",
         type=str,
         help='''Data Release you want to access''',
-        default='hdr1')
+        default='hdr2')
+
+    parser.add_argument("-tpmin", "--tpmin", typ=float, default=0.09)
 
     return parser
 
@@ -615,8 +617,10 @@ def main(argv=None):
     else:
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
     
-    
-    args.survey_class = Survey(args.survey)
+    S = Survey(args.survey)
+    ind_good_shots = S.remove_shots()
+    ind_tp = S.response_4540 > args.tpmin
+    args.survey_class = S[ ind_good_shots * ind_tp]
 
     # if args.shotidid exists, only select those shots
 
@@ -688,7 +692,7 @@ if __name__ == "__main__":
 
 
 def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
-                survey='hdr1'):
+                survey='hdr2', tpmin=0.09):
 
     args = types.SimpleNamespace()
 
@@ -696,8 +700,14 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
     args.coords = coords
     args.rad = rad * u.arcsec
     args.survey = survey
-    args.survey_class = Survey(survey)
 
+    S = Survey(survey)
+    ind_good_shots = S.remove_shots()
+    ind_tp = S.response_4540 > tpmin
+    
+    args.survey_class = S[ind_good_shots * ind_tp]
+    
+    
     if shotid is not None:
         try:
             if np.size(shotid) == 1:
