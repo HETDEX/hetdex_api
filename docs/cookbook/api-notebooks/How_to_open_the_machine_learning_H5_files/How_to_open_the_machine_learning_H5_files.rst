@@ -83,7 +83,7 @@ Here is the hierarchical structure:
 
 
 Open the 2 Summed Fiber Image
-=============================
+-----------------------------
 
 Because we have over 1 million detections in each table and each table
 contains several 2D arrays, the best way to navigate the file is by
@@ -120,7 +120,7 @@ subsets of detections to work with.
 
 
 Get Single Fiber cutouts for the four brightest fibers:
-=======================================================
+-------------------------------------------------------
 
 The 'im\_array' column consists of fiber cutouts of the 4 brightest
 fibers
