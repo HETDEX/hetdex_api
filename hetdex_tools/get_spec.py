@@ -519,7 +519,7 @@ def get_parser():
         help='''Data Release you want to access''',
         default='hdr2')
 
-    parser.add_argument("-tpmin", "--tpmin", typ=float, default=0.09)
+    parser.add_argument("-tpmin", "--tpmin", type=float, default=0.09)
 
     return parser
 
