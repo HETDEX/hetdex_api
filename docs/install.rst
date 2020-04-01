@@ -8,7 +8,7 @@ If this is your first time on a TACC cluster we recommend a few setup steps. Fir
 
 .. code-block:: bash
 
-   ssh wrangler or stampede2
+   ssh wrangler
    chmod a+rx ../username
    cdw
    chmod a+rx ../*
@@ -67,9 +67,44 @@ Then pip3 install with the -e parameter to update as the repository evolves
 
 .. code-block:: bash
    
-   pip3 install -e hetdex_api --user
+   pip3 install -e hetdex_api --user --upgrade
 
-One final suggestion is to add a link from your home to your work directory. For example, I would do:
+Install Elixer
+--------------
+
+We also recommend that you install elixer:
+
+.. code-block:: bash
+
+    git clone https://github.com/HETDEX/elixer.git
+
+.. code-block:: bash
+
+   pip3 install -e elixer --user --upgrade
+
+
+Compute Nodes on TACC
+---------------------
+
+You should not be doing any heavy computing or accessing more than one HDR2 product at a time on a login node. TACC users should use an interactive compute node on a shell by doing:
+
+.. code-block:: bash
+
+    idev -t 04:00:00
+
+This will automatically switch you over to a compute node where you will have access to 48 cores per node and 128 GB of memory. Go nuts there!
+
+Also, it is generally preferred that users store large files on their /data storage drive and any high I/O runs should be done on /tmp.
+
+If you would like to use a jupyter notebook, run this script:
+
+.. code-block:: bash
+
+    ~ecooper/bin/run_jupyter
+
+This will launch from whatever directory you are working in. 
+    
+If on stampede2 (not relevant for wrangler), one final suggestion is to add a link from your home to your work directory. For example, I would do:
 
 .. code-block:: bash
    
