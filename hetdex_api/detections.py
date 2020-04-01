@@ -257,8 +257,8 @@ class Detections:
             maskcoords = sep.arcmin < radius
         return maskcoords
 
-    def find_match(self, coords, radius=2.*u.arcsec,
-                   wave_obj=None, dwave=3.):
+    def find_match(self, coords, radius=3.*u.arcsec,
+                   wave_obj=None, dwave=5.):
         """
         Function to cross match another line detection
 
