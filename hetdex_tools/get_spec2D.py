@@ -308,6 +308,14 @@ def main(argv=None):
         phot_table.flush()
         spec_table.flush()
 
+        fibim2D_table.cols.detectid.create_csindex()
+        phot_table.cols.detectid.create_csindex()
+        spec_table.cols.detectid.create_csindex()
+
+        fibim2D_table.flush()
+        phot_table.flush()
+        spec_table.flush()
+
         fileh.close()
         sys.exit("Merged h5 files in current directory. Exiting")
 
