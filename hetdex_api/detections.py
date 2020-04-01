@@ -129,6 +129,8 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
+            else:
+                self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
 
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
@@ -255,6 +257,38 @@ class Detections:
             maskcoords = sep.arcmin < radius
         return maskcoords
 
+    def find_match(self, coords, radius=2.*u.arcsec,
+                   wave_obj=None, dwave=3.):
+        """
+        Function to cross match another line detection
+
+        Parameters
+        ----------
+        coords
+            an astropy coordinates object
+        wave_obj
+            central wavelength in AA you want to search. If
+            nothing is given, it will search without any
+            wavelength contraint
+        radius
+            search radius. An astropy quantity
+        dwave
+            delta wavelength to search
+
+        Returns
+        -------
+        match_index
+            index of matches
+        """
+
+        selmatch = self.query_by_coords(coords, radius)
+
+        if wave_obj:
+            selwave = np.abs(self.wave - wave_obj < dwave)
+            return selwave*selmatch
+        else:
+            return selmatch 
+                         
     def query_by_dictionary(self, limits):
         """
         Takes a dictionary of query limits
@@ -693,16 +727,3 @@ class Detections:
 
     def close(self):
         self.hdfile.close()
-
-    def show_elixer(self, detectid):
-        """
-        Takes a detectid and pulls out the elixer PDF from the
-        elixer tar files on hdr1 and shows it in matplotlib
-        """
-        elix_dir = "/work/05350/ecooper/stampede2/elixer/jpgs/"
-        file_jpg = op.join(
-            elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + ".jpg"
-        )
-        plt.figure(figsize=(10, 8))
-        im = plt.imread(file_jpg)
-        plt.imshow(im)
