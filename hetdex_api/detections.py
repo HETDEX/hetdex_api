@@ -281,7 +281,7 @@ class Detections:
             index of matches
         """
 
-        selmatch = self.query_by_coords(coords, radius)
+        selmatch = self.query_by_coords(coord, radius)
 
         if wave_obj:
             selwave = np.abs((self.wave - wave) < dwave)
