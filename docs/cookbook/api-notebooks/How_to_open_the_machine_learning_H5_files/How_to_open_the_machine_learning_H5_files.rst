@@ -1,6 +1,6 @@
 
-How to Open Machine Learning Input Products
-===========================================
+How to Open Machine Learning Inputs
+===================================
 
 For each detectid in the line emission database (detect\_hdr2.h5) we
 have generated 100 pixel (200 Angstrom) by 9 pixel fiber cutouts of the
