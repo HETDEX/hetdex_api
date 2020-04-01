@@ -1,6 +1,6 @@
 
-01 - Accessing and querying the Survey Class and HDF5 file
-==========================================================
+Survey Class - Searching basic survey properties
+================================================
 
 The survey HDF5 file is a master look up table for each observation made
 by VIRUS for HETDEX. It can be accessed directly through the HDF5 survey
@@ -17,8 +17,8 @@ coordinates to get a list of shots where fibers are located within that
 region. Later on in this notebook we show some basic querying of the
 Survey class and demonstrate a few examples.
 
-Initiate the Survey class :
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Survey class
+~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -237,7 +237,6 @@ throughput values (technically the response at 4540 AA) between the
 HETDEX spring and HETDEX fall fields:
 
 Example: Plotting up the canonical throughput value at 4540 AA
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -270,7 +269,6 @@ Example: Plotting up the canonical throughput value at 4540 AA
 
 
 Example: Plotting up the locations of all cosmos shots:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -294,6 +292,9 @@ Accessing the Master Fiber Index Table:
 
 New to HDR2 is a Master Fiber Index table for all Fibers in the HDR2
 survey. This file can be accessed through the FiberIndex class:
+
+FiberIndex Class
+~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
