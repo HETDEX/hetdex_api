@@ -264,9 +264,9 @@ class Detections:
 
         Parameters
         ----------
-        coords
+        coord
             an astropy coordinates object
-        wave_obj
+        wave
             central wavelength in AA you want to search. If
             nothing is given, it will search without any
             wavelength contraint
@@ -283,7 +283,7 @@ class Detections:
 
         selmatch = self.query_by_coords(coord, radius)
 
-        if wave_obj:
+        if wave:
             selwave = np.abs((self.wave - wave) < dwave)
             return selwave*selmatch
         else:
