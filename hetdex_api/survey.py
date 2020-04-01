@@ -294,7 +294,7 @@ class FiberIndex:
         """
         
         ra_obj = coords.ra.deg
-        ra_sep = radius.to(u.degree).value + 3./3600. #search a wider radius
+        ra_sep = radius.to(u.degree).value 
         
         tab = self.hdfile.root.FiberIndex
         seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))')
