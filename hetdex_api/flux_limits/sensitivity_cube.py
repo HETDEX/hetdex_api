@@ -322,7 +322,8 @@ def plot_completeness(args=None):
     Plot the completeness curve at
     a particular place
     """
- 
+    import matplotlib as mpl
+    mpl.use("agg")
     import matplotlib.pyplot as plt
     import argparse
     parser = argparse.ArgumentParser(description="""Plot the Fleming fit to
@@ -366,6 +367,8 @@ def plot_completeness_versus_wl(args=None):
     Plot the completeness curve versus wavelength
     at a particular ra, dec
     """
+    import matplotlib as mpl
+    mpl.use("agg") 
     import matplotlib.pyplot as plt
     import argparse
     parser = argparse.ArgumentParser(description="""Plot the Fleming fit to

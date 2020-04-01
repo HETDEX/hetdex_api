@@ -9,6 +9,8 @@ AUTHOR: Daniel Farrow (MPE)
 """
 import logging
 import argparse
+import matplotlib as mpl
+mpl.use("agg")
 import matplotlib.pyplot as plt
 from numpy import (ones_like, zeros_like, sum, inf, zeros, linspace, interp, array, 
                    nanmean, nanmax, isfinite, nanmedian, isnan, sqrt)
