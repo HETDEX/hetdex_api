@@ -278,23 +278,25 @@ def main(argv=None):
 
     if args.merge:
         fileh = tb.open_file("merged_im2D.h5", "w")
+        
         fibim2D_table = fileh.create_table(
-            fileh.root, "FiberImages", FiberImage2D, "Fiber Cutout Images"
-        )
+            fileh.root, "FiberImages", FiberImage2D,
+            "Fiber Cutout Images", expectedrows=1000000)
         phot_table = fileh.create_table(
-            fileh.root, "PhotImages", PhotImage, "Photometric Images"
-        )
+            fileh.root, "PhotImages", PhotImage,
+            "Photometric Images", expectedrows=1000000)
         spec_table = fileh.create_table(
-            fileh.root, "Spec1D", Spec1D, "Aperture Summed Spectrum"
-        )
-
+            fileh.root, "Spec1D", Spec1D,
+            "Aperture Summed Spectrum", expectedrows=1000000)
+                        
         files = sorted(glob.glob("im2D*.h5"))
 
         for file in files:
+            args.log.info('Ingesting %s' % file)
             fileh_i = tb.open_file(file, "r")
-            fibim2D_table_i = fileh_i.root.FiberImage2D.read()
-            phot_table_i = fileh_i.root.PhotImage.read()
-            spec_table_i = fileh_i.root.Spec1d.read()
+            fibim2D_table_i = fileh_i.root.FiberImages.read()
+            phot_table_i = fileh_i.root.PhotImages.read()
+            spec_table_i = fileh_i.root.Spec1D.read()
 
             fibim2D_table.append(fibim2D_table_i)
             phot_table.append(phot_table_i)
