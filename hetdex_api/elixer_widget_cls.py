@@ -15,9 +15,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os.path as op
 
+import astropy.units as u
 from astropy.io import ascii
 from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
+import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 #from IPython import display#, HTML
@@ -28,15 +30,30 @@ import tables
 
 from hetdex_tools.get_spec import get_spectra
 
-#needed only if detection observered wavelength is not supplied
-HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
-HETDEX_DETECT_HDF5_HANDLE = None
+try:
+    from hetdex_api.config import HDRconfig
+except:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
 
-HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
-ELIXER_H5= None
-
-elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
-elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
+try: #using HDRconfig
+    HETDEX_API_CONFIG = HDRconfig(survey="hdr2")
+    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2"]
+    HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
+    HETDEX_DETECT_HDF5_HANDLE = None
+    HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
+    ELIXER_H5= None
+    elix_dir_archive = HETDEX_API_CONFIG.elix_dir
+    elix_dir = None
+except Exception as e:
+    print(e)
+    HETDEX_API_CONFIG = None
+    #needed only if detection observered wavelength is not supplied
+    HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+    HETDEX_DETECT_HDF5_HANDLE = None
+    HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+    ELIXER_H5= None
+    elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
+    elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
@@ -79,6 +96,7 @@ class ElixerWidget():
 
         global elix_dir
 
+        self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
         self.show_counterpart_btns=counterpart
 
@@ -137,7 +155,7 @@ class ElixerWidget():
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
         elif detectlist is None:
-            self.detectid = np.arange(1000000000, 1000690799, 1)
+            self.detectid = np.arange(1000000000, 9900000000, 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -219,20 +237,32 @@ class ElixerWidget():
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
         try:
-            fname = op.join(elix_dir, "%d.png" % (detectid))
 
-            if op.exists(fname):
-                display(Image(fname))
-            else: #try the archive location
-                print("Cannot load ELiXer Report image: ", fname)
-                print("Trying archive location...")
-                fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
-                if op.exists(fname):
-                    display(Image(fname))
+            try:
+                #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
+                #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
+                display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+            except Exception as e:
+                print(e)
+
+                #temporary ... once HDR1 is decomissioned, remove this block
+                if detectid < 2e9:
+                    fname = op.join(elix_dir, "%d.png" % (detectid))
+
+                    if op.exists(fname):
+                        display(Image(fname))
+                    else: #try the archive location
+                        print("Cannot load ELiXer Report image: ", fname)
+                        print("Trying archive location...")
+                        fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+                        if op.exists(fname):
+                            display(Image(fname))
+                        else:
+                            print("Cannot load ELiXer Report image: ", fname)
                 else:
-                    print("Cannot load ELiXer Report image: ", fname)
+                    print("Cannot load ELiXer Report image: ", str(detectid))
         except:
-            print("Cannot load ELiXer Report image: ", fname)
+            print("Cannot load ELiXer Report image: ", str(detectid))
 
 
         if ELIXER_H5 is None:
@@ -299,7 +329,7 @@ class ElixerWidget():
             value=detectstart,
             #min=1,
             min=1000000000,
-            max=1000690799,
+            max=9900000000,
             step=1,
             description='DetectID:',
             disabled=False
@@ -791,12 +821,22 @@ class ElixerWidget():
 
     def on_elixer_neighborhood(self,b):
         detectid = self.detectbox.value
-        path = op.join(elix_dir, "%dnei.png" % (detectid))
 
-        if not op.isfile(path):
-            print("%s not found" % path)
-        else:
-            display(Image(path))
+        try:
+            #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
+            #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
+            display(Image(self.elixer_conn_mgr.fetch_image(detectid,report_type="nei")))
+        except Exception as e:
+            print(e)
+
+            # temporary ... once HDR1 is decomissioned, remove this block
+            if detectid < 2e9:
+                path = op.join(elix_dir, "%dnei.png" % (detectid))
+
+                if not op.isfile(path):
+                    print("%s not found" % path)
+                else:
+                    display(Image(path))
 
 
     def plot_spec(self, matchnum):

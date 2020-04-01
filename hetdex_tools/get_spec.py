@@ -78,7 +78,7 @@ import numpy as np
 import pickle
 import warnings
 import logging
-from input_utils import setup_logging
+from hetdex_api.input_utils import setup_logging
 
 import types
 
@@ -98,8 +98,6 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-source_num_switch = 20
-
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
@@ -117,17 +115,27 @@ def merge(dict1, dict2):
 def get_source_spectra(shotid, args):
     E = Extract()
     source_dict = {}
+    
+    if args.survey == 'hdr1':
+        source_num_switch = 20
+    else:
+        source_num_switch = 0
+
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey.fwhm_moffat[args.survey.shotid == shotid][0]
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+            
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info("Loading full fibers table")
-            E.load_shot(shotid, fibers=True)
+            E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
             args.log.info("Accessing object one by one")
-            E.load_shot(shotid, fibers=False)
+            E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
@@ -147,9 +155,11 @@ def get_source_spectra(shotid, args):
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
+
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -186,17 +196,26 @@ def get_source_spectra(shotid, args):
 def get_source_spectra_mp(source_dict, shotid, manager, args):
     E = Extract()
 
+    if args.survey == 'hdr1':
+        source_num_switch = 20
+    else:
+        source_num_switch = 0
+
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        fwhm = args.survey.fwhm_moffat[args.survey.shotid == shotid][0]
+        if args.survey == 'hdr1':
+            fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
+        else:
+            fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
+                                                        
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
             args.log.info("Loading full fibers table")
-            E.load_shot(shotid, fibers=True)
+            E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
             args.log.info("Accessing object one by one")
-            E.load_shot(shotid, fibers=False)
+            E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
@@ -217,8 +236,12 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+
                 result = E.get_spectrum(data, error, mask, weights)
+
                 spectrum_aper, spectrum_aper_error = [res for res in result]
+                sel = np.isfinite(spectrum_aper)
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -264,13 +287,15 @@ def return_astropy_table(Source_dict):
     # loop over every ID/observation combo:
 
     for ID in Source_dict.keys():
+        
         for shotid in Source_dict[ID].keys():
             wave_rect = 2.0 * np.arange(1036) + 3470.0
             spec = Source_dict[ID][shotid][0]
             spec_err = Source_dict[ID][shotid][1]
             weights = Source_dict[ID][shotid][2]
-
+            
             sel = np.isfinite(spec)
+
             if np.sum(sel) > 0:
                 id_arr.append(ID)
                 shotid_arr.append(shotid)
@@ -278,6 +303,7 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
+            
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -286,7 +312,7 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(shotid_arr), name="shotid")
     output.add_column(Column(wave_arr, unit=u.AA, name="wavelength"))
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
-    output.add_column(Column(spec_arr, unit=fluxden_u, name="spec_err"))
+    output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
 
     return output
@@ -305,10 +331,10 @@ def get_spectra_dictionary(args):
 
     args.log.info("Finding shots of interest")
 
-    for i, coord in enumerate(args.survey.coords):
+    for i, coord in enumerate(args.survey_class.coords):
         dist = args.coords.separation(coord)
         sep_constraint = dist < max_sep
-        shotid = args.survey.shotid[i]
+        shotid = args.survey_class.shotid[i]
         idx = np.where(sep_constraint)[0]
 
         if np.size(idx) > 0:
@@ -486,6 +512,13 @@ def get_parser():
         action="store_true"
     )
 
+    parser.add_argument(
+        "--survey",
+        "-survey",
+        type=str,
+        help='''Data Release you want to access''',
+        default='hdr1')
+
     return parser
 
 
@@ -581,28 +614,31 @@ def main(argv=None):
         args.coords = SkyCoord(args.ra, args.dec, unit=(u.hourangle, u.deg))
     else:
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
+    
+    
+    args.survey_class = Survey(args.survey)
 
-    args.survey = Survey("hdr1")
-
-    # if args.shotidid exists, only select that shot
+    # if args.shotidid exists, only select those shots
 
     if args.shotid:
         try:
-            sel_shot = args.survey.shotid == int(args.shotid)
+            sel_shot = args.survey_class.shotid == int(args.shotid)
         except Exception:
-            sel_shot = args.survey.datevobs == str(args.shotid)
+            sel_shot = args.survey_class.datevobs == str(args.shotid)
 
-        args.survey = args.survey[sel_shot]
+        args.survey_class = args.survey_class[sel_shot]
 
     else:
-        sel_shot = args.survey.shotid > 20171200000
-        args.survey = args.survey[sel_shot]
-        args.log.info("Searching through all shots later than 20171201")
+        pass
+        #sel_shot = args.survey_class.shotid > 20171200000
+        #args.survey_class = args.survey_class[sel_shot]
+        #args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
 
-    args.survey.close()
+
+    args.survey_class.close()
 
     if args.pickle:
         outfile = args.outfile + ".pkl"
@@ -641,6 +677,7 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
+        
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
@@ -650,44 +687,59 @@ if __name__ == "__main__":
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None):
+def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
+                survey='hdr1'):
 
     args = types.SimpleNamespace()
 
     args.multiprocess = multiprocess
     args.coords = coords
     args.rad = rad * u.arcsec
-    args.survey = Survey("hdr1")
+    args.survey = survey
+    args.survey_class = Survey(survey)
 
-    if shotid:
+    if shotid is not None:
         try:
-            sel_shot = args.survey.shotid == int(shotid)
-        except Exception:
-            sel_shot = args.survey.datevobs == str(shotid)
+            if np.size(shotid) == 1:
+                sel_shot = args.survey_class.shotid == int(shotid)
+                # shut off multiproces flag if its just one shot
+                args.multiprocess = False
+            else:
+                sel_shot = np.zeros(np.size(args.survey_class.shotid), dtype=bool)
+                
+                for shot_i in shotid:
 
-        args.survey = args.survey[sel_shot]
+                    sel_i = args.survey_class.shotid == int(shot_i)
+                    sel_shot = np.logical_or(sel_shot, sel_i)
+
+        except Exception:
+            sel_shot = args.survey_class.datevobs == str(shotid)
+
+        args.survey_class = args.survey_class[sel_shot]
     else:
-        sel_shot = args.survey.shotid > 20171200000
-        args.survey = args.survey[sel_shot]
+        pass
+        #sel_shot = args.survey_class.shotid > 20171200000
+        #args.survey_class = args.survey_class[sel_shot]
 
 
     args.log = setup_logging()
 
     args.log.setLevel(logging.INFO)
 
-    args.ID = ID
-
     nobj = np.size(args.coords)
 
-    if args.ID is None:
+    if ID is None:
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
             args.ID = 1
+    else:
+        args.ID = ID
+
 
     Source_dict = get_spectra_dictionary(args)
 
-    args.survey.close()
+    args.survey_class.close()
 
     output = return_astropy_table(Source_dict)
 

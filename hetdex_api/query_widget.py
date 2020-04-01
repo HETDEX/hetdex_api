@@ -33,15 +33,12 @@ from hetdex_api.config import HDRconfig
 from hetdex_tools.get_spec import get_spectra
 
 from astroquery.sdss import SDSS
+from elixer import catalogs
 
-#sys.path.append('/work/03946/hetdex/hdr1/software/elixer')
-sys.path.append('/work/03261/polonius/hetdex/science/sciscripts/elixer.test')
-
-import catalogs
 
 class QueryWidget():
 
-    def __init__(self, coords=None, detectid=None, survey='hdr1', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
+    def __init__(self, coords=None, detectid=None, survey='hdr2', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
 
         self.survey = survey.lower()
 
@@ -69,9 +66,10 @@ class QueryWidget():
         self.imw = ImageWidget(image_width=400, image_height=400)
         
         self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))
+        
         self.detectbox = widgets.BoundedIntText(value=self.detectid,
                                                 min=1000000000,
-                                                max=1000690799,
+                                                max=3000000000,
                                                 step=1,
                                                 description='DetectID:',
                                                 disabled=False
@@ -109,7 +107,11 @@ class QueryWidget():
         self.marking_button.on_click(self.marking_on_click)
         self.reset_marking_button.on_click(self.reset_marking_on_click)
         self.extract_button.on_click(self.extract_on_click)
-                              
+        self.survey_widget.observe(self.on_survey_change)
+
+    def on_survey_change(self, b):
+        self.survey = self.survey_widget.value.lower()
+
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
@@ -212,7 +214,7 @@ class QueryWidget():
         self.bottombox.clear_output()
 
         with self.bottombox:            
-            self.spec_table = get_spectra(self.marker_tab['coord'])
+            self.spec_table = get_spectra(self.marker_tab['coord'], survey=self.survey)
 
         # set up tabs for plotting
         ID_list = np.unique(self.spec_table['ID'])

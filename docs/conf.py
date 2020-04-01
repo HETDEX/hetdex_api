@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'hetdex_api'
-copyright = '2019, HETDEX Data Release Team'
+copyright = '2020, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = '0.2'
 
 
 # -- General configuration ---------------------------------------------------

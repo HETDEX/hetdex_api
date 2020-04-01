@@ -1,23 +1,44 @@
 Installation
 ============
 
-Pip Install
------------
-
-To install hetdex_api you can grab the python package from pypi with a pip3 install. Be sure to use pip3 to install it for use in python3. Use the --user tag when installing on TACC.
-
-.. code-block:: bash
-
-   pip3 install hetdex_api --user
-
 For TACC Users
 --------------
 
-If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions and copy over Karl's .bashrc. This will set both your home and work directories to be readable to everyone on TACC.
+If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that both your home and work directories to be readable to everyone on TACC. Use at your own discretion.
 
 .. code-block:: bash
-   
-   cp ~gebhardt/rsetup
+
+   ssh wrangler or stampede2
+   chmod a+rx ../username
+   cdw
+   chmod a+rx ../*
+   chomd a+rx ../../username
+   chmod a+rx ../wrangler
+   chmod a+rx ../stampede2
+
+Then get the default bash script from TACC by running this script
+
+.. code-block:: bash
+
+   /usr/local/startup_scripts/install_default_scripts
+
+Then open your .bashrc and uncomment this line:
+::
+
+   umask 022
+
+and add in the following module loads/unloads:
+::
+
+   module unload python
+   module unload python2
+   module load python3
+   alias python='python3'
+
+and add in the following line to your $PATH:
+::
+
+   export PATH=$PATH:$HOME/bin:$HOME/.local/bin
 
 Then install all required python packages:
 
@@ -34,6 +55,7 @@ Then install all required python packages:
    pip3 install --user sep
    pip3 install --user specutils
    pip3 install --user photutils
+   pip3 install --user matplotlib==2.0.0
 
 Copy the git clone repository of hetdex_api 
 
@@ -41,20 +63,27 @@ Copy the git clone repository of hetdex_api
 		
    git clone https://github.com/HETDEX/hetdex_api.git
 
-
 Then pip3 install with the -e parameter to update as the repository evolves
 
 .. code-block:: bash
    
    pip3 install -e hetdex_api --user
 
-Be sure to remove any PYTHONPATH to HETDEX_API in your .bashrc. And then add the line
+One final suggestion is to add a link from your home to your work directory. For example, I would do:
 
 .. code-block:: bash
+   
+   cd
+   ln -s /work/05350/ecooper/ work-stampede2
 
-   export PATH="~/.local/bin:$PATH"
+This will allow you to go to your work directory when you log onto vis.
 
-in your .bashrc so the command line quick entry points work.
+You can now open up a jupyter notebook and explore some of the notebooks in 
+hetdex-api/notebooks or just pop in some of the commands you see throughout this website. 
+
+In your favourite browser goto https://vis.tacc.utexas.edu and log onto stampede2. Choose the 
+jupyter notebook option and pick the skx-dev queue. 
+
 
 For Contributors
 ----------------

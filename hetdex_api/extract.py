@@ -1,4 +1,3 @@
-###!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 11 11:48:55 2019
@@ -14,13 +13,7 @@ from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
 from hetdex_api.shot import *
-import input_utils
-
-#import imp
-
-#input_utils = imp.load_source(
-#    "input_utils", "/work/03946/hetdex/hdr1/software/HETDEX_API/" "input_utils.py"
-#)
+from hetdex_api.input_utils import setup_logging
 
 
 class Extract:
@@ -39,7 +32,7 @@ class Extract:
         else:
             self.wave = self.get_wave()
         self.get_ADR()
-        self.log = input_utils.setup_logging("Extract")
+        self.log = setup_logging("Extract")
 
     def set_dither_pattern(self, dither_pattern=None):
         """ 
@@ -76,7 +69,7 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, dither_pattern=None, fibers=True):
+    def load_shot(self, shot_input, survey='hdr1', dither_pattern=None, fibers=True):
         """
         Load fiber info from hdf5 for given shot_input
         
@@ -86,13 +79,14 @@ class Extract:
             e.g., 20190208v024 or 20190208024
         """
         self.shot = shot_input
+        self.survey = survey
 
         if fibers:
-            self.fibers = Fibers(self.shot)
+            self.fibers = Fibers(self.shot, survey=survey)
             self.shoth5 = self.fibers.hdfile
         else:
             self.fibers = None
-            self.shoth5 = open_shot_file(self.shot)
+            self.shoth5 = open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
@@ -172,14 +166,18 @@ class Extract:
             spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
-            mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
-            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            if self.survey == 'hdr1':
+                mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            else:
+                mask = self.fibers.table.read_coordinates(idx, "calfibe")
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
         else:
 
-            fib_table = get_fibers_table(self.shot, coord, radius=radius)
+            fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
 
             if np.size(fib_table) < fiber_lower_limit:
                 return None
@@ -191,8 +189,13 @@ class Extract:
             spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
-            mask = fib_table["Amp2Amp"]
-            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            if self.survey == 'hdr1':
+                mask = fib_table["Amp2Amp"]
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            else:
+                mask = fib_table["calfibe"]
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+
             expn = np.array(fib_table["expnum"], dtype=int)
 
         ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
@@ -645,9 +648,9 @@ class Extract:
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
         )
-        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0)) / np.sum(
-            mask * weights ** 2, axis=0
-        )
+        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0) / np.sum(
+            mask * weights ** 2, axis=0))
+
         # Only use wavelengths with enough weight to avoid large noise spikes
         w = np.sum(mask * weights ** 2, axis=0)
         sel = w < np.median(w) * 0.1

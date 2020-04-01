@@ -4,6 +4,8 @@
 Initiates survey class and provides an API to query the survey class based
 on astropy coordinates
 
+Added 2020/03/29 = FiberIndex class to query all fibers in the survey
+
 Created on Tue Jan 22 11:02:53 2019
 @author: gregz/Erin Mentuch Cooper
 """
@@ -15,12 +17,13 @@ import numpy
 import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 
 from hetdex_api.config import HDRconfig
 
 
 class Survey:
-    def __init__(self, survey='hdr1'):
+    def __init__(self, survey='hdr2'):
         """
         Initialize the Survey class for a given data release
 
@@ -98,9 +101,24 @@ class Survey:
 
     def remove_shots(self):
         """
-        function to remove shots that should be exluded from most analysis.
-        They are engineering shots that were accidentally included in the
-        release.
+        Function to remove shots that should be exluded from most analysis.
+
+        Parameters
+        ----------
+        self
+           Survey class object
+
+        Returns
+        -------
+        ind_good
+           Boolean mask of good shots
+
+        Examples
+        --------
+        S = Survey('hdr2')
+        ind_good_shots = S.remove_shots()
+        S_good = S[ind_good_shots]
+        
         """
         global config
 
@@ -151,7 +169,7 @@ class Survey:
                 self.ra * u.degree, self.dec * u.degree, frame="icrs"
             )
 
-        if radius:
+        if radius is not None:
             try:
                 idx = self.coords.separation(coords) < radius
             except:
@@ -167,6 +185,35 @@ class Survey:
 
         return self.shotid[idx]
 
+
+    def return_astropy_table(self, return_good=True):
+        """
+        Function to return an astropy table that is machine readable
+
+        Parameters
+        ----------
+        self
+            Survey Class object 
+        return_good
+            Boolean flag to only exclude shots in config.badshot
+
+        Returns
+        -------
+        survey_table
+            astropy table of the Survey class object
+        """
+
+        survey_table = Table(self.hdfile.root.Survey.read())
+
+        good_shots = self.remove_shots()
+
+        survey_table['shot_flag'] = good_shots
+        
+        if return_good:
+            return survey_table[good_shots]
+        else:
+            return survey_table
+            
     def close(self):
         """
         Close the HDF5 file when you are done using
@@ -179,3 +226,94 @@ class Survey:
         """
 
         self.hdfile.close()
+
+class FiberIndex:
+    def __init__(self, survey='hdr2', loadall=False):
+        """
+        Initialize the Fiber class for a given data release
+        
+        Parameters
+        ----------
+        survey : string
+            Data release you would like to load, i.e., 'hdr1','HDR2'
+            This is case insensitive.
+        
+        Returns
+        -------
+        FiberIndex class object
+        """
+        self.survey = survey
+        
+        if self.survey == 'hdr1':
+            print('Sorry there is no FiberIndex for hdr1')
+            return None
+
+        global config
+        config = HDRconfig(survey=survey.lower())
+
+        self.filename = config.fiberindexh5
+        self.hdfile = tb.open_file(self.filename, mode="r")
+
+        if loadall:
+            colnames = self.hdfile.root.FiberIndex.colnames
+            
+            for name in colnames:
+            
+                if isinstance(
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                ):
+                    setattr(
+                        self,
+                        name,
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                    )
+                else:
+                    setattr(self, name,
+                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+                    
+            self.coords = SkyCoord(self.ra[:] * u.degree,
+                                   self.dec[:] * u.degree,
+                                   frame="icrs")
+
+    def query_region(self, coords, radius=3.*u.arcsec, shotid=None, astropy=True):
+        """
+        Function to retrieve the indexes of the FiberIndex table
+        for a specific region
+
+        Parameters
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        coords
+            center coordinate you want to search. This should
+            be an astropy SkyCoord object
+        radius
+            radius you want to search. An astropy quantity object
+        shotid
+            Specific shotid (dtype=int) you want
+        """
+        
+        ra_obj = coords.ra.deg
+        ra_sep = radius.to(u.degree).value + 3./3600.
+        
+        tab = self.hdfile.root.FiberIndex
+        seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))')
+
+        fibcoords = SkyCoord(seltab['ra'] * u.degree, seltab['dec'] * u.degree, frame='icrs')
+
+        if shotid:
+            idx = (coords.separation(fibcoords) < radius) * (seltab['shotid'] == shotid)
+        else:
+            idx = coords.separation(fibcoords) < radius
+
+        if astropy:
+            return Table(seltab[idx])
+        else:
+            return seltab[idx]
+
+    def get_fib_from_hp(self, hp, astropy=True):
+
+        if astropy:
+            return Table(self.hdfile.root.FiberIndex.read_where('healpix == hp'))
+        else:
+            return self.hdfile.root.FiberIndex.read_where('healpix == hp')
