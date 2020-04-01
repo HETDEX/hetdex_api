@@ -105,7 +105,7 @@ def main(argv=None):
     )
 
     # set up HEALPIX options
-    Nside = 2 ** 17
+    Nside = 2 ** 15
     hp.max_pixrad(Nside, degrees=True) * 3600  # in unit of arcsec
 
     config = HDRconfig(survey=args.survey)
@@ -151,9 +151,8 @@ def main(argv=None):
             else:
                 args.log.error("could not ingest %s" % datevshot)
 
-    tableFibers.cols.healpix.create_csindex()
+    #tableFibers.cols.healpix.create_csindex()
     tableFibers.cols.ra.create_csindex()
-    tableFibers.cols.fiber_id.create_csindex()
     tableFibers.flush()
     fileh.close()
 
