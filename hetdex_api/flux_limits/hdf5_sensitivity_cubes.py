@@ -16,9 +16,6 @@ import tables as tb
 from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
-config = HDRconfig('hdr1')
-flim_dir = config.flim_dir
-
 _logger = logging.getLogger()
 _logger.setLevel("INFO")
 hndlr = logging.StreamHandler()
@@ -33,7 +30,7 @@ class NoFluxLimsAvailable(Exception):
     pass
 
 
-def return_sensitivity_hdf_path(datevobs):
+def return_sensitivity_hdf_path(datevobs, release="hdr2"):
     """
     Return the full file path
     to a HDF5 container of sensitivity     
@@ -43,7 +40,9 @@ def return_sensitivity_hdf_path(datevobs):
     ----------
     datevobs : str
         the date of the observation
-
+    release : str (optional)
+        the name of the release,
+        default: hdr2
     Returns
     -------
     path_to_hdf5 : str
@@ -57,6 +56,8 @@ def return_sensitivity_hdf_path(datevobs):
         not found for that shot
 
     """
+    config = HDRconfig(release)
+    flim_dir = config.flim_dir
 
     path_to_hdf5s = join(flim_dir, "{:s}_sensitivity_cube.h5".format(datevobs))
 
