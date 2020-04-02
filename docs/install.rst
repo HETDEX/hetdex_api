@@ -57,6 +57,7 @@ Then install all required python packages:
    pip3 install --user specutils
    pip3 install --user photutils
    pip3 install --user matplotlib==2.0.0
+   pip3 install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
 
 Copy the git clone repository of hetdex_api 
 
