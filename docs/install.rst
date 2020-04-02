@@ -32,6 +32,7 @@ and add in the following module loads/unloads:
 
    module unload python
    module unload python2
+   module load intel/18.0.2
    module load python3
    alias python='python3'
 
