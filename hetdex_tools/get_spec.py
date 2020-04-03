@@ -704,7 +704,7 @@ if __name__ == "__main__":
 
 
 def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
-                survey='hdr2', tpmin=0.09, fullskysub=False):
+                survey='hdr2', tpmin=0.09, ffsky=False):
 
     args = types.SimpleNamespace()
 
@@ -713,7 +713,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
     args.rad = rad * u.arcsec
     args.survey = survey
 
-    args.ffsky = fullskysub
+    args.ffsky = ffsky
 
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
