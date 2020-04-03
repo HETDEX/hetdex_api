@@ -32,6 +32,7 @@ and add in the following module loads/unloads:
 
    module unload python
    module unload python2
+   module load intel/18.0.2
    module load python3
    alias python='python3'
 
@@ -56,6 +57,7 @@ Then install all required python packages:
    pip3 install --user specutils
    pip3 install --user photutils
    pip3 install --user matplotlib==2.0.0
+   pip3 install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
 
 Copy the git clone repository of hetdex_api 
 
