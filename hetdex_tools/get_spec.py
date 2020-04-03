@@ -141,12 +141,14 @@ def get_source_spectra(shotid, args):
             if np.size(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind],
-                    radius=args.rad
+                    radius=args.rad,
+                    ffsky=args.ffsky
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
-                    radius=args.rad
+                    radius=args.rad,
+                    ffsky=args.ffsky
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
@@ -157,8 +159,7 @@ def get_source_spectra(shotid, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
-                result = E.get_spectrum(data, error, mask,
-                                        weights, ffsky=args.ffsky)
+                result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
                 if np.size(args.ID) > 1:
@@ -222,12 +223,14 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
             if np.size(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind],
-                    radius=args.rad
+                    radius=args.rad,
+                    ffsky=args.ffsky
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
-                    radius=args.rad
+                    radius=args.rad,
+                    ffsky=args.ffsky
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
@@ -238,8 +241,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
 
-                result = E.get_spectrum(data, error, mask,
-                                        weights, ffsky=args.ffsky)
+                result = E.get_spectrum(data, error, mask, weights)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
                 sel = np.isfinite(spectrum_aper)
