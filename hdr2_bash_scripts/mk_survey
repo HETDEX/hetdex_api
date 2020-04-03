@@ -1,0 +1,1 @@
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_survey_hdf5.py -sl dex.hdr2.shotlist -of survey_hdr2_update.h5
