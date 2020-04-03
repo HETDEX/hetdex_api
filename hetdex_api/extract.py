@@ -124,7 +124,7 @@ class Extract:
         xc = dy + ifux[0]
         return xc, yc
 
-    def get_fiberinfo_for_coord(self, coord, radius=8.0):
+    def get_fiberinfo_for_coord(self, coord, radius=8.0, ffsky=False):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -149,6 +149,10 @@ class Extract:
             Error for calibrated spectra
         mask: numpy 2d array (number of fibers by wavelength dimension)
             Mask of good values for each fiber and wavelength
+        ffsky: bool
+            Flag to choose local (ffsky=False) or full frame (ffsky=True)
+            sky subtraction        
+        
         """
 
         fiber_lower_limit = 7
@@ -163,7 +167,12 @@ class Extract:
             ifuy = self.fibers.table.read_coordinates(idx, "ifuy")
             ra = self.fibers.table.read_coordinates(idx, "ra")
             dec = self.fibers.table.read_coordinates(idx, "dec")
-            spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
+
+            if ffsky:
+                spec = self.fibers.table.read_coordinates(idx, "spec_fullsky_sub") / 2.0
+            else:
+                spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
+
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
             if self.survey == 'hdr1':
@@ -186,7 +195,10 @@ class Extract:
             ifuy = fib_table["ifuy"]
             ra = fib_table["ra"]
             dec = fib_table["dec"]
-            spec = fib_table["calfib"]
+            if ffsky:
+                spec = fib_table["spec_fullsky_sub"]
+            else:
+                spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == 'hdr1':
