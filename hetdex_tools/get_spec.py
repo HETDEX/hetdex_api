@@ -157,7 +157,8 @@ def get_source_spectra(shotid, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
-                result = E.get_spectrum(data, error, mask, weights)
+                result = E.get_spectrum(data, error, mask,
+                                        weights, ffsky=args.ffsky)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
                 if np.size(args.ID) > 1:
@@ -237,7 +238,8 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
 
-                result = E.get_spectrum(data, error, mask, weights)
+                result = E.get_spectrum(data, error, mask,
+                                        weights, ffsky=args.ffsky)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
                 sel = np.isfinite(spectrum_aper)
@@ -521,6 +523,14 @@ def get_parser():
 
     parser.add_argument("-tpmin", "--tpmin", type=float, default=0.09)
 
+    parser.add_argument(
+        "--ffsky",
+        "-ffsky",
+        help="""Set to True to use the full frame sky sutraction.""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
     return parser
 
 
@@ -692,7 +702,7 @@ if __name__ == "__main__":
 
 
 def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
-                survey='hdr2', tpmin=0.09):
+                survey='hdr2', tpmin=0.09, fullskysub=False):
 
     args = types.SimpleNamespace()
 
@@ -700,6 +710,8 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
     args.coords = coords
     args.rad = rad * u.arcsec
     args.survey = survey
+
+    args.ffsky = fullskysub
 
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
