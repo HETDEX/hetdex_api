@@ -6,6 +6,9 @@
 Welcome to HETDEX API's documentation!
 ======================================
 
+.. automodule:: hetdex_api.hetdex_api
+    :members:
+
 .. toctree::
    :maxdepth: 1
    :caption: Contents:
