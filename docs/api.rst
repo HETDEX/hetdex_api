@@ -12,20 +12,20 @@ The organization of `hetdex_api` breaks down data access into several categories
 Survey Class
 ------------
 
-.. autoclass:: hetdex_api.survey.Survey
+.. autoclass:: hetdex_api.hetdex_api.survey
    :members:
 
 Query functions
 ----------------
 
-.. automodule:: hetdex_api.shot
+.. automodule:: hetdex_api.hetdex_api.shot
    :members:
 
 
 Fibers Class
 ------------
 
-.. autoclass:: hetdex_api.shot.Fibers   
+.. autoclass:: hetdex_api.shot.Fibers
    :members:
 
 Extract Class
