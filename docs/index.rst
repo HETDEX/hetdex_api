@@ -17,8 +17,9 @@ Welcome to HETDEX API's documentation!
    introduction
    cookbook
    commandline
-   api
+   hetdex_api
    support
+
 
 Indices and tables
 ==================
