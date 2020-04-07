@@ -70,3 +70,9 @@ html_theme = 'sphinx_rtd_theme'
 autodoc_mock_imports = ['catalogs','astropy', 'tables', 'ipywidgets', 'elixer',
                         'astroquery', 'speclite']
 master_doc = 'index'
+
+source_parsers = {
+        '.md': 'recommonmark.parser.CommonMarkParser',
+    }
+
+source_suffix = ['.rst', '.md']
