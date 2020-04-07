@@ -1,15 +1,5 @@
-hetdex\_api package
+hetdex\_api reference
 ===================
-
-Subpackages
------------
-
-.. toctree::
-
-    hetdex_api.flux_limits
-
-Submodules
-----------
 
 hetdex\_api.config module
 -------------------------
@@ -27,58 +17,11 @@ hetdex\_api.detections module
     :undoc-members:
     :show-inheritance:
 
-hetdex\_api.detwidgets module
------------------------------
-
-.. automodule:: hetdex_api.detwidgets
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hetdex\_api.elixer module
--------------------------
-
-.. automodule:: hetdex_api.elixer
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 hetdex\_api.elixer\_widget\_cls module
 --------------------------------------
 
 .. automodule:: hetdex_api.elixer_widget_cls
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hetdex\_api.elixer\_widget\_for module
---------------------------------------
-
-.. automodule:: hetdex_api.elixer_widget_for
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hetdex\_api.elixer\_widget\_lae module
---------------------------------------
-
-.. automodule:: hetdex_api.elixer_widget_lae
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hetdex\_api.elixer\_widget\_spur module
----------------------------------------
-
-.. automodule:: hetdex_api.elixer_widget_spur
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-hetdex\_api.elixer\_widgets module
-----------------------------------
-
-.. automodule:: hetdex_api.elixer_widgets
     :members:
     :undoc-members:
     :show-inheritance:
@@ -90,6 +33,13 @@ hetdex\_api.extract module
     :members:
     :undoc-members:
     :show-inheritance:
+
+hetdex_api.flux_limits
+-----------
+
+.. toctree::
+
+    hetdex_api.flux_limits
 
 hetdex\_api.input\_utils module
 -------------------------------
@@ -140,10 +90,10 @@ hetdex\_api.survey module
     :show-inheritance:
 
 
-Module contents
----------------
+hetdex\_api.elixer\_widget\_cls module
+--------------------------------------
 
-.. automodule:: hetdex_api
+.. automodule:: hetdex_api.elixer_widget_cls
     :members:
     :undoc-members:
     :show-inheritance:
