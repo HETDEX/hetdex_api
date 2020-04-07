@@ -115,19 +115,19 @@ def merge(dict1, dict2):
 def get_source_spectra(shotid, args):
     E = Extract()
     source_dict = {}
-    
-    if args.survey == 'hdr1':
+
+    if args.survey == "hdr1":
         source_num_switch = 20
     else:
         source_num_switch = 0
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        if args.survey == 'hdr1':
+        if args.survey == "hdr1":
             fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
         else:
             fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
-            
+
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -140,15 +140,11 @@ def get_source_spectra(shotid, args):
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords[ind],
-                    radius=args.rad,
-                    ffsky=args.ffsky
+                    args.coords[ind], radius=args.rad, ffsky=args.ffsky
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords,
-                    radius=args.rad,
-                    ffsky=args.ffsky
+                    args.coords, radius=args.rad, ffsky=args.ffsky
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
@@ -198,18 +194,18 @@ def get_source_spectra(shotid, args):
 def get_source_spectra_mp(source_dict, shotid, manager, args):
     E = Extract()
 
-    if args.survey == 'hdr1':
+    if args.survey == "hdr1":
         source_num_switch = 20
     else:
         source_num_switch = 0
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
-        if args.survey == 'hdr1':
+        if args.survey == "hdr1":
             fwhm = args.survey_class.fwhm_moffat[args.survey_class.shotid == shotid][0]
         else:
             fwhm = args.survey_class.fwhm_virus[args.survey_class.shotid == shotid][0]
-                                                        
+
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
@@ -222,15 +218,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         for ind in args.matched_sources[shotid]:
             if np.size(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords[ind],
-                    radius=args.rad,
-                    ffsky=args.ffsky
+                    args.coords[ind], radius=args.rad, ffsky=args.ffsky
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords,
-                    radius=args.rad,
-                    ffsky=args.ffsky
+                    args.coords, radius=args.rad, ffsky=args.ffsky
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
@@ -291,13 +283,13 @@ def return_astropy_table(Source_dict):
     # loop over every ID/observation combo:
 
     for ID in Source_dict.keys():
-        
+
         for shotid in Source_dict[ID].keys():
             wave_rect = 2.0 * np.arange(1036) + 3470.0
             spec = Source_dict[ID][shotid][0]
             spec_err = Source_dict[ID][shotid][1]
             weights = Source_dict[ID][shotid][2]
-            
+
             sel = np.isfinite(spec)
 
             if np.sum(sel) > 0:
@@ -307,7 +299,6 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
-            
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -364,11 +355,7 @@ def get_spectra_dictionary(args):
         for i in np.arange(0, njobs, ntasks):
             jobs = [
                 Process(
-                    target=get_source_spectra_mp, args=(
-                        Sources,
-                        shotid,
-                        manager,
-                        args)
+                    target=get_source_spectra_mp, args=(Sources, shotid, manager, args)
                 )
                 for shotid in shots_of_interest[i : np.minimum(njobs, i + ntasks)]
             ]
@@ -380,8 +367,7 @@ def get_spectra_dictionary(args):
 
         end = time.time()
         args.log.info(
-            "Extraction of sources completed in %.2f minutes."
-            % ((end - start) / 60.0)
+            "Extraction of sources completed in %.2f minutes." % ((end - start) / 60.0)
         )
 
         # convert manager dict to a regular dictionary object to pickle
@@ -420,10 +406,7 @@ def get_parser():
     )
 
     parser.add_argument(
-        "-i",
-        "--infile",
-        help="""File with table of ID/RA/DEC""",
-        default=None
+        "-i", "--infile", help="""File with table of ID/RA/DEC""", default=None
     )
 
     parser.add_argument(
@@ -458,12 +441,7 @@ def get_parser():
         default=3.0,
     )
 
-    parser.add_argument(
-        "-id",
-        "--ID",
-        help="""source name""",
-        type=str,
-        default=None)
+    parser.add_argument("-id", "--ID", help="""source name""", type=str, default=None)
 
     parser.add_argument(
         "--multiprocess",
@@ -505,7 +483,7 @@ def get_parser():
         "-fit",
         help="""Flag to spectra in an astropy table saved as a fits file.""",
         default=True,
-        action="store_true"
+        action="store_true",
     )
 
     parser.add_argument(
@@ -513,15 +491,16 @@ def get_parser():
         "-pkl",
         help="""Flag to store spectra in a pkl file""",
         default=False,
-        action="store_true"
+        action="store_true",
     )
 
     parser.add_argument(
         "--survey",
         "-survey",
         type=str,
-        help='''Data Release you want to access''',
-        default='hdr2')
+        help="""Data Release you want to access""",
+        default="hdr2",
+    )
 
     parser.add_argument("-tpmin", "--tpmin", type=float, default=0.09)
 
@@ -628,11 +607,11 @@ def main(argv=None):
         args.coords = SkyCoord(args.ra, args.dec, unit=(u.hourangle, u.deg))
     else:
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
-    
+
     S = Survey(args.survey)
     ind_good_shots = S.remove_shots()
     ind_tp = S.response_4540 > args.tpmin
-    args.survey_class = S[ ind_good_shots * ind_tp]
+    args.survey_class = S[ind_good_shots * ind_tp]
 
     # if args.shotidid exists, only select those shots
 
@@ -646,13 +625,12 @@ def main(argv=None):
 
     else:
         pass
-        #sel_shot = args.survey_class.shotid > 20171200000
-        #args.survey_class = args.survey_class[sel_shot]
-        #args.log.info("Searching through all shots later than 20171201")
+        # sel_shot = args.survey_class.shotid > 20171200000
+        # args.survey_class = args.survey_class[sel_shot]
+        # args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
-
 
     args.survey_class.close()
 
@@ -675,17 +653,10 @@ def main(argv=None):
                 if np.sum(sel) > 0:
                     output = Table()
 
-                    output.add_column(Column(wave_rect,
-                                             name="wavelength",
-                                             unit=u.AA))
-                    output.add_column(Column(spec,
-                                             name="spec",
-                                             unit=fluxden_u))
-                    output.add_column(Column(spec_err,
-                                             name="spec_err",
-                                             unit=fluxden_u))
-                    output.add_column(Column(weights,
-                                             name="weights"))
+                    output.add_column(Column(wave_rect, name="wavelength", unit=u.AA))
+                    output.add_column(Column(spec, name="spec", unit=fluxden_u))
+                    output.add_column(Column(spec_err, name="spec_err", unit=fluxden_u))
+                    output.add_column(Column(weights, name="weights"))
 
                     output.write(
                         "spec_" + str(ID) + "_" + str(shotid) + ".tab", format="ascii"
@@ -693,7 +664,7 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
-        
+
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
@@ -703,8 +674,59 @@ if __name__ == "__main__":
     main()
 
 
-def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
-                survey='hdr2', tpmin=0.09, ffsky=False):
+def get_spectra(
+    coords,
+    ID=None,
+    rad=3.0,
+    multiprocess=True,
+    shotid=None,
+    survey="hdr2",
+    tpmin=0.09,
+    ffsky=False,
+):
+    """
+    Function to retrieve PSF-weighted, ADR and aperture corrected
+    spectral extractions of HETDEX fibers. It will search all shots
+    within a specific HETDEX Data Release and return a table of
+    spectra for each extraction per shot in which more than 7 fibers
+    are found in order to generate an extracted spectrum.
+
+    Parameters
+    ----------
+    coords
+        list astropy coordinates
+    ID
+        list of ID names (must be same length as coords). Will
+        generate a running index if no ID is given
+    rad
+        radius of circular aperture to be extracted in arcsec.
+        Default is 3.0
+    multiprocess
+        boolean flag to use multiprocessing. This will greatly
+        speed up its operation as it will extract on 32 shots at
+        time. But only use this when on a compute node. Use
+        idev, a jupyter notebook, or submit the job as a single
+        python slurm job.
+    shotid
+        list of integer shotids to do extractions on. By default
+        it will search the whole survey except for shots located
+        in the bad.shotlist file
+    survey
+        Survey you want to access. User note that HDR1 extractions
+        are much slower compared to HDR2.
+    tpmin
+        Include only shots above tpmin. Default is 0.09.
+    ffsky
+        Use the full frame 2D sky subtraction model. Default is
+        to use the local sky subtracted, flux calibrated fibers.
+
+    Returns
+    -------
+    sources
+        an astropy table object of source spectra for all input
+        coords/ID that have spectra in the survey shots. There
+        is one row per source ID/shotid observation.
+    """
 
     args = types.SimpleNamespace()
 
@@ -718,10 +740,9 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
     ind_tp = S.response_4540 > tpmin
-    
+
     args.survey_class = S[ind_good_shots * ind_tp]
-    
-    
+
     if shotid is not None:
         try:
             if np.size(shotid) == 1:
@@ -730,7 +751,7 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
                 args.multiprocess = False
             else:
                 sel_shot = np.zeros(np.size(args.survey_class.shotid), dtype=bool)
-                
+
                 for shot_i in shotid:
 
                     sel_i = args.survey_class.shotid == int(shot_i)
@@ -742,9 +763,8 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
         args.survey_class = args.survey_class[sel_shot]
     else:
         pass
-        #sel_shot = args.survey_class.shotid > 20171200000
-        #args.survey_class = args.survey_class[sel_shot]
-
+        # sel_shot = args.survey_class.shotid > 20171200000
+        # args.survey_class = args.survey_class[sel_shot]
 
     args.log = setup_logging()
 
@@ -759,7 +779,6 @@ def get_spectra(coords, ID=None, rad=3.0, multiprocess=True, shotid=None,
             args.ID = 1
     else:
         args.ID = ID
-
 
     Source_dict = get_spectra_dictionary(args)
 
