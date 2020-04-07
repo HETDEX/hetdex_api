@@ -38,7 +38,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.napoleon']
 
 extensions += ['sphinxarg.ext']
-extensions += ['spinx_markdown_tables']
+extensions += ['sphinx_markdown_tables']
 
 napoleon_google_docstring = False
 napoleon_use_param = False
