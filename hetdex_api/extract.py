@@ -132,7 +132,9 @@ class Extract:
         ----------
         coord: SkyCoord Object
             a single SkyCoord object for a given ra and dec
-        
+        ffsky: bool
+            Flag to choose local (ffsky=False) or full frame (ffsky=True)
+            sky subtraction     
         Returns
         -------
         ifux: numpy array (length of number of fibers)
@@ -149,10 +151,6 @@ class Extract:
             Error for calibrated spectra
         mask: numpy 2d array (number of fibers by wavelength dimension)
             Mask of good values for each fiber and wavelength
-        ffsky: bool
-            Flag to choose local (ffsky=False) or full frame (ffsky=True)
-            sky subtraction        
-        
         """
 
         fiber_lower_limit = 7
