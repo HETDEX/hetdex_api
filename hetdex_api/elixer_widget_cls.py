@@ -847,9 +847,15 @@ class ElixerWidget():
         
         if matchnum > 0:
             object_label = 'Counterpart ' + str(matchnum)            
-            coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
-                              dec = self.CatalogMatch['cat_dec'][match] * u.deg,
-                              frame = 'icrs')
+
+            try:
+                coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
+                                  dec = self.CatalogMatch['cat_dec'][match] * u.deg,
+                                  frame = 'icrs')
+            except:
+                coords = SkyCoord(ra = self.CatalogMatch['ra'][match] * u.deg,
+                                  dec = self.CatalogMatch['dec'][match] * u.deg,
+                                  frame = 'icrs')
         else:
             object_label = 'RA=' + str(self.e_manual_ra.value).zfill(3) + ' DEC=' + str(self.e_manual_dec.value).zfill(3)
             coords = SkyCoord(ra = self.e_manual_ra.value * u.deg,
