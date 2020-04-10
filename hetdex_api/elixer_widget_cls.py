@@ -848,7 +848,7 @@ class ElixerWidget():
         if matchnum > 0:
             col_name = ['blue', 'red', 'green']
             
-            object_label = col_name[matchnum] + 'Counterpart'
+            object_label = col_name[matchnum-1] + 'Counterpart'
 
             try:
                 coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
