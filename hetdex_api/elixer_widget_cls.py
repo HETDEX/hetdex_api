@@ -862,7 +862,7 @@ class ElixerWidget():
                               dec = self.e_manual_dec.value * u.deg,
                               frame = 'icrs')
 
-        spec_table = get_spectra(coords, ID=self.detectbox.value)
+        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2')
 
         #if current_wavelength < 0:
         #current_wavelength = self.get_observed_wavelength()
