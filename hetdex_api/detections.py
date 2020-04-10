@@ -144,7 +144,9 @@ class Detections:
                         setattr(
                         self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
                     )
-                    
+                self.gmag = self.mag_sdss_g
+                self.gmag_err = self.mag_sdss_g
+                        
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))
