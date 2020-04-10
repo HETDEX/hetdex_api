@@ -130,8 +130,21 @@ class Detections:
                                 )[:],
                             )
             else:
-                self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
-
+                colnames = self.hdfile.root.Elixer.colnames
+                for name in colnames:
+                    if isinstance(
+                            getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
+                    ):
+                        setattr(
+                            self,
+                            name,
+                            getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
+                        )
+                    else:
+                        setattr(
+                        self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
+                    )
+                    
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))
@@ -231,7 +244,11 @@ class Detections:
         else:
             mask4 = np.ones(np.size(self.detectid), dtype=bool)
 
-        mask5 = self.remove_bad_detects()
+        if self.survey == 'hdr1':
+            mask5 = self.remove_bad_detects()
+        else:
+            mask5 = np.ones(np.size(self.detectid), dtype=bool)
+
         mask6 = self.remove_shots()
         mask7 = self.remove_bad_pix()
 
@@ -422,6 +439,7 @@ class Detections:
         global config
         # set an empty mask to start
         mask = np.zeros(np.size(self.detectid), dtype=bool)
+
         baddetects = np.loadtxt(config.baddetect, dtype=int)
 
         for baddet in baddetects:
