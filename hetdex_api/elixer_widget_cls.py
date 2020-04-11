@@ -42,7 +42,6 @@ try: #using HDRconfig
     HETDEX_DETECT_HDF5_HANDLE = None
     HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
     ELIXER_H5= None
-    elix_dir_archive = HETDEX_API_CONFIG.elix_dir
     elix_dir = None
 except Exception as e:
     print(e)
@@ -52,8 +51,7 @@ except Exception as e:
     HETDEX_DETECT_HDF5_HANDLE = None
     HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
     ELIXER_H5= None
-    elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
-    elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
+    elix_dir = None
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
@@ -237,7 +235,6 @@ class ElixerWidget():
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
         try:
-
             try:
                 #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
                 #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
@@ -245,20 +242,12 @@ class ElixerWidget():
             except Exception as e:
                 print(e)
 
-                #temporary ... once HDR1 is decomissioned, remove this block
-                if detectid < 2e9:
+                if elix_dir:
                     fname = op.join(elix_dir, "%d.png" % (detectid))
-
                     if op.exists(fname):
                         display(Image(fname))
                     else: #try the archive location
                         print("Cannot load ELiXer Report image: ", fname)
-                        print("Trying archive location...")
-                        fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
-                        if op.exists(fname):
-                            display(Image(fname))
-                        else:
-                            print("Cannot load ELiXer Report image: ", fname)
                 else:
                     print("Cannot load ELiXer Report image: ", str(detectid))
         except:
@@ -830,14 +819,15 @@ class ElixerWidget():
             print(e)
 
             # temporary ... once HDR1 is decomissioned, remove this block
-            if detectid < 2e9:
+            if elix_dir:
                 path = op.join(elix_dir, "%dnei.png" % (detectid))
 
                 if not op.isfile(path):
                     print("%s not found" % path)
                 else:
                     display(Image(path))
-
+            else:
+                print("neighborhood not found")
 
     def plot_spec(self, matchnum):
         
