@@ -97,7 +97,7 @@ class Detections:
                     )
 
             # add in the elixer probabilties and associated info:
-            if self.survey == "hdr1":
+            if self.survey == "hdr1" and catalog_type=='lines':
                 self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
                 for name2 in colnames2:
@@ -129,7 +129,7 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
-            else:
+            elif catalog_type=='lines':
                 colnames = self.hdfile.root.Elixer.colnames
                 for name in colnames:
                     if isinstance(
