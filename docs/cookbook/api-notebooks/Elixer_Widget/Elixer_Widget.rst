@@ -114,12 +114,7 @@ To open the GUI to explore the previous detectid list:
 
     elix_widget = ElixerWidget(detectfile='detectLAEs.txt')
 
-
-
-.. parsed-literal::
-
-    interactive(children=(BoundedIntText(value=2000452673, description='DetectID:', max=9900000000, min=1000000000…
-
+.. image:: elix_widget.png
 
 Or if you have done some classifications previously and want to continue
 with the list (by default this list is saved as
@@ -227,10 +222,5 @@ classifiying list resumes where you last left off.
 
     elix_widget = ElixerWidget(savedfile='elixer_hdr2_testlist.dat', resume=True)
 
-
-
-.. parsed-literal::
-
-    interactive(children=(BoundedIntText(value=2000452715, description='DetectID:', max=9900000000, min=1000000000…
-
+.. image:: elix_widget.png
 
