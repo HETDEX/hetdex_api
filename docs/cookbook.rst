@@ -8,6 +8,7 @@ Navigating the Data
    cookbook/api-notebooks/01-Accessing_the_Survey_Class/01-Accessing_the_Survey_Class.rst
    cookbook/shot.rst
    cookbook/api-notebooks/03-Detections_Database_and_API/03-Detections_Database_and_API.rst
+   cookbook/api-notebooks/Elixer_Widget/Elixer_Widget.rst
    cookbook/api-notebooks/How_to_open_the_machine_learning_H5_files/How_to_open_the_machine_learning_H5_files.rst
    cookbook/flux_lim.rst
    cookbook/astrometry.rst
