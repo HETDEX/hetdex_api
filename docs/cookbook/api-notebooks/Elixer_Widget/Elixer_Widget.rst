@@ -99,7 +99,7 @@ catalog match best matces the detection.
     elix_widget = ElixerWidget(detectlist=detects.detectid[sel]) 
 
 
-.. image:: elixer_widget.png
+.. image:: elix_widget.png
 
 Open up a file with a list of detectids
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
