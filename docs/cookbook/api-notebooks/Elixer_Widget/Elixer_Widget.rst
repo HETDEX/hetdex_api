@@ -87,14 +87,6 @@ bright LAEs, and of course some interloping OII emitters:
     np.sum(sel)
 
 
-
-
-.. parsed-literal::
-
-    8470
-
-
-
 Then insert the selected detectid list to the ``detectlist`` option in
 the ElixerWidget call. You can click up and down your list using the
 arrows. The neighbors button is a great new feature that will allow you
@@ -107,11 +99,7 @@ catalog match best matces the detection.
     elix_widget = ElixerWidget(detectlist=detects.detectid[sel]) 
 
 
-    .. container:: output display_data
-
-       |image0| 
-
-.. |image0| image:: elixer_widget.png
+.. image:: elixer_widget.png
 
 Open up a file with a list of detectids
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
