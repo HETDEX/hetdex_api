@@ -153,7 +153,12 @@ class ElixerWidget():
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
         elif detectlist is None:
-            self.detectid = np.arange(2000000000, 3000000000 , 1)
+            global HETDEX_DETECT_HDF5_HANDLE
+            
+            if HETDEX_DETECT_HDF5_HANDLE is None:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+
+            self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
