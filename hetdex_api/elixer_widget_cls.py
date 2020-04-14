@@ -153,7 +153,7 @@ class ElixerWidget():
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
         elif detectlist is None:
-            self.detectid = np.arange(1000000000, 9900000000, 1)
+            self.detectid = np.arange(1000000000, 5000000000 , 1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
