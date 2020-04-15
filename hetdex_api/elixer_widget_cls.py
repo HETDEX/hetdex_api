@@ -328,6 +328,8 @@ class ElixerWidget():
             description='DetectID:',
             disabled=False
         )
+        self.detectbox.observe(self.detectbox_change, b)
+        
         self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
         self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
 
@@ -416,7 +418,26 @@ class ElixerWidget():
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
 
-
+    def detectbox_change(self, b):
+        try:
+            ix = np.where(self.detectid == self.detectbox.value)[0][0]
+        
+            if ix - 1 >= 0:
+                ix -= 1
+            else:
+                print("At the beginning of the DetectID List")
+                return
+                
+        except:
+            #invalid index ... the report displayed is not in the operating list
+            #so use the last good index:
+            ix = self.current_idx
+        
+        self.rest_widget_values(idx=ix)
+        self.current_idx = ix
+        self.detectid = self.detectbox.value
+        
+        
     def get_observed_wavelength(self):
         global HETDEX_DETECT_HDF5_HANDLE,HETDEX_DETECT_HDF5_FN,current_wavelength
 
