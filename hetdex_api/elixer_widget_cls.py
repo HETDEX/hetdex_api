@@ -519,14 +519,13 @@ class ElixerWidget():
 
 
         try:
-            ix = np.where(self.detectid == self.detectbox.value)[0][0]
+            ix = np.max(np.where(self.detectid <= self.detectbox.value))
 
             if ix - 1 >= 0:
                 ix -= 1
             else:
                 print("At the beginning of the DetectID List")
                 return
-
         except:
             #invalid index ... the report displayed is not in the operating list
             #so use the last good index:
