@@ -524,7 +524,7 @@ class ElixerWidget():
             else:
                 ix = np.max(np.where(self.detectid <= self.detectbox.value))
 
-            if ix > 0:
+            if ix < 0:
                 ix = 0
                 print("At the beginning of the DetectID List")
                 return
