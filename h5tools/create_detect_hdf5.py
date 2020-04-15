@@ -121,7 +121,7 @@ class Spectra(tb.IsDescription):
     spec1d_nc = tb.Float32Col(1036)
     spec1d_nc_err = tb.Float32Col(1036)
     apcor = tb.Float32Col(1036)
-
+    flag_pix = tb.Float32Col(1036)
 
 class Fibers(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -404,7 +404,7 @@ def main(argv=None):
     parser.add_argument(
         "-cs",
         "--contsource",
-        help="""Path to Karls rext1 catalog""",
+        help="""Path to Karls rext catalog""",
         type=str,
         default=None,
     )
@@ -625,6 +625,7 @@ def main(argv=None):
                 rowspectra["apsum_counts"] = dataspec["col6"]
                 rowspectra["apsum_counts_err"] = dataspec["col7"]
                 rowspectra["apcor"] = dataspec["col9"]
+                rowspectra["flag_pix"] = dataspec["col10"]
                 rowspectra.append()
             except:
                 args.log.error("Could not ingest %s" % specfile)
