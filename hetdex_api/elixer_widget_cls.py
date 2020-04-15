@@ -524,8 +524,8 @@ class ElixerWidget():
             else:
                 ix = np.max(np.where(self.detectid <= self.detectbox.value))
 
-            if ix - 1 >= 0:
-                ix = 1
+            if ix > 0:
+                ix = 0
                 print("At the beginning of the DetectID List")
                 return
         except:
@@ -546,13 +546,14 @@ class ElixerWidget():
 
     def goto_next_detect(self):
         try:
-            if self.detectidbox.value in self.detectid:
+            if self.detectbox.value in self.detectid:
                 ix = np.where(self.detectid == self.detectbox.value)[0][0]
                 ix += 1
             else:
-                ix = np.where(self.detectid >= self.detectbox.value)[0][0]
+                ix = np.where(self.detectid > self.detectbox.value)[0][0]
             
-            if ix+1 >= np.size(self.detectid):
+            if ix >= np.size(self.detectid):
+                ix = np.argmax(self.detectid)
                 print("At the end of the DetectID List")
                 return
         except:
