@@ -517,19 +517,17 @@ class ElixerWidget():
 
     def goto_previous_detect(self):
 
-
         try:
-            ix = np.where(self.detectid == self.detectbox.value)[0][0]
-
-            if np.size(ix) == 1:
-                if ix - 1 >= 0:
-                    ix -= 1
-                else:
-                    print("At the beginning of the DetectID List")
-                    return
+            if self.detectbox.value in self.detectid:
+                ix = np.where(self.detectid == self.detectbox.value)[0][0]
+                ix -= 1
             else:
                 ix = np.max(np.where(self.detectid <= self.detectbox.value))
-                
+
+            if ix - 1 >= 0:
+                ix = 1
+                print("At the beginning of the DetectID List")
+                return
         except:
             #invalid index ... the report displayed is not in the operating list
             #so use the last good index:
@@ -548,11 +546,13 @@ class ElixerWidget():
 
     def goto_next_detect(self):
         try:
-            ix = np.where(self.detectid >= self.detectbox.value)[0][0]
-            
-            if ix+1 < np.size(self.detectid):
+            if self.detectidbox.value in self.detectid:
+                ix = np.where(self.detectid == self.detectbox.value)[0][0]
                 ix += 1
             else:
+                ix = np.where(self.detectid >= self.detectbox.value)[0][0]
+            
+            if ix+1 >= np.size(self.detectid):
                 print("At the end of the DetectID List")
                 return
         except:
