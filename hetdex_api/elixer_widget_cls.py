@@ -544,7 +544,8 @@ class ElixerWidget():
 
     def goto_next_detect(self):
         try:
-            ix = np.where(self.detectid == self.detectbox.value)[0][0]
+            ix = np.where(self.detectid >= self.detectbox.value)[0][0]
+            
             if ix+1 < np.size(self.detectid):
                 ix += 1
             else:
