@@ -328,7 +328,7 @@ class ElixerWidget():
             description='DetectID:',
             disabled=False
         )
-        self.detectbox.observe(self.detectbox_change, b)
+#        self.detectbox.observe(self.detectbox_change, b)
         
         self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
         self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
