@@ -277,7 +277,7 @@ class Detections:
         return maskcoords
 
     def find_match(self, coord, radius=5.*u.arcsec,
-                   wave=None, dwave=5.):
+                   wave=None, dwave=5., shotid=None):
         """
         Function to cross match another line detection
 
@@ -293,7 +293,9 @@ class Detections:
             search radius. An astropy quantity
         dwave
             delta wavelength to search
-
+        shotid
+            optional shotid for a specific observation
+        
         Returns
         -------
         match_index
@@ -304,9 +306,12 @@ class Detections:
 
         if wave:
             selwave = np.abs((self.wave - wave) < dwave)
-            return selwave*selmatch
-        else:
-            return selmatch 
+            selmatch = selwave*selmatch
+        if shotid:
+            selshot = self.shotid == shotid
+            selmatch = selshot*selmatch
+            
+        return selmatch 
                          
     def query_by_dictionary(self, limits):
         """
