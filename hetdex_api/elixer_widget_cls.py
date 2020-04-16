@@ -90,9 +90,9 @@ class ElixerWidget():
 
 
     def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None,
-                 counterpart=False):
+                 counterpart=False,detect_h5=None,elixer_h5=None):
 
-        global elix_dir
+        global elix_dir,HETDEX_DETECT_HDF5_FN,HETDEX_ELIXER_HDF5
 
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
@@ -101,6 +101,19 @@ class ElixerWidget():
         if img_dir is not None:
             if op.exists(img_dir):
                 elix_dir = img_dir
+                #also prepend to the database search directories
+                #so will look there for alternate databases
+                for key in sql.DICT_DB_PATHS.keys():
+                    sql.DICT_DB_PATHS[key].insert(0,elix_dir)
+
+        if detect_h5 is not None:
+            if op.isfile(detect_h5):
+                HETDEX_DETECT_HDF5_FN = detect_h5
+
+
+        if elixer_h5 is not None:
+            if op.isfile(elixer_h5):
+                HETDEX_ELIXER_HDF5 = elixer_h5
 
         if detectfile:
             self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
