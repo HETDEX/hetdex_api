@@ -714,11 +714,11 @@ class Detections:
 
         table.add_column(Column(self.fwhm), index=1, name="fwhm")
         table.add_column(Column(self.throughput), index=2, name="throughput")
-        #table.add_column(Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550")
         table.add_column(Column(self.field), index=4, name="field")
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
 
         if self.survey == "hdr1":
+            table.add_column(Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550")    
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(
                 Column(self.plae_poii_hetdex_gmag), name="plae_poii_hetdex_gmag"
@@ -726,6 +726,12 @@ class Detections:
             table.add_column(Column(self.plae_poii_cat), name="plae_poii_cat")
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
+        elif self.survey == 'hdr2':
+            table.add_column(Column(self.gmag), index=6, name="gmag")
+            table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
+            for name in self.hdfile.root.Elixer.colnames:
+                table[name] = getattr(self, name)
+            
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
