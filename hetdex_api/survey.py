@@ -208,7 +208,16 @@ class Survey:
         good_shots = self.remove_shots()
 
         survey_table['shot_flag'] = good_shots
-        
+
+        survey_table['mjd'] = self.mjd[:,0]
+
+        for col in survey_table.colnames:
+            try:
+                if np.shape(survey_table[col])[1] == 3:
+                    survey_table.remove_column(col)
+            except:
+                pass
+                    
         if return_good:
             return survey_table[good_shots]
         else:
