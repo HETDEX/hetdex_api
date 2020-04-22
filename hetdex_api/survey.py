@@ -269,16 +269,16 @@ class FiberIndex:
             for name in colnames:
             
                 if isinstance(
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                        getattr(self.hdfile.root.FiberIndex.cols, name)[0], np.bytes_
                 ):
                     setattr(
                         self,
                         name,
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                        getattr(self.hdfile.root.FiberIndex.cols, name)[:].astype(str),
                     )
                 else:
                     setattr(self, name,
-                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+                            getattr(self.hdfile.root.FiberIndex.cols, name)[:])
                     
             self.coords = SkyCoord(self.ra[:] * u.degree,
                                    self.dec[:] * u.degree,
