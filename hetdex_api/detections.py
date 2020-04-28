@@ -150,7 +150,8 @@ class Detections:
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))
-            #self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
+            if self.survey == "hdr1":
+                self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
             self.throughput = np.zeros(np.size(self.detectid))
             self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -163,9 +164,9 @@ class Detections:
                 ]  # NOTE: python2 to python3 strings now unicode
                 if self.survey == 'hdr1':
                     self.fwhm[ix] = S.fwhm_moffat[index]
+                    self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
                 else:
                     self.fwhm[ix] = S.fwhm_virus[index]
-                #self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
                 self.throughput[ix] = S.response_4540[index]
                 self.n_ifu[ix] = S.n_ifu[index]
 
