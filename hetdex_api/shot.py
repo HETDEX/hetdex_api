@@ -569,7 +569,7 @@ def get_image2D_amp(
     elif specid:
         if amp:
             im0 = fileh.root.Data.Images.read_where(
-                "(specid == specid) & (amp == amp) & (expnum == expnum_obj)"
+                "(specid == specid) & (amp == amp) & (expnum == expnum)"
             )
         else:
             print('You must provide both specid and amp')
