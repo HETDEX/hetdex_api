@@ -564,7 +564,7 @@ def get_image2D_amp(
     fileh = open_shot_file(shot, survey=survey)
     if multiframe:
         im0 = fileh.root.Data.Images.read_where(
-            "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
+            "(multiframe == multiframe) & (expnum == expnum_obj)"
         )
     elif specid:
         if amp:
