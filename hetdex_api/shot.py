@@ -562,29 +562,37 @@ def get_image2D_amp(
 
     """
     fileh = open_shot_file(shot, survey=survey)
+
+    _expnum = expnum 
+
     if multiframe:
-        mf = multiframe
+        _multiframe = multiframe
         im0 = fileh.root.Data.Images.read_where(
-            "(multiframe == mf) & (expnum == expnum)"
+            "(multiframe == _multiframe) & (expnum == _expnum)"
         )
     elif specid:
+        _specid = specid.astype(str)
+
         if amp:
+            _amp = amp.astype(str)
             im0 = fileh.root.Data.Images.read_where(
-                "(specid == specid) & (amp == amp) & (expnum == expnum)"
+                "(specid == _specid) & (amp == _amp) & (expnum == _expnum)"
             )
         else:
             print('You must provide both specid and amp')
     elif ifuslot:
+        _ifuslot = ifuslot.astype(str)
         if amp:
+            _amp = amp.astype(str)
             im0 = fileh.root.Data.Images.read_where(
-                "(ifuslot == ifuslot) & (amp == amp) & (expnum == expnum)"
+                "(ifuslot == _ifuslot) & (amp == _amp) & (expnum == _expnum)"
             )
         else:
             print('You must provide both ifuslot and amp')
 
     else:
         print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
-    print(np.shape(im0))    
+
     fileh.close()
 
     return im0[imtype][0]
