@@ -525,16 +525,31 @@ def get_image2D_cutout(
 
 
 def get_image2D_amp(
-    shot, multiframe_obj, imtype="clean_image", expnum_obj=1, survey="hdr2"
+    shot,
+    multiframe=None,
+    specid=None,
+    amp=None,
+    ifuslot=None,
+    imtype="clean_image",
+    expnum=1,
+    survey="hdr2"
 ):
     """
     Returns an image from the 2D data based on
-    an multiframe or a specid/amp/expnum combo
+    a multiframe or a ifuslot/specid and amp combo
 
     Parameters
     ---------
     multiframe
         unique amp identifier to display
+    specid
+        instead of multiframe, you can provide both
+        specid and amp or ifuslot and amp
+    ifuslot
+        provide ifuslot id and amp in place of multiframe
+    amp
+        inplace of amp you can provide the ifuslot and amp
+        or the specid and amp
     imtype
         image option to display
         options are:['spectrum', 'error, clean_image']
@@ -547,9 +562,25 @@ def get_image2D_amp(
 
     """
     fileh = open_shot_file(shot, survey=survey)
-    im0 = fileh.root.Data.Images.read_where(
-        "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
-    )
+    if multiframe:
+        im0 = fileh.root.Data.Images.read_where(
+            "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
+        )
+    elif specid:
+        if amp:
+            im0 = fileh.root.Data.Images.read_where(
+                "(specid == specid) & (amp == amp) & (expnum == expnum_obj)"
+            )
+        else:
+            print('You must provide both specid and amp')
+    elif ifuslot:
+        if amp:
+            im0 = fileh.root.Data.Images.read_where(
+                "(ifuslot == ifuslot) & (amp == amp) & (expnum == expnum_obj)"
+            )
+        else:
+            print('You must provide both ifuslot and amp')
+        
     fileh.close()
 
     return im0[imtype][0]
