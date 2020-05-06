@@ -566,7 +566,7 @@ def get_image2D_amp(
         mf = multiframe
         print(mf)
         im0 = fileh.root.Data.Images.read_where(
-            "(multiframe == multiframe) & (expnum == expnum)"
+            "(multiframe == mf) & (expnum == expnum)"
         )
     elif specid:
         if amp:
