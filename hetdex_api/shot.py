@@ -563,6 +563,7 @@ def get_image2D_amp(
     """
     fileh = open_shot_file(shot, survey=survey)
     if multiframe:
+        print(multiframe)
         im0 = fileh.root.Data.Images.read_where(
             "(multiframe == multiframe) & (expnum == expnum)"
         )
@@ -580,6 +581,9 @@ def get_image2D_amp(
             )
         else:
             print('You must provide both ifuslot and amp')
+
+    else:
+        print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
         
     fileh.close()
 
