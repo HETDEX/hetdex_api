@@ -593,7 +593,6 @@ def get_image2D_amp(
     else:
         print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
 
-    print(np.shape(im0))
     fileh.close()
 
     return im0[imtype][0]
