@@ -240,7 +240,7 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
             if not op.exist('line_fits'):
                 os.makedirs('line_fits')
                 
-            plt.savefig('line_fits/line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
+            plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
             plt.close()
             
         except:
