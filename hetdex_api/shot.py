@@ -525,16 +525,31 @@ def get_image2D_cutout(
 
 
 def get_image2D_amp(
-    shot, multiframe_obj, imtype="clean_image", expnum_obj=1, survey="hdr2"
+    shot,
+    multiframe=None,
+    specid=None,
+    amp=None,
+    ifuslot=None,
+    imtype="clean_image",
+    expnum=1,
+    survey="hdr2"
 ):
     """
     Returns an image from the 2D data based on
-    an multiframe or a specid/amp/expnum combo
+    a multiframe or a ifuslot/specid and amp combo
 
     Parameters
     ---------
     multiframe
         unique amp identifier to display
+    specid
+        instead of multiframe, you can provide both
+        specid and amp or ifuslot and amp
+    ifuslot
+        provide ifuslot id and amp in place of multiframe
+    amp
+        inplace of amp you can provide the ifuslot and amp
+        or the specid and amp
     imtype
         image option to display
         options are:['spectrum', 'error, clean_image']
@@ -547,9 +562,37 @@ def get_image2D_amp(
 
     """
     fileh = open_shot_file(shot, survey=survey)
-    im0 = fileh.root.Data.Images.read_where(
-        "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
-    )
+
+    _expnum = expnum 
+
+    if multiframe:
+        _multiframe = multiframe
+        im0 = fileh.root.Data.Images.read_where(
+            "(multiframe == _multiframe) & (expnum == _expnum)"
+        )
+    elif specid:
+        _specid = specid
+
+        if amp:
+            _amp = amp
+            im0 = fileh.root.Data.Images.read_where(
+                "(specid == _specid) & (amp == _amp) & (expnum == _expnum)"
+            )
+        else:
+            print('You must provide both specid and amp')
+    elif ifuslot:
+        _ifuslot = ifuslot
+        if amp:
+            _amp = amp
+            im0 = fileh.root.Data.Images.read_where(
+                "(ifuslot == _ifuslot) & (amp == _amp) & (expnum == _expnum)"
+            )
+        else:
+            print('You must provide both ifuslot and amp')
+
+    else:
+        print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
+
     fileh.close()
 
     return im0[imtype][0]

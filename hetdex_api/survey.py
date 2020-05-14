@@ -208,7 +208,16 @@ class Survey:
         good_shots = self.remove_shots()
 
         survey_table['shot_flag'] = good_shots
-        
+
+        survey_table['mjd'] = self.mjd[:,0]
+
+        for col in survey_table.colnames:
+            try:
+                if np.shape(survey_table[col])[1] == 3:
+                    survey_table.remove_column(col)
+            except:
+                pass
+                    
         if return_good:
             return survey_table[good_shots]
         else:
@@ -260,16 +269,16 @@ class FiberIndex:
             for name in colnames:
             
                 if isinstance(
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                        getattr(self.hdfile.root.FiberIndex.cols, name)[0], np.bytes_
                 ):
                     setattr(
                         self,
                         name,
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                        getattr(self.hdfile.root.FiberIndex.cols, name)[:].astype(str),
                     )
                 else:
                     setattr(self, name,
-                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+                            getattr(self.hdfile.root.FiberIndex.cols, name)[:])
                     
             self.coords = SkyCoord(self.ra[:] * u.degree,
                                    self.dec[:] * u.degree,

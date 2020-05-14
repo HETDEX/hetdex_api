@@ -35,6 +35,8 @@ class VIRUSFiberIndex(tb.IsDescription):
     multiframe = tb.StringCol((20), pos=0)
     fiber_id = tb.StringCol((38), pos=4)
     shotid = tb.Int64Col()
+    datevobs = tb.StringCol((12))
+    date = tb.Int64Col()
     healpix = tb.Int64Col(pos=5)
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
@@ -116,6 +118,8 @@ def main(argv=None):
         datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
         shotid = int(str(shotrow["date"]) + str(shotrow["obs"]).zfill(3))
         
+        date = shotrow["date"]
+        
         try:
             args.log.info("Ingesting %s" % datevshot)
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
@@ -136,7 +140,10 @@ def main(argv=None):
                 except:
                     row_main["healpix"] = 0
 
-                row_main["shotid"] = int(fiberid[0:10])
+                row_main["shotid"] = shotid
+                row_main["date"] = date
+                row_main["datevobs"] = datevshot
+                
                 row_main["specid"] = fiberid[20:23]
                 row_main["ifuslot"] = fiberid[24:27]
                 row_main["ifuid"] = fiberid[28:31]
@@ -151,7 +158,7 @@ def main(argv=None):
             else:
                 args.log.error("could not ingest %s" % datevshot)
 
-    #tableFibers.cols.healpix.create_csindex()
+    tableFibers.cols.healpix.create_csindex()
     tableFibers.cols.ra.create_csindex()
     tableFibers.flush()
     fileh.close()
