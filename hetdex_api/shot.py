@@ -468,7 +468,7 @@ def get_fibers_table(
 
         # use FiberIndex table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region(coords)
+        fibers_table = fiberindex.query_region(coords,radius=rad_in.value)
 
         if np.size(fibers_table) > 0:
             if astropy:
