@@ -417,6 +417,8 @@ def get_fibers_table(
         an astropy quantity object or radius in degrees
     astropy
         flag to make it an astropy table
+    survey
+        data release you want to access
 
     Returns
     -------
@@ -425,7 +427,7 @@ def get_fibers_table(
 
     """
 
-    fileh = open_shot_file(shot)
+    fileh = open_shot_file(shot, survey=survey.lower())
     fibers = fileh.root.Data.Fibers
     try:
         ra_in = coords.ra.degree
