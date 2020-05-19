@@ -132,9 +132,12 @@ class Extract:
         ----------
         coord: SkyCoord Object
             a single SkyCoord object for a given ra and dec
+        radius:
+            radius to extract fibers in arcsec
         ffsky: bool
             Flag to choose local (ffsky=False) or full frame (ffsky=True)
-            sky subtraction     
+            sky subtraction
+        
         Returns
         -------
         ifux: numpy array (length of number of fibers)
@@ -173,6 +176,7 @@ class Extract:
 
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
+            
             if self.survey == 'hdr1':
                 mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
@@ -183,7 +187,7 @@ class Extract:
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
         else:
-
+            print(self.survey, radius, coord, self.shot)
             fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
 
             if np.size(fib_table) < fiber_lower_limit:
