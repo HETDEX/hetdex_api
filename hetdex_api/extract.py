@@ -188,9 +188,10 @@ class Extract:
             )
         else:
             print(self.survey, radius, coord, self.shot)
-            print(self.shoth5)
+        
             fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
-            print(fib_table)
+            print(fib_table['Amp2Amp'])
+            
             if np.size(fib_table) < fiber_lower_limit:
                 return None
 
