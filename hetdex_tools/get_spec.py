@@ -119,7 +119,7 @@ def get_source_spectra(shotid, args):
     if args.survey == "hdr1":
         source_num_switch = 20
     else:
-        source_num_switch = 5
+        source_num_switch = 0
 
     if len(args.matched_sources[shotid]) > 0:
         args.log.info("Working on shot: %s" % shotid)
