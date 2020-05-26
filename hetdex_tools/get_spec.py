@@ -502,7 +502,7 @@ def get_parser():
         default="hdr2",
     )
 
-    parser.add_argument("-tpmin", "--tpmin", type=float, default=0.09)
+    parser.add_argument("-tpmin", "--tpmin", type=float, default=None)
 
     parser.add_argument(
         "--ffsky",
@@ -609,10 +609,15 @@ def main(argv=None):
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
 
     S = Survey(args.survey)
+    
     ind_good_shots = S.remove_shots()
-    ind_tp = S.response_4540 > args.tpmin
-    args.survey_class = S[ind_good_shots * ind_tp]
 
+    if args.tpmin:
+        ind_tp = S.response_4540 > args.tpmin
+        args.survey_class = S[ind_good_shots * ind_tp]
+    else:
+        args.survey_class = S[ind_good_shots]
+        
     # if args.shotidid exists, only select those shots
 
     if args.shotid:
@@ -681,7 +686,7 @@ def get_spectra(
     multiprocess=True,
     shotid=None,
     survey="hdr2",
-    tpmin=0.09,
+    tpmin=None,
     ffsky=False,
 ):
     """
@@ -715,7 +720,7 @@ def get_spectra(
         Survey you want to access. User note that HDR1 extractions
         are much slower compared to HDR2.
     tpmin
-        Include only shots above tpmin. Default is 0.09.
+        Include only shots above tpmin. Default is None.
     ffsky
         Use the full frame 2D sky subtraction model. Default is
         to use the local sky subtracted, flux calibrated fibers.
@@ -739,10 +744,13 @@ def get_spectra(
 
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
-    ind_tp = S.response_4540 > tpmin
 
-    args.survey_class = S[ind_good_shots * ind_tp]
-
+    if args.tpmin:
+        ind_tp = S.response_4540 > tpmin
+        args.survey_class = S[ind_good_shots * ind_tp]
+    else:
+        args.survey_class = S[ind_good_shots]
+        
     if shotid is not None:
         try:
             if np.size(shotid) == 1:
