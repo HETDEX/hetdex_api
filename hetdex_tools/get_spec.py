@@ -745,7 +745,7 @@ def get_spectra(
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
 
-    if args.tpmin:
+    if tpmin:
         ind_tp = S.response_4540 > tpmin
         args.survey_class = S[ind_good_shots * ind_tp]
     else:
