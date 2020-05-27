@@ -8,7 +8,8 @@ import os.path as op
 class HDRconfig:
     def __init__(self, survey='hdr1'):
         self.hdr_dir = {'hdr1': '/work/03946/hetdex/hdr1',
-                        'hdr2': '/data/05350/ecooper/hdr2'}
+                        'hdr2': '/data/05350/ecooper/hdr2',
+                        'hdr2.1': '/data/05350/ecooper/hdr2.1'}
 #                        'hdr2': '/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2/'}
         self.software_dir = op.join(self.hdr_dir[survey], 'software')
         self.red_dir = op.join(self.hdr_dir[survey], 'reduction')
