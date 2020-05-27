@@ -532,6 +532,7 @@ def main(argv=None):
 
             for member in members:
                 fn = tar.extractfile(member)
+
                 args.log.info("Working on %s" % member.name)
                 fib = fibtable.row
                 im = imagetable.row
