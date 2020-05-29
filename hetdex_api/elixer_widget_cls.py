@@ -116,7 +116,7 @@ class ElixerWidget():
                 HETDEX_ELIXER_HDF5 = elixer_h5
 
         if detectfile:
-            self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
+            self.detectid = np.loadtxt(detectfile, dtype=np.int64,ndmin=1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
             self.z = np.full(np.size(self.detectid),-1.0)
@@ -336,7 +336,7 @@ class ElixerWidget():
             value=detectstart,
             #min=1,
             min=1000000000,
-            max=9900000000,
+            max=10000000000,
             step=1,
             description='DetectID:',
             disabled=False
@@ -651,7 +651,7 @@ class ElixerWidget():
         #print("Reset idx",idx,"Current w",current_wavelength)
 
 
-        if self.detectbox.value < 1000000000: #assume an index
+        if self.detectbox.value < 10000000000: #assume an index
             self.detectbox.value = self.detectid[idx]
             return
 
@@ -843,10 +843,11 @@ class ElixerWidget():
 
             # temporary ... once HDR1 is decomissioned, remove this block
             if elix_dir:
-                path = op.join(elix_dir, "%dnei.png" % (detectid))
-
+                path = op.join(elix_dir, "%d_nei.png" % (detectid))
                 if not op.isfile(path):
-                    print("%s not found" % path)
+                    path = op.join(elix_dir, "%dnei.png" % (detectid)) #try w/o '_'
+                    if not op.isfile(path):
+                        print("%s not found" % path)
                 else:
                     display(Image(path))
             else:

@@ -339,6 +339,42 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
     except Exception as e:
         print(e)
 
+# 20200529 DD
+# will revisit later if this idea becomes useful
+#
+# def build_local_imaging_dbs():
+#     """
+#     super simplified for testing
+#     build the imaging databases using default settings in the current directory
+#     :return:
+#     """
+#     import glob
+#     #get the list of images and report types
+#     rpt_min, rpt_max = None, None
+#     rpt_list = sorted(glob.glob("*[0-9].png"))
+#     if (rpt_list is not None) and (len(rpt_list) > 0):
+#         rpt_min = int(rpt_list[0].rstrip(".png"))
+#         rpt_max = int(rpt_list[-1].rstrip(".png"))
+#
+#     nei_min, nei_max = None, None
+#     nei_list = sorted(glob.glob("*[0-9]*nei.png"))
+#     if (nei_list is not None) and (len(nei_list) > 0):
+#         nei_min = rpt_list[0].rstrip("nei.png")
+#         nei_max = rpt_list[-1].rstrip("nei.png")
+#         nei_min = int(nei_min.replace("_","")) #might not have an "_"
+#         nei_max = int(nei_max.replace("_", ""))
+#
+#     mini_min, mini_max = None, None
+#     mini_list = sorted(glob.glob("*[0-9]*mini.png"))
+#     if (mini_list is not None) and (len(mini_list) > 0):
+#         mini_min = rpt_list[0].rstrip("mini.png")
+#         mini_max = rpt_list[-1].rstrip("mini.png")
+#         mini_min = int(mini_min.replace("_","")) #might not have an "_"
+#         mini_max = int(mini_max.replace("_", ""))
+#
+#     #organize by
+#
+
 
 class ConnMgr():
     """
