@@ -26,6 +26,9 @@ import argparse as ap
 import numpy as np
 import tables as tb
 
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
