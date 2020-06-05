@@ -52,7 +52,7 @@ class Detections:
            For example, if you just want to grab a spectrum this isn't needed.
         
         """
-        survey_options = ["hdr1", "hdr2"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1"]
         catalog_type_options = ["lines", "continuum"]
 
         if survey.lower() not in survey_options:
