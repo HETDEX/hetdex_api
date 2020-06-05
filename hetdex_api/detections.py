@@ -130,23 +130,28 @@ class Detections:
                                 )[:],
                             )
             elif catalog_type=='lines':
-                colnames = self.hdfile.root.Elixer.colnames
-                for name in colnames:
-                    if isinstance(
-                            getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
-                    ):
-                        setattr(
-                            self,
-                            name,
-                            getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
-                        )
-                    else:
-                        setattr(
-                        self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
-                    )
-                self.gmag = self.mag_sdss_g
-                self.gmag_err = self.mag_sdss_g
-                        
+
+                # add elixer info if node exists
+                try:
+                    colnames = self.hdfile.root.Elixer.colnames
+                    for name in colnames:
+                        if isinstance(
+                                getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
+                        ):
+                            setattr(
+                                self,
+                                name,
+                                getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
+                            )
+                        else:
+                            setattr(
+                                self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
+                            )
+                    self.gmag = self.mag_sdss_g
+                    self.gmag_err = self.mag_sdss_g
+                except:
+                    print('No Elixer table found')
+                    
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))

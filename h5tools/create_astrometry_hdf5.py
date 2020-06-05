@@ -24,6 +24,9 @@ import argparse as ap
 import os.path as op
 import numpy as np
 
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
@@ -139,16 +142,6 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % fileshuffle)
 
-    logfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                      str(args.date) + 'v' + str(args.observation).zfill(3) + '.log')
-    try: 
-        f = open(logfile)
-        fileh.create_array(groupAstrometry, 'LogInfo', f.read().encode())
-        f.close()
-    except: 
-        args.log.warning('Could not include %s' % logfile)
-
-        
     # store fplane table
 
     filefplane = op.join(args.tpdir, str(args.date) + "v" + str(args.observation).zfill(3),
