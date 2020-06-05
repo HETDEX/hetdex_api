@@ -44,10 +44,12 @@ import tables as tb
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import Table, vstack
 import astropy.units as u
 from hetdex_api.input_utils import setup_logging
 
+import warnings
+warnings.filterwarnings('ignore')
 
 def get_detectname(ra, dec):
     """
@@ -205,21 +207,30 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "--mergemonth",
+        "-mm",
+        help=""" Boolean trigger to merge all detect_month*.h5 files""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     if args.outfilename:
         outfilename = args.outfilename
+    elif args.month and args.merge:
+        outfilename = 'detect_month_' + str(args.month) + '.h5'
     else:
         outfilename = 'detect_'+ str(args.date) + str(args.observation).zfill(3) + '.h5'
         
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
-    does_exist = False
+    
     if args.append:
         fileh = tb.open_file(args.outfilename, "a", "HDR2.1 Detections Database")
-        does_exist = True
-        # initiate new unique detect index
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
         fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
@@ -250,19 +261,20 @@ def main(argv=None):
             expectedrows=15000000,
         )
 
-        files = sorted(glob.glob(op.join(args.mergedir, "detect_2*.h5")))
+        if args.month:
+            files = sorted(glob.glob(op.join(args.mergedir, "detect_" + str(args.month) + '*.h5')))
+        elif args.mergemonth:
+            files = sorted(glob.glob( op.join( args.mergedir, "detect_month*.h5")))
+        else:
+            files = sorted(glob.glob(op.join(args.mergedir, "detect_2*.h5")))
 
         detectid_max = 1
 
         for file in files:
 
-            print("Appending detect H5 file: %s" % file)
+            args.log.info("Appending detect H5 file: %s" % file)
 
             fileh_i = tb.open_file(file, "r")
-
-            if '201707' in file:
-                detectid_max = 114957 + 1
-                args.log.info('Set detectid for 201707')
                 
             tableMain_i = fileh_i.root.Detections.read()
             tableFibers_i = fileh_i.root.Fibers.read()
@@ -283,6 +295,27 @@ def main(argv=None):
             tableSpectra.flush()
             tableMain.flush()
 
+        if args.month:
+            ifufiles = sorted( glob.glob( op.join(args.mergedir, "ifustat_" + str(args.month) + "*.tab")))
+        elif args.mergemonth:
+            ifufiles = sorted( glob.glob( op.join(args.mergedir, "ifustats_month*.tab")))
+        else:
+            ifufiles = sorted( glob.glob( op.join(args.mergedir, "ifustat_2*.tab")))
+        
+        ifu_tab = Table()
+        
+        for ifufile in ifufiles:
+            ifu_i = Table.read(ifufile, format='ascii')
+            if np.size(ifu_i) > 0:
+                ifu_tab = vstack([ifu_tab, ifu_i])
+            else:
+                args.log.warning('IFU stats file is empty: ' + ifufile)
+            
+        if args.month:
+            ifu_tab.write('ifustats_month_' + str(args.month) + '.tab', format='ascii')
+        else:
+            ifu_tab.write('ifustats_merged.tab', format='ascii')
+ 
     else:
 
         tableMain = fileh.create_table(
@@ -304,42 +337,81 @@ def main(argv=None):
             "1D Spectra for each Line Detection"
         )
 
-        shotid = int(str(args.date) + str(args.observation).zfill(3))
-
         amp_stats = Table.read('/work/05350/ecooper/wrangler/hdr2-detects/amp_flag.fits')
-        amp_stats = amp_stats[amp_stats['shotid'] == shotid]
-
     
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'src_index']
 
-        mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
-
-        catfiles =  glob.glob(op.join(args.detect_path, mcres_str))
+        if args.date and args.observation:
+            mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
+            shotid = int(str(args.date) + str(args.observation).zfill(3))
+            amp_stats = amp_stats[amp_stats['shotid'] == shotid]
+        elif args.month:
+            mcres_str = str(args.month) + "*mc"
+            amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
+            amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
+        else:
+            args.log.warning('Please provide a date(YYYMMDD)+observation or month (YYYYMM')
+            sys.exit()
+                
+        catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
         
         det_cols = fileh.root.Detections.colnames
+
+        amplist = []
+        ndet = []
+        ndet_sel = []
         
         for catfile in catfiles:
 
             amp_i = catfile[-27:-3]
             
-            args.log.info('Ingesting Amp: '+ amp_i)
-                
-            detectcatall = Table.read(catfile, format='ascii.no_header', names=colnames)
+            amplist.append(amp_i)
 
+            args.log.info('Ingesting Amp: '+ amp_i)
+
+            ndet_file = sum(1 for line in open(catfile))
+            ndet.append( ndet_file)
+
+            if ndet_file == 0:
+                ndet_sel.append( 0)
+                continue
+                
+            try:
+                detectcatall = Table.read(catfile, format='ascii.no_header', names=colnames)
+            except:
+                ndet_sel.append( 0)
+                args.log.warning('Could not ingest ' + catfile)
+                continue
+                
             selSN = (detectcatall['sn'] > 4.5)
             selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 12)
+            
             selcat = selSN * selLW
-            
+
             detectcat = detectcatall[selcat]
-            
-            specfile = op.join(args.detect_path, amp_i + ".spec")
-            spectable= Table.read(specfile, format="ascii.no_header")
 
-            filefiberinfo = op.join(args.detect_path, amp_i + ".list")
-            fibertable = Table.read(filefiberinfo, format="ascii.no_header")
+            nsel_file = np.sum(selcat)
 
+            try:
+                specfile = op.join(args.detect_path, amp_i + ".spec")
+                spectable= Table.read(specfile, format="ascii.no_header")
+            except:
+                args.log.warning('Could not ingest ' + specfile)
+                ndet_sel.append( 0)
+                continue
+
+            try:
+                filefiberinfo = op.join(args.detect_path, amp_i + ".list")
+                fibertable = Table.read(filefiberinfo, format="ascii.no_header")
+            except:
+                args.log.warning('Could not ingest ' + filefiberinfo)
+                ndet_sel.append( 0)
+                continue
+
+            ndet_sel.append(nsel_file)
+                
             for row in detectcat:
             
                 inputid_i = amp_i + '_' + str(row['src_index']).zfill(3)
@@ -347,9 +419,15 @@ def main(argv=None):
                 rowMain = tableMain.row
 
                 rowMain['detectid'] = detectidx
-                rowMain['shotid'] = int(str(args.date) + str(args.observation).zfill(3))
-                rowMain['date'] = int(args.date)
-                rowMain['obsid'] = int(args.observation)
+                if args.date and args.observation:
+                    rowMain['shotid'] = int(str(args.date) + str(args.observation).zfill(3))
+                    rowMain['date'] = int(args.date)
+                    rowMain['obsid'] = int(args.observation)
+                else:
+                    rowMain['date'] = int(amp_i[0:8])
+                    rowMain['obsid'] = int(amp_i[9:12])
+                    rowMain['shotid'] = int(amp_i[0:8] + amp_i[9:12])
+                    
                 rowMain['inputid'] = inputid_i
                 
                 for col in colnames:
@@ -456,21 +534,37 @@ def main(argv=None):
                 rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
                 rowMain["weight"] = datafiber["col14"][ifiber]
 
-                ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe]
-                
+                if args.date and args.observation:
+                    ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe]
+                elif args.month:
+                    selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                    ampflag = amp_stats['flag'][selamp]
+                    
                 if ampflag==False:
                     continue
 
+                
+                
                 rowMain.append()
                 rowspectra.append()
                 rowfiber.append()
         
                 detectidx += 1
-
+            
         tableMain.flush()
         tableSpectra.flush()
         tableFibers.flush()
 
+        ifu_stat_tab = Table([amplist, ndet, ndet_sel], names=['ampid', 'ndet','ndetsel'])
+
+        if args.month:
+            ifutabname = 'ifustat_' + str(args.month) + '.tab'
+        else:
+            ifutabname = 'ifustat_'+ str(args.date) + str(args.observation).zfill(3) + '.tab'
+
+                                    
+        ifu_stat_tab.write(ifutabname, format='ascii', overwrite=True)
+    
     # create completely sorted index on the detectid
     # to make queries against that column much faster
     if args.append:
