@@ -200,6 +200,7 @@ def append_shot_to_table(shot, shottable, fn, cnt):
     except:
         filename = fn
 
+        
     idx = filename.find("exp")
     expn = filename[idx : idx + 5]
 
@@ -491,7 +492,7 @@ def main(argv=None):
     does_exist = False
     if op.exists(args.outfilename) and args.append:
         fileh = tb.open_file(args.outfilename, "a")
-        does_exist = True
+        #does_exist = True
     else:
         outfile = op.join(args.tmppath, args.outfilename)
         fileh = tb.open_file(outfile, "w")
@@ -530,6 +531,9 @@ def main(argv=None):
 
             success = append_shot_to_table(shot, shottable, fn, cnt)
 
+            if args.append:
+                continue
+                
             for member in members:
                 fn = tar.extractfile(member)
 
@@ -545,40 +549,65 @@ def main(argv=None):
                     fibindextable.flush()
                     
         shot["n_ifu"] = n_ifu["exp01"]
-        shot.append()
 
     else:
 
         shot = shottable.row
-        success = append_shot_to_table(shot, shottable, files[0], cnt)
 
-        for fn in files:
-            args.log.info("Working on %s" % fn)
-            fib = fibtable.row
-            im = imagetable.row
-            fibindex = fibindextable.row
+        filename = files[0]
+        
+        idx = filename.find("exp")
+        expn = filename[idx : idx + 5]
 
-            success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
-            if success:
-                fibtable.flush()
-                imagetable.flush()
-                fibindextable.flush()
+        f_exp01 = re.sub(expn, "exp01", filename)
+        f_exp02 = re.sub(expn, "exp02", filename)
+        f_exp03 = re.sub(expn, "exp03", filename)
+        
+        success = append_shot_to_table(shot, shottable, f_exp01, cnt)
+        success = append_shot_to_table(shot, shottable, f_exp02, cnt)
+        success = append_shot_to_table(shot, shottable, f_exp03, cnt)
+        
+        n_ifu= int(len(files) / 12)
 
+        shot["n_ifu"] = n_ifu
+        if args.append:
+
+            args.log.info('Appending shot table only.')
+
+        else:
+            for fn in files:
+                args.log.info("Working on %s" % fn)
+                fib = fibtable.row
+                im = imagetable.row
+                fibindex = fibindextable.row
+                
+                success = append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args)
+                if success:
+                    fibtable.flush()
+                    imagetable.flush()
+                    fibindextable.flush()
+
+    shot.append()
+        
     # create completely sorted index on the specid to make queries against that column much faster
     # specid chosen as the old multi*fits naming started with specid and it is fixed vs ifuslot and ifuid
     # for any given shot
-    fibtable.cols.ra.create_csindex()
-    fibindextable.cols.ra.create_csindex()
+    if args.append:
+        pass
+    else:
+        fibtable.cols.ra.create_csindex()
+        fibindextable.cols.ra.create_csindex()
 
-    imagetable.cols.multiframe.create_csindex()
-    fibindextable.cols.multiframe.create_csindex()
-    fibtable.cols.multiframe.create_csindex()
+        imagetable.cols.multiframe.create_csindex()
+        fibindextable.cols.multiframe.create_csindex()
+        fibtable.cols.multiframe.create_csindex()
+
+        
+        fibtable.flush()
+        fibindextable.flush()
+        imagetable.flush()
 
     shottable.flush()
-    fibtable.flush()
-    fibindextable.flush()
-    imagetable.flush()
-
     fileh.close()
 
     # remove all temporary multifits
