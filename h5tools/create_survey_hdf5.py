@@ -73,7 +73,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/data/05350/ecooper/hdr2/reduction/data",
+        default="/data/05350/ecooper/hdr2.1/reduction/data",
     )
 
     parser.add_argument(
@@ -125,15 +125,19 @@ def main(argv=None):
     survey = Table()
 
     for shotrow in shotlist:
+        datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
+
         try:
-            datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
+            args.log.info('Ingesting ' + datevshot)
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+
             shottable = Table(file_obs.root.Shot.read())
+            
             survey = vstack([survey, shottable])
             file_obs.close()
         except:
-            args.log.error("could not ingest %s" % datevshot)
-
+            args.log.error("Could not ingest %s" % datevshot)
+    
     tableMain = fileh.create_table(fileh.root, "Survey", obj=survey.as_array())
     fileh.close()
 
