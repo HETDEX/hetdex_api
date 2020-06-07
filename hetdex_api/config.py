@@ -58,7 +58,7 @@ class HDRconfig:
                 self.bad_dir, "plae_poii_hetdex_gmag.pickle"
             )
 
-        if survey == "hdr2":
+        if survey in ['hdr2', 'hdr2.1']:
             self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
