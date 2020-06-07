@@ -491,7 +491,10 @@ def main(argv=None):
     # does not already exist.
     does_exist = False
     if op.exists(args.outfilename) and args.append:
+        # for now this is used to update the shot table
         fileh = tb.open_file(args.outfilename, "a")
+        fileh.remove_node(fileh.root, "Shot")
+        fileh.create_table(fileh.root, "Shot", VIRUSShot, "Shot Info")
         #does_exist = True
     else:
         outfile = op.join(args.tmppath, args.outfilename)
