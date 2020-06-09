@@ -337,7 +337,7 @@ def main(argv=None):
             "1D Spectra for each Line Detection"
         )
 
-        amp_stats = Table.read('/work/05350/ecooper/wrangler/hdr2-detects/amp_flag.fits')
+        amp_stats = Table.read('/work/05350/ecooper/wrangler/hdr2/hdr2-detects/amp_flag.fits')
     
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
@@ -386,9 +386,10 @@ def main(argv=None):
                 continue
                 
             selSN = (detectcatall['sn'] > 4.5)
-            selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 12)
+            selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 20)
+            selchi2 = (detectcatall['chi2'] < 2.5)
             
-            selcat = selSN * selLW
+            selcat = selSN * selLW * selchi2
 
             detectcat = detectcatall[selcat]
 
@@ -470,6 +471,7 @@ def main(argv=None):
 
                 datafiber = fibertable[selfiber]
 
+
                 for ifiber in np.arange(np.size(datafiber)):
                     rowfiber = tableFibers.row
                     rowfiber["detectid"] = detectidx
@@ -505,7 +507,7 @@ def main(argv=None):
                     rowfiber["y_raw"] = datafiber["col13"][ifiber]
                     rowfiber["flag"] = datafiber["col15"][ifiber]
                     rowfiber["weight"] = datafiber["col14"][ifiber]
-                    #rowfiber.append()
+                    rowfiber.append()
 
                 # Now append brightest fiber info to Detections table:
                 ifiber = np.argmax(datafiber["col14"])
@@ -543,11 +545,9 @@ def main(argv=None):
                 if ampflag==False:
                     continue
 
-                
-                
                 rowMain.append()
                 rowspectra.append()
-                rowfiber.append()
+                
         
                 detectidx += 1
             
