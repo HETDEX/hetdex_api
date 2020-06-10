@@ -234,7 +234,7 @@ def main(argv=None):
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
         fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
-        index_buff = 2100000000
+        index_buff = 2100000001
         detectidx = index_buff
 
     if args.merge:
@@ -275,8 +275,12 @@ def main(argv=None):
             args.log.info("Appending detect H5 file: %s" % file)
 
             fileh_i = tb.open_file(file, "r")
-                
+
             tableMain_i = fileh_i.root.Detections.read()
+
+            if np.size(tableMain_i) == 0:
+                continue
+                
             tableFibers_i = fileh_i.root.Fibers.read()
             tableSpectra_i = fileh_i.root.Spectra.read()
 
