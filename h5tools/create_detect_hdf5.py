@@ -471,7 +471,8 @@ def main(argv=None):
 
                 datafiber = fibertable[selfiber]
 
-
+                checkmultiframe = True
+                
                 for ifiber in np.arange(np.size(datafiber)):
                     rowfiber = tableFibers.row
                     rowfiber["detectid"] = detectidx
@@ -507,8 +508,30 @@ def main(argv=None):
                     rowfiber["y_raw"] = datafiber["col13"][ifiber]
                     rowfiber["flag"] = datafiber["col15"][ifiber]
                     rowfiber["weight"] = datafiber["col14"][ifiber]
+
+                    # check to see if source falls on a bad amplifier
+                    
+                    if checkmultiframe:
+                        if args.date and args.observation:
+                            ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe]
+                        elif args.month:
+                            selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                            ampflag = amp_stats['flag'][selamp]
+                        if np.size(ampflag) == 0:
+                            args.log.warning('No ampflag for '
+                                             + str(rowMain['shotid'])
+                                             + ' ' + multiframe)
+                        if ampflag==False:
+                            break
+                        else:
+                            checkmultiframe = False
+                            
                     rowfiber.append()
 
+                # skip appending source to Fibers and Spectra table
+                if ampflag==False:
+                    continue
+                
                 # Now append brightest fiber info to Detections table:
                 ifiber = np.argmax(datafiber["col14"])
                 multiname = datafiber["col5"][ifiber]
@@ -536,19 +559,9 @@ def main(argv=None):
                 rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
                 rowMain["weight"] = datafiber["col14"][ifiber]
 
-                if args.date and args.observation:
-                    ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe]
-                elif args.month:
-                    selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                    ampflag = amp_stats['flag'][selamp]
-                    
-                if ampflag==False:
-                    continue
-
                 rowMain.append()
                 rowspectra.append()
-                
-        
+                        
                 detectidx += 1
             
         tableMain.flush()
