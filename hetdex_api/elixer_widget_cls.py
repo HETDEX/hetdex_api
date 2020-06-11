@@ -843,7 +843,7 @@ class ElixerWidget():
 
             # temporary ... once HDR1 is decomissioned, remove this block
             if elix_dir:
-                path = op.join(elix_dir, "%dnei.png" % (detectid))
+                path = op.join(elix_dir, "%d_nei.png" % (detectid))
 
                 if not op.isfile(path):
                     print("%s not found" % path)
