@@ -53,7 +53,7 @@ class Detections:
         
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1"]
-        catalog_type_options = ["lines", "continuum"]
+        catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -74,7 +74,12 @@ class Detections:
             self.filename = config.detecth5
         elif catalog_type == "continuum":
             self.filename = config.contsourceh5
-
+        elif catalog_type == "broad":
+            try:
+                self.filename == config.detectbroadh5
+            except:
+                print("Could not locate broad line catalog")
+                
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
