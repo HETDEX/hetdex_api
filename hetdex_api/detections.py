@@ -76,7 +76,7 @@ class Detections:
             self.filename = config.contsourceh5
         elif catalog_type == "broad":
             try:
-                self.filename == config.detectbroadh5
+                self.filename = config.detectbroadh5
             except:
                 print("Could not locate broad line catalog")
                 
