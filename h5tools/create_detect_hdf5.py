@@ -216,6 +216,15 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "--broad",
+        "-broad",
+        help=""" Boolean trigger to select broad sources""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -388,13 +397,21 @@ def main(argv=None):
                 ndet_sel.append( 0)
                 args.log.warning('Could not ingest ' + catfile)
                 continue
-                
-            selSN = (detectcatall['sn'] > 4.5)
-            selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 20)
-            selchi2 = (detectcatall['chi2'] < 2.5)
-            
-            selcat = selSN * selLW * selchi2
 
+            if args.broad:
+                selSN = (detectcatall['sn'] > 8)
+                selLW = (detectcatall['linewidth'] > 6)
+                selchi2 = (detectcatall['chi2'] > 1.5)
+                
+            else:
+                selSN = (detectcatall['sn'] > 4.5)
+                selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 20)
+                selchi2 = (detectcatall['chi2'] < 2.5)
+                
+            selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
+
+            selcat = selSN * selLW * selchi2 * selwave
+            
             detectcat = detectcatall[selcat]
 
             nsel_file = np.sum(selcat)
