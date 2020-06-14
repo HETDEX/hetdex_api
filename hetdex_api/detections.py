@@ -52,8 +52,8 @@ class Detections:
            For example, if you just want to grab a spectrum this isn't needed.
         
         """
-        survey_options = ["hdr1", "hdr2"]
-        catalog_type_options = ["lines", "continuum"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1"]
+        catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -74,7 +74,12 @@ class Detections:
             self.filename = config.detecth5
         elif catalog_type == "continuum":
             self.filename = config.contsourceh5
-
+        elif catalog_type == "broad":
+            try:
+                self.filename == config.detectbroadh5
+            except:
+                print("Could not locate broad line catalog")
+                
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
@@ -130,23 +135,28 @@ class Detections:
                                 )[:],
                             )
             elif catalog_type=='lines':
-                colnames = self.hdfile.root.Elixer.colnames
-                for name in colnames:
-                    if isinstance(
-                            getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
-                    ):
-                        setattr(
-                            self,
-                            name,
-                            getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
-                        )
-                    else:
-                        setattr(
-                        self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
-                    )
-                self.gmag = self.mag_sdss_g
-                self.gmag_err = self.mag_sdss_g
-                        
+
+                # add elixer info if node exists
+                try:
+                    colnames = self.hdfile.root.Elixer.colnames
+                    for name in colnames:
+                        if isinstance(
+                                getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
+                        ):
+                            setattr(
+                                self,
+                                name,
+                                getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
+                            )
+                        else:
+                            setattr(
+                                self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
+                            )
+                    self.gmag = self.mag_sdss_g
+                    self.gmag_err = self.mag_sdss_g
+                except:
+                    print('No Elixer table found')
+                    
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))
