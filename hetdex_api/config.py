@@ -33,6 +33,12 @@ class HDRconfig:
         self.detecth5 = op.join(
             self.hdr_dir[survey], "detect", "detect_" + survey + ".h5"
         )
+        try:
+            self.detectbroadh5 = op.join(
+                self.hdr_dir[survey], "detect", "detect_broad_" + survey + ".h5"
+            )
+        except:
+            pass
         self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
         self.imaging_dir = op.join(self.hdr_dir[survey], "imaging")
         self.contsourceh5 = op.join(
@@ -58,8 +64,18 @@ class HDRconfig:
                 self.bad_dir, "plae_poii_hetdex_gmag.pickle"
             )
 
-        if survey in ['hdr2', 'hdr2.1']:
+        if survey == 'hdr2':
             self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2"
+            self.baddetect = op.join(self.bad_dir, "baddetects.list")
+            self.badshot = op.join(self.bad_dir, "badshots.list")
+            self.badamp = op.join(self.bad_dir, "badamps.list")
+            self.badpix = op.join(self.bad_dir, "badpix.list")
+            self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
+            self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
+            self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
+
+        if survey == 'hdr2.1':
+            self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
