@@ -20,9 +20,9 @@ class Elixer(tb.IsDescription):
     combined_continuum_err = tb.Float32Col()
                                         
 
-config = HDRconfig('hdr2')
+config = HDRconfig('hdr2.1')
 
-filedet = tb.open_file('/data/05350/ecooper/hdr2/detect/detect_hdr2_copy.h5', 'a')
+filedet = tb.open_file('/data/05350/ecooper/hdr2/detect/detect_hdr2.1.h5', 'a')
 
 fileelix = tb.open_file(config.elixerh5, 'r')
 
