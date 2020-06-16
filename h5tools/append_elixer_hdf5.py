@@ -22,7 +22,7 @@ class Elixer(tb.IsDescription):
 
 config = HDRconfig('hdr2.1')
 
-filedet = tb.open_file('/data/05350/ecooper/hdr2/detect/detect_hdr2.1.h5', 'a')
+filedet = tb.open_file('/data/05350/ecooper/hdr2.1/detect/detect_hdr2.1.h5', 'a')
 
 fileelix = tb.open_file(config.elixerh5, 'r')
 
@@ -35,7 +35,7 @@ try:
 except:
     pass
     
-tableElixer = filedet.create_table(filedet.root, "Elixer", Elixer, "Elixer Calibration Info")
+tableElixer = filedet.create_table(filedet.root, "Elixer", Elixer, "Elixer Info")
 
 for detid in detectid:
     row = tableElixer.row
