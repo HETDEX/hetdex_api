@@ -158,12 +158,19 @@ def get_source_spectra(shotid, args):
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
+                #add in the total weight of each fiber (as the sum of its weight per wavebin)
+                try:
+                    fiber_weights = [x for x in zip(ra, dec, np.sum(weights*mask, axis=1))]
+                except:
+                    fiber_weights = []
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                     else:
                         source_dict[args.ID[ind]] = dict()
@@ -171,6 +178,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -178,6 +186,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                     else:
                         source_dict[args.ID] = dict()
@@ -185,6 +194,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
 
         E.shoth5.close()
@@ -238,12 +248,19 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 spectrum_aper, spectrum_aper_error = [res for res in result]
                 sel = np.isfinite(spectrum_aper)
 
+                #add in the total weight of each fiber (as the sum of its weight per wavebin)
+                try:
+                    fiber_weights = [x for x in zip(ra,dec,np.sum(weights*mask,axis=1))]
+                except:
+                    fiber_weights = []
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                     else:
                         source_dict[args.ID[ind]] = manager.dict()
@@ -251,6 +268,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -258,6 +276,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
                     else:
                         source_dict[args.ID] = manager.dict()
@@ -265,6 +284,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper,
                             spectrum_aper_error,
                             weights.sum(axis=0),
+                            fiber_weights,
                         ]
 
         E.shoth5.close()
@@ -279,6 +299,7 @@ def return_astropy_table(Source_dict):
     spec_arr = []
     spec_err_arr = []
     weights_arr = []
+    fiber_weights_arr = []
 
     # loop over every ID/observation combo:
 
@@ -289,6 +310,10 @@ def return_astropy_table(Source_dict):
             spec = Source_dict[ID][shotid][0]
             spec_err = Source_dict[ID][shotid][1]
             weights = Source_dict[ID][shotid][2]
+            try:
+                fiber_weights = Source_dict[ID][shotid][3]
+            except:
+                pass
 
             sel = np.isfinite(spec)
 
@@ -299,6 +324,7 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
+                fiber_weights_arr.append(fiber_weights)
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -309,6 +335,7 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
+    output.add_column(Column(fiber_weights_arr), name="fiber_weights")
 
     return output
 
