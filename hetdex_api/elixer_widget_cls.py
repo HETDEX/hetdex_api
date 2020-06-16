@@ -828,7 +828,8 @@ class ElixerWidget():
         self.output.add_column(Column(self.z,name='z',dtype=float))
         self.output.add_column(Column(self.counterpart,name='counterpart',dtype=int))
         self.output.add_column(Column(self.comment,name='comments',dtype='|S80'))
-
+        print(self.output)
+        
         ascii.write(self.output, self.outfilename, overwrite=True)
 
     def on_elixer_neighborhood(self,b):
