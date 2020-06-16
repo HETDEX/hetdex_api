@@ -179,7 +179,7 @@ class ElixerWidget():
             self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
         else:
-            self.detectid = np.array(detectlist)
+            self.detectid = np.array(detectlist).flatten()
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -828,8 +828,7 @@ class ElixerWidget():
         self.output.add_column(Column(self.z,name='z',dtype=float))
         self.output.add_column(Column(self.counterpart,name='counterpart',dtype=int))
         self.output.add_column(Column(self.comment,name='comments',dtype='|S80'))
-        print(self.output)
-        
+                
         ascii.write(self.output, self.outfilename, overwrite=True)
 
     def on_elixer_neighborhood(self,b):
