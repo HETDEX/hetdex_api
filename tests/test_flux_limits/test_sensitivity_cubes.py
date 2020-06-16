@@ -16,7 +16,7 @@ def sensitivity_cube(datadir):
     wavelengths = [3500.0, 5500.0]
     alphas = [-3.5, -3.5]
 
-    return SensitivityCube.from_file(filename, wavelengths, alphas)
+    return SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0)
 
 @pytest.fixture(scope="module")
 def modified_sensitivity_cube(datadir):
@@ -27,7 +27,7 @@ def modified_sensitivity_cube(datadir):
     p = [2.0, 0.0]
 
     return SensitivityCube.from_file(filename, wavelengths, alphas, 
-                                     conversion_poly=p)
+                                     conversion_poly=p, nsigma=1.0)
 
 
 @pytest.mark.parametrize("aper_corr", [0.25, 0.33, None])

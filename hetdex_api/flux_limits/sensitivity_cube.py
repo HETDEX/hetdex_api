@@ -19,8 +19,9 @@ https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 """
 
 from __future__ import (absolute_import, print_function)
-from numpy import (rint, array, around, multiply, isnan, 
-                   sqrt, divide, linspace, ones, log10, loadtxt, polyval)
+import matplotlib.pyplot as plt
+from numpy import (rint, array, around, multiply, isnan, meshgrid, mean,
+                   median, sqrt, divide, linspace, ones, log10, loadtxt, polyval)
 from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
@@ -141,9 +142,10 @@ class SensitivityCube(object):
     """
     # XXX might need a better name than nsigma as this is already used elsewhere
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, 
-                 nsigma=6.0, conversion_poly=None):
+                 nsigma=1.0, conversion_poly=None):
 
         self.sigmas = sigmas/nsigma
+        self.nsigma = nsigma
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -491,6 +493,101 @@ class SensitivityCube(object):
         return fleming_function(snr, snr50, alphas)
 
 
+    def return_wlslice_completeness(self, flux, lambda_low, lambda_high, 
+                                    sncut, noise_cut=1e-12):
+        """
+        Return completeness of a wavelength slice. This computes 
+        stuff in terms of SNR in the Fleming (1995) function but
+        it's actually equivalent to computing the 50% flux
+        and computing everthing in terms of flux
+
+        Parameters
+        ----------
+        flux : array
+            fluxes of objects
+        lambda_low, lambda_high : float
+            wavelength slice in Angstrom
+            (includes these slices)
+        sncut : float
+            the detection significance (S/N) cut
+            applied to the data
+        noise_cut : float
+            remove areas with more noise
+            than this
+ 
+        Return
+        ------
+        fracdet : array
+            fraction detected in this slice
+
+        """
+
+        if lambda_low < 3000.0 or lambda_low > 6000.0:
+            raise WavelengthException("""Odd wavelength value. Are you
+                                         sure it's in Angstrom?""")
+
+        snr50 = polyval(self.conversion_poly, sncut)
+        ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
+        ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
+        noise = self.sigmas[izlo:(izhigh + 1), :, :]
+
+        if len(self.alphas.shape) > 1:
+            alphas = self.alphas[izlo:(izhigh + 1), :, :] 
+        else:
+            # rough approximation to lambda varying across window
+            alphas = self.alpha_func(0.5*(lambda_low + lambda_high))
+
+        compls = []
+        for f in flux:
+            snr = f/noise
+            compl = fleming_function(snr, snr50, alphas)       
+
+            # works so long as pixels equal area
+            compls.append(mean(compl[noise < noise_cut]))
+
+        return array(compls)
+
+    def return_wlslice_f50(self, lambda_low, lambda_high, 
+                           sncut, noise_cut=1e-12):
+        """
+        Return 50% completeness of a wavelength slice.  
+
+        Parameters
+        ----------
+        lambda_low, lambda_high : float
+            wavelength slice in Angstrom
+            (includes these slices)
+        sncut : float
+            the detection significance (S/N) cut
+            applied to the data
+        noise_cut : float
+            remove areas with more noise
+            than this
+ 
+        Return
+        ------
+        fracdet : array
+            fraction detected in this slice
+
+        """
+
+        try:
+            if lambda_low < 3000.0 or lambda_low > 6000.0:
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+        except ValueError:
+            if any(lambda_low < 3000.0) or any(lambda_low > 6000.0):
+                raise WavelengthException("""Odd wavelength value. Are you
+                                             sure it's in Angstrom?""")
+ 
+        snr50 = polyval(self.conversion_poly, sncut)
+        ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
+        ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
+        noise = self.sigmas[izlo:(izhigh + 1), :, :]
+        noise = noise[noise < noise_cut]
+
+        return sncut*median(noise) 
+
     def write(self, filename, datascale=1e-17, **kwargs):
         """
         Write the sensitivity cube to a FITS file. If any 
@@ -556,6 +653,39 @@ def plot_completeness(args=None):
         plt.savefig(opts.fout)
     else:
         plt.show()
+
+
+def plot_slice_of_cube(axes, scube, ramin, ramax, decmin, decmax, 
+                       wl, sncut, cmap="gist_rainbow", n=100, cax=None):
+    """
+    Plot a slice of a sensitivity cube
+
+    Parameters
+    ----------
+    axes : matplotlib.pyplot.axes
+        axes to put plot on
+    scube : SensitivityCube
+        cube to plot
+    wl : float
+        wavelength slice to plot
+    n : int
+        resolution
+    """
+    rar = linspace(ramin, ramax, n)
+    decr = linspace(decmin, decmax, n)
+
+    ras, decs = meshgrid(rar, decr)
+    wls = wl*ones(len(ras))
+
+    flims = scube.get_f50(ras, decs, wls, sncut)
+    flims = 1e17*flims
+    img = flims.reshape(n,n)
+
+    im = axes.imshow(img, extent=[ramin, ramax, decmin, decmax], origin="lower left", 
+                     aspect="auto", cmap=cmap, vmin=0.0, vmax=30)
+    plt.colorbar(im, cax=cax, label="flux limit [10$^{-17}$ erg/s/cm$^{2}$]", pad=0.0)
+    axes.set_xlabel("RA (deg)")
+    axes.set_ylabel("Dec (deg)")
 
 
 def plot_completeness_versus_wl(args=None):

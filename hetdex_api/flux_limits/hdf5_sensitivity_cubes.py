@@ -130,14 +130,19 @@ class SensitivityCubeHDF5Container(object):
         array = self.h5file.create_carray(
                            shot, ifuslot, obj=scube.sigmas, 
                            title="1 sigma noise")
-      
+     
         #  Store what aperture correction has been applied
         array.attrs.aper_corr = scube.aper_corr
+
+        #
 
         # Store the header as an attribute
         array.attrs.header = scube.header
         array.attrs.wavelengths = scube.wavelengths
         array.attrs.alphas = scube.alphas
+
+        # should always be 1-sigma stored from now on
+        array.attrs.nsigma = 1.0
 
     def list_contents(self):
         """ List the contents of the HDF5 file """
@@ -241,8 +246,17 @@ class SensitivityCubeHDF5Container(object):
         # Remove any aperture correction
         sigmas = ifu.read() / ifu.attrs.aper_corr
 
+        try:
+            nsigma = ifu.attrs.nsigma
+        except AttributeError as e:
+            # HDR1 cubes were all 6-sigma, but
+            # that wasn't saved in the HDF5
+            nsigma = 6.0
+            print("No nsigma found, assuming nsigma=6")
+
         # Force apcor to be 1.0 here, so we don't double count it
-        return SensitivityCube(sigmas, header, wavelengths, alphas)
+        return SensitivityCube(sigmas, header, wavelengths, alphas, 
+                               nsigma=nsigma)
 
     def flush(self):
         """ Write all alive leaves to disk """
@@ -277,7 +291,7 @@ def add_sensitivity_cube_to_hdf5(args=None):
 
     parser.add_argument(
         "--regex",
-        default=".*(2[0-9]{7}v[0-9]{3})_multi_[0-9]{3}_([0-9]{3})",
+        default=".*(2[0-9]{7}v[0-9]{3})_[0-9]{3}_([0-9]{3})",
         help="""Regex with two capture groups, the first for datevshot the second 
                                 for IFU slot""",
     )
