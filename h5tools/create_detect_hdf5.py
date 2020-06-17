@@ -225,6 +225,15 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "--continuum",
+        "-cont",
+        help=""" Boolean trigger to select broad sources""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -242,8 +251,17 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, "a", "HDR2.1 Detections Database")
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
-        fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
-        index_buff = 2100000001
+
+        if args.broad:
+            fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
+            index_buff = 2100000001
+        elif args.continuum:
+            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
+            index_buff = 2190000001
+        else:
+            fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
+            index_buff = 2100000001
+
         detectidx = index_buff
 
     if args.merge:
