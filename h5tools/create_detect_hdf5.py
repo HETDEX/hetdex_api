@@ -402,15 +402,13 @@ def main(argv=None):
                 selSN = (detectcatall['sn'] > 8)
                 selLW = (detectcatall['linewidth'] > 6)
                 selchi2 = (detectcatall['chi2'] > 1.5)
-                
+                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
+                selcat = selSN * selLW * selchi2 * selwave
             else:
                 selSN = (detectcatall['sn'] > 4.5)
                 selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 20)
                 selchi2 = (detectcatall['chi2'] < 2.5)
-                
-            selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
-
-            selcat = selSN * selLW * selchi2 * selwave
+                selcat = selSN * selLW * selchi2
             
             detectcat = detectcatall[selcat]
 
@@ -492,7 +490,40 @@ def main(argv=None):
 
                 datafiber = fibertable[selfiber]
 
-                checkmultiframe = True
+                # check to see if any of the 5 highest weight fibers fall on a bad amplifier
+
+                mf_array = []
+                weight_array =[]
+                for ifiber in np.arange(np.size(datafiber)):
+                    multiname = datafiber["col5"][ifiber]
+
+                    mf_array.append( multiname[0:20])
+                    weight_array.append( datafiber["col14"][ifiber])
+
+                isort = np.flipud(np.argsort(weight_array) )
+
+                sort_mf = np.array(mf_array)[isort]
+                
+                for multiframe in sort_mf[0:5]:
+                    
+                    if args.date and args.observation:
+                        ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe][0]
+                        
+                    elif args.month:
+                        selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                        ampflag = amp_stats['flag'][selamp]
+                    
+                    if np.size(ampflag) == 0:
+                        args.log.warning('No ampflag for '
+                                         + str(rowMain['shotid'])
+                                         + ' ' + multiframe)
+                        
+                    if ampflag==False:
+                        break
+
+                # skip appending source to Fibers and Spectra table
+                if ampflag == False:
+                    continue
                 
                 for ifiber in np.arange(np.size(datafiber)):
                     rowfiber = tableFibers.row
@@ -530,28 +561,7 @@ def main(argv=None):
                     rowfiber["flag"] = datafiber["col15"][ifiber]
                     rowfiber["weight"] = datafiber["col14"][ifiber]
 
-                    # check to see if source falls on a bad amplifier
-                    
-                    if checkmultiframe:
-                        if args.date and args.observation:
-                            ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe]
-                        elif args.month:
-                            selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                            ampflag = amp_stats['flag'][selamp]
-                        if np.size(ampflag) == 0:
-                            args.log.warning('No ampflag for '
-                                             + str(rowMain['shotid'])
-                                             + ' ' + multiframe)
-                        if ampflag==False:
-                            break
-                        else:
-                            checkmultiframe = False
-                            
                     rowfiber.append()
-
-                # skip appending source to Fibers and Spectra table
-                if ampflag==False:
-                    continue
                 
                 # Now append brightest fiber info to Detections table:
                 ifiber = np.argmax(datafiber["col14"])
@@ -582,8 +592,10 @@ def main(argv=None):
 
                 rowMain.append()
                 rowspectra.append()
-                        
+
+                print(detectidx)
                 detectidx += 1
+                
             
         tableMain.flush()
         tableSpectra.flush()
