@@ -5,42 +5,6 @@ from astropy.io import ascii
 from scipy.spatial import cKDTree
 from astropy.table import Table, Column
 
-def read_catalog(filen):
-   '''
-   Read a hetdex ascii catalog of detections and return data selected on vis_class
-
-   Parameters
-   ----------
-   filen : str
-      name of catalog file
-
-   Returns
-   -------
-   astropy.table.Table object representing the catalog
-   '''
-   data = ascii.read(filen)
-   return data[data['vis_class'] >= 4]
-
-
-def get_coordinates(table):
-   '''
-   Return the ra, dec, wavelength and ids of detections
-
-   Parameters
-   ----------
-   table : astropy.table.Table
-      Table object
-
-   Returns
-   -------
-      x,y,z,id : numpy.array with RA, DEC, WAVELENGTH and DETECT_ID
-
-   '''
-   x = table['ra']
-   y = table['dec']
-   z = table['wave']
-   id = table['detectid']
-   return x, y, z, id
 
 
 def mktree(x, y, z, dsky=3.0, dwave=20.0):
@@ -150,6 +114,24 @@ def frinds_of_friends(kdtree, r):
    return group_lst
 
 
+def evaluate_group(group_members, x, y, z, f):
+   '''
+   Calculate group properties from a list of it's members
+   given as indices into the x, y, z, and f (flux) arrays.
+
+   Return a tuple of group properties:
+     ()
+   '''
+   # calculate some aggregate properties most useful for further processing
+   avg_x = np.mean([x[j] for j in group_members])
+   avg_y = np.mean([y[j] for j in group_members])
+   avg_z = np.mean([z[j] for j in group_members])
+   rms_x = np.std([x[j] for j in group_members])
+   rms_y = np.std([y[j] for j in group_members])
+   rms_z = np.std([z[j] for j in group_members])
+   return (avg_x, avg_y, avg_z, rms_x, rms_y, rms_z)
+
+
 def print_groups(group_lst, x, y, z):
    '''
    Print a summary of the groups found by friend_of_friends().
@@ -168,15 +150,8 @@ def print_groups(group_lst, x, y, z):
    '''
    for i in np.arange(0, len(group_lst), 1):
       n = len(group_lst[i])
-      avg_ra = np.mean([x[j] for j in group_lst[i]])
-      avg_dec = np.mean([y[j] for j in group_lst[i]])
-      avg_z = np.mean([z[j] for j in group_lst[i]])
-      rms_ra = np.std([x[j] for j in group_lst[i]])
-      rms_dec = np.std([y[j] for j in group_lst[i]])
-      rms_z = np.std([z[j] for j in group_lst[i]])
-
       print(i, len(
-         group_lst[i]), avg_ra, avg_dec, avg_z, rms_ra, rms_dec, rms_z)
+         group_lst[i]), *evaluate_group(group_lst[i], x, y, z, z))
 
 
 def group_list_to_table(group_lst, detectid, x, y, z):
@@ -202,16 +177,11 @@ def group_list_to_table(group_lst, detectid, x, y, z):
    for i in np.arange(0, len(group_lst), 1):
       n = len(group_lst[i])
       # calculate some aggregate properties most useful for further processing
-      avg_ra = np.mean([x[j] for j in group_lst[i]])
-      avg_dec = np.mean([y[j] for j in group_lst[i]])
-      avg_z = np.mean([z[j] for j in group_lst[i]])
-      rms_ra = np.std([x[j] for j in group_lst[i]])
-      rms_dec = np.std([y[j] for j in group_lst[i]])
-      rms_z = np.std([z[j] for j in group_lst[i]])
+      params = evaluate_group(group_lst[i], x, y, z, z)
       # finally, an array with the list of all members' detectid
       members = np.array(detectid[group_lst[i]])
       # append to list. this is much quicker than iterating Table.append()
-      rows.append((i,n,avg_ra,avg_dec,avg_z,rms_ra,rms_dec,rms_z,members))
+      rows.append((i,n,*params,members))
 
    return Table(rows=rows, names=['groupid', 'nmembers', 'avg_ra', 'avg_dec', 'avg_z',\
                                   'rms_ra', 'rms_dec', 'rms_z', 'members'])
@@ -221,12 +191,10 @@ def group_list_to_table(group_lst, detectid, x, y, z):
 
 
 def test():
-   print('reading catalog ...')
-   x, y, z, detect_id = get_coordinates(read_catalog('hdr1_sngt6pt5_for.tab'))
+   x = np.random.uniform(5000)*100.0
+   y = np.random.uniform(5000)*100.0
+   z = np.random.uniform(5000)*100.0
    print('building tree ...')
-   #x = x[1:5000]
-   #y = y[1:5000]
-   #z = z[1:5000]
    kdtree, r = mktree(x,y,z)
    t0 = time.time()
    print('starting fof ...')
