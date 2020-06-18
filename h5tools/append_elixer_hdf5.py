@@ -1,9 +1,7 @@
 import numpy as np
-
-from hetdex_api.detections import Detections
 from hetdex_api.config import HDRconfig
 import tables as tb
-from astropy.table import Table, Column, join
+from astropy.table import Table
 
 class Elixer(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -22,7 +20,7 @@ class Elixer(tb.IsDescription):
 
 config = HDRconfig('hdr2.1')
 
-filedet = tb.open_file('/data/05350/ecooper/hdr2.1/detect/detect_hdr2.1.h5', 'a')
+filedet = tb.open_file('/data/05350/ecooper/hdr2.1/detect/detect_merged.h5', 'a')
 
 fileelix = tb.open_file(config.elixerh5, 'r')
 
