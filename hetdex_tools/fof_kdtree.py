@@ -5,9 +5,13 @@ from astropy.io import ascii
 from scipy.spatial import cKDTree
 from astropy.table import Table, Column
 
+# i=np.where(np.isin(clustering.D.detectid,m,assume_unique=True))[0]
 
+#
+# NOTE, reqires scipy>1.4 due to a bug in KDTree.query_ball_point() in prior versions!
+#
 
-def mktree(x, y, z, dsky=3.0, dwave=20.0):
+def mktree(x, y, z, dsky=3.0, dwave=5.0, euclidean=False):
    '''
    Construct a kd-tree and calculate the linking length in normalized coordinates (where
    the distance is on a sphere)
@@ -19,7 +23,11 @@ def mktree(x, y, z, dsky=3.0, dwave=20.0):
       dksy : float
          linking length on sky in arcsec, defaults to 3.0"
       dwave : float
-         linking length in wavelength in Angstrom, defaults to 20A
+         linking length in wavelength in Angstrom, defaults to 5A
+      euclidean : bool
+         coordinates are euclidean, not spherical, do not transform. 
+         defaults to False
+
    Returns
    -------
       kd, r : scipy.spatial.cKDTree object, spherical linking length
@@ -27,18 +35,23 @@ def mktree(x, y, z, dsky=3.0, dwave=20.0):
    # construct a kd-tree in normalized coordinates and calculate the linking length in that system
    # return cKDTree, r
 
-   dsky = dsky/3600.0
+   if euclidean==False:
+      dsky = dsky/3600.0
+      c = np.cos(y/180.0*np.pi)
+      ra_tree = x*c
+      dec_tree = y
+      # need to be on a sphere
+      zf = dsky/dwave          # scale wavelength so distance is in the same units as sky
+      z_tree = zf * z
+   else:
+      ra_tree = x
+      dec_tree = y
+      z_tree = z
 
-   c = np.cos(y/180.0*np.pi)
-   ra_tree = x*c
-   dec_tree = y
-   # need to be on a sphere
-   zf = dsky/dwave          # scale wavelength so distance is in the same units as sky
-   z_tree = zf * z
    data = np.vstack((ra_tree, dec_tree, z_tree)).T
    kd = cKDTree(data)
 
-   r = np.sqrt(3*dsky*dsky)
+   r = dsky #np.sqrt(3*dsky*dsky)
    return kd, r
 
 
@@ -114,25 +127,51 @@ def frinds_of_friends(kdtree, r):
    return group_lst
 
 
-def evaluate_group(group_members, x, y, z, f):
+def evaluate_group(x, y, z, f):
    '''
    Calculate group properties from a list of it's members
-   given as indices into the x, y, z, and f (flux) arrays.
+   x, y, z, and f (flux) arrays.
 
    Return a tuple of group properties:
      ()
    '''
    # calculate some aggregate properties most useful for further processing
-   avg_x = np.mean([x[j] for j in group_members])
-   avg_y = np.mean([y[j] for j in group_members])
-   avg_z = np.mean([z[j] for j in group_members])
-   rms_x = np.std([x[j] for j in group_members])
-   rms_y = np.std([y[j] for j in group_members])
-   rms_z = np.std([z[j] for j in group_members])
-   return (avg_x, avg_y, avg_z, rms_x, rms_y, rms_z)
+
+   # first and second order flux-weighed moments
+   lum = np.sum(f)
+   icx = np.sum(f*x)/lum
+   icy = np.sum(f*y)/lum
+   icz = np.sum(f*z)/lum
+   ixx = np.sum(f*np.square(x-icx))/lum
+   iyy = np.sum(f*np.square(y-icy))/lum
+   ixy = np.sum(f*(x-icx)*(y-icy))/lum
+   izz = np.sum(f*np.square(z-icz))/lum
+
+   # semi-major and semi-minor axes
+   a_ = 0.5*(ixx+iyy);
+   c_ = np.sqrt(0.25*(ixx-iyy)*(ixx-iyy)+ixy*ixy);
+   a = np.sqrt (a_+c_);
+   b = np.sqrt (a_-c_) if a_-c_>0 else a_
+
+   # position angle in degree
+   pa = 0.5*np.arctan2 (2.0*ixy, ixx-iyy) if ixx-iyy!=0.0 else np.pi/4.;
+   pa *= 180./np.pi;
+
+   # kron-like aperture
+   t = ixx*iyy-ixy*ixy;
+   cxx = ixx/t;
+   cyy = iyy/t;
+   cxy = -2.0*ixy/t;
+   dx = x-icx
+   dy = y-icy
+   ir1 = np.sum(f*a*np.sqrt(cxx*dx*dx + cyy*dy*dy + cxy*dx*dy))/lum
+   ka = ir1*a/b
+   kb = ir1*b/a
+
+   return (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, ka, kb, pa)
 
 
-def print_groups(group_lst, x, y, z):
+def print_groups(group_lst, x, y, z, f):
    '''
    Print a summary of the groups found by friend_of_friends().
 
@@ -149,12 +188,11 @@ def print_groups(group_lst, x, y, z):
          using mktree().
    '''
    for i in np.arange(0, len(group_lst), 1):
-      n = len(group_lst[i])
-      print(i, len(
-         group_lst[i]), *evaluate_group(group_lst[i], x, y, z, z))
+      m = group_lst[i]
+      print(i, len(m), *evaluate_group(x[m], y[m], z[m], f[m]))
 
 
-def group_list_to_table(group_lst, detectid, x, y, z):
+def group_list_to_table(group_lst, detectid, x, y, z, f):
    '''
    Convert the list of lists representing the groups (output of friends_of_friends) to
    an astropy table, with one row per group.
@@ -168,6 +206,12 @@ def group_list_to_table(group_lst, detectid, x, y, z):
       detectid : array like
          detect_ids corresponding to the original x,y,z inputs of friends_of_friends()
 
+      x,y,z : array like
+         coordinates corresponding to the detect-ids
+
+      f : array like
+         flux (or broadly the weight) of the points x,y,z
+
    Returns
    -------
       astropy.Table with one row per group.
@@ -177,25 +221,26 @@ def group_list_to_table(group_lst, detectid, x, y, z):
    for i in np.arange(0, len(group_lst), 1):
       n = len(group_lst[i])
       # calculate some aggregate properties most useful for further processing
-      params = evaluate_group(group_lst[i], x, y, z, z)
+      m = group_lst[i]
+      params = evaluate_group(x[m], y[m], z[m], f[m])
       # finally, an array with the list of all members' detectid
-      members = np.array(detectid[group_lst[i]])
+      members = np.array(detectid[m])
       # append to list. this is much quicker than iterating Table.append()
       rows.append((i,n,*params,members))
 
-   return Table(rows=rows, names=['groupid', 'nmembers', 'avg_ra', 'avg_dec', 'avg_z',\
-                                  'rms_ra', 'rms_dec', 'rms_z', 'members'])
+   return Table(rows=rows, names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
+                                  'a', 'b', 'ka', 'kb', 'pa', 'members'])
 #
 # T E S T
 #
 
 
 def test():
-   x = np.random.uniform(5000)*100.0
-   y = np.random.uniform(5000)*100.0
-   z = np.random.uniform(5000)*100.0
+   x = np.random.uniform(0,1000,20000)
+   y = np.random.uniform(0,1000,20000)
+   z = x*0
    print('building tree ...')
-   kdtree, r = mktree(x,y,z)
+   kdtree, r = mktree(x,y,z,dsky=3.0,euclidean=True)
    t0 = time.time()
    print('starting fof ...')
    group_lst = frinds_of_friends(kdtree, r)
@@ -207,8 +252,11 @@ def test():
 
    print(time.time() - t0, "seconds")
 
-   print_groups(group_lst,x,y,z)
-
+   print_groups(group_lst,x,y,z,z*0+1.0)
+   import matplotlib.pyplot as plt
+   t0 = group_lst[0]
+   plt.plot(x[t0], y[t0], 'x')
+   plt.show()
 
 if __name__ == "__main__":
    test()
