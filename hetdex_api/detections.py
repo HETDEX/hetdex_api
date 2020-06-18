@@ -140,6 +140,8 @@ class Detections:
                 try:
                     colnames = self.hdfile.root.Elixer.colnames
                     for name in colnames:
+                        if name == 'detectid':
+                            continue
                         if isinstance(
                                 getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
                         ):
