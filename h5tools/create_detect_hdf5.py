@@ -254,13 +254,13 @@ def main(argv=None):
 
         if args.broad:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
-            index_buff = 2100000001
+            index_buff = 2100000000
         elif args.continuum:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
-            index_buff = 2190000001
+            index_buff = 2190000000
         else:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
-            index_buff = 2100000001
+            index_buff = 2100000000
 
         detectidx = index_buff
 
@@ -278,14 +278,14 @@ def main(argv=None):
             "Fibers",
             Fibers,
             "Fiber info for each detection",
-            expectedrows=1000000,
+            expectedrows=15000000,
         )
         tableSpectra = fileh.create_table(
             fileh.root,
             "Spectra",
             Spectra,
             "1D Spectra for each Line Detection",
-            expectedrows=15000000,
+            expectedrows=1000000,
         )
 
         if args.month:
@@ -424,9 +424,10 @@ def main(argv=None):
                 selcat = selSN * selLW * selchi2 * selwave
             else:
                 selSN = (detectcatall['sn'] > 4.5)
-                selLW = (detectcatall['linewidth'] > 1.7) * (detectcatall['linewidth'] < 20)
-                selchi2 = (detectcatall['chi2'] < 2.5)
-                selcat = selSN * selLW * selchi2
+                selLW = (detectcatall['linewidth'] > 1.7) #* (detectcatall['linewidth'] < 20)
+                selchi2 = (detectcatall['chi2'] < 1.6)
+                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
+                selcat = selSN * selLW * selchi2 * selwave
             
             detectcat = detectcatall[selcat]
 
@@ -611,7 +612,6 @@ def main(argv=None):
                 rowMain.append()
                 rowspectra.append()
 
-                print(detectidx)
                 detectidx += 1
                 
             
