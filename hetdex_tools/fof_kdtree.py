@@ -3,7 +3,7 @@ import numpy as np
 import time
 from astropy.io import ascii
 from scipy.spatial import cKDTree
-
+from astropy.table import Table, Column
 
 def read_catalog(filen):
    '''
@@ -13,7 +13,7 @@ def read_catalog(filen):
    ----------
    filen : str
       name of catalog file
-   
+
    Returns
    -------
    astropy.table.Table object representing the catalog
@@ -30,7 +30,7 @@ def get_coordinates(table):
    ----------
    table : astropy.table.Table
       Table object
-   
+
    Returns
    -------
       x,y,z,id : numpy.array with RA, DEC, WAVELENGTH and DETECT_ID
@@ -45,12 +45,12 @@ def get_coordinates(table):
 
 def mktree(x, y, z, dsky=3.0, dwave=20.0):
    '''
-   Construct a kd-tree and calculate the linking length in normalized coordinates (where 
+   Construct a kd-tree and calculate the linking length in normalized coordinates (where
    the distance is on a sphere)
 
    Parameters
    ----------
-      x,y,z : numpy.array 
+      x,y,z : numpy.array
          coordinates RA, DEC in degrees, WAVELENGTH in Angstroms
       dksy : float
          linking length on sky in arcsec, defaults to 3.0"
@@ -83,7 +83,7 @@ def frinds_of_friends(kdtree, r):
    Friends of Friends group finder
 
    For each particle, n, not yet assigned to any group:
-   
+
        Create member list for the group
        Add particle n to group
        For each particle p in group
@@ -93,17 +93,19 @@ def frinds_of_friends(kdtree, r):
 
    Example
    -------
-
+      id, x, y, z = ...
       kdtree, r = mktree(x,y,z)
       group_lst = frinds_of_friends(kdtree, r)
       group_lst = [l for l in group_lst if len(l) > 10]
       group_lst = sorted(group_lst, key=lambda a:len(a))
+      t = group_list_to_table(group_lst, id, x, y, z)
+      t.write('groups.ecsv', overwrite=True)
 
    Parameters
    ----------
       kdtree : scipy.spatial.kdtree
          KD-Tree containing the coordinates of all the particles
-      
+
       r : float
          linking length
 
@@ -111,7 +113,7 @@ def frinds_of_friends(kdtree, r):
    -------
       group_lst : list of lists
          List of the groups, where each group is represented by a list of the indices
-         of all its members. The indices refer to the original coordinate arrays 
+         of all its members. The indices refer to the original coordinate arrays
          the KD Tree was constructed of, using the function mktree().
    '''
    # make a set with all particles, makes set ops below much faster
@@ -152,7 +154,7 @@ def print_groups(group_lst, x, y, z):
    '''
    Print a summary of the groups found by friend_of_friends().
 
-   Prints the number, size, average coordinates, and extent as 
+   Prints the number, size, average coordinates, and extent as
    rms of the coordinates for all groups in group_lst.
 
    Parameters
@@ -176,6 +178,43 @@ def print_groups(group_lst, x, y, z):
       print(i, len(
          group_lst[i]), avg_ra, avg_dec, avg_z, rms_ra, rms_dec, rms_z)
 
+
+def group_list_to_table(group_lst, detectid, x, y, z):
+   '''
+   Convert the list of lists representing the groups (output of friends_of_friends) to
+   an astropy table, with one row per group.
+
+   Parameters
+   ----------
+      group_lst : list (of lists)
+         group list returned by friends_of_friends(). This list contains
+         indices into the original coordinate arrays.
+
+      detectid : array like
+         detect_ids corresponding to the original x,y,z inputs of friends_of_friends()
+
+   Returns
+   -------
+      astropy.Table with one row per group.
+   '''
+   # create list of rows
+   rows = []
+   for i in np.arange(0, len(group_lst), 1):
+      n = len(group_lst[i])
+      # calculate some aggregate properties most useful for further processing
+      avg_ra = np.mean([x[j] for j in group_lst[i]])
+      avg_dec = np.mean([y[j] for j in group_lst[i]])
+      avg_z = np.mean([z[j] for j in group_lst[i]])
+      rms_ra = np.std([x[j] for j in group_lst[i]])
+      rms_dec = np.std([y[j] for j in group_lst[i]])
+      rms_z = np.std([z[j] for j in group_lst[i]])
+      # finally, an array with the list of all members' detectid
+      members = np.array(detectid[group_lst[i]])
+      # append to list. this is much quicker than iterating Table.append()
+      rows.append((i,n,avg_ra,avg_dec,avg_z,rms_ra,rms_dec,rms_z,members))
+
+   return Table(rows=rows, names=['groupid', 'nmembers', 'avg_ra', 'avg_dec', 'avg_z',\
+                                  'rms_ra', 'rms_dec', 'rms_z', 'members'])
 #
 # T E S T
 #
