@@ -70,12 +70,12 @@ def frinds_of_friends(kdtree, r):
 
    Example
    -------
-      id, x, y, z = ...
+      id, x, y, z, w = ...
       kdtree, r = mktree(x,y,z)
       group_lst = frinds_of_friends(kdtree, r)
       group_lst = [l for l in group_lst if len(l) > 10]
       group_lst = sorted(group_lst, key=lambda a:len(a))
-      t = group_list_to_table(group_lst, id, x, y, z)
+      t = group_list_to_table(group_lst, id, x, y, z, w)
       t.write('groups.ecsv', overwrite=True)
 
    Parameters
@@ -130,10 +130,18 @@ def frinds_of_friends(kdtree, r):
 def evaluate_group(x, y, z, f):
    '''
    Calculate group properties from a list of it's members
-   x, y, z, and f (flux) arrays.
+   x, y, z, and f (flux or weight) arrays.
 
    Return a tuple of group properties:
-     ()
+     (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, ka, kb, pa)
+
+     lum : total luminosity (sum of f)
+     icx, icy, icz : f weighted centroid
+     ixx, iyy, ixy : f weighted second-order moments in first two (sky) dimenstions
+     izz : f weighted second order moment along third dimension
+     a, b : semi-major and semi-minor axis in the x/y plane
+     ka, kb : kron-like (first order moment) adaptive semi-major and minor axes in the x/y plane
+     pa : position angle in degrees
    '''
    # calculate some aggregate properties most useful for further processing
 
