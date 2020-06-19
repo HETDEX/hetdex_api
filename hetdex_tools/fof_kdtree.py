@@ -3,7 +3,7 @@ import numpy as np
 import time
 from astropy.io import ascii
 from scipy.spatial import cKDTree
-from astropy.table import Table, Column
+from astropy.table import Table
 
 
 #
@@ -72,10 +72,16 @@ def frinds_of_friends(kdtree, r, Nmin=3):
       id, x, y, z, w = ...
       kdtree, r = mktree(x,y,z)
       group_lst = frinds_of_friends(kdtree, r, Nmin=3)
+
+      # filter and sort groups (optional)
       group_lst = [l for l in group_lst if len(l) > 10]
       group_lst = sorted(group_lst, key=lambda a:len(a))
-      t = group_list_to_table(group_lst, id, x, y, z, w)
-      t.write('groups.ecsv', overwrite=True)
+
+      # get group parameters:
+      group_table = process_group_list(group_lst, x, y, z, w)  
+
+      # save group table (load with load_groups())
+      save_groups('groups', group_table)
 
    Parameters
    ----------
@@ -188,31 +194,10 @@ def evaluate_group(x, y, z, f, euclidean=False):
    return (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, ka, kb, pa)
 
 
-def print_groups(group_lst, x, y, z, f):
+def process_group_list(group_lst, detectid, x, y, z, f):
    '''
-   Print a summary of the groups found by friend_of_friends().
-
-   Prints the number, size, average coordinates, and extent as
-   rms of the coordinates for all groups in group_lst.
-
-   Parameters
-   ----------
-      group_lst : list of lists
-         group list returned by friend_of_friends().
-
-      x, y, z: numpy.array
-         arrays with coordinates used to construct the kd-tree
-         using mktree().
-   '''
-   for i in np.arange(0, len(group_lst), 1):
-      m = group_lst[i]
-      print(i, len(m), *evaluate_group(x[m], y[m], z[m], f[m]))
-
-
-def group_list_to_table(group_lst, detectid, x, y, z, f):
-   '''
-   Convert the list of lists representing the groups (output of friends_of_friends) to
-   an astropy table, with one row per group.
+   Post-process the group memebership list by evaluating group properties using
+   coordinates and fluxes (weights).
 
    Parameters
    ----------
@@ -231,7 +216,9 @@ def group_list_to_table(group_lst, detectid, x, y, z, f):
 
    Returns
    -------
-      astropy.Table with one row per group.
+      astropy.Table of processed groups with the fields
+         ['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\                                          
+          'a', 'b', 'ka', 'kb', 'pa', 'numpy array:members']
    '''
    # create list of rows
    rows = []
@@ -244,9 +231,89 @@ def group_list_to_table(group_lst, detectid, x, y, z, f):
       members = np.array(detectid[m])
       # append to list. this is much quicker than iterating Table.append()
       rows.append((i,n,*params,members))
+      #names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
+             #'a', 'b', 'ka', 'kb', 'pa', 'members'])
+   return group_list_to_table(rows)
+   
 
-   return Table(rows=rows, names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
-                                  'a', 'b', 'ka', 'kb', 'pa', 'members'])
+def print_groups(group_lst):
+   '''
+   Print a summary of the groups found by friend_of_friends().
+
+   Prints the number, size, average coordinates, and extent as
+   rms of the coordinates for all groups in group_lst.
+
+   Parameters
+   ----------
+      group_lst : list of lists
+         group list returned by friend_of_friends().
+   '''
+   for i in np.arange(0, len(group_lst), 1):
+      m = group_lst[i]
+      print(i, len(m), *m)
+
+
+def group_list_to_table(group_lst):
+   '''
+   Convert the list of lists representing the groups (output of process_group_list) to
+   an astropy table, with one row per group.
+
+   Parameters
+   ----------
+      group_lst : list (of lists)
+         group list returned by process_group_list().
+
+   Returns
+   -------
+      astropy.Table with one row per group.
+   '''
+   return Table(rows=group_lst, names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
+                                       'a', 'b', 'ka', 'kb', 'pa', 'members'])
+
+def table_to_group_list(table):
+   '''
+   Convert an astropy.Table of groups back to a list of lists
+
+   Needed to be able to save, since astropy.Table can't deal with 
+   saving an numpy array as a cell. It claims it can, but it's buggy.
+   '''
+   return [[x for x in table[i]] for i in range(len(table))]
+
+
+def save_groups(fname, gtable):
+   '''
+   Save an astropy.Table with group data
+
+   Parameters
+   ----------
+   fname : string
+      file name
+
+   gtable : astropy.Table
+      table of groups
+   '''
+   np.save(fname, table_to_group_list(gtable))
+
+
+
+def load_groups(fname):
+   '''
+   Load an astropy.Table with group data
+
+   Parameters
+   ----------
+   fname : string
+      file name
+
+   Returns
+   -------
+   gtable : astropy.Table
+      table of groups
+   '''
+   return group_list_to_table(np.load(fname))
+
+
+
 #
 # T E S T
 #
