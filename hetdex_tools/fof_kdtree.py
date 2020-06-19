@@ -5,7 +5,6 @@ from astropy.io import ascii
 from scipy.spatial import cKDTree
 from astropy.table import Table, Column
 
-# i=np.where(np.isin(clustering.D.detectid,m,assume_unique=True))[0]
 
 #
 # NOTE, reqires scipy>1.4 due to a bug in KDTree.query_ball_point() in prior versions!
@@ -55,7 +54,7 @@ def mktree(x, y, z, dsky=3.0, dwave=5.0, euclidean=False):
    return kd, r
 
 
-def frinds_of_friends(kdtree, r):
+def frinds_of_friends(kdtree, r, Nmin=3):
    '''
    Friends of Friends group finder
 
@@ -72,7 +71,7 @@ def frinds_of_friends(kdtree, r):
    -------
       id, x, y, z, w = ...
       kdtree, r = mktree(x,y,z)
-      group_lst = frinds_of_friends(kdtree, r)
+      group_lst = frinds_of_friends(kdtree, r, Nmin=3)
       group_lst = [l for l in group_lst if len(l) > 10]
       group_lst = sorted(group_lst, key=lambda a:len(a))
       t = group_list_to_table(group_lst, id, x, y, z, w)
@@ -86,12 +85,16 @@ def frinds_of_friends(kdtree, r):
       r : float
          linking length
 
+      Nmin : int
+         minimal number of members for a group
+
    Returns
    -------
       group_lst : list of lists
          List of the groups, where each group is represented by a list of the indices
          of all its members. The indices refer to the original coordinate arrays
          the KD Tree was constructed of, using the function mktree().
+         The list is sorted by group size, with the largest group first.
    '''
    # make a set with all particles, makes set ops below much faster
    id_lst = set(range(0, kdtree.n-1))
@@ -124,10 +127,15 @@ def frinds_of_friends(kdtree, r):
       if len(friends_lst)>0:
          group_lst.append(friends_lst)
 
+   # filter and sort groups
+   group_lst = [l for l in group_lst if len(l) >= Nmin]
+   group_lst = sorted(group_lst, key=lambda a:len(a))
+   group_lst.reverse() # largest group first
+
    return group_lst
 
 
-def evaluate_group(x, y, z, f):
+def evaluate_group(x, y, z, f, euclidean=False):
    '''
    Calculate group properties from a list of it's members
    x, y, z, and f (flux or weight) arrays.
@@ -147,17 +155,20 @@ def evaluate_group(x, y, z, f):
 
    # first and second order flux-weighed moments
    lum = np.sum(f)
-   icx = np.sum(f*x)/lum
    icy = np.sum(f*y)/lum
+   c = 1.0 if euclidean else np.cos(np.deg2rad(icy))   # cos-dec
+   icx = np.sum(f*x)/lum
    icz = np.sum(f*z)/lum
-   ixx = np.sum(f*np.square(x-icx))/lum
-   iyy = np.sum(f*np.square(y-icy))/lum
-   ixy = np.sum(f*(x-icx)*(y-icy))/lum
+   dx = (x-icx)*c
+   dy = y-icy
+   ixx = np.sum(f*np.square(dx))/lum
+   iyy = np.sum(f*np.square(dy))/lum
+   ixy = np.sum(f*dx*dy)/lum
    izz = np.sum(f*np.square(z-icz))/lum
 
    # semi-major and semi-minor axes
    a_ = 0.5*(ixx+iyy);
-   c_ = np.sqrt(0.25*(ixx-iyy)*(ixx-iyy)+ixy*ixy);
+   c_ = np.sqrt(0.25*np.square(ixx-iyy) + np.square(ixy));
    a = np.sqrt (a_+c_);
    b = np.sqrt (a_-c_) if a_-c_>0 else a_
 
@@ -170,8 +181,6 @@ def evaluate_group(x, y, z, f):
    cxx = ixx/t;
    cyy = iyy/t;
    cxy = -2.0*ixy/t;
-   dx = x-icx
-   dy = y-icy
    ir1 = np.sum(f*a*np.sqrt(cxx*dx*dx + cyy*dy*dy + cxy*dx*dy))/lum
    ka = ir1*a/b
    kb = ir1*b/a
