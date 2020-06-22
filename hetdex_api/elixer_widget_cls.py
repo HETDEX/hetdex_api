@@ -258,7 +258,8 @@ class ElixerWidget():
                 #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
                 display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
             except Exception as e:
-                print(e)
+                #todo: uncomment to print if debugging
+                #print(e)
 
                 if elix_dir:
                     fname = op.join(elix_dir, "%d.png" % (detectid))
@@ -650,10 +651,13 @@ class ElixerWidget():
 
         #print("Reset idx",idx,"Current w",current_wavelength)
 
-
-        if self.detectbox.value < 10000000000: #assume an index
-            self.detectbox.value = self.detectid[idx]
-            return
+        #DD 2020-06-20
+        #given the potential use of low ELiXer assigned detectid values, and the unrealized use of this logic,
+        #just comment out this following check for an index vs a detectID
+        #literal value is int(1e9), the lowest possible HETDEX detectID
+        # if self.detectbox.value < 1000000000: #assume an index
+        #     self.detectbox.value = self.detectid[idx]
+        #     return
 
 
         self.z_box.value = self.z[idx] #-1.0
@@ -839,7 +843,8 @@ class ElixerWidget():
             #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
             display(Image(self.elixer_conn_mgr.fetch_image(detectid,report_type="nei")))
         except Exception as e:
-            print(e)
+            #todo: uncomment to print if debugging
+            #print(e)
 
             # temporary ... once HDR1 is decomissioned, remove this block
             if elix_dir:
