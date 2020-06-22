@@ -34,27 +34,22 @@ def mktree(x, y, z, dsky=3.0, dwave=5.0, euclidean=False):
    # construct a kd-tree in normalized coordinates and calculate the linking length in that system
    # return cKDTree, r
 
-   if euclidean==False:
-      dsky = np.deg2rad(dsky/3600.0) # convert to radians
-      zf = dsky/dwave          # scale wavelength so distance is in the same units as sky
-      x_tree = np.cos(np.deg2rad(x))*np.cos(np.deg2rad(y))
-      y_tree = np.sin(np.deg2rad(x))*np.cos(np.deg2rad(y))
-      z_tree = z*zf# * np.sin(np.deg2rad(y))
-      #c = np.cos(y/180.0*np.pi)
-      #x_tree = x*c
-      #y_tree = y
-      # need to be on a sphere
-      #z_tree = zf * z
-   else:
+   if euclidean==True:
       x_tree = x
       y_tree = y
       z_tree = z
+   else:
+      # assume ra, dec, wavelength
+      dsky = np.deg2rad(dsky/3600.0) # convert from arcsec to radians
+      zf = np.deg2rad(1.0/3600.0)    # scale wavelength in A so distance is in the same units as sky
+      x_tree = np.cos(np.deg2rad(x))*np.cos(np.deg2rad(y))
+      y_tree = np.sin(np.deg2rad(x))*np.cos(np.deg2rad(y))
+      z_tree = z*zf# * np.sin(np.deg2rad(y))
 
    data = np.vstack((x_tree, y_tree, z_tree)).T
    kd = cKDTree(data)
 
-   r = dsky #np.sqrt(3*dsky*dsky)
-   return kd, r
+   return kd, dsky
 
 
 def frinds_of_friends(kdtree, r, Nmin=3):
@@ -210,7 +205,7 @@ def evaluate_group(x, y, z, f, euclidean=False):
    pa2 = 0.5*np.arctan2 (2.0*ixy2, ixx2-iyy2) if ixx2-iyy2!=0.0 else np.pi/4.
    pa2 *= 180./np.pi
 
-   return (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, pa, a2, b2, pa2)
+   return (lum, icx, icy, icz, ixx, iyy, ixy, izz2, a, b, pa, a2, b2, pa2)
 
 
 def process_group_list(group_lst, detectid, x, y, z, f):
