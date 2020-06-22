@@ -35,19 +35,22 @@ def mktree(x, y, z, dsky=3.0, dwave=5.0, euclidean=False):
    # return cKDTree, r
 
    if euclidean==False:
-      dsky = dsky/3600.0
-      c = np.cos(y/180.0*np.pi)
-      ra_tree = x*c
-      dec_tree = y
-      # need to be on a sphere
+      dsky = np.deg2rad(dsky/3600.0) # convert to radians
       zf = dsky/dwave          # scale wavelength so distance is in the same units as sky
-      z_tree = zf * z
+      x_tree = np.cos(np.deg2rad(x))*np.cos(np.deg2rad(y))
+      y_tree = np.sin(np.deg2rad(x))*np.cos(np.deg2rad(y))
+      z_tree = z*zf# * np.sin(np.deg2rad(y))
+      #c = np.cos(y/180.0*np.pi)
+      #x_tree = x*c
+      #y_tree = y
+      # need to be on a sphere
+      #z_tree = zf * z
    else:
-      ra_tree = x
-      dec_tree = y
+      x_tree = x
+      y_tree = y
       z_tree = z
 
-   data = np.vstack((ra_tree, dec_tree, z_tree)).T
+   data = np.vstack((x_tree, y_tree, z_tree)).T
    kd = cKDTree(data)
 
    r = dsky #np.sqrt(3*dsky*dsky)
@@ -153,9 +156,10 @@ def evaluate_group(x, y, z, f, euclidean=False):
      icx, icy, icz : f weighted centroid
      ixx, iyy, ixy : f weighted second-order moments in first two (sky) dimenstions
      izz : f weighted second order moment along third dimension
-     a, b : semi-major and semi-minor axis in the x/y plane
-     ka, kb : kron-like (first order moment) adaptive semi-major and minor axes in the x/y plane
-     pa : position angle in degrees
+     a, b : f weighted semi-major and semi-minor axis in the x/y plane
+     pa : position angle on sky
+     a2, b2 : non-weighted semi-major and semi-minor axis in the x/y plane
+     pa2 : position angle in degrees
    '''
    # calculate some aggregate properties most useful for further processing
 
@@ -174,24 +178,39 @@ def evaluate_group(x, y, z, f, euclidean=False):
 
    # semi-major and semi-minor axes
    a_ = 0.5*(ixx+iyy);
-   c_ = np.sqrt(0.25*np.square(ixx-iyy) + np.square(ixy));
+   c_ = np.sqrt(0.25*np.square(ixx-iyy) + np.square(ixy))
    a = np.sqrt (a_+c_);
    b = np.sqrt (a_-c_) if a_-c_>0 else a_
 
    # position angle in degree
-   pa = 0.5*np.arctan2 (2.0*ixy, ixx-iyy) if ixx-iyy!=0.0 else np.pi/4.;
-   pa *= 180./np.pi;
+   pa = 0.5*np.arctan2 (2.0*ixy, ixx-iyy) if ixx-iyy!=0.0 else np.pi/4.
+   pa *= 180./np.pi
 
    # kron-like aperture
-   t = ixx*iyy-ixy*ixy;
-   cxx = ixx/t;
-   cyy = iyy/t;
-   cxy = -2.0*ixy/t;
-   ir1 = np.sum(f*a*np.sqrt(cxx*dx*dx + cyy*dy*dy + cxy*dx*dy))/lum
-   ka = ir1*a/b
-   kb = ir1*b/a
+   #t = ixx*iyy-ixy*ixy
+   #cxx = ixx/t
+   #cyy = iyy/t
+   #cxy = -2.0*ixy/t
+   #ir1 = np.sum(f*a*np.sqrt(cxx*dx*dx + cyy*dy*dy + cxy*dx*dy))/lum
+   #fac = a/b if a/b < 4.0 else 4.0
+   #ka = ir1*fac
+   #kb = ir1/fac
 
-   return (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, ka, kb, pa)
+   ixx2 = np.average(np.square(dx))
+   iyy2 = np.average(np.square(dy))
+   ixy2 = np.average(dx*dy)
+   izz2 = np.average(np.square(z-icz))
+
+   # semi-major and semi-minor axes
+   a2_ = 0.5*(ixx2+iyy2);
+   c2_ = np.sqrt(0.25*np.square(ixx2-iyy2) + np.square(ixy2))
+   a2 = np.sqrt (a2_+c2_);
+   b2 = np.sqrt (a2_-c2_) if a2_-c2_>0 else a2_
+
+   pa2 = 0.5*np.arctan2 (2.0*ixy2, ixx2-iyy2) if ixx2-iyy2!=0.0 else np.pi/4.
+   pa2 *= 180./np.pi
+
+   return (lum, icx, icy, icz, ixx, iyy, ixy, izz, a, b, pa, a2, b2, pa2)
 
 
 def process_group_list(group_lst, detectid, x, y, z, f):
@@ -218,7 +237,7 @@ def process_group_list(group_lst, detectid, x, y, z, f):
    -------
       astropy.Table of processed groups with the fields
          ['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\                                          
-          'a', 'b', 'ka', 'kb', 'pa', 'numpy array:members']
+          'a', 'b', 'pa', 'a2', 'b2', 'pa2', 'numpy array:members']
    '''
    # create list of rows
    rows = []
@@ -232,7 +251,7 @@ def process_group_list(group_lst, detectid, x, y, z, f):
       # append to list. this is much quicker than iterating Table.append()
       rows.append((i,n,*params,members))
       #names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
-             #'a', 'b', 'ka', 'kb', 'pa', 'members'])
+             #'a', 'b', 'pa', 'a2', 'b2', 'pa2', 'members'])
    return group_list_to_table(rows)
    
 
@@ -268,7 +287,7 @@ def group_list_to_table(group_lst):
       astropy.Table with one row per group.
    '''
    return Table(rows=group_lst, names=['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\
-                                       'a', 'b', 'ka', 'kb', 'pa', 'members'])
+                                       'a', 'b', 'pa', 'a2', 'b2', 'pa2', 'members'])
 
 def table_to_group_list(table):
    '''
