@@ -254,7 +254,7 @@ def main(argv=None):
 
         if args.broad:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
-            index_buff = 2100000000
+            index_buff = 2160000000
         elif args.continuum:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
             index_buff = 2190000000
