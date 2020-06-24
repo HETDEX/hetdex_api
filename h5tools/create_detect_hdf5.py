@@ -586,10 +586,11 @@ def main(argv=None):
                 ifiber = np.argmax(datafiber["col14"])
                 multiname = datafiber["col5"][ifiber]
                 multiframe = multiname[0:20]
+                rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
                 fiber_id_i = (
                     str(rowMain["shotid"])
                     + "_"
-                    + str(int(rowfiber["expnum"]))
+                    + str(datafiber["col6"][ifiber])[3:5]
                     + "_"
                     + multiframe
                     + "_"
@@ -606,7 +607,6 @@ def main(argv=None):
                 rowMain["y_raw"] = datafiber["col13"][ifiber]
                 rowMain["x_ifu"] = datafiber["col3"][ifiber]
                 rowMain["y_ifu"] = datafiber["col4"][ifiber]
-                rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
                 rowMain["weight"] = datafiber["col14"][ifiber]
 
                 rowMain.append()
