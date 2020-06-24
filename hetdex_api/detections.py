@@ -251,24 +251,26 @@ class Detections:
                   brighter, defaults to None
         """
 
-        mask1 = self.remove_bad_amps()
-        mask2 = self.remove_bright_stuff(gmagcut)
-        mask3 = self.remove_ccd_features()
-        if removebalmerstars:
-            mask4 = self.remove_balmerdip_stars()
-        else:
-            mask4 = np.ones(np.size(self.detectid), dtype=bool)
-
         if self.survey == 'hdr1':
+            mask1 = self.remove_bad_amps()
+            mask2 = self.remove_bright_stuff(gmagcut)
+            mask3 = self.remove_ccd_features()
+            
+            if removebalmerstars:
+                mask4 = self.remove_balmerdip_stars()
+            else:
+                mask4 = np.ones(np.size(self.detectid), dtype=bool)
+                
             mask5 = self.remove_bad_detects()
+        
+            mask6 = self.remove_shots()
+            mask7 = self.remove_bad_pix()
+            
+            mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
+
         else:
-            mask5 = np.ones(np.size(self.detectid), dtype=bool)
-
-        mask6 = self.remove_shots()
-        mask7 = self.remove_bad_pix()
-
-        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
-
+            print('Refine is not set up for ' + self.survey )
+            
         return self[mask]
 
     def query_by_coords(self, coords, radius):
@@ -320,10 +322,11 @@ class Detections:
         if wave:
             selwave = np.abs((self.wave - wave) < dwave)
             selmatch = selwave*selmatch
+
         if shotid:
             selshot = self.shotid == shotid
             selmatch = selshot*selmatch
-            
+
         return selmatch 
                          
     def query_by_dictionary(self, limits):
