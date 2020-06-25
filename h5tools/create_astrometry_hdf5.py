@@ -352,7 +352,7 @@ def main(argv=None):
             shot['dec'] = radectab['dec'][0]
             shot['pa'] = radectab['pa'][0]
         else:
-            args.error('Could not include %s' % radecfinalfile)
+            args.log.error('Could not include %s' % radecfinalfile)
         try:
             shot['xoffset'] = tableQA.cols.xoffset[:]
             shot['yoffset'] = tableQA.cols.yoffset[:]
