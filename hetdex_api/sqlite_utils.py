@@ -31,13 +31,12 @@ except:
 
 #key is the HDR version number, value is list of directories that contain ELiXer imaging databses
 #Base paths
-DICT_DB_PATHS = {1: ["/work/03946/hetdex/hdr1/detect/image_db",
-                     "/work/05350/ecooper/stampede2/elixer/image_db",
-                     "/work/03261/polonius/hdr1_classify/image_db",
-                     "/data/03261/polonius/hdr1_classify_image_db",
-                     "/data/03261/polonius/image_db"
+DICT_DB_PATHS = {1: ["/data/03261/polonius/hdr1/detect/image_db",
+                     "/work/03946/hetdex/hdr1/detect/image_db",
                      ],
-                 2: ["/work/03946/hetdex/hdr2/detect/image_db",
+                 2: ["/data/03261/polonius/hdr2/detect/image_db",
+                     "/work/03261/polonius/hdr2/detect/image_db",
+                     "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
                  }
 #
@@ -97,7 +96,7 @@ def get_elixer_report_db_path(detectid,report_type="report"):
 
 
 
-def get_db_connection(fn):
+def get_db_connection(fn,readonly=True):
     """
     return a SQLite3 databse connection object for the provide databse filename
 
@@ -109,7 +108,10 @@ def get_db_connection(fn):
     conn = None
     try:
         if fn is not None:
-            conn = sqlite3.connect(fn)
+            if readonly:
+                conn = sqlite3.connect("file:" +fn + "?mode=ro",uri=True)
+            else:
+                conn = sqlite3.connect(fn)
     except Error as e:
         print(e)
 
@@ -130,7 +132,7 @@ def fetch_elixer_report_image(conn,detectid):
         if type(conn) != sqlite3.Connection:
             #could be a file
             if op.isfile(conn):
-                conn = get_db_connection(conn)
+                conn = get_db_connection(conn,readonly=True)
 
                 if type(conn) != sqlite3.Connection:
                     print("Invalid databse connection.")
@@ -207,6 +209,15 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
             cursor.execute(sql_create_report_image_table)
             cursor.close()
             conn.commit()
+
+
+            #create index: not necessary; is autocreated with BIGING Primary Key
+            # sql_create_index = """ CREATE UNIQUE INDEX idx_detectid ON report (detectid); """
+            # cursor = conn.cursor(sql_create_index)
+            # cursor.execute()
+            # cursor.close()
+            # conn.commit()
+
             return True
         except Exception as e:
             print(e)
@@ -268,6 +279,9 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
 
         print(f"Inserting {estimated_total} images ... ")
 
+        if estimated_total < 1:
+            return #nothing to do
+
         start_time = int(round(time.time() * 1000))
 
         for f in filelist:
@@ -283,9 +297,9 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
                     time_diff = int(round(time.time() * 1000)) - start_time
                     total_inserts += ct
                     per_insert_time = time_diff / ct / 1000.
-                    print(f"Inserted {ct} ({per_insert_time:#0.3f}s per insert). Total {total_inserts}/{estimated_total} "
+                    print(f"{db_name}: Inserted {ct} ({per_insert_time:#0.3f}s per insert). Total {total_inserts}/{estimated_total} "
                           f"({float(total_inserts / estimated_total) * 100.:#0.1f}%). "
-                          f"Remaining time ({datetime.timedelta(seconds=per_insert_time * (estimated_total - total_inserts))}) ...")
+                          f"Remaining time ({datetime.timedelta(seconds=round(per_insert_time * (estimated_total - total_inserts)))}) ...")
                     start_time = int(round(time.time() * 1000))  # reset the timer
                     ct = 0
                 except:
@@ -307,7 +321,7 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
     try:
 
         if not op.isfile(db_name):
-            conn = sqlite3.connect(db_name)
+            conn = sqlite3.connect(db_name) #not read only
             if type(conn) != sqlite3.Connection:
                 print("Failed to create db connection")
                 return False
@@ -315,7 +329,7 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
                 print("Failed to build schema")
                 return False
         else:
-            conn = get_db_connection(db_name)
+            conn = get_db_connection(db_name,readonly=False)
             if type(conn) != sqlite3.Connection:
                 print("Failed to create db connection")
                 return False
@@ -324,6 +338,42 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
 
     except Exception as e:
         print(e)
+
+# 20200529 DD
+# will revisit later if this idea becomes useful
+#
+# def build_local_imaging_dbs():
+#     """
+#     super simplified for testing
+#     build the imaging databases using default settings in the current directory
+#     :return:
+#     """
+#     import glob
+#     #get the list of images and report types
+#     rpt_min, rpt_max = None, None
+#     rpt_list = sorted(glob.glob("*[0-9].png"))
+#     if (rpt_list is not None) and (len(rpt_list) > 0):
+#         rpt_min = int(rpt_list[0].rstrip(".png"))
+#         rpt_max = int(rpt_list[-1].rstrip(".png"))
+#
+#     nei_min, nei_max = None, None
+#     nei_list = sorted(glob.glob("*[0-9]*nei.png"))
+#     if (nei_list is not None) and (len(nei_list) > 0):
+#         nei_min = rpt_list[0].rstrip("nei.png")
+#         nei_max = rpt_list[-1].rstrip("nei.png")
+#         nei_min = int(nei_min.replace("_","")) #might not have an "_"
+#         nei_max = int(nei_max.replace("_", ""))
+#
+#     mini_min, mini_max = None, None
+#     mini_list = sorted(glob.glob("*[0-9]*mini.png"))
+#     if (mini_list is not None) and (len(mini_list) > 0):
+#         mini_min = rpt_list[0].rstrip("mini.png")
+#         mini_max = rpt_list[-1].rstrip("mini.png")
+#         mini_min = int(mini_min.replace("_","")) #might not have an "_"
+#         mini_max = int(mini_max.replace("_", ""))
+#
+#     #organize by
+#
 
 
 class ConnMgr():
@@ -350,7 +400,8 @@ class ConnMgr():
                 conn = self.conn_dict[dkey]
             else:
                 try:
-                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type))
+                    #all ConnMgr connections are read-only (uri=True)
+                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type),readonly=True)
                     if type(conn) != sqlite3.Connection:
                         conn = None
                     else:

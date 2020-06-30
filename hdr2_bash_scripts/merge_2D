@@ -1,0 +1,1 @@
+python3 /work/05350/ecooper/wrangler/hetdex_api/hetdex_tools/get_spec2D.py -dx 100 -dy 9 --merge

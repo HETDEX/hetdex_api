@@ -24,6 +24,9 @@ import argparse as ap
 import os.path as op
 import numpy as np
 
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
@@ -139,20 +142,10 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % fileshuffle)
 
-    logfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                      str(args.date) + 'v' + str(args.observation).zfill(3) + '.log')
-    try: 
-        f = open(logfile)
-        fileh.create_array(groupAstrometry, 'LogInfo', f.read().encode())
-        f.close()
-    except: 
-        args.log.warning('Could not include %s' % logfile)
-
-        
     # store fplane table
 
-    filefplane = op.join(args.rootdir, str(args.date) + "v" + str(args.observation).zfill(3),
-                         'fplane.txt')    
+    filefplane = op.join(args.tpdir, str(args.date) + "v" + str(args.observation).zfill(3),
+                         'coords','fplane.txt')    
     try:
         f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
                                           'specslot', 'ifuid', 'ifurot', 'platesc'])
@@ -163,13 +156,13 @@ def main(argv=None):
 
     # store catalogs of stars used in astrometric fit
 
-    file_stars = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                         'shout.ifustars')    
+    file_stars = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
+                         str(args.date) + 'v' + str(args.observation).zfill(3) + '.ifu')    
     try:
         f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
                                                 'u', 'g', 'r', 'i', 'z'])
         starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array())
-        starstable.set_attr('filename', 'shout.ifustars')
+        starstable.set_attr('filename', 'DATEvOBS.ifu')
         if any(f_stars['z'] > 0):
             starstable.set_attr('catalog', 'SDSS')
         else:
@@ -187,14 +180,16 @@ def main(argv=None):
         pngim.attrs['filename'] = pngfile
         pngnum += 1
 
-    fileallmch = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),'all.mch')
+    fileallmch = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                         'coords', 'all.mch')
     try:
         allmch = ascii.read(fileallmch)
     except:
         args.log.warning('Could not include %s' % fileallmch)
 
         
-    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),'norm.dat')
+    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+                       'norm.dat')
     try:
         norm = ascii.read(filenorm)
     except:
@@ -253,14 +248,13 @@ def main(argv=None):
                            'match_' + expn + '.pdf')
         matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
-        os.system('convert ' + matchpdf + ' ' + matchpng)
-        try:
+        if op.exists(matchpdf):
             os.system('convert ' + matchpdf + ' ' + matchpng)  
             plt_matchim = plt.imread(matchpng)
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = matchpdf
-        except:
+        else:
             args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
@@ -341,30 +335,43 @@ def main(argv=None):
     tableQA = fileh.root.Astrometry.QA
     tableNV = fileh.root.Astrometry.NominalVals
 
-    radecfinalfile = op.join(args.rootdir,
-                             str(args.date) + 'v' + str(args.observation).zfill(3),
-                             'radec2_final.dat')
-    radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
+    try:
+        radecfinalfile = op.join(args.tpdir,
+                                 str(args.date) + 'v' + str(args.observation).zfill(3),
+                                 'coords', 'radec2.dat')
+        radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
 
+    except:
+        args.log.error('Could not open %s' % radecfinalfile)
+        
     shottable = fileh.root.Shot
 
-
-    if True:#try:
-        for shot in shottable:
+    for shot in shottable:
+        if op.exists(radecfinalfile):
             shot['ra'] = radectab['ra'][0]
             shot['dec'] = radectab['dec'][0]
             shot['pa'] = radectab['pa'][0]
+        else:
+            args.error('Could not include %s' % radecfinalfile)
+        try:
             shot['xoffset'] = tableQA.cols.xoffset[:]
             shot['yoffset'] = tableQA.cols.yoffset[:]
             shot['xrms'] = tableQA.cols.xrms[:]
             shot['yrms'] = tableQA.cols.yrms[:]
             shot['nstars_fit'] = tableQA.cols.nstars[:]
+        except:
+            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        try:
             shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
             shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+        except:
+            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        try:
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
-            shot.update()
-    else:#except:
-        args.log.error('Could not include astrometry shot info for %s' % datevshot)
+        except:
+            args.log.error('Could not include relflux_virus info for %s' % datevshot)
+
+        shot.update()
 
     fileh.close()
 

@@ -69,7 +69,7 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, survey='hdr1', dither_pattern=None, fibers=True):
+    def load_shot(self, shot_input, survey='hdr2', dither_pattern=None, fibers=True):
         """
         Load fiber info from hdf5 for given shot_input
         
@@ -124,7 +124,7 @@ class Extract:
         xc = dy + ifux[0]
         return xc, yc
 
-    def get_fiberinfo_for_coord(self, coord, radius=8.0):
+    def get_fiberinfo_for_coord(self, coord, radius=8.0, ffsky=False):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -132,6 +132,11 @@ class Extract:
         ----------
         coord: SkyCoord Object
             a single SkyCoord object for a given ra and dec
+        radius:
+            radius to extract fibers in arcsec
+        ffsky: bool
+            Flag to choose local (ffsky=False) or full frame (ffsky=True)
+            sky subtraction
         
         Returns
         -------
@@ -163,9 +168,15 @@ class Extract:
             ifuy = self.fibers.table.read_coordinates(idx, "ifuy")
             ra = self.fibers.table.read_coordinates(idx, "ra")
             dec = self.fibers.table.read_coordinates(idx, "dec")
-            spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
+
+            if ffsky:
+                spec = self.fibers.table.read_coordinates(idx, "spec_fullsky_sub") / 2.0
+            else:
+                spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
+
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
+            
             if self.survey == 'hdr1':
                 mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
@@ -176,9 +187,9 @@ class Extract:
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
         else:
-
+        
             fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
-
+            
             if np.size(fib_table) < fiber_lower_limit:
                 return None
 
@@ -186,7 +197,10 @@ class Extract:
             ifuy = fib_table["ifuy"]
             ra = fib_table["ra"]
             dec = fib_table["dec"]
-            spec = fib_table["calfib"]
+            if ffsky:
+                spec = fib_table["spec_fullsky_sub"]
+            else:
+                spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == 'hdr1':

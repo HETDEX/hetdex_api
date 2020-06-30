@@ -35,14 +35,14 @@ PYTHON_VERSION = sys.version_info
 
 
 class Detections:
-    def __init__(self, survey="hdr1", catalog_type="lines", loadtable=True):
+    def __init__(self, survey="hdr2", catalog_type="lines", loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
         Input
         -----
         survey : string
-            Data release you would like to load, i.e., 'DR1' or 'cont_sources'.
+            Data release you would like to load, i.e., 'hdr2','HDR1'
             This is case insensitive.
         catalog_type : string
             Catalog to laod up. Either 'lines' or 'continuum'. Default is 
@@ -52,8 +52,8 @@ class Detections:
            For example, if you just want to grab a spectrum this isn't needed.
         
         """
-        survey_options = ["hdr1", "hdr2"]
-        catalog_type_options = ["lines", "continuum"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1"]
+        catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -74,7 +74,12 @@ class Detections:
             self.filename = config.detecth5
         elif catalog_type == "continuum":
             self.filename = config.contsourceh5
-
+        elif catalog_type == "broad":
+            try:
+                self.filename = config.detectbroadh5
+            except:
+                print("Could not locate broad line catalog")
+                
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
@@ -97,7 +102,7 @@ class Detections:
                     )
 
             # add in the elixer probabilties and associated info:
-            if self.survey == "hdr1":
+            if self.survey == "hdr1" and catalog_type=='lines':
                 self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
                 for name2 in colnames2:
@@ -129,11 +134,36 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
+            elif catalog_type=='lines':
 
+                # add elixer info if node exists
+                try:
+                    colnames = self.hdfile.root.Elixer.colnames
+                    for name in colnames:
+                        if name == 'detectid':
+                            continue
+                        if isinstance(
+                                getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
+                        ):
+                            setattr(
+                                self,
+                                name,
+                                getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
+                            )
+                        else:
+                            setattr(
+                                self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
+                            )
+                    self.gmag = self.mag_sdss_g
+                    self.gmag_err = self.mag_sdss_g
+                except:
+                    print('No Elixer table found')
+                    
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12)
             self.fwhm = np.zeros(np.size(self.detectid))
-            self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
+            if self.survey == "hdr1":
+                self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
             self.throughput = np.zeros(np.size(self.detectid))
             self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -144,8 +174,11 @@ class Detections:
                 self.field[ix] = S.field[
                     index
                 ]  # NOTE: python2 to python3 strings now unicode
-                self.fwhm[ix] = S.fwhm_moffat[index]
-                self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
+                if self.survey == 'hdr1':
+                    self.fwhm[ix] = S.fwhm_moffat[index]
+                    self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
+                else:
+                    self.fwhm[ix] = S.fwhm_virus[index]
                 self.throughput[ix] = S.response_4540[index]
                 self.n_ifu[ix] = S.n_ifu[index]
 
@@ -226,7 +259,11 @@ class Detections:
         else:
             mask4 = np.ones(np.size(self.detectid), dtype=bool)
 
-        mask5 = self.remove_bad_detects()
+        if self.survey == 'hdr1':
+            mask5 = self.remove_bad_detects()
+        else:
+            mask5 = np.ones(np.size(self.detectid), dtype=bool)
+
         mask6 = self.remove_shots()
         mask7 = self.remove_bad_pix()
 
@@ -252,6 +289,43 @@ class Detections:
             maskcoords = sep.arcmin < radius
         return maskcoords
 
+    def find_match(self, coord, radius=5.*u.arcsec,
+                   wave=None, dwave=5., shotid=None):
+        """
+        Function to cross match another line detection
+
+        Parameters
+        ----------
+        coord
+            an astropy coordinates object
+        wave
+            central wavelength in AA you want to search. If
+            nothing is given, it will search without any
+            wavelength contraint
+        radius
+            search radius. An astropy quantity
+        dwave
+            delta wavelength to search
+        shotid
+            optional shotid for a specific observation
+        
+        Returns
+        -------
+        match_index
+            index of matches
+        """
+
+        selmatch = self.query_by_coords(coord, radius)
+
+        if wave:
+            selwave = np.abs((self.wave - wave) < dwave)
+            selmatch = selwave*selmatch
+        if shotid:
+            selshot = self.shotid == shotid
+            selmatch = selshot*selmatch
+            
+        return selmatch 
+                         
     def query_by_dictionary(self, limits):
         """
         Takes a dictionary of query limits
@@ -385,6 +459,7 @@ class Detections:
         global config
         # set an empty mask to start
         mask = np.zeros(np.size(self.detectid), dtype=bool)
+
         baddetects = np.loadtxt(config.baddetect, dtype=int)
 
         for baddet in baddetects:
@@ -417,6 +492,9 @@ class Detections:
 
         badamps = vstack([badamps1, badamps2])
 
+        if self.survey == 'hdr2':
+            self.date = (self.shotid/1000).astype(int)
+        
         for row in np.arange(np.size(badamps)):
             if badamps["amp"][row] == "AA":
                 maskamp = (
@@ -561,10 +639,9 @@ class Detections:
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
 
-        if self.survey == "hdr1":
-            # convert from 2AA binning to 1AA binning:
-            data["spec1d"] /= 2.0
-            data["spec1d_err"] /= 2.0
+        # convert from 2AA binning to 1AA binning:
+        data["spec1d"] /= 2.0
+        data["spec1d_err"] /= 2.0
 
         return data
 
@@ -650,11 +727,11 @@ class Detections:
 
         table.add_column(Column(self.fwhm), index=1, name="fwhm")
         table.add_column(Column(self.throughput), index=2, name="throughput")
-        table.add_column(Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550")
         table.add_column(Column(self.field), index=4, name="field")
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
 
         if self.survey == "hdr1":
+            table.add_column(Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550")    
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(
                 Column(self.plae_poii_hetdex_gmag), name="plae_poii_hetdex_gmag"
@@ -662,6 +739,12 @@ class Detections:
             table.add_column(Column(self.plae_poii_cat), name="plae_poii_cat")
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
+        elif self.survey == 'hdr2':
+            table.add_column(Column(self.gmag), index=6, name="gmag")
+            table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
+            for name in self.hdfile.root.Elixer.colnames:
+                table[name] = getattr(self, name)
+            
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
@@ -688,16 +771,3 @@ class Detections:
 
     def close(self):
         self.hdfile.close()
-
-    def show_elixer(self, detectid):
-        """
-        Takes a detectid and pulls out the elixer PDF from the
-        elixer tar files on hdr1 and shows it in matplotlib
-        """
-        elix_dir = "/work/05350/ecooper/stampede2/elixer/jpgs/"
-        file_jpg = op.join(
-            elix_dir, "egs_%d" % (detectid // 100000), str(detectid) + ".jpg"
-        )
-        plt.figure(figsize=(10, 8))
-        im = plt.imread(file_jpg)
-        plt.imshow(im)

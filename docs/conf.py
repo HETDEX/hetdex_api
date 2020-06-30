@@ -14,15 +14,17 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('../hetdex_api/'))
+
 
 # -- Project information -----------------------------------------------------
 
 project = 'hetdex_api'
-copyright = '2019, HETDEX Data Release Team'
+copyright = '2020, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = '0.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -36,6 +38,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.napoleon']
 
 extensions += ['sphinxarg.ext']
+extensions += ['sphinx_markdown_tables']
 
 napoleon_google_docstring = False
 napoleon_use_param = False
@@ -67,3 +70,9 @@ html_theme = 'sphinx_rtd_theme'
 autodoc_mock_imports = ['catalogs','astropy', 'tables', 'ipywidgets', 'elixer',
                         'astroquery', 'speclite']
 master_doc = 'index'
+
+source_parsers = {
+        '.md': 'recommonmark.parser.CommonMarkParser',
+    }
+
+source_suffix = ['.rst', '.md']

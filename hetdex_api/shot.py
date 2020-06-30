@@ -25,7 +25,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-def open_shot_file(shotid, survey="hdr1"):
+def open_shot_file(shotid, survey="hdr2"):
     """
     Open the H5 file for a shot. This is a global function that allows you
     to open an H5 file based on its shotid and data release. 
@@ -59,15 +59,15 @@ def open_shot_file(shotid, survey="hdr1"):
     if re.search("v", str(shotid)):
         file = op.join(config.data_dir, str(shotid) + ".h5")
     else:
-        file = op.join(config.data_dir, str(shotid)[0:8]
-                       + "v" + str(shotid)[8:11]
-                       + ".h5")
+        file = op.join(
+            config.data_dir, str(shotid)[0:8] + "v" + str(shotid)[8:11] + ".h5"
+        )
     fileh = tb.open_file(file, "r")
     return fileh
 
 
 class Fibers:
-    def __init__(self, shot, survey="hdr1"):
+    def __init__(self, shot, survey="hdr2"):
         """
         Initialize Fibers Class
 
@@ -103,46 +103,50 @@ class Fibers:
         """
 
         self.hdfile = open_shot_file(shot, survey=survey)
-        
+
         self.table = self.hdfile.root.Data.Fibers
-        
+
         # Grab attributes from FiberIndex table if survey!='hdr1'
 
-        if survey == 'hdr1':
+        if survey == "hdr1":
             colnames = self.hdfile.root.Data.Fibers.colnames
             for name in colnames:
 
                 if isinstance(
-                        getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
+                    getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
                 ):
                     setattr(
-                    self,
+                        self,
                         name,
                         getattr(self.hdfile.root.Data.Fibers.cols, name)[:].astype(str),
                     )
                 else:
-                    setattr(self, name, 
-                            getattr(self.hdfile.root.Data.Fibers.cols, name)[:])
+                    setattr(
+                        self, name, getattr(self.hdfile.root.Data.Fibers.cols, name)[:]
+                    )
         else:
             colnames = self.hdfile.root.Data.FiberIndex.colnames
             for name in colnames:
 
                 if isinstance(
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
+                    getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
                 ):
                     setattr(
-                    self,
+                        self,
                         name,
-                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(str),
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:].astype(
+                            str
+                        ),
                     )
                 else:
-                    setattr(self, name, 
-                            getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:])
+                    setattr(
+                        self,
+                        name,
+                        getattr(self.hdfile.root.Data.FiberIndex.cols, name)[:],
+                    )
 
         self.coords = SkyCoord(
-            self.ra[:] * u.degree,
-            self.dec[:] * u.degree,
-            frame="icrs",
+            self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs",
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
@@ -206,8 +210,8 @@ class Fibers:
         image arrays produced by Panacea.
         """
 
-        wave_data = self.table[idx]['wavelength']
-        trace_data = self.table[idx]['trace']
+        wave_data = self.table[idx]["wavelength"]
+        trace_data = self.table[idx]["trace"]
 
         y = int(np.round(np.interp(wave_obj, wave_data, range(len(wave_data)))))
         x = int(np.round(np.interp(y, range(len(trace_data)), trace_data)))
@@ -335,12 +339,13 @@ class Fibers:
             idx = np.where(
                 (self.fibidx == (fibnum_obj - 1))
                 * (self.multiframe == multiframe_obj)
-                * (self.expnum == expnum_obj))[0][0]
+                * (self.expnum == expnum_obj)
+            )[0][0]
         if np.size(idx) > 1:
-            print('Somethings is wrong, found {} fibers'.format(np.size(idx)))
+            print("Somethings is wrong, found {} fibers".format(np.size(idx)))
             sys.exit()
         elif np.size(idx) == 0:
-            print('Could not find a fiber match. Check inputs')
+            print("Could not find a fiber match. Check inputs")
             sys.exit()
         else:
             pass
@@ -396,7 +401,9 @@ class Fibers:
         return table
 
 
-def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astropy=True):
+def get_fibers_table(
+    shot, coords=None, radius=3.0 * u.arcsec, survey="hdr2", astropy=True
+):
     """
     Returns fiber specta for a given shot.
 
@@ -410,6 +417,8 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
         an astropy quantity object or radius in degrees
     astropy
         flag to make it an astropy table
+    survey
+        data release you want to access
 
     Returns
     -------
@@ -418,7 +427,7 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
 
     """
 
-    fileh = open_shot_file(shot)
+    fileh = open_shot_file(shot, survey=survey.lower())
     fibers = fileh.root.Data.Fibers
     try:
         ra_in = coords.ra.degree
@@ -434,21 +443,21 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
         rad = radius * u.arcsec
         pass
 
-    if survey=='hdr1':
+    if survey == "hdr1":
         # search first along ra
-        
+
         ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
-        
+
         if any(ra_table):
             coords_table = SkyCoord(
                 ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
             )
             idx = coords.separation(coords_table) < rad
             fibers_table = ra_table[idx]
-            
+
             fibers_table["calfib"] = fibers_table["calfib"] / 2.0
             fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
-            
+
             if astropy:
                 fibers_table = Table(fibers_table)
 
@@ -457,10 +466,10 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
 
     else:
 
-        #use FiberIndex table to find fiber_ids
+        # use FiberIndex table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region(coords)        
-    
+        fibers_table = fiberindex.query_region(coords,radius=rad_in.value)
+
         if np.size(fibers_table) > 0:
             if astropy:
                 fibers_table = Table(fibers_table)
@@ -471,8 +480,9 @@ def get_fibers_table(shot, coords=None, radius=3.*u.arcsec, survey="hdr1", astro
     return fibers_table
 
 
-def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
-                       imtype="clean_image", survey="hdr1"):
+def get_image2D_cutout(
+    shot, coords, wave_obj, width=40, height=40, imtype="clean_image", survey="hdr2"
+):
     """
     Returns an image from the 2D data based on
     ra/dec/wave.
@@ -516,16 +526,32 @@ def get_image2D_cutout(shot, coords, wave_obj, width=40, height=40,
     ]
 
 
-def get_image2D_amp(shot, multiframe_obj, imtype="clean_image", 
-                    expnum_obj=1, survey='hdr1'):
+def get_image2D_amp(
+    shot,
+    multiframe=None,
+    specid=None,
+    amp=None,
+    ifuslot=None,
+    imtype="clean_image",
+    expnum=1,
+    survey="hdr2"
+):
     """
     Returns an image from the 2D data based on
-    an multiframe or a specid/amp/expnum combo
+    a multiframe or a ifuslot/specid and amp combo
 
     Parameters
     ---------
     multiframe
         unique amp identifier to display
+    specid
+        instead of multiframe, you can provide both
+        specid and amp or ifuslot and amp
+    ifuslot
+        provide ifuslot id and amp in place of multiframe
+    amp
+        inplace of amp you can provide the ifuslot and amp
+        or the specid and amp
     imtype
         image option to display
         options are:['spectrum', 'error, clean_image']
@@ -538,9 +564,37 @@ def get_image2D_amp(shot, multiframe_obj, imtype="clean_image",
 
     """
     fileh = open_shot_file(shot, survey=survey)
-    im0 = fileh.root.Data.Images.read_where(
-        "(multiframe == multiframe_obj) & (expnum == expnum_obj)"
-    )
+
+    _expnum = expnum 
+
+    if multiframe:
+        _multiframe = multiframe
+        im0 = fileh.root.Data.Images.read_where(
+            "(multiframe == _multiframe) & (expnum == _expnum)"
+        )
+    elif specid:
+        _specid = specid
+
+        if amp:
+            _amp = amp
+            im0 = fileh.root.Data.Images.read_where(
+                "(specid == _specid) & (amp == _amp) & (expnum == _expnum)"
+            )
+        else:
+            print('You must provide both specid and amp')
+    elif ifuslot:
+        _ifuslot = ifuslot
+        if amp:
+            _amp = amp
+            im0 = fileh.root.Data.Images.read_where(
+                "(ifuslot == _ifuslot) & (amp == _amp) & (expnum == _expnum)"
+            )
+        else:
+            print('You must provide both ifuslot and amp')
+
+    else:
+        print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
+
     fileh.close()
 
     return im0[imtype][0]

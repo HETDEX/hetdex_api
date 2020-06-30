@@ -38,7 +38,7 @@ from elixer import catalogs
 
 class QueryWidget():
 
-    def __init__(self, coords=None, detectid=None, survey='hdr1', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
+    def __init__(self, coords=None, detectid=None, survey='hdr2', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
 
         self.survey = survey.lower()
 
@@ -66,9 +66,10 @@ class QueryWidget():
         self.imw = ImageWidget(image_width=400, image_height=400)
         
         self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))
+        
         self.detectbox = widgets.BoundedIntText(value=self.detectid,
                                                 min=1000000000,
-                                                max=1000690799,
+                                                max=3000000000,
                                                 step=1,
                                                 description='DetectID:',
                                                 disabled=False

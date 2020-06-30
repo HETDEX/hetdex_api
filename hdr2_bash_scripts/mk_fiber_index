@@ -1,0 +1,1 @@
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_fiber_index_hdf5.py -of fiber_index_hdr2_update.h5

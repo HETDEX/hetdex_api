@@ -30,15 +30,28 @@ import tables
 
 from hetdex_tools.get_spec import get_spectra
 
-#needed only if detection observered wavelength is not supplied
-HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
-HETDEX_DETECT_HDF5_HANDLE = None
+try:
+    from hetdex_api.config import HDRconfig
+except:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
 
-HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
-ELIXER_H5= None
-
-elix_dir_archive = '/work/05350/ecooper/stampede2/elixer/jpgs/'
-elix_dir = '/work/03261/polonius/hdr1_classify/all_pngs/'
+try: #using HDRconfig
+    HETDEX_API_CONFIG = HDRconfig(survey="hdr2")
+    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2"]
+    HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
+    HETDEX_DETECT_HDF5_HANDLE = None
+    HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
+    ELIXER_H5= None
+    elix_dir = None
+except Exception as e:
+    print(e)
+    HETDEX_API_CONFIG = None
+    #needed only if detection observered wavelength is not supplied
+    HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+    HETDEX_DETECT_HDF5_HANDLE = None
+    HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+    ELIXER_H5= None
+    elix_dir = None
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
@@ -77,9 +90,9 @@ class ElixerWidget():
 
 
     def __init__(self, detectfile=None, detectlist=None, savedfile=None, outfile=None, resume=False, img_dir=None,
-                 counterpart=False):
+                 counterpart=False,detect_h5=None,elixer_h5=None):
 
-        global elix_dir
+        global elix_dir,HETDEX_DETECT_HDF5_FN,HETDEX_ELIXER_HDF5
 
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
@@ -88,9 +101,22 @@ class ElixerWidget():
         if img_dir is not None:
             if op.exists(img_dir):
                 elix_dir = img_dir
+                #also prepend to the database search directories
+                #so will look there for alternate databases
+                for key in sql.DICT_DB_PATHS.keys():
+                    sql.DICT_DB_PATHS[key].insert(0,elix_dir)
+
+        if detect_h5 is not None:
+            if op.isfile(detect_h5):
+                HETDEX_DETECT_HDF5_FN = detect_h5
+
+
+        if elixer_h5 is not None:
+            if op.isfile(elixer_h5):
+                HETDEX_ELIXER_HDF5 = elixer_h5
 
         if detectfile:
-            self.detectid = np.loadtxt(detectfile, dtype=np.int32,ndmin=1)
+            self.detectid = np.loadtxt(detectfile, dtype=np.int64,ndmin=1)
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid),dtype=int)
             self.z = np.full(np.size(self.detectid),-1.0)
@@ -140,7 +166,12 @@ class ElixerWidget():
                 print("Could not open and read in savedfile. Are you sure its in astropy table format")
 
         elif detectlist is None:
-            self.detectid = np.arange(1000000000, 1000690799, 1)
+            global HETDEX_DETECT_HDF5_HANDLE
+            
+            if HETDEX_DETECT_HDF5_HANDLE is None:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+
+            self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -148,7 +179,7 @@ class ElixerWidget():
             self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
 
         else:
-            self.detectid = np.array(detectlist)
+            self.detectid = np.array(detectlist).flatten()
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -222,7 +253,6 @@ class ElixerWidget():
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
         try:
-
             try:
                 #display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
                 #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
@@ -230,20 +260,16 @@ class ElixerWidget():
             except Exception as e:
                 print(e)
 
-                fname = op.join(elix_dir, "%d.png" % (detectid))
-
-                if op.exists(fname):
-                    display(Image(fname))
-                else: #try the archive location
-                    print("Cannot load ELiXer Report image: ", fname)
-                    print("Trying archive location...")
-                    fname = op.join(elix_dir_archive, "egs_%d" % (detectid // 100000), str(detectid) + '.jpg')
+                if elix_dir:
+                    fname = op.join(elix_dir, "%d.png" % (detectid))
                     if op.exists(fname):
                         display(Image(fname))
-                    else:
+                    else: #try the archive location
                         print("Cannot load ELiXer Report image: ", fname)
+                else:
+                    print("Cannot load ELiXer Report image: ", str(detectid))
         except:
-            print("Cannot load ELiXer Report image: ", fname)
+            print("Cannot load ELiXer Report image: ", str(detectid))
 
 
         if ELIXER_H5 is None:
@@ -310,11 +336,12 @@ class ElixerWidget():
             value=detectstart,
             #min=1,
             min=1000000000,
-            max=1000690799,
+            max=10000000000,
             step=1,
             description='DetectID:',
             disabled=False
         )
+        
         self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
         self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
 
@@ -402,7 +429,6 @@ class ElixerWidget():
         
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
-
 
     def get_observed_wavelength(self):
         global HETDEX_DETECT_HDF5_HANDLE,HETDEX_DETECT_HDF5_FN,current_wavelength
@@ -504,16 +530,17 @@ class ElixerWidget():
 
     def goto_previous_detect(self):
 
-
         try:
-            ix = np.where(self.detectid == self.detectbox.value)[0][0]
-
-            if ix - 1 >= 0:
+            if self.detectbox.value in self.detectid:
+                ix = np.where(self.detectid == self.detectbox.value)[0][0]
                 ix -= 1
             else:
+                ix = np.max(np.where(self.detectid <= self.detectbox.value))
+
+            if ix < 0:
+                ix = 0
                 print("At the beginning of the DetectID List")
                 return
-
         except:
             #invalid index ... the report displayed is not in the operating list
             #so use the last good index:
@@ -532,10 +559,14 @@ class ElixerWidget():
 
     def goto_next_detect(self):
         try:
-            ix = np.where(self.detectid == self.detectbox.value)[0][0]
-            if ix+1 < np.size(self.detectid):
+            if self.detectbox.value in self.detectid:
+                ix = np.where(self.detectid == self.detectbox.value)[0][0]
                 ix += 1
             else:
+                ix = np.where(self.detectid > self.detectbox.value)[0][0]
+            
+            if ix >= np.size(self.detectid):
+                ix = np.argmax(self.detectid)
                 print("At the end of the DetectID List")
                 return
         except:
@@ -620,7 +651,7 @@ class ElixerWidget():
         #print("Reset idx",idx,"Current w",current_wavelength)
 
 
-        if self.detectbox.value < 1000000000: #assume an index
+        if self.detectbox.value < 10000000000: #assume an index
             self.detectbox.value = self.detectid[idx]
             return
 
@@ -797,7 +828,7 @@ class ElixerWidget():
         self.output.add_column(Column(self.z,name='z',dtype=float))
         self.output.add_column(Column(self.counterpart,name='counterpart',dtype=int))
         self.output.add_column(Column(self.comment,name='comments',dtype='|S80'))
-
+                
         ascii.write(self.output, self.outfilename, overwrite=True)
 
     def on_elixer_neighborhood(self,b):
@@ -810,13 +841,18 @@ class ElixerWidget():
         except Exception as e:
             print(e)
 
-            path = op.join(elix_dir, "%dnei.png" % (detectid))
+            # temporary ... once HDR1 is decomissioned, remove this block
+            if elix_dir:
+                path = op.join(elix_dir, "%d_nei.png" % (detectid))
 
-            if not op.isfile(path):
-                print("%s not found" % path)
+                if not op.isfile(path):
+                    path = op.join(elix_dir, "%dnei.png" % (detectid)) #try w/o '_'
+                    if not op.isfile(path):
+                        print("%s not found" % path)
+                else:
+                    display(Image(path))
             else:
-                display(Image(path))
-
+                print("neighborhood not found")
 
     def plot_spec(self, matchnum):
         
@@ -825,17 +861,25 @@ class ElixerWidget():
         match = self.CatalogMatch['match_num'] == matchnum
         
         if matchnum > 0:
-            object_label = 'Counterpart ' + str(matchnum)            
-            coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
-                              dec = self.CatalogMatch['cat_dec'][match] * u.deg,
-                              frame = 'icrs')
+            col_name = ['blue', 'red', 'green']
+            
+            object_label = col_name[matchnum-1] + 'Counterpart'
+
+            try:
+                coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
+                                  dec = self.CatalogMatch['cat_dec'][match] * u.deg,
+                                  frame = 'icrs')
+            except:
+                coords = SkyCoord(ra = self.CatalogMatch['ra'][match] * u.deg,
+                                  dec = self.CatalogMatch['dec'][match] * u.deg,
+                                  frame = 'icrs')
         else:
             object_label = 'RA=' + str(self.e_manual_ra.value).zfill(3) + ' DEC=' + str(self.e_manual_dec.value).zfill(3)
             coords = SkyCoord(ra = self.e_manual_ra.value * u.deg,
                               dec = self.e_manual_dec.value * u.deg,
                               frame = 'icrs')
 
-        spec_table = get_spectra(coords, ID=self.detectbox.value)
+        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2')
 
         #if current_wavelength < 0:
         #current_wavelength = self.get_observed_wavelength()
