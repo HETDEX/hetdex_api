@@ -1,7 +1,11 @@
 """
 
-Generate input to the source
-simulations using flux limit cubes
+Tools to generate inputs to the source
+simulations using flux limit cubes. Note the 
+ra, dec, redshifts and fluxes for the simulations 
+with luminosity function weights weren't generated using 
+the tools here, but using a separate python library. The 
+wrappers for rs1 etc. where however generated with this code.
 
 AUTHOR: Daniel Farrow (MPE; 2020)
 
@@ -52,6 +56,15 @@ class HDF5MockContainer(object):
     def itercubes(self, datevshot=None):
         """
         Yield ifuslot, sensitivity cube
+
+        Parameters
+        ----------
+        datevshot : str (optional)
+            This is ignored and
+            only included to
+            match the API of the
+            real version
+
         """
         if datevshot:
             raise Exception("This is only a mock container, datevshot ignored!")
@@ -93,11 +106,14 @@ def generate_sencube_hdf(datevshot, ra, dec, pa, fplane_output_dir,
         generate a mock container.
     ifusize : float
         size of x,y of IFU in arcsec
+    skip_ifus : list (optional)
+        the IFUSLOTS to skip
 
     Returns
     -------
     hdfcont : SensitivityCubeHDF5Container or HDF5MockContainer
-       a real or mock sensivity cube container
+       a real or mock sensivity cube container depending on
+       the ``hdf_filename`` parameter
     """ 
     if hdf_filename:
         hdfcont = SensitivityCubeHDF5Container(hdf_filename, mode="w") 
@@ -148,6 +164,9 @@ def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize,
         the dimensions of the cube in ra, dec, wave
     ifusize : float
         the length of an IFU side in arcsec
+    wrange : array (optional)
+        the lower and upper wavelength
+        limits in Angstrom
     """
 
     cards = {}
@@ -208,6 +227,8 @@ def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000,
         the minimum and maximum fraction
         of the flux limit used to define 
         a range of fluxes
+    nperifu : int (optional)
+        number of sources per IFU
     sncut : float
         the cut on SNR to pass to the flux
         limits API if add_flim=True
@@ -276,38 +297,34 @@ def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000,
 
     return table
 
-def produce_rmksource_runfile_old(fnout, table, nsplit):
-    """
-    Produce a file full of rmksource commands
-
-    Example output
-    --------------
-    rmksource 1165 150.194 2.348 5400 6e-17 20190204v014
-
-    New Example output
-    ------------------
-    rmksource2 217.788452 51.7916641 008_093_054 20190207v024
-
-    """
-
-    n = 0
-    with open(fnout, "w") as fout:
-        for line in table:
-            fout.write("rmksource {:d} {:8.5f} {:8.5f} {:4.1f} {:e} {:s}".format(
-                       line["id"], line["ra"], line["dec"],
-                       line["wave"], line["flux"], line["field"]))
-            n = n + 1
-            if n == nsplit:
-                fout.write("\n") 
-                n = 0
-            else:
-                fout.write("; ")
-                
+               
 
 def produce_rs1_runfile(fnout, ifuslots, ras, decs, outroot, nsplit):
     """
-    Produce a file full of rs1 commands 
- 
+    Produce a file full of ``rs1`` commands, ready to 
+    run as a simulation
+
+    Parameters
+    ----------
+    fnout : str
+        file name to write commands
+        to. Can be fed into e.g. the
+        jobsplitter command to generate
+        SLURM inputs
+    ifuslots, ras, decs : list or array 
+        The IFUSLOTS, right ascensions (deg.)
+        and declinations (deg.) of the IFUs
+        you plan on adding simulated sources
+        to
+    outroot : str
+        runs basename(outroot) on this to
+        generate the root of the output to
+        pass to rs1
+    nsplit : int
+        indicates which of the multiple
+        realisations this rs1 corresponds
+        to
+
     Example output
     -------------
     rs1 25.51297  0.56949 35 4505 50 ifuslot_086_0 20190105v013 1.7 3 3.5 0. 1 110
@@ -419,15 +436,16 @@ def split_into_ifus(table, unique_fields, unique_ifus, outdir,
 
 def generate_sources_to_simulate(args = None):
     """
-    Generate source simualtion inputs
+    Generate source simulation inputs
     spread evenly over the sensitivity cube
     pixels, from an input sensitivity cube. Not
     suitable as a random catalogue, as not uniform
     in redshift - good for probing the detection
     efficiency etc. over redshift though
+
     """  
 
-    parser = ArgumentParser(description="Generate inputs for source simulations")
+    parser = ArgumentParser(description="Generate inputs for source simulations, uniform in x,y,z datacube coords")
     parser.add_argument("--nsplit-start", default=0, type=int, help="What number to start the file split labeling at")
     parser.add_argument("--ifusize", help="Size of IFU, in arcsec", default=52.)
     parser.add_argument("--nperifu", help="Number of sources to add per IFU", default=1000, type=int)

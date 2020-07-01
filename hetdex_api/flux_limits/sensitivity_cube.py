@@ -2,7 +2,7 @@
 Sensitivity Cube Reader
 
 Read in Karl's sensitivity cubes and 
-produce expected detection fraction
+produce expected detection fractions
 from the Fleming (Fleming+ 1995) parameterisation
 
 References:
@@ -566,8 +566,10 @@ class SensitivityCube(object):
  
         Return
         ------
-        fracdet : array
-            fraction detected in this slice
+        f50 : float
+            the flux at 50% completeness
+            for the given ``sncut`` in this
+            wavelength slice
 
         """
 
