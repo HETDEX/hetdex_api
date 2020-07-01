@@ -47,6 +47,13 @@ pip install --user --prefix /path/to/install .
 
 You will need to add the ``/bin/`` directory created by this command to your path.
 
+If you want to build the documentation yourself, then you will also want to install the packages
+for that by adding ``[doc]`` to the name of the package when you install, e.g.
+
+```
+pip install -e hetdex_api[doc] --user
+``` 
+
 ## Instructions to contributors
 
 To contribute to a file or add a new file:
