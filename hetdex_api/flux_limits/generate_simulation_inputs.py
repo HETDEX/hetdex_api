@@ -10,7 +10,7 @@ from os.path import basename, dirname, join, isfile
 from six import iteritems
 from argparse import ArgumentParser
 from numpy import (log10, power, unique, isfinite, logical_not, cos, 
-                   sin, deg2rad, zeros, ceil, sqrt, square)
+                   sin, deg2rad, zeros, ceil, sqrt, square, transpose, savetxt)
 from numpy.random import uniform, seed
 import astropy.units as u
 from astropy.io.fits import Header
@@ -350,7 +350,71 @@ def produce_rmksource_runfile(fnout, ifuslots, ras, decs, outroot, nsplit):
                 n = 0
             else:
                 fout.write("; ")
+
+def split_into_ifus(table, unique_fields, unique_ifus, outdir,
+                    NMAX=1000, nsplit_start=0, nsplit=1):
+    """
+    Split a catalogue into input catalogues
+    and commands on single IFUs. Outputs
+    catalogues and files full of calls
+    to Karl's HETDEX simulation code
+
+    Parameters
+    ----------
+    unique_fields, unique_ifus : array
+        fields and IFUs to split up
+    outdir : str
+        output directory
+    NMAX : int (optional)
+        maximum source per IFU,
+        further splits if bigger than this
  
+    """
+
+    # Maximum sources per ifu in one sim run
+    # Second part of the filename
+    fn2s = []
+    ras = []
+    decs = []
+    for field in unique_fields:
+        table_field = table[table["field"] == field]
+        for ifuslot in unique_ifus:
+
+            table_ifu = table_field[table_field["ifuslot"] == ifuslot]
+            # Split into sub sets if too big to simulate at once
+            nsplit = int(ceil(len(table_ifu)/NMAX))
+            for isplit in range(nsplit):
+               ttable = table_ifu[isplit*NMAX : (isplit + 1)*NMAX]
+
+               date = field[:-4]
+               fplane_fn = "{:s}_fplane.txt".format(date)
+               if not isfile(fplane_fn):
+                   get_fplane(fplane_fn, datestr=date)
+                   fplane = FPlane(fplane_fn)
+               else:
+                   fplane = FPlane(fplane_fn) 
+
+
+               ifu = fplane.by_id(ifuslot[-3:], "ifuslot")               
+               
+
+               if isplit + nsplit_start > 0: 
+                   fn2 = ifuslot + "_{:d}".format(isplit + nsplit_start)
+               else:
+                   # ingestion script compatible fn
+                   fn2 = "{:03d}_{:s}_{:s}".format(ifu.specid, ifu.ifuslot, ifu.ifuid)
+
+               outfn = join(outdir, "{:s}_{:s}.input".format(field, fn2))
+               savetxt(outfn, transpose([ttable["ra"], ttable["dec"],
+                                         ttable["wave"], ttable["flux_extincted"]
+                                        ]))
+               ras.append(ttable["ifu_ra"][0]) 
+               decs.append(ttable["ifu_dec"][0])
+               fn2s.append(fn2)
+ 
+        produce_rs1_runfile(join(outdir, "{:s}_{:d}.run".format(field, nsplit_start)), 
+                            fn2s, ras, decs, field, nsplit)
+
 
 
 def generate_sources_to_simulate(args = None):
@@ -425,30 +489,10 @@ def generate_sources_to_simulate(args = None):
  
     # Second part of the filename
     fn2s = []
-
-    # Maximum sources per ifu in one sim run
-    NMAX = opts.nmax
-    ras = []
-    decs = []
-    for field in unique_fields:
-        table_field = table[table["field"] == field]
-        for ifuslot in unique_ifus:
-
-            table_ifu = table_field[table_field["ifuslot"] == ifuslot]
-            # Split into sub sets if too big to simulate at once
-            nsplit = int(ceil(len(table_ifu)/NMAX))
-            for isplit in range(nsplit):
-               ttable = table_ifu[isplit*NMAX : (isplit + 1)*NMAX]
-               fn2 = ifuslot + "_{:d}".format(isplit + opts.nsplit_start)
-               ttable.write(join(opts.outdir, "{:s}_{:s}.input".format(field, fn2)), 
-                            include_names=["ra", "dec", "wave", "flux"],
-                            format="ascii.no_header")
-               ras.append(ttable["ifu_ra"][0]) 
-               decs.append(ttable["ifu_dec"][0])
-               fn2s.append(fn2)
- 
-        produce_rs1_runfile(join(opts.outdir, "{:s}_{:d}.run".format(field, opts.nsplit_start)), 
-                            fn2s, ras, decs, field, opts.nsplit)
+    split_into_ifus(table, unique_fields, unique_ifus,
+                    opts.outdir, NMAX=opts.nmax, 
+                    nsplit_start=opts.nsplit_start,
+                    nsplit=opts.nsplit)
 
 
 if __name__ == "__main__":
