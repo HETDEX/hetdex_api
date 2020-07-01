@@ -94,7 +94,8 @@ def test_add_to_hdf5_cmd(tmpdir, datadir):
     output = tmpdir.join("test_output.h5").strpath
 
     # Run with command line arguments passed
-    args = [scube_fn1, scube_fn2, output] 
+    args = ["--regex", ".*(2[0-9]{7}v[0-9]{3})_multi_[0-9]{3}_([0-9]{3})",
+            scube_fn1, scube_fn2, output] 
     add_sensitivity_cube_to_hdf5(args=args)
  
     assert isfile(output)
