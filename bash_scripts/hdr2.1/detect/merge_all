@@ -1,0 +1,1 @@
+python3 /work/05350/ecooper/wrangler/hetdex_api/h5tools/create_detect_hdf5.py --merge -of detect_merged.h5 -mm

@@ -1,0 +1,6 @@
+#first run: (~30 min)
+sbatch run_shot.slurm
+#then combine by month: (~5 min)
+sbatch --dependency=singleton run_month.slurm
+#then combine all the months: (takes ~15 min)
+sbatch --dependency=singleton merge_all.slurm
