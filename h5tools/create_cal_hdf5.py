@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
 from hetdex_api.input_utils import setup_logging
-
+from hetdex_api.config import HDRconfig
 
 def main(argv=None):
     """ Main Function """
@@ -81,7 +81,11 @@ def main(argv=None):
         action="count",
         default=0,
     )
-
+    parser.add_argument("-survey", "--survey",
+                        help="""{hdr1, hdr2, hdr2.1}""",
+                        type=str, default="hdr2.1")
+    
+                    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -97,6 +101,18 @@ def main(argv=None):
         fileh = tb.open_file(args.outfilename, "w")
         args.log.info("Writingcalibration info to %s" % args.outfilename)
 
+    shotid = int(str(args.date) + str(args.observation).zfill(3))
+    
+    #check if shotid is in badlist
+    
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+    
+    badshotflag = False
+    
+    if shotid in badshots:
+        badshotflag = True
+        
     try:
         fileh.remove_node(fileh.root.Calibration, recursive=True)
     except:
@@ -160,7 +176,10 @@ def main(argv=None):
             row.update()
 
     except:
-        args.log.error("Could not include cal info in shot table for %s" % datevshot)
+        if badshotflag:
+            args.log.warning("Could not include cal info in shot table for %s" % datevshot)
+        else:
+            args.log.error("Could not include cal info in shot table for %s" % datevshot)
 
     fileh.close()
 

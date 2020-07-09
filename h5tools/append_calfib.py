@@ -22,6 +22,7 @@ import numpy as np
 from astropy.io import fits
 from hetdex_api.input_utils import setup_logging
 from astropy.table import Table, join
+from hetdex_api.config import HDRconfig
 
 
 def get_cal_files(args):
@@ -87,8 +88,8 @@ def main(argv=None):
                         help='''Relative or absolute path for output HDF5                          
                         file.''', default=None)
 
-    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr3}''',
-                        type=str, default='hdr2')
+    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr2.1}''',
+                        type=str, default='hdr2.1')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -96,9 +97,24 @@ def main(argv=None):
     calfiles = get_cal_files(args)
 
     datestr = '%sv%03d' % (args.date, int(args.observation))
-        
+
+    shotid = int(str(args.date) + str(args.observation).zfill(3))
+
+    #check if shotid is in badlist
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+    
+    badshotflag = False
+    
+    if shotid in badshots:
+        badshotflag = True
+    
     if len(calfiles) == 0:
-        args.log.error("No calfits file to append for %s" % datestr)
+        if badshotflag:
+            args.log.warning("No calfits file to append for %s" % datestr)
+        else:
+            args.log.error("No calfits file to append for %s" % datestr)
+
         sys.exit('Exiting cal append script for %s' % datestr)
 
     if op.exists(args.outfilename):
