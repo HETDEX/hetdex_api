@@ -97,7 +97,7 @@ class Detections(tb.IsDescription):
     ifuid = tb.StringCol((3))
     amp = tb.StringCol((2))
     expnum = tb.Int32Col()
-
+    chi2fib = tb.Float32Col()
 
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -372,7 +372,8 @@ def main(argv=None):
     
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
-                    'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'src_index']
+                    'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
+                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight']
 
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
@@ -387,7 +388,7 @@ def main(argv=None):
             sys.exit()
                 
         catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
-        
+
         det_cols = fileh.root.Detections.colnames
 
         amplist = []
@@ -417,16 +418,16 @@ def main(argv=None):
                 continue
 
             if args.broad:
-                selSN = (detectcatall['sn'] > 8)
-                selLW = (detectcatall['linewidth'] > 6)
-                selchi2 = (detectcatall['chi2'] > 1.5)
+                selSN = (detectcatall['sn'] > 5)
+                selLW = (detectcatall['linewidth'] > 5)
+                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 8)
                 selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
-                selcat = selSN * selLW * selchi2 * selwave
+                selcat = selSN * selLW * selcont * selwave
             else:
                 selSN = (detectcatall['sn'] > 4.5)
                 selLW = (detectcatall['linewidth'] > 1.7) #* (detectcatall['linewidth'] < 20)
                 selchi2 = (detectcatall['chi2'] < 1.6)
-                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
+                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
                 selcat = selSN * selLW * selchi2 * selwave
             
             detectcat = detectcatall[selcat]
@@ -466,7 +467,26 @@ def main(argv=None):
                     rowMain['date'] = int(amp_i[0:8])
                     rowMain['obsid'] = int(amp_i[9:12])
                     rowMain['shotid'] = int(amp_i[0:8] + amp_i[9:12])
+
+                # check if amp is in bad amp list
+                multiframe = row['multiname'][0:20]
+
+                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                ampflag = amp_stats['flag'][selamp]
+                
+                if np.size(ampflag) == 0:
+                    args.log.error('No ampflag for '
+                                   + str(rowMain['shotid'])
+                                   + ' ' + multiframe)
                     
+                if ampflag==False:
+                    continue
+
+                # check if Karl stored the same fiber as me:
+                fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][3:5]) \
+                                + "_" + multiframe + "_" \
+                                + str(int(row['multiname'][21:24])).zfill(3)
+                
                 rowMain['inputid'] = inputid_i
                 
                 for col in colnames:
@@ -533,9 +553,9 @@ def main(argv=None):
                         ampflag = amp_stats['flag'][selamp]
                     
                     if np.size(ampflag) == 0:
-                        args.log.warning('No ampflag for '
-                                         + str(rowMain['shotid'])
-                                         + ' ' + multiframe)
+                        args.log.error('No ampflag for '
+                                       + str(rowMain['shotid'])
+                                       + ' ' + multiframe)
                         
                     if ampflag==False:
                         break
@@ -596,6 +616,12 @@ def main(argv=None):
                     + "_"
                     + str(int(multiname[21:24])).zfill(3)
                 )
+
+                if fiber_id_i == fiber_id_Karl:
+                    pass
+                else:
+                    args.log.error("Karl's FiberID does not match: ", fiber_id_i)
+                    
                 rowMain["fiber_id"] = fiber_id_i
                 rowMain["multiframe"] = multiframe
                 rowMain["specid"] = multiframe[6:9]
