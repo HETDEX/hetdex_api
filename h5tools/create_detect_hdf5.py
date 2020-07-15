@@ -23,10 +23,7 @@ Then once all months are done, merge into one file:
 
 >>> python3 create_detect_hdf5.py --merge -of detect_hdr2.h5
 
-To run continuum sources:
-
->>> python3 create_detect_hdf5.py -dp /data/00115/gebhardt/cs/spec /
--cs /data/00115/gebhardt/cs/rext1 -of continuum_sources.h5
+To run continuum sources, use create_cont_hdf5.py instead
 
 """
 from __future__ import print_function
@@ -225,15 +222,6 @@ def main(argv=None):
         action="store_true",
     )
 
-    parser.add_argument(
-        "--continuum",
-        "-cont",
-        help=""" Boolean trigger to select broad sources""",
-        default=False,
-        required=False,
-        action="store_true",
-    )
-    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -255,9 +243,9 @@ def main(argv=None):
         if args.broad:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
             index_buff = 2160000000
-        elif args.continuum:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
-            index_buff = 2190000000
+#        elif args.continuum:
+#            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
+#            index_buff = 2190000000
         else:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
             index_buff = 2100000000
@@ -295,7 +283,7 @@ def main(argv=None):
         else:
             files = sorted(glob.glob(op.join(args.mergedir, "detect_2*.h5")))
 
-        detectid_max = 1
+        detectid_max = 0
 
         for file in files:
 
@@ -306,6 +294,7 @@ def main(argv=None):
             tableMain_i = fileh_i.root.Detections.read()
 
             if np.size(tableMain_i) == 0:
+                args.log.error('No detections for %s' % file)
                 continue
                 
             tableFibers_i = fileh_i.root.Fibers.read()
@@ -315,11 +304,15 @@ def main(argv=None):
             tableFibers_i["detectid"] += detectid_max
             tableSpectra_i["detectid"] += detectid_max
 
+            # after first table be sure to add one to the index
+            
+            detectid_max = 1
+            
             tableMain.append(tableMain_i)
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
-
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1
+            
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
@@ -368,7 +361,8 @@ def main(argv=None):
             "1D Spectra for each Line Detection"
         )
 
-        amp_stats = Table.read('/work/05350/ecooper/wrangler/hdr2/hdr2-detects/amp_flag.fits')
+        
+        amp_stats = Table.read('/data/05350/ecooper/hdr2.1/survey/amp_flag.fits')
     
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
@@ -420,16 +414,20 @@ def main(argv=None):
             if args.broad:
                 selSN = (detectcatall['sn'] > 5)
                 selLW = (detectcatall['linewidth'] > 5)
+                selchi2 = (detectcatall['chi2'] > 1.6)
                 selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 8)
                 selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
-                selcat = selSN * selLW * selcont * selwave
+                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
                 selSN = (detectcatall['sn'] > 4.5)
-                selLW = (detectcatall['linewidth'] > 1.7) #* (detectcatall['linewidth'] < 20)
-                selchi2 = (detectcatall['chi2'] < 1.6)
+                selLW = (detectcatall['linewidth'] > 1.7)
+                selchi2 = (detectcatall['chi2'] <= 1.6)
+                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
                 selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
-                selcat = selSN * selLW * selchi2 * selwave
-            
+                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN * selLW * selchi2 * selwave * selchi2fib
+
             detectcat = detectcatall[selcat]
 
             nsel_file = np.sum(selcat)
@@ -471,6 +469,14 @@ def main(argv=None):
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
 
+                if multiframe in ['multi_051_105_051_RL']:
+                    if (row['wave'] > 3540) and (row['wave'] < 3560):
+                        continue
+
+                if multiframe in ['multi_032_094_028_RU']:
+                    if (row['wave'] > 3530) and (row['wave'] < 3545):
+                        continue
+              
                 selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
                 ampflag = amp_stats['flag'][selamp]
                 
