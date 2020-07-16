@@ -269,7 +269,7 @@ class Detections:
             mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         else:
-            print('Refine is not set up for ' + self.survey )
+            mask = self.remove_bad_amps()
             
         return self[mask]
 
@@ -485,38 +485,47 @@ class Detections:
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        badamps1 = ascii.read(
-            config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
-        )
+        if self.survey == 'hdr1':
+            badamps1 = ascii.read(
+                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+            )
 
-        badamps2 = ascii.read(
-            config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
-        )
+            badamps2 = ascii.read(
+                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+            )
 
-        badamps = vstack([badamps1, badamps2])
+            badamps = vstack([badamps1, badamps2])
 
-        if self.survey == 'hdr2':
-            self.date = (self.shotid/1000).astype(int)
+            if self.survey == 'hdr2':
+                self.date = (self.shotid/1000).astype(int)
         
-        for row in np.arange(np.size(badamps)):
-            if badamps["amp"][row] == "AA":
-                maskamp = (
-                    (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
-                    * (self.date >= badamps["date_start"][row])
-                    * (self.date <= badamps["date_end"][row])
-                )
-                mask = np.logical_or(mask, maskamp)
-            else:
-                maskamp = (
-                    (self.amp == badamps["amp"][row])
-                    * (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
-                    * (self.date >= badamps["date_start"][row])
-                    * (self.date <= badamps["date_end"][row])
-                )
-                mask = np.logical_or(mask, maskamp)
+            for row in np.arange(np.size(badamps)):
+                if badamps["amp"][row] == "AA":
+                    maskamp = (
+                        (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
+                        * (self.date >= badamps["date_start"][row])
+                        * (self.date <= badamps["date_end"][row])
+                    )
+                    mask = np.logical_or(mask, maskamp)
+                else:
+                    maskamp = (
+                        (self.amp == badamps["amp"][row])
+                        * (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
+                        * (self.date >= badamps["date_start"][row])
+                        * (self.date <= badamps["date_end"][row])
+                    )
+                    mask = np.logical_or(mask, maskamp)
 
-        self.vis_class[mask] = 0
-        return np.logical_not(mask)
+            return np.logical_not(mask)
+        else:
+            badamps = Table.read(config.badamp)
+            det_table = self.return_astropy_table()
+            join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
+            mask = join_tab['flag'] == True
+
+            del det_table, join_tab
+            
+            return mask
 
     def remove_bad_pix(self):
         """
