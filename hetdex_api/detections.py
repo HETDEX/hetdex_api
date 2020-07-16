@@ -19,7 +19,7 @@ import tables as tb
 import copy
 import matplotlib.pyplot as plt
 
-from astropy.table import vstack, Table, Column
+from astropy.table import vstack, Table, Column, join
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
