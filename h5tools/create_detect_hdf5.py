@@ -489,9 +489,10 @@ def main(argv=None):
                     continue
 
                 # check if Karl stored the same fiber as me:
-                fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][3:5]) \
+                fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][4:5]) \
                                 + "_" + multiframe + "_" \
                                 + str(int(row['multiname'][21:24])).zfill(3)
+                karl_weight = row['weight']
                 
                 rowMain['inputid'] = inputid_i
                 
@@ -577,7 +578,7 @@ def main(argv=None):
                     rowfiber["dec"] = datafiber["col2"][ifiber]
                     rowfiber["x_ifu"] = datafiber["col3"][ifiber]
                     rowfiber["y_ifu"] = datafiber["col4"][ifiber]
-                    rowfiber["expnum"] = str(datafiber["col6"][ifiber])[3:5]
+                    rowfiber["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
                     multiname = datafiber["col5"][ifiber]
                     multiframe = multiname[0:20]
                     fiber_id_i = (
@@ -612,11 +613,11 @@ def main(argv=None):
                 ifiber = np.argmax(datafiber["col14"])
                 multiname = datafiber["col5"][ifiber]
                 multiframe = multiname[0:20]
-                rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
+                rowMain["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
                 fiber_id_i = (
                     str(rowMain["shotid"])
                     + "_"
-                    + str(datafiber["col6"][ifiber])[3:5]
+                    + str(rowMain["expnum"])
                     + "_"
                     + multiframe
                     + "_"
@@ -626,7 +627,10 @@ def main(argv=None):
                 if fiber_id_i == fiber_id_Karl:
                     pass
                 else:
-                    args.log.error("Karl's FiberID does not match: ", fiber_id_i)
+                    weight = datafiber["col14"][ifiber]
+                    weightdif = np.abs(weight-karl_weight)
+                    if (weightdif > 0.001):
+                        args.log.error("Karl's FiberID does not match: " + inputid_i)
                     
                 rowMain["fiber_id"] = fiber_id_i
                 rowMain["multiframe"] = multiframe
