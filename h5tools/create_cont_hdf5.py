@@ -340,10 +340,11 @@ def main(argv=None):
             ifiber = np.argmax(datafiber["col14"])
             multiname = datafiber["col5"][ifiber]
             multiframe = multiname[0:20]
+            row["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
             fiber_id_i = (
                 str(row["shotid"])
                 + "_"
-                + str(int(rowfiber["expnum"]))
+                + str(row['expnum'])
                 + "_"
                 + multiframe
                 + "_"
