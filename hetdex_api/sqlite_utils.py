@@ -34,25 +34,26 @@ except:
 #  xx0 = standard hetdex
 #  xx6 = broad emission lines
 #  xx9 = continuum sources
-DICT_DB_PATHS = {100: ["/data/03261/polonius/hdr1/detect/image_db",
+DICT_DB_PATHS = {10: ["/data/03261/polonius/hdr1/detect/image_db",
                      "/work/03946/hetdex/hdr1/detect/image_db",
                      ],
-                 200: ["/data/03261/polonius/hdr2/detect/image_db",
+                 20: ["/data/03261/polonius/hdr2/detect/image_db",
                      "/work/03261/polonius/hdr2/detect/image_db",
                      "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
-                 210: ["/data/03261/polonius/hdr2.1/detect/image_db",
+                 21: ["/data/03261/polonius/hdr2.1/detect/image_db",
                       "/work/03261/polonius/hdr2.1/detect/image_db",
-                      "/work/03946/hetdex/hdr2.1/detect/image_db"
+                      "/work/03946/hetdex/hdr2.1/detect/image_db",
+                      "/work/03946/hetdex/hdr2.1.run/detect/image_db"
                       ],
-                 216: ["/data/03261/polonius/hdr2.1/detect/broad_image_db",
-                       "/work/03261/polonius/hdr2.1/detect/broad_image_db",
-                       "/work/03946/hetdex/hdr2.1/detect/broad_image_db"
-                       ],
-                 219: ["/data/03261/polonius/hdr2.1/detect/continuum_image_db",
-                       "/work/03261/polonius/hdr2.1/detect/continuum_image_db",
-                       "/work/03946/hetdex/hdr2.1/detect/continuum_image_db"
-                       ],
+                 # 21: ["/data/03261/polonius/hdr2.1/detect/broad_image_db",
+                 #       "/work/03261/polonius/hdr2.1/detect/broad_image_db",
+                 #       "/work/03946/hetdex/hdr2.1/detect/broad_image_db"
+                 #       ],
+                 # 21: ["/data/03261/polonius/hdr2.1/detect/continuum_image_db",
+                 #       "/work/03261/polonius/hdr2.1/detect/continuum_image_db",
+                 #       "/work/03946/hetdex/hdr2.1/detect/continuum_image_db"
+                 #       ],
                  }
 #
 # add paths from hetdex_api to search (place in first position)
@@ -80,7 +81,7 @@ def get_elixer_report_db_path(detectid,report_type="report"):
     db_path = None
     try:
         detect_prefix = int(np.int64(detectid) / 1e5)
-        hdr_prefix = int(np.int64(detectid)/1e7)
+        hdr_prefix = int(np.int64(detectid)/1e8)
 
         #keep the leading underscore
         if report_type == "report":
