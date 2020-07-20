@@ -521,7 +521,7 @@ class Detections:
             badamps = Table.read(config.badamp)
             det_table = self.return_astropy_table()
             join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
-            mask = join_tab['flag'] == True
+            mask = join_tab['flag'] == 1
 
             del det_table, join_tab
             
