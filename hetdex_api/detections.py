@@ -319,11 +319,11 @@ class Detections:
 
         selmatch = self.query_by_coords(coord, radius)
 
-        if wave:
+        if wave is not None:
             selwave = np.abs((self.wave - wave) < dwave)
             selmatch = selwave*selmatch
 
-        if shotid:
+        if shotid is not None:
             selshot = self.shotid == shotid
             selmatch = selshot*selmatch
 
