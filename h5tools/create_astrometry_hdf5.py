@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
 from hetdex_api.input_utils import setup_logging
+from hetdex_api.config import HDRconfig
 
 
 class QualityAssessment(tb.IsDescription):
@@ -97,6 +98,11 @@ def main(argv=None):
                         type=str,
                         default='/data/00115/gebhardt/detect')
 
+    parser.add_argument("-survey", "--survey",
+                        help="""{hdr1, hdr2, hdr2.1}""",
+                        type=str, default="hdr2.1")
+    
+    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -114,7 +120,6 @@ def main(argv=None):
     else:
         args.log.info('Creating new file for astrometry %s' % args.outfilename)
         fileh = tb.open_file(args.outfilename, 'w')
-
         
     groupAstrometry = fileh.create_group(fileh.root, 'Astrometry', 'Astrometry Info')
     groupCoadd = fileh.create_group(groupAstrometry, 'CoaddImages', 'Coadd Images')
@@ -129,7 +134,18 @@ def main(argv=None):
                                  'Nominal Values')
 
     datevshot = str(args.date) + 'v' + str(args.observation).zfill(3)
+    shotid = int(str(args.date) + str(args.observation).zfill(3))
 
+    #check if shotid is in badlist
+
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+
+    badshotflag = False
+
+    if shotid in badshots:
+        badshotflag = True
+    
     # store shuffle.cfg and DATEvOBS.log files
 
     fileshuffle = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
@@ -342,7 +358,11 @@ def main(argv=None):
         radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
 
     except:
-        args.log.error('Could not open %s' % radecfinalfile)
+
+        if badshotflag:
+            args.log.warning('Could not open %s' % radecfinalfile)
+        else:
+            args.log.error('Could not open %s' % radecfinalfile)
         
     shottable = fileh.root.Shot
 
@@ -352,7 +372,11 @@ def main(argv=None):
             shot['dec'] = radectab['dec'][0]
             shot['pa'] = radectab['pa'][0]
         else:
-            args.error('Could not include %s' % radecfinalfile)
+            if badshotflag:
+                args.log.warning('Could not open %s' % radecfinalfile)
+            else:
+                args.log.error('Could not open %s' % radecfinalfile)
+
         try:
             shot['xoffset'] = tableQA.cols.xoffset[:]
             shot['yoffset'] = tableQA.cols.yoffset[:]
@@ -360,17 +384,23 @@ def main(argv=None):
             shot['yrms'] = tableQA.cols.yrms[:]
             shot['nstars_fit'] = tableQA.cols.nstars[:]
         except:
-            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+            if badshotflag:
+                args.log.warning('Could not include astrometry shot info for %s' % datevshot)
+            else:
+                args.log.error('Could not include astrometry shot info for %s' % datevshot)
         try:
             shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
             shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
         except:
-            args.log.error('Could not include astrometry shot info for %s' % datevshot)
+            args.log.warning('Could not include astrometry shot info for %s' % datevshot)
         try:
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
         except:
-            args.log.error('Could not include relflux_virus info for %s' % datevshot)
-
+            if badshotflag:
+                args.log.warning('Could not include relflux_virus info for %s' % datevshot)
+            else:
+                args.log.error('Could not include relflux_virus info for %s' % datevshot)
+                
         shot.update()
 
     fileh.close()

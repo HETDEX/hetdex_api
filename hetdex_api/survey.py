@@ -23,7 +23,7 @@ from hetdex_api.config import HDRconfig
 
 
 class Survey:
-    def __init__(self, survey='hdr2'):
+    def __init__(self, survey='hdr2.1'):
         """
         Initialize the Survey class for a given data release
 
@@ -128,6 +128,9 @@ class Survey:
             maskshot = self.shotid == shot
             mask = mask | maskshot
 
+        notvalid = self.shotid < 20170000
+        mask = mask | notvalid
+        
         return np.invert(mask)
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
@@ -210,7 +213,8 @@ class Survey:
         survey_table['shot_flag'] = good_shots
 
         survey_table['mjd'] = self.mjd[:,0]
-
+        survey_table['exptime'] = np.mean(self.exptime, axis=1)
+        
         for col in survey_table.colnames:
             try:
                 if np.shape(survey_table[col])[1] == 3:
@@ -237,7 +241,7 @@ class Survey:
         self.hdfile.close()
 
 class FiberIndex:
-    def __init__(self, survey='hdr2', loadall=False):
+    def __init__(self, survey='hdr2.1', loadall=False):
         """
         Initialize the Fiber class for a given data release
         

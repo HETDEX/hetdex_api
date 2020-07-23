@@ -23,10 +23,7 @@ Then once all months are done, merge into one file:
 
 >>> python3 create_detect_hdf5.py --merge -of detect_hdr2.h5
 
-To run continuum sources:
-
->>> python3 create_detect_hdf5.py -dp /data/00115/gebhardt/cs/spec /
--cs /data/00115/gebhardt/cs/rext1 -of continuum_sources.h5
+To run continuum sources, use create_cont_hdf5.py instead
 
 """
 from __future__ import print_function
@@ -97,7 +94,7 @@ class Detections(tb.IsDescription):
     ifuid = tb.StringCol((3))
     amp = tb.StringCol((2))
     expnum = tb.Int32Col()
-
+    chi2fib = tb.Float32Col()
 
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -225,15 +222,6 @@ def main(argv=None):
         action="store_true",
     )
 
-    parser.add_argument(
-        "--continuum",
-        "-cont",
-        help=""" Boolean trigger to select broad sources""",
-        default=False,
-        required=False,
-        action="store_true",
-    )
-    
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -254,10 +242,10 @@ def main(argv=None):
 
         if args.broad:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
-            index_buff = 2100000000
-        elif args.continuum:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
-            index_buff = 2190000000
+            index_buff = 2160000000
+#        elif args.continuum:
+#            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
+#            index_buff = 2190000000
         else:
             fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
             index_buff = 2100000000
@@ -295,7 +283,7 @@ def main(argv=None):
         else:
             files = sorted(glob.glob(op.join(args.mergedir, "detect_2*.h5")))
 
-        detectid_max = 1
+        detectid_max = 0
 
         for file in files:
 
@@ -306,6 +294,7 @@ def main(argv=None):
             tableMain_i = fileh_i.root.Detections.read()
 
             if np.size(tableMain_i) == 0:
+                args.log.error('No detections for %s' % file)
                 continue
                 
             tableFibers_i = fileh_i.root.Fibers.read()
@@ -315,11 +304,15 @@ def main(argv=None):
             tableFibers_i["detectid"] += detectid_max
             tableSpectra_i["detectid"] += detectid_max
 
+            # after first table be sure to add one to the index
+            
+            detectid_max = 1
+            
             tableMain.append(tableMain_i)
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
-
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1
+            
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
@@ -368,11 +361,13 @@ def main(argv=None):
             "1D Spectra for each Line Detection"
         )
 
-        amp_stats = Table.read('/work/05350/ecooper/wrangler/hdr2/hdr2-detects/amp_flag.fits')
+        
+        amp_stats = Table.read('/data/05350/ecooper/hdr2.1/survey/amp_flag.fits')
     
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
-                    'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'src_index']
+                    'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
+                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight']
 
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
@@ -387,7 +382,7 @@ def main(argv=None):
             sys.exit()
                 
         catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
-        
+
         det_cols = fileh.root.Detections.colnames
 
         amplist = []
@@ -417,18 +412,22 @@ def main(argv=None):
                 continue
 
             if args.broad:
-                selSN = (detectcatall['sn'] > 8)
-                selLW = (detectcatall['linewidth'] > 6)
-                selchi2 = (detectcatall['chi2'] > 1.5)
+                selSN = (detectcatall['sn'] > 5)
+                selLW = (detectcatall['linewidth'] > 5)
+                selchi2 = (detectcatall['chi2'] > 1.6)
+                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 8)
                 selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
-                selcat = selSN * selLW * selchi2 * selwave
+                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
                 selSN = (detectcatall['sn'] > 4.5)
-                selLW = (detectcatall['linewidth'] > 1.7) #* (detectcatall['linewidth'] < 20)
-                selchi2 = (detectcatall['chi2'] < 1.6)
-                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5480)
-                selcat = selSN * selLW * selchi2 * selwave
-            
+                selLW = (detectcatall['linewidth'] > 1.7)
+                selchi2 = (detectcatall['chi2'] <= 1.6)
+                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
+                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
+                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN * selLW * selchi2 * selwave * selchi2fib
+
             detectcat = detectcatall[selcat]
 
             nsel_file = np.sum(selcat)
@@ -466,7 +465,35 @@ def main(argv=None):
                     rowMain['date'] = int(amp_i[0:8])
                     rowMain['obsid'] = int(amp_i[9:12])
                     rowMain['shotid'] = int(amp_i[0:8] + amp_i[9:12])
+
+                # check if amp is in bad amp list
+                multiframe = row['multiname'][0:20]
+
+                if multiframe in ['multi_051_105_051_RL']:
+                    if (row['wave'] > 3540) and (row['wave'] < 3560):
+                        continue
+
+                if multiframe in ['multi_032_094_028_RU']:
+                    if (row['wave'] > 3530) and (row['wave'] < 3545):
+                        continue
+              
+                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                ampflag = amp_stats['flag'][selamp]
+                
+                if np.size(ampflag) == 0:
+                    args.log.error('No ampflag for '
+                                   + str(rowMain['shotid'])
+                                   + ' ' + multiframe)
                     
+                if ampflag==False:
+                    continue
+
+                # check if Karl stored the same fiber as me:
+                fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][4:5]) \
+                                + "_" + multiframe + "_" \
+                                + str(int(row['multiname'][21:24])).zfill(3)
+                karl_weight = row['weight']
+                
                 rowMain['inputid'] = inputid_i
                 
                 for col in colnames:
@@ -533,9 +560,9 @@ def main(argv=None):
                         ampflag = amp_stats['flag'][selamp]
                     
                     if np.size(ampflag) == 0:
-                        args.log.warning('No ampflag for '
-                                         + str(rowMain['shotid'])
-                                         + ' ' + multiframe)
+                        args.log.error('No ampflag for '
+                                       + str(rowMain['shotid'])
+                                       + ' ' + multiframe)
                         
                     if ampflag==False:
                         break
@@ -551,7 +578,7 @@ def main(argv=None):
                     rowfiber["dec"] = datafiber["col2"][ifiber]
                     rowfiber["x_ifu"] = datafiber["col3"][ifiber]
                     rowfiber["y_ifu"] = datafiber["col4"][ifiber]
-                    rowfiber["expnum"] = str(datafiber["col6"][ifiber])[3:5]
+                    rowfiber["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
                     multiname = datafiber["col5"][ifiber]
                     multiframe = multiname[0:20]
                     fiber_id_i = (
@@ -586,15 +613,25 @@ def main(argv=None):
                 ifiber = np.argmax(datafiber["col14"])
                 multiname = datafiber["col5"][ifiber]
                 multiframe = multiname[0:20]
+                rowMain["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
                 fiber_id_i = (
                     str(rowMain["shotid"])
                     + "_"
-                    + str(int(rowfiber["expnum"]))
+                    + str(rowMain["expnum"])
                     + "_"
                     + multiframe
                     + "_"
                     + str(int(multiname[21:24])).zfill(3)
                 )
+
+                if fiber_id_i == fiber_id_Karl:
+                    pass
+                else:
+                    weight = datafiber["col14"][ifiber]
+                    weightdif = np.abs(weight-karl_weight)
+                    if (weightdif > 0.001):
+                        args.log.error("Karl's FiberID does not match: " + inputid_i)
+                    
                 rowMain["fiber_id"] = fiber_id_i
                 rowMain["multiframe"] = multiframe
                 rowMain["specid"] = multiframe[6:9]
@@ -606,7 +643,6 @@ def main(argv=None):
                 rowMain["y_raw"] = datafiber["col13"][ifiber]
                 rowMain["x_ifu"] = datafiber["col3"][ifiber]
                 rowMain["y_ifu"] = datafiber["col4"][ifiber]
-                rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
                 rowMain["weight"] = datafiber["col14"][ifiber]
 
                 rowMain.append()

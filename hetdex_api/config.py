@@ -76,9 +76,9 @@ class HDRconfig:
 
         if survey == 'hdr2.1':
             self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
-            self.baddetect = op.join(self.bad_dir, "baddetects.list")
+            #self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
-            self.badamp = op.join(self.bad_dir, "badamps.list")
-            self.badpix = op.join(self.bad_dir, "badpix.list")
+            self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
+            #self.badpix = op.join(self.bad_dir, "badpix.list")
             self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
             self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
