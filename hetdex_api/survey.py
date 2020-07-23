@@ -128,6 +128,9 @@ class Survey:
             maskshot = self.shotid == shot
             mask = mask | maskshot
 
+        notvalid = self.shotid < 20170000
+        mask = mask | notvalid
+        
         return np.invert(mask)
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
@@ -238,7 +241,7 @@ class Survey:
         self.hdfile.close()
 
 class FiberIndex:
-    def __init__(self, survey='hdr2', loadall=False):
+    def __init__(self, survey='hdr2.1', loadall=False):
         """
         Initialize the Fiber class for a given data release
         
