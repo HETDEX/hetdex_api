@@ -25,7 +25,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-def open_shot_file(shotid, survey="hdr2"):
+def open_shot_file(shotid, survey="hdr2.1"):
     """
     Open the H5 file for a shot. This is a global function that allows you
     to open an H5 file based on its shotid and data release. 
@@ -38,7 +38,7 @@ def open_shot_file(shotid, survey="hdr2"):
         string datevobs (eg. '20180123v009')
 
     survey : string
-            Data release you would like to load, i.e., 'HDR1', 'hdr2'
+            Data release you would like to load, i.e., 'HDR1', 'hdr2', 
             This is case insensitive.
 
     Example
@@ -67,7 +67,7 @@ def open_shot_file(shotid, survey="hdr2"):
 
 
 class Fibers:
-    def __init__(self, shot, survey="hdr2"):
+    def __init__(self, shot, survey="hdr2.1"):
         """
         Initialize Fibers Class
 
@@ -86,7 +86,7 @@ class Fibers:
             either in the form of integer shotid (eg. 20180123009) or
             string datevobs (eg. 20180123v009)
         survey
-            Data release you would like to load, i.e., 'HDR1', 'hdr2'
+            Data release you would like to load, i.e., 'HDR1', 'hdr2', 'hdr2.1'
             This is case insensitive.
 
         Attributes
@@ -402,7 +402,7 @@ class Fibers:
 
 
 def get_fibers_table(
-    shot, coords=None, radius=3.0 * u.arcsec, survey="hdr2", astropy=True
+    shot, coords=None, radius=3.0 * u.arcsec, survey="hdr2.1", astropy=True
 ):
     """
     Returns fiber specta for a given shot.
@@ -481,7 +481,7 @@ def get_fibers_table(
 
 
 def get_image2D_cutout(
-    shot, coords, wave_obj, width=40, height=40, imtype="clean_image", survey="hdr2"
+    shot, coords, wave_obj, width=40, height=40, imtype="clean_image", survey="hdr2.1"
 ):
     """
     Returns an image from the 2D data based on
@@ -534,7 +534,7 @@ def get_image2D_amp(
     ifuslot=None,
     imtype="clean_image",
     expnum=1,
-    survey="hdr2"
+    survey="hdr2.1"
 ):
     """
     Returns an image from the 2D data based on
