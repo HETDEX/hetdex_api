@@ -44,6 +44,7 @@ from astropy.io import fits
 from astropy.table import Table, vstack
 import astropy.units as u
 from hetdex_api.input_utils import setup_logging
+from hetdex_api.config import HDRconfig
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -224,6 +225,10 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
+
+    #check if shotid is in badlist
+#    config = HDRconfig(args.survey)
+#    badshots = np.loadtxt(config.badshot, dtype=int)
 
     if args.outfilename:
         outfilename = args.outfilename
@@ -422,11 +427,11 @@ def main(argv=None):
             else:
                 selSN = (detectcatall['sn'] > 4.5)
                 selLW = (detectcatall['linewidth'] > 1.7)
-                selchi2 = (detectcatall['chi2'] <= 1.6)
-                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
-                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
+#                selchi2 = (detectcatall['chi2'] <= 5)
+#                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
+#                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
                 selchi2fib = (detectcatall['chi2fib'] < 5)
-                selcat = selSN * selLW * selchi2 * selwave * selchi2fib
+                selcat = selSN * selLW * selchi2fib
 
             detectcat = detectcatall[selcat]
 
