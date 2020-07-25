@@ -171,9 +171,8 @@ class Detections:
 
             for index, shot in enumerate(S.shotid):
                 ix = np.where(self.shotid == shot)
-                self.field[ix] = S.field[
-                    index
-                ]  # NOTE: python2 to python3 strings now unicode
+                self.field[ix] = S.field[ index].decode()
+                # NOTE: python2 to python3 strings now unicode
                 if self.survey == 'hdr1':
                     self.fwhm[ix] = S.fwhm_moffat[index]
                     self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
