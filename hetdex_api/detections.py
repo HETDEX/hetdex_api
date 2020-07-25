@@ -171,7 +171,7 @@ class Detections:
 
             for index, shot in enumerate(S.shotid):
                 ix = np.where(self.shotid == shot)
-                self.field[ix] = str( S.field[ index] )
+                self.field[ix] = S.field[index].astype(str)
                 # NOTE: python2 to python3 strings now unicode
                 if self.survey == 'hdr1':
                     self.fwhm[ix] = S.fwhm_moffat[index]
