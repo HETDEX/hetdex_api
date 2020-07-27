@@ -4,17 +4,14 @@ Installation
 For TACC Users
 --------------
 
-If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that both your home and work directories to be readable to everyone on TACC. Use at your own discretion.
+If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your /work directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
 
 .. code-block:: bash
 
    ssh wrangler
-   chmod a+rx ../username
+   cd $STOCKYARD
+   chmod -R a+rX .
    cdw
-   chmod a+rx ../*
-   chomd a+rx ../../username
-   chmod a+rx ../wrangler
-   chmod a+rx ../stampede2
 
 Then get the default bash script from TACC by running this script
 
