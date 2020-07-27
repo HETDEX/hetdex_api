@@ -134,7 +134,7 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
-            elif catalog_type=='lines':
+            else:
 
                 # add elixer info if node exists
                 try:
@@ -197,9 +197,7 @@ class Detections:
 
             if survey == "hdr1":
                 self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
-            elif survey == "cont_sources":
-                self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags_cont)
-
+            
             if survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
