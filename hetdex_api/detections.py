@@ -35,7 +35,7 @@ PYTHON_VERSION = sys.version_info
 
 
 class Detections:
-    def __init__(self, survey="hdr2", catalog_type="lines", loadtable=True):
+    def __init__(self, survey="hdr2.1", catalog_type="lines", loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
@@ -750,7 +750,7 @@ class Detections:
             table.add_column(Column(self.plae_poii_cat), name="plae_poii_cat")
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
-        elif self.survey == 'hdr2':
+        else:
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
             for name in self.hdfile.root.Elixer.colnames:
