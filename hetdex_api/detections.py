@@ -35,7 +35,7 @@ PYTHON_VERSION = sys.version_info
 
 
 class Detections:
-    def __init__(self, survey="hdr2", catalog_type="lines", loadtable=True):
+    def __init__(self, survey="hdr2.1", catalog_type="lines", loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
@@ -134,7 +134,7 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
-            elif catalog_type=='lines':
+            else:
 
                 # add elixer info if node exists
                 try:
@@ -171,9 +171,8 @@ class Detections:
 
             for index, shot in enumerate(S.shotid):
                 ix = np.where(self.shotid == shot)
-                self.field[ix] = S.field[
-                    index
-                ]  # NOTE: python2 to python3 strings now unicode
+                self.field[ix] = S.field[index].astype(str)
+                # NOTE: python2 to python3 strings now unicode
                 if self.survey == 'hdr1':
                     self.fwhm[ix] = S.fwhm_moffat[index]
                     self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
@@ -198,9 +197,7 @@ class Detections:
 
             if survey == "hdr1":
                 self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
-            elif survey == "cont_sources":
-                self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags_cont)
-
+            
             if survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
@@ -751,7 +748,7 @@ class Detections:
             table.add_column(Column(self.plae_poii_cat), name="plae_poii_cat")
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
-        elif self.survey == 'hdr2':
+        else:
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
             for name in self.hdfile.root.Elixer.colnames:
