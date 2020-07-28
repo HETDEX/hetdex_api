@@ -749,11 +749,13 @@ class Detections:
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
         else:
-            table.add_column(Column(self.gmag), index=6, name="gmag")
-            table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
-            for name in self.hdfile.root.Elixer.colnames:
-                table[name] = getattr(self, name)
-            
+            try:
+                table.add_column(Column(self.gmag), index=6, name="gmag")
+                table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
+                for name in self.hdfile.root.Elixer.colnames:
+                    table[name] = getattr(self, name)
+            except:
+                print('Could not add elixer columns')
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
