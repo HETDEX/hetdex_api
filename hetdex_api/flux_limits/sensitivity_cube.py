@@ -548,7 +548,7 @@ class SensitivityCube(object):
         return array(compls)
 
     def return_wlslice_f50(self, lambda_low, lambda_high, 
-                           sncut, noise_cut=1e-12):
+                           sncut, noise_cut=5e-16):
         """
         Return 50% completeness of a wavelength slice.  
 
@@ -586,7 +586,7 @@ class SensitivityCube(object):
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
         noise = self.sigmas[izlo:(izhigh + 1), :, :]
-        noise = noise[noise < noise_cut]
+        noise = noise[(noise < noise_cut) & (noise > 0)]
 
         return sncut*median(noise) 
 

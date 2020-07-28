@@ -10,7 +10,8 @@ class HDRconfig:
         self.hdr_dir = {
             "hdr1": "/work/03946/hetdex/hdr1",
             "hdr2": "/data/05350/ecooper/hdr2",
-            "hdr2.1": "/data/05350/ecooper/hdr2.1",
+        #   "hdr2.1": "/data/05350/ecooper/hdr2.1",
+            "hdr2.1": "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1"
         }
         #                        'hdr2': '/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2/'}
         self.software_dir = op.join(self.hdr_dir[survey], "software")

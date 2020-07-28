@@ -30,7 +30,7 @@ class NoFluxLimsAvailable(Exception):
     pass
 
 
-def return_sensitivity_hdf_path(datevobs, release="hdr2"):
+def return_sensitivity_hdf_path(datevobs, release="hdr2.1"):
     """
     Return the full file path
     to a HDF5 container of sensitivity     
