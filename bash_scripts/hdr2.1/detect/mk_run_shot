@@ -1,0 +1,2 @@
+cp /data/00115/gebhardt/getcen/fulllist .
+awk '{print "mkdet",$1,$2}' /data/00115/gebhardt/getcen/fulllist > run_shot

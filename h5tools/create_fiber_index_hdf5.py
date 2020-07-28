@@ -65,7 +65,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/data/05350/ecooper/hdr2/reduction/data",
+        default="/data/05350/ecooper/hdr2.1/reduction/data",
     )
 
     parser.add_argument(
@@ -73,7 +73,7 @@ def main(argv=None):
         "--shotlist",
         help="""Text file of DATE OBS list""",
         type=str,
-        default="dex.hdr2.shotlist",
+        default="hdr2.1.shotlist",
     )
 
     parser.add_argument(
@@ -85,7 +85,7 @@ def main(argv=None):
         default=None,
     )
 
-    parser.add_argument("-survey", "--survey", type=str, default="hdr2")
+    parser.add_argument("-survey", "--survey", type=str, default="hdr2.1")
 
     args = parser.parse_args(argv)
     args.log = setup_logging()

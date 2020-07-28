@@ -19,7 +19,7 @@ import tables as tb
 import copy
 import matplotlib.pyplot as plt
 
-from astropy.table import vstack, Table, Column
+from astropy.table import vstack, Table, Column, join
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
@@ -35,7 +35,7 @@ PYTHON_VERSION = sys.version_info
 
 
 class Detections:
-    def __init__(self, survey="hdr2", catalog_type="lines", loadtable=True):
+    def __init__(self, survey="hdr2.1", catalog_type="lines", loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
@@ -134,7 +134,7 @@ class Detections:
                                     self.hdfile_elix.root.Classifications.cols, name2
                                 )[:],
                             )
-            elif catalog_type=='lines':
+            else:
 
                 # add elixer info if node exists
                 try:
@@ -171,9 +171,8 @@ class Detections:
 
             for index, shot in enumerate(S.shotid):
                 ix = np.where(self.shotid == shot)
-                self.field[ix] = S.field[
-                    index
-                ]  # NOTE: python2 to python3 strings now unicode
+                self.field[ix] = S.field[index].astype(str)
+                # NOTE: python2 to python3 strings now unicode
                 if self.survey == 'hdr1':
                     self.fwhm[ix] = S.fwhm_moffat[index]
                     self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
@@ -198,9 +197,7 @@ class Detections:
 
             if survey == "hdr1":
                 self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
-            elif survey == "cont_sources":
-                self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags_cont)
-
+            
             if survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
@@ -251,24 +248,26 @@ class Detections:
                   brighter, defaults to None
         """
 
-        mask1 = self.remove_bad_amps()
-        mask2 = self.remove_bright_stuff(gmagcut)
-        mask3 = self.remove_ccd_features()
-        if removebalmerstars:
-            mask4 = self.remove_balmerdip_stars()
-        else:
-            mask4 = np.ones(np.size(self.detectid), dtype=bool)
-
         if self.survey == 'hdr1':
+            mask1 = self.remove_bad_amps()
+            mask2 = self.remove_bright_stuff(gmagcut)
+            mask3 = self.remove_ccd_features()
+            
+            if removebalmerstars:
+                mask4 = self.remove_balmerdip_stars()
+            else:
+                mask4 = np.ones(np.size(self.detectid), dtype=bool)
+                
             mask5 = self.remove_bad_detects()
+        
+            mask6 = self.remove_shots()
+            mask7 = self.remove_bad_pix()
+            
+            mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
+
         else:
-            mask5 = np.ones(np.size(self.detectid), dtype=bool)
-
-        mask6 = self.remove_shots()
-        mask7 = self.remove_bad_pix()
-
-        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
-
+            mask = self.remove_bad_amps()
+            
         return self[mask]
 
     def query_by_coords(self, coords, radius):
@@ -317,13 +316,14 @@ class Detections:
 
         selmatch = self.query_by_coords(coord, radius)
 
-        if wave:
-            selwave = np.abs((self.wave - wave) < dwave)
+        if wave is not None:
+            selwave = np.abs(self.wave - wave) < dwave
             selmatch = selwave*selmatch
-        if shotid:
+
+        if shotid is not None:
             selshot = self.shotid == shotid
             selmatch = selshot*selmatch
-            
+
         return selmatch 
                          
     def query_by_dictionary(self, limits):
@@ -482,38 +482,47 @@ class Detections:
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        badamps1 = ascii.read(
-            config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
-        )
+        if self.survey == 'hdr1':
+            badamps1 = ascii.read(
+                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+            )
 
-        badamps2 = ascii.read(
-            config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
-        )
+            badamps2 = ascii.read(
+                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+            )
 
-        badamps = vstack([badamps1, badamps2])
+            badamps = vstack([badamps1, badamps2])
 
-        if self.survey == 'hdr2':
-            self.date = (self.shotid/1000).astype(int)
+            if self.survey == 'hdr2':
+                self.date = (self.shotid/1000).astype(int)
         
-        for row in np.arange(np.size(badamps)):
-            if badamps["amp"][row] == "AA":
-                maskamp = (
-                    (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
-                    * (self.date >= badamps["date_start"][row])
-                    * (self.date <= badamps["date_end"][row])
-                )
-                mask = np.logical_or(mask, maskamp)
-            else:
-                maskamp = (
-                    (self.amp == badamps["amp"][row])
-                    * (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
-                    * (self.date >= badamps["date_start"][row])
-                    * (self.date <= badamps["date_end"][row])
-                )
-                mask = np.logical_or(mask, maskamp)
+            for row in np.arange(np.size(badamps)):
+                if badamps["amp"][row] == "AA":
+                    maskamp = (
+                        (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
+                        * (self.date >= badamps["date_start"][row])
+                        * (self.date <= badamps["date_end"][row])
+                    )
+                    mask = np.logical_or(mask, maskamp)
+                else:
+                    maskamp = (
+                        (self.amp == badamps["amp"][row])
+                        * (self.ifuslot == str(badamps["ifuslot"][row]).zfill(3))
+                        * (self.date >= badamps["date_start"][row])
+                        * (self.date <= badamps["date_end"][row])
+                    )
+                    mask = np.logical_or(mask, maskamp)
 
-        self.vis_class[mask] = 0
-        return np.logical_not(mask)
+            return np.logical_not(mask)
+        else:
+            badamps = Table.read(config.badamp)
+            det_table = self.return_astropy_table()
+            join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
+            mask = join_tab['flag'] == 1
+
+            del det_table, join_tab
+            
+            return mask
 
     def remove_bad_pix(self):
         """
@@ -739,7 +748,7 @@ class Detections:
             table.add_column(Column(self.plae_poii_cat), name="plae_poii_cat")
             table.add_column(Column(self.plae_poii_aperture), name="plae_poii_aperture")
 
-        elif self.survey == 'hdr2':
+        else:
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(Column(self.gmag_err), index=6, name="gmag_err")
             for name in self.hdfile.root.Elixer.colnames:

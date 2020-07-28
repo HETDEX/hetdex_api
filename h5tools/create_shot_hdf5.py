@@ -17,13 +17,15 @@ import os.path as op
 import numpy as np
 
 from astropy.io import fits
-from hetdex_api.input_utils import setup_logging
 from astropy.table import Table
+
+from hetdex_api.input_utils import setup_logging
+from hetdex_api.config import HDRconfig
 
 # hard coded variable to initialize 'rms', 'chi' arrays
 # and remove 'twi_spectrum' for all realeases past hdr1
 global hdr_survey
-hdr_survey = "hdr2"
+hdr_survey = "hdr2.1"
 
 
 def build_path(reduction_folder, instr, date, obsid, expn):
@@ -251,7 +253,9 @@ def append_shot_to_table(shot, shottable, fn, cnt):
 
 
 def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
+
     F = fits.open(fn)
+
     shotid = int(args.date) * 1000 + int(args.observation)
 
     if args.tar == True:
@@ -303,10 +307,16 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
 
     for att in imattr:
         if att == "image":
-            im[att] = F["PRIMARY"].data * 1.0
+            try:
+                im[att] = F["PRIMARY"].data * 1.0
+            except:
+                args.log.error('Image data missing for ', fn)
         else:
-            im[att] = F[att].data * 1.0
-
+            try:
+                im[att] = F[att].data * 1.0
+            except:
+                args.log.error(att + ' array missing for ', fn) 
+                
     if args.tar:
         expn = fn.name[-12:-7]
     else:
@@ -372,30 +382,43 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
 
         for att in attr:
             if att in F:
-                fib[att] = F[att].data[i, :]
-        fib["ifuslot"] = "%03d" % int(F[0].header["IFUSLOT"])
-        fib["ifuid"] = "%03d" % int(F[0].header["IFUID"])
-        fib["specid"] = "%03d" % int(F[0].header["SPECID"])
-        fib["contid"] = F[0].header["CONTID"]
+                try:
+                    fib[att] = F[att].data[i, :]
+                except:
+                    if i == 0:
+                        args.log.error(att + ' array missing for ' + fn )
+                    else:
+                        pass
         try:
-            fib["amp"] = "%s" % F[0].header["amp"][:2]
-        except:
-            fib["amp"] = "%s" % F[0].header["NAME0"][21:23]
-
+            fib["ifuslot"] = "%03d" % int(F[0].header["IFUSLOT"])
+            fib["ifuid"] = "%03d" % int(F[0].header["IFUID"])
+            fib["specid"] = "%03d" % int(F[0].header["SPECID"])
+            fib["contid"] = F[0].header["CONTID"]
+            try:
+                fib["amp"] = "%s" % F[0].header["amp"][:2]
+            except Exception:
+                fib["amp"] = "%s" % F[0].header["NAME0"][21:23]
+        except Exception:
+            args.log.error('Could not read in header for ', fn)
+                
         fib["expnum"] = int(expn[-2:])
         fibindex["expnum"] = int(expn[-2:])
         fib.append()
         fibindex.append()
 
-    im["obsind"] = cnt
-    im["ifuslot"] = "%03d" % int(F[0].header["IFUSLOT"])
-    im["ifuid"] = "%03d" % int(F[0].header["IFUID"])
-    im["specid"] = "%03d" % int(F[0].header["SPECID"])
-    im["contid"] = F[0].header["CONTID"]
     try:
-        im["amp"] = "%s" % F[0].header["amp"][:2]
-    except:
-        im["amp"] = "%s" % F.filename()[-7:-5]
+        im["obsind"] = cnt
+        im["ifuslot"] = "%03d" % int(F[0].header["IFUSLOT"])
+        im["ifuid"] = "%03d" % int(F[0].header["IFUID"])
+        im["specid"] = "%03d" % int(F[0].header["SPECID"])
+        im["contid"] = F[0].header["CONTID"]
+        try:
+            im["amp"] = "%s" % F[0].header["amp"][:2]
+        except:
+            im["amp"] = "%s" % F.filename()[-7:-5]
+    except Exception:
+        pass
+        
     im["expnum"] = int(expn[-2:])
     im.append()
 
@@ -459,7 +482,7 @@ def main(argv=None):
         default="/data/00115/gebhardt/detect")
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr3}""", type=str, default="hdr2"
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1}""", type=str, default="hdr2.1"
     )
 
     parser.add_argument(
@@ -477,15 +500,28 @@ def main(argv=None):
         args.log.warning("Hard coded hdr_survey does not match input survey.")
         sys.exit()
 
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+
     # Get the daterange over which reduced files will be collected
     files = get_files(args)
     datestr = "%sv%03d" % (args.date, int(args.observation))
     filepath = "%s/%s/dithall.use" % (args.detect_path, datestr)
+    shotid = int(str(args.date) + str(args.observation).zfill(3))
+    badshotflag = False
+    
+    if shotid in badshots:
+        badshotflag = True
+        args.log.warning('Shot is in badshot list. Ingesting anyways')
+        
     try:
         T = Table.read(filepath, format="ascii")
     except:
         T = None
-        args.log.error("Could not open the dithall file from %s" % filepath)
+        if badshotflag:
+            args.log.info("Could not open the dithall file from %s" % filepath)
+        else:
+            args.log.error("Could not open the dithall file from %s" % filepath)
 
     # Creates a new file if the "--append" option is not set or the file
     # does not already exist.
@@ -557,22 +593,31 @@ def main(argv=None):
 
         shot = shottable.row
 
-        filename = files[0]
-        
-        idx = filename.find("exp")
-        expn = filename[idx : idx + 5]
+        try:
+            
+            filename = files[0]
+                
+            idx = filename.find("exp")
+            expn = filename[idx : idx + 5]
+                
+            f_exp01 = re.sub(expn, "exp01", filename)
+            f_exp02 = re.sub(expn, "exp02", filename)
+            f_exp03 = re.sub(expn, "exp03", filename)
+                
+            success = append_shot_to_table(shot, shottable, f_exp01, cnt)
+            success = append_shot_to_table(shot, shottable, f_exp02, cnt)
+            success = append_shot_to_table(shot, shottable, f_exp03, cnt)
 
-        f_exp01 = re.sub(expn, "exp01", filename)
-        f_exp02 = re.sub(expn, "exp02", filename)
-        f_exp03 = re.sub(expn, "exp03", filename)
-        
-        success = append_shot_to_table(shot, shottable, f_exp01, cnt)
-        success = append_shot_to_table(shot, shottable, f_exp02, cnt)
-        success = append_shot_to_table(shot, shottable, f_exp03, cnt)
-        
-        n_ifu= int(len(files) / 12)
+            n_ifu = int(len(files) / 12)
+            
+            shot["n_ifu"] = n_ifu
 
-        shot["n_ifu"] = n_ifu
+        except:
+            if badshotflag:
+                args.log.info('No multifits files for %s' % datestr)
+            else:
+                args.log.error('No multifits files for %s' % datestr)
+                            
         if args.append:
 
             args.log.info('Appending shot table only.')
