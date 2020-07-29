@@ -383,19 +383,8 @@ class Fibers:
             y1_slice = 0
             y2_slice = width
 
-        if x1 == 0:
-            x1_slice = int(height - (x2 - x1))
-            x2_slice = height
-            
-        elif x2 == 1032:
-            x1_slice = 0
-            x2_slice = x2 - x1
-        else:
-            x1_slice = 0
-            x2_slice = height
-
-#        x1_slice = np.minimum(0, height - (x2 - x1))
-#        x2_slice = np.maximum(0, x2 - x1)
+        x1_slice = np.minimum(0, height - (x2 - x1))
+        x2_slice = np.maximum(height, x2 - x1)
 #        y1_slice = np.minimum(0, width - (y2 - y1))
 #        y2_slice = np.maximum(0, y2 - y1)
 
