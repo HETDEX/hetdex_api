@@ -78,7 +78,7 @@ class Survey:
                     print('Found two fluxlimits for ', datevobs)
                     fluxlimit.extend( flim['fluxlimit_4550'][sel][0])
                 else:
-                    fluxlimit.extend( 0.0)
+                    fluxlimit.append( np.nan )
                     
             self.fluxlimit_4550 = np.array(fluxlimit)
                               
