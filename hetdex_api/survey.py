@@ -226,6 +226,7 @@ class Survey:
 
         survey_table['mjd'] = self.mjd[:,0]
         survey_table['exptime'] = np.mean(self.exptime, axis=1)
+        survey_table['fluxlimit_4550'] = self.fluxlimit_4550
         
         for col in survey_table.colnames:
             try:
