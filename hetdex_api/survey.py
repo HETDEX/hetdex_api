@@ -72,7 +72,7 @@ class Survey:
             fluxlimit = []
             for datevobs in self.datevobs:
                 sel = flim['datevobs'] == datevobs
-                fluxlimit.append( flim['fluxlimit_4550'] )
+                fluxlimit.extend( flim['fluxlimit_4550'][sel] )
             self.fluxlimit_4550 = np.array(fluxlimit)
                               
     def __getitem__(self, indx):
