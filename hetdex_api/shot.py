@@ -372,10 +372,32 @@ class Fibers:
         y1 = np.maximum(0, y - dy)
         y2 = np.minimum(y + dy + (width % 2), 1032)
 
-        x1_slice = np.minimum(0, height - (x2 - x1))
-        x2_slice = np.maximum(0, x2 - x1)
-        y1_slice = np.minimum(0, width - (y2 - y1))
-        y2_slice = np.maximum(0, y2 - y1)
+        if y1 == 0:
+            y1_slice = int(width - (y2 - y1))
+            y2_slice = width
+            
+        elif y2 == 1032:
+            y1_slice = 0
+            y2_slice = y2 - y1
+        else:
+            y1_slice = 0
+            y2_slice = 100
+
+        if x1 == 0:
+            x1_slice = int(height - (x2 - x1))
+            x2_slice = height
+            
+        elif x2 == 1032:
+            x1_slice = 0
+            x2_slice = x2 - x1
+        else:
+            x1_slice = 0
+            x2_slice = 100
+
+#        x1_slice = np.minimum(0, height - (x2 - x1))
+#        x2_slice = np.maximum(0, x2 - x1)
+#        y1_slice = np.minimum(0, width - (y2 - y1))
+#        y2_slice = np.maximum(0, y2 - y1)
 
         im_reg = im0[imtype][0][x1:x2, y1:y2]
 
