@@ -72,7 +72,14 @@ class Survey:
             fluxlimit = []
             for datevobs in self.datevobs:
                 sel = flim['datevobs'] == datevobs
-                fluxlimit.extend( flim['fluxlimit_4550'][sel] )
+                if np.sum(sel) == 1:
+                    fluxlimit.extend( flim['fluxlimit_4550'][sel] )
+                elif np.sum(sel) > 1:
+                    print('Found two fluxlimits for ', datevobs)
+                    fluxlimit.extend( flim['fluxlimit_4550'][sel][0])
+                else:
+                    fluxlimit.extend( np.nan)
+                    
             self.fluxlimit_4550 = np.array(fluxlimit)
                               
     def __getitem__(self, indx):
