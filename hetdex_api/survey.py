@@ -65,7 +65,7 @@ class Survey:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         # append flux limits
-        if args.survey == 'hdr2.1':
+        if survey == 'hdr2.1':
             
             flim = Table.read('/data/05350/ecooper/hdr2.1/survey/average_one_sigma.txt',
                               format='ascii', names=['datevobs', 'fluxlimit_4550'])
