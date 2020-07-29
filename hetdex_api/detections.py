@@ -266,7 +266,10 @@ class Detections:
             mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         else:
-            mask = self.remove_bad_amps()
+            mask1 = self.remove_bad_amps()
+            mask2 = self.remove_bad_detects()
+
+            mask = mask1 * mask2
             
         return self[mask]
 
