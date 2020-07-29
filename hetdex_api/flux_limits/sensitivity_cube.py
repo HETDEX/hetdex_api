@@ -20,14 +20,14 @@ https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 
 from __future__ import (absolute_import, print_function)
 import matplotlib.pyplot as plt
-from numpy import (rint, array, around, multiply, isnan, meshgrid, mean,
+from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval)
 from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-
+from hetdex_api.flux_limits import flim_models
 
 class WavelengthException(Exception):
     """ Exception to raise when suspicious wavelength is passed"""
@@ -89,6 +89,8 @@ def read_cube(fn, datascale=1e-17):
 
     return f50s, header
 
+
+
 class SensitivityCube(object):
     """
     Deals with flux limit cubes
@@ -118,17 +120,10 @@ class SensitivityCube(object):
         If the cubes don't contain
         1 sigma noise (e.g. in the HDR1
         cubes it's 6 sigma) specify it here
-    conversion_poly : array
-        this polynomial is used to 
-        convert between the cut in
-        detection significance and
-        50% completeness values. If
-        you specify it (as an array to
-        feed into numpy.ployval) this
-        value is used. If None try to
-        read this info from the header
-        if that fails default to assuming
-        detection significance = Signal/Noise.
+    flim_model : str
+        the name of the flux limit model 
+        to use. This can either be 'hdr1' or
+        'hdr2pt1'
 
     Attributes
     ----------
@@ -140,9 +135,8 @@ class SensitivityCube(object):
         for an input wavelength
 
     """
-    # XXX might need a better name than nsigma as this is already used elsewhere
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, 
-                 nsigma=1.0, conversion_poly=None):
+                 nsigma=1.0, flim_model="hdr2pt1"): 
 
         self.sigmas = sigmas/nsigma
         self.nsigma = nsigma
@@ -161,22 +155,14 @@ class SensitivityCube(object):
         # Deal with aperture corrections
         if aper_corr:
             self.aper_corr = aper_corr
-        elif "APCOR" in self.header:
-            self.aper_corr = self.header["APCOR"]
-        elif "APCOR0" in self.header: 
-            self.aper_corr = self.header["APCOR0"]
-            # XXX HACK HACK HACK
-            # self.aper_corr = 1.0
+        elif flim_model == "hdr1":
+            # For HDR1 read from header
+            if "APCOR" in self.header:
+                self.aper_corr = self.header["APCOR"]
+            elif "APCOR0" in self.header: 
+                self.aper_corr = self.header["APCOR0"]
         else:
-            self.aper_corr = 1.0        
- 
-        if conversion_poly:
-            self.conversion_poly = conversion_poly
-        elif "CONVPOLY" in header:
-            raise Exception("Using the header not implemented")
-        else:
-            # Assume sn = Signal/Noise
-            self.conversion_poly = [1.0, 0.0]
+            self.aper_corr = 1.0 
 
         self.sigmas = self.sigmas*self.aper_corr
 
@@ -192,7 +178,19 @@ class SensitivityCube(object):
             self.alpha_func = interp1d(wavelengths, alphas, 
                                        fill_value="extrapolate")
 
+        # Select flux limit model
+        try:
+            self.f50_from_noise = getattr(flim_models, "{:s}_f50_from_noise".format(flim_model)) 
+        except AttributeError as e:
+            print("Chosen flux limit model not found!")
+            raise e
+
     def get_alpha(self, ra, dec, lambda_):
+        """
+        Return the parameter controlling
+        the slope of the Fleming+ (1995) function
+
+        """
 
         # If alpha is just an array versus wavelength
         # return the value here
@@ -334,13 +332,6 @@ class SensitivityCube(object):
             flux limits. If outside
             of cube return 999
 
-        Raises
-        ------
-        WavelengthException :
-            Annoys user if they pass
-            wavelength outside of
-            VIRUS range
-
         """
 
         ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
@@ -354,7 +345,7 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = polyval(self.conversion_poly, sncut*self.sigmas[iz, iy, ix])
+        f50s = self.f50_from_noise(self.sigmas[iz, iy, ix], sncut)
 
         # Support arrays and floats
         try:
@@ -365,48 +356,10 @@ class SensitivityCube(object):
 
         return f50s
 
-    def return_completeness_hdr1(self, flux, ra, dec, lambda_):
-        """
-        Return completeness at a 3D position
-
-        Parameters
-        ----------
-        flux : array
-            fluxes of objects
-        ra, dec : array
-            right ascension and dec in degrees
-        lambda_ : array
-            wavelength in Angstrom
-
-        Return
-        ------
-        fracdet : array
-            fraction detected
-        """
-
-        try:
-            if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
-
-                raise WavelengthException("""Odd wavelength value. Are you
-                                             sure it's in Angstrom?""")
-        except TypeError as e:
-             if lambda_ < 3000.0 or lambda_ > 6000.0:
-
-                raise WavelengthException("""Odd wavelength value. Are you
-                                             sure it's in Angstrom?""")
-
-        # hard coded sncut for HDR1
-        f50s = self.get_f50(ra, dec, lambda_, 6.0)
-        alphas = self.get_alpha(ra, dec, lambda_)
-
-        return fleming_function(flux, f50s, alphas)
-
     def compute_snr(self, flux, ra, dec, lambda_):
         """
         Compute the flux divided by the noise for 
-        a given source. This differs from the
-        detection significance in that there
-        is no PSF model weighting
+        a given source. 
 
         Parameters
         ----------
@@ -450,10 +403,9 @@ class SensitivityCube(object):
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut):
         """
-        Return completeness at a 3D position. This computes stuff
-        in terms of SNR in the Fleming (1995) function but
-        it's actually equivalent to computing the 50% flux
-        and computing everthing in terms of flux
+        Return completeness at a 3D position as an array. 
+        If for whatever reason the completeness is NaN, it's
+        replaced by 0.0. 
 
         Parameters
         ----------
@@ -472,6 +424,12 @@ class SensitivityCube(object):
         fracdet : array
             fraction detected 
 
+        Raises
+        ------
+        WavelengthException :
+            Annoys user if they pass
+            wavelength outside of
+            VIRUS range
         """
 
         try: 
@@ -486,20 +444,27 @@ class SensitivityCube(object):
                                              sure it's in Angstrom?""")
         
 
-        snr = self.compute_snr(flux, ra, dec, lambda_)
-        snr50 = polyval(self.conversion_poly, sncut)
+        f50s = self.get_f50(ra, dec, lambda_, sncut)
         alphas = self.get_alpha(ra, dec, lambda_)
 
-        return fleming_function(snr, snr50, alphas)
+        fracdet = fleming_function(flux, f50s, alphas)
+
+        try:
+            fracdet[isnan(fracdet)] = 0.0
+        except TypeError:
+            if isnan(fracdet):
+                fracdet = 0.0
+
+        return fracdet
 
 
     def return_wlslice_completeness(self, flux, lambda_low, lambda_high, 
-                                    sncut, noise_cut=1e-12):
+                                    sncut, noise_cut=5e-16):
         """
-        Return completeness of a wavelength slice. This computes 
-        stuff in terms of SNR in the Fleming (1995) function but
-        it's actually equivalent to computing the 50% flux
-        and computing everthing in terms of flux
+        Return completeness of a wavelength slice. NaN completeness
+        values are replaced with zeroes, noise values greater than
+        noise cut or NaN noise values are simply excluded from the 
+        mean 
 
         Parameters
         ----------
@@ -526,10 +491,12 @@ class SensitivityCube(object):
             raise WavelengthException("""Odd wavelength value. Are you
                                          sure it's in Angstrom?""")
 
-        snr50 = polyval(self.conversion_poly, sncut)
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
         noise = self.sigmas[izlo:(izhigh + 1), :, :]
+        noise = noise[(noise < noise_cut) & isfinite(noise)] 
+
+        f50s = self.f50_from_noise(noise, sncut)
 
         if len(self.alphas.shape) > 1:
             alphas = self.alphas[izlo:(izhigh + 1), :, :] 
@@ -539,18 +506,22 @@ class SensitivityCube(object):
 
         compls = []
         for f in flux:
-            snr = f/noise
-            compl = fleming_function(snr, snr50, alphas)       
+            compl = fleming_function(f, f50s, alphas)       
+            compl[isnan(compl)] = 0.0
 
             # works so long as pixels equal area
-            compls.append(mean(compl[noise < noise_cut]))
+            if len(compl) > 0:
+                compls.append(mean(compl))
+            else:
+                compls.append(0.0)
+
 
         return array(compls)
 
     def return_wlslice_f50(self, lambda_low, lambda_high, 
                            sncut, noise_cut=5e-16):
         """
-        Return 50% completeness of a wavelength slice.  
+        Return flux at 50% completeness of a wavelength slice.  
 
         Parameters
         ----------
@@ -582,13 +553,14 @@ class SensitivityCube(object):
                 raise WavelengthException("""Odd wavelength value. Are you
                                              sure it's in Angstrom?""")
  
-        snr50 = polyval(self.conversion_poly, sncut)
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
         noise = self.sigmas[izlo:(izhigh + 1), :, :]
         noise = noise[(noise < noise_cut) & (noise > 0)]
+  
+        f50 = self.f50_from_noise(median(noise), sncut)
 
-        return sncut*median(noise) 
+        return f50
 
     def write(self, filename, datascale=1e-17, **kwargs):
         """
@@ -633,6 +605,8 @@ def plot_completeness(args=None):
                         help="DEC of location to plot (DDdMMmSSs)")
     parser.add_argument("lambda_", type=float, help="Wavelength to plot (A)")
     parser.add_argument("alpha", type=float, help="Alpha for Fleming")
+    parser.add_argument("--sncut", type=float, default=4.5, 
+                        help="S/N cut used")
     parser.add_argument("--fout", type=str, help="Filename to output to",
                         default=None)
     opts = parser.parse_args(args=args)
@@ -640,14 +614,14 @@ def plot_completeness(args=None):
     coord = SkyCoord(opts.ra, opts.dec)
 
     scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [opts.alpha, opts.alpha])
-    f50 = scube.get_f50([coord.ra.deg], [coord.dec.deg], [opts.lambda_])
+    f50 = scube.get_f50([coord.ra.deg], [coord.dec.deg], [opts.lambda_], opts.sncut)
     print(f50)
 
     fluxes = linspace(0.01*f50, 4*f50, 100)
 
     compl = scube.return_completeness(array(fluxes), coord.ra.deg*ones(len(fluxes)),
                                       coord.dec.deg*ones(len(fluxes)),
-                                      opts.lambda_*ones(len(fluxes)))
+                                      opts.lambda_*ones(len(fluxes)), opts.sncut)
     plt.plot(fluxes/1e-17, compl, "r-")
     plt.xlabel("Flux $10^{-17}\,$(erg/s/cm$^2$/A)", fontsize=14.0)
     plt.ylabel("Completeness", fontsize=14.0)
@@ -706,6 +680,8 @@ def plot_completeness_versus_wl(args=None):
     parser.add_argument("ra", type=str, help="RA of location to plot (HHhMMmSSs)")
     parser.add_argument("dec", type=str, help="DEC of location to plot (DDdMMmSSs)")
     #parser.add_argument("alphas", type=float, help="Alpha for Fleming")
+    parser.add_argument("--sncut", type=float, default=4.5, 
+                        help="S/N cut used") 
     parser.add_argument("--fout", type=str, help="Filename to output to", 
                         default=None)
     opts = parser.parse_args(args=args)
@@ -714,12 +690,7 @@ def plot_completeness_versus_wl(args=None):
     scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [-3.1, -3.1])
 
     wls = linspace(3500, 5490.0, 1000)
-    f50 = scube.get_f50(coord.ra.deg*ones(len(wls)), coord.dec.deg*ones(len(wls)), wls)
-
-    # fluxes = linspace(0.01*f50, 4*f50, 100)
-    # compl = scube.return_completeness(array(fluxes), coord.ra.deg*ones(len(fluxes)), 
-    #                                   coord.dec.deg*ones(len(fluxes)), 
-    #                                   opts.lambda_*ones(len(fluxes)))
+    f50 = scube.get_f50(coord.ra.deg*ones(len(wls)), coord.dec.deg*ones(len(wls)), wls, opts.sncut)
 
     plt.plot(wls, f50/1e-16, "k-", label="Flux at 50% completeness")
     plt.ylabel("Flux $10^{-16}\,$(erg/s/cm$^2$/A)", fontsize=14.0)

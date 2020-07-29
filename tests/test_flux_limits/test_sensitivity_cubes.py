@@ -9,28 +9,8 @@ AUTHOR: Daniel Farrow (MPE)
 import pytest
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
-@pytest.fixture(scope="module")
-def sensitivity_cube(datadir):
-    """ A sensitivity cube """
-    filename = datadir.join("test_sensitivity_cube.fits").strpath
-    wavelengths = [3500.0, 5500.0]
-    alphas = [-3.5, -3.5]
 
-    return SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0)
-
-@pytest.fixture(scope="module")
-def modified_sensitivity_cube(datadir):
-    """ A sensitivity cube with a conversion polynomial set"""
-    filename = datadir.join("test_sensitivity_cube.fits").strpath
-    wavelengths = [3500.0, 5500.0]
-    alphas = [-3.5, -3.5]
-    p = [2.0, 0.0]
-
-    return SensitivityCube.from_file(filename, wavelengths, alphas, 
-                                     conversion_poly=p, nsigma=1.0)
-
-
-@pytest.mark.parametrize("aper_corr", [0.25, 0.33, None])
+@pytest.mark.parametrize("aper_corr", [0.25, 0.33, 0.7])
 def test_aper_corr(datadir, aper_corr):
     """
     Test the handling of the aperture
@@ -46,41 +26,29 @@ def test_aper_corr(datadir, aper_corr):
     scube_corr1 = SensitivityCube.from_file(filename, wavelengths, alphas, 
                                             aper_corr=1.0)
 
-    # If None, should be taken from the header
-    if not aper_corr:
-        aper_corr = scube.header["APCOR"]
-
     # The aper_corr should be multiplied though in the cubes
     ratio = scube.sigmas/scube_corr1.sigmas
 
     assert ratio == pytest.approx(aper_corr)
 
 
-def test_snr_conversion(modified_sensitivity_cube, sensitivity_cube):
-    """
-    Test that the conversion between the two SNR values
-    is being applied
-    """
-    f501 = sensitivity_cube.get_f50(2e-16,161.4201, 50.8822, 4.0)
-    f502 = modified_sensitivity_cube.get_f50(2e-16,161.4201, 50.8822, 4.0)
-
-    assert f501 == pytest.approx(f502/2.0)
-
-
-def test_completeness_func_hdr1(sensitivity_cube):
+@pytest.mark.parametrize("model, flux, sncut, expected", [
+                                                    ("hdr1", 2e-16, 6.0, 0.20411406725738124),
+                                                    ("hdr1", 2e-16, 5.0, 0.47937941516439253),
+                                                    ("hdr2pt1", 4e-16, 6.0, 0.2658763689623256),
+                                                    ("hdr2pt1", 4e-16, 5.0, 0.5847931749572284)
+                                                   ])
+def test_completeness_func(datadir, flux, model, sncut, expected):
     """
     Test that a value is returned
     """
-    c = sensitivity_cube.return_completeness_hdr1(2e-16,161.4201, 50.8822, 3478)
-    assert c == pytest.approx(0.20411406725738124)
+    filename = datadir.join("test_sensitivity_cube.fits").strpath
+    wavelengths = [3500.0, 5500.0]
+    alphas = [-3.5, -3.5]
+    scube = SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0,
+                                      flim_model=model)
 
-@pytest.mark.parametrize("sncut, expected", [(6.0, 0.20411406725738124),
-                                             (5.0, 0.47937941516439253)])
-def test_completeness_func(sensitivity_cube, sncut, expected):
-    """
-    Test that a value is returned
-    """
-    c = sensitivity_cube.return_completeness(2e-16, 161.4201, 50.8822, 3478, sncut)
+    c = scube.return_completeness(flux, 161.4201, 50.8822, 3478, sncut)
     assert c == pytest.approx(expected)
 
 
