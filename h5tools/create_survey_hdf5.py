@@ -35,6 +35,7 @@ from hetdex_api import config
 
 
 def define_field(objname):
+
     if re.match("par", str(objname)):
         field = "parallel"
     elif re.match("COS|cos|DEXcos", str(objname)):
@@ -53,7 +54,7 @@ def define_field(objname):
         field = "ssa22"
     else:
         field = "other"
-
+        
     return field
 
 
@@ -100,8 +101,7 @@ def main(argv=None):
         "-of",
         "--outfilename",
         type=str,
-        help="""Relative or absolute path for output HDF5
-                        file.""",
+        help="""Relative or absolute path for output HDF5 file.""",
         default=None,
     )
 
@@ -113,9 +113,12 @@ def main(argv=None):
         default="/data/05350/ecooper/hdr2.1/survey/average_one_sigma.txt",
     )
 
-    parser.add_argument("-survey", "--survey", type=str, default="hdr2")
-
+    parser.add_argument("-survey", "--survey", type=str, default="hdr2.1")
+    
     args = parser.parse_args(argv)
+
+    print(args)
+    
     args.log = setup_logging()
 
     fileh = tb.open_file(
@@ -136,7 +139,10 @@ def main(argv=None):
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
 
             shottable = Table(file_obs.root.Shot.read())
-            
+
+            # updating field in survey file 
+            shottable['field'] = define_field(str(shottable['objid'][0]))
+
             survey = vstack([survey, shottable])
             file_obs.close()
         except:
@@ -144,5 +150,8 @@ def main(argv=None):
     
     tableMain = fileh.create_table(fileh.root, "Survey", obj=survey.as_array())
 
+    tableMain.flush()
+    fileh.close()
+    
 if __name__ == "__main__":
     main()
