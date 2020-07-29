@@ -188,6 +188,14 @@ def main(argv=None):
     )
 
     parser.add_argument(
+        "-ifu",
+        "--ifu",
+        help="""IFU to ingest""",
+        type=str,
+        default=None,
+    )
+    
+    parser.add_argument(
         "-md",
         "--mergedir",
         help="""Merge all HDF5 files in the defined merge 
@@ -347,24 +355,29 @@ def main(argv=None):
  
     else:
 
-        tableMain = fileh.create_table(
-            fileh.root,
-            "Detections",
-            Detections,
-            "HETDEX Line Detection Catalog"
-        )
-        tableFibers = fileh.create_table(
-            fileh.root,
-            "Fibers",
-            Fibers,
-            "Fiber info for each detection"
-        )
-        tableSpectra = fileh.create_table(
-            fileh.root,
-            "Spectra",
-            Spectra,
-            "1D Spectra for each Line Detection"
-        )
+        if args.append:
+            tableMain = fileh.root.Detections
+            tableSpectra = fileh.root.Spectra
+            tableFibers = fileh.root.Fibers
+        else:
+            tableMain = fileh.create_table(
+                fileh.root,
+                "Detections",
+                Detections,
+                "HETDEX Line Detection Catalog"
+            )
+            tableFibers = fileh.create_table(
+                fileh.root,
+                "Fibers",
+                Fibers,
+                "Fiber info for each detection"
+            )
+            tableSpectra = fileh.create_table(
+                fileh.root,
+                "Spectra",
+                Spectra,
+                "1D Spectra for each Line Detection"
+            )
 
         
         amp_stats = Table.read('/data/05350/ecooper/hdr2.1/survey/amp_flag.fits')
@@ -382,10 +395,12 @@ def main(argv=None):
             mcres_str = str(args.month) + "*mc"
             amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
             amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
+        elif args.ifu:
+            mcres_str = "*" + args.ifu + ".mc"
         else:
             args.log.warning('Please provide a date(YYYMMDD)+observation or month (YYYYMM')
             sys.exit()
-                
+
         catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
 
         det_cols = fileh.root.Detections.colnames
@@ -395,8 +410,14 @@ def main(argv=None):
         ndet_sel = []
         
         for catfile in catfiles:
-
+            
             amp_i = catfile[-27:-3]
+
+            if args.ifu:
+                # Fudge to add in V038 for 201701 to 20180915 only
+                date_i = int(amp_i[0:8])
+                if date_i > 20180915:
+                    break
             
             amplist.append(amp_i)
 
@@ -474,14 +495,14 @@ def main(argv=None):
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
 
-                if multiframe in ['multi_051_105_051_RL']:
+                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
                     if (row['wave'] > 3540) and (row['wave'] < 3560):
                         continue
 
                 if multiframe in ['multi_032_094_028_RU']:
                     if (row['wave'] > 3530) and (row['wave'] < 3545):
                         continue
-              
+                        
                 selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
                 ampflag = amp_stats['flag'][selamp]
                 
