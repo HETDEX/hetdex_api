@@ -375,7 +375,7 @@ class Fibers:
         if y1 == 0:
             y1_slice = int(width - (y2 - y1))
             y2_slice = width
-            
+
         elif y2 == 1032:
             y1_slice = 0
             y2_slice = y2 - y1
@@ -383,10 +383,16 @@ class Fibers:
             y1_slice = 0
             y2_slice = width
 
-        x1_slice = np.minimum(0, height - (x2 - x1))
-        x2_slice = np.maximum(height, x2 - x1)
-#        y1_slice = np.minimum(0, width - (y2 - y1))
-#        y2_slice = np.maximum(0, y2 - y1)
+        if x1 == 0:
+            x1_slice = int(height - (x2 - x1))
+            x2_slice = height
+
+        elif x2 == 1032:
+            x1_slice = 0
+            x2_slice = x2 - x1
+        else:
+            x1_slice = 0
+            x2_slice = height
 
         im_reg = im0[imtype][0][x1:x2, y1:y2]
 
@@ -479,7 +485,7 @@ def get_fibers_table(
 
         # use FiberIndex table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region(coords,radius=rad_in.value)
+        fibers_table = fiberindex.query_region(coords, radius=rad_in.value)
 
         if np.size(fibers_table) > 0:
             if astropy:
@@ -545,7 +551,7 @@ def get_image2D_amp(
     ifuslot=None,
     imtype="clean_image",
     expnum=1,
-    survey="hdr2.1"
+    survey="hdr2.1",
 ):
     """
     Returns an image from the 2D data based on
@@ -576,7 +582,7 @@ def get_image2D_amp(
     """
     fileh = open_shot_file(shot, survey=survey)
 
-    _expnum = expnum 
+    _expnum = expnum
 
     if multiframe:
         _multiframe = multiframe
@@ -592,7 +598,7 @@ def get_image2D_amp(
                 "(specid == _specid) & (amp == _amp) & (expnum == _expnum)"
             )
         else:
-            print('You must provide both specid and amp')
+            print("You must provide both specid and amp")
     elif ifuslot:
         _ifuslot = ifuslot
         if amp:
@@ -601,10 +607,10 @@ def get_image2D_amp(
                 "(ifuslot == _ifuslot) & (amp == _amp) & (expnum == _expnum)"
             )
         else:
-            print('You must provide both ifuslot and amp')
+            print("You must provide both ifuslot and amp")
 
     else:
-        print('You need to provide a multiframe or specid/amp or ifuslot/amp') 
+        print("You need to provide a multiframe or specid/amp or ifuslot/amp")
 
     fileh.close()
 
