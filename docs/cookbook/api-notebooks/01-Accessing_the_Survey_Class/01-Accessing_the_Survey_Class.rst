@@ -5,7 +5,7 @@ Survey Class - Searching basic survey properties
 The survey HDF5 file is a master look up table for each observation made
 by VIRUS for HETDEX. It can be accessed directly through the HDF5 survey
 file, or through the Survey class API. The Survey class includes
-information for each three dither set HETDEX observation in HDR1. It
+information for each three dither set HETDEX observation in an HDR. It
 includes both science and calibration shots. Any quantity related to an
 individual dither is provided in an array of length three. Fundamental
 properties of a shot and quality assessment values for seeing (fwhm),
@@ -35,7 +35,7 @@ Survey class
 
 .. code:: ipython3
 
-    survey = Survey('hdr2')
+    survey = Survey('hdr2.1')
 
 This calls the HDR1 survey class and sets each column in the survey
 table as an attribute to this object. This is how it looks through an
