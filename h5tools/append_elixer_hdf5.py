@@ -6,7 +6,7 @@ Script to append elixer values to a detect h5 file
 >>> python3 append_elixer.hdf5 detect_hdr2.1_copy.h5
 
 """
-
+import sys
 import numpy as np
 from hetdex_api.config import HDRconfig
 import tables as tb
