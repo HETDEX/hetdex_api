@@ -154,10 +154,6 @@ def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
         x1_slice = 0
         x2_slice = width
                        
-#    x1_slice = np.maximum( 0, int(width - (x2 - x1)))
-#    x2_slice = np.minimum( x2 - x1, width)
-#    print(x1,x2,x1_slice, x2_slice, wave_obj)
-
     im_wave = np.zeros(width)
     im_wave[x1_slice:x2_slice] = im_fib[x1:x2]
 
@@ -281,7 +277,8 @@ def main(argv=None):
     parser = get_parser()
     args = parser.parse_args(argv)
     args.log = setup_logging()
-    print(args)
+
+    args.log.info(args)
 
     class FiberImage2D(tb.IsDescription):
         detectid = tb.Int64Col(pos=0)
@@ -348,15 +345,19 @@ def main(argv=None):
         detectlist = np.array(catalog["detectid"][selcat])
 
     elif args.dets:
-        try:
-            catalog = Table.read(args.dets, format="ascii")
-            selcat = catalog["shotid"] == int(shotid_i)
-            detectlist = np.array(catalog["detectid"][selcat])
-        except:
-            detectlist = np.loadtxt(args.dets, dtype=int)
-
+        if op.exists(args.dets):
+            try:
+                catalog = Table.read(args.dets, format="ascii")
+                selcat = catalog["shotid"] == int(shotid_i)
+                detectlist = np.array(catalog["detectid"][selcat])
+            except:
+                detectlist = np.loadtxt(args.dets, dtype=int)
+        else:
+            args.log.warning('No dets for ' + str(shotid_i))
+            sys.exit()
+            
     if len(detectlist) == 0:
-        sys.exit("No detections for shotid: {}".format(shotid_i))
+        sys.exit()
 
     # open up catalog library from elixer
     catlib = catalogs.CatalogLibrary()
@@ -441,11 +442,16 @@ def main(argv=None):
                         first=True,
                     )[0]
                     if cutout["instrument"] == "HSC":
-                        row_phot["im_phot"] = cutout["cutout"].data
+                        # get shape to ensure slicing on cropped images
+                        phot = np.shape(cutout["cutout"].data)
+                        row_phot["im_phot"][0:phot[0]][0:phot[1]] = cutout["cutout"].data
+                        
                         header = cutout["cutout"].wcs.to_header()
                         row_phot["im_phot_hdr"] = header.tostring()
-                except IndexError:
-                    args.log.warning("No imaging available for source")
+
+                except:
+                    pass
+                    #args.log.warning("No imaging available for source")
             else:
                 pass
 
