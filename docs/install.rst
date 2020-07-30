@@ -38,23 +38,18 @@ and add in the following line to your $PATH:
 
    export PATH=$PATH:$HOME/bin:$HOME/.local/bin
 
-Then install all required python packages:
+
+Pip Install hetdex-api: stable release version
+----------------------------------------------
+
+A stable release of hetdex-api can now be o
 
 .. code-block:: bash
-   
-   pip3 install --user tables
-   pip3 install --user astropy
-   pip3 install --pre --user astroquery 
-   pip3 install --user ipywidgets
-   pip3 install --user speclite
-   pip3 install --user ipyevents
-   pip3 install --user astrowidgets
-   pip3 install --user jsonschema==3.1.1
-   pip3 install --user sep
-   pip3 install --user specutils
-   pip3 install --user photutils
-   pip3 install --user matplotlib==2.0.0
-   pip3 install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
+
+   pip3 install hetdex_api --user --upgrade
+
+Install hetde-api: latest version
+---------------------------------
 
 Copy the git clone repository of hetdex_api 
 
@@ -95,7 +90,13 @@ This will automatically switch you over to a compute node where you will have ac
 
 Also, it is generally preferred that users store large files on their /data storage drive and any high I/O runs should be done on /tmp.
 
-If you would like to use a jupyter notebook, run this script:
+If you would like to use a jupyter notebook, wrangler is now accessible at 
+
+https://vis.tacc.utexas.edu
+
+Choose the 'all' queue mode under the wrangler cluster option.
+
+If it fails, you can also run this script from a terminal:
 
 .. code-block:: bash
 
