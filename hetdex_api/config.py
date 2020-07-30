@@ -13,7 +13,6 @@ class HDRconfig:
             "hdr2.1": "/data/05350/ecooper/hdr2.1"}
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
-        self.red_dir = op.join(self.hdr_dir[survey], "")
         self.data_dir = op.join(self.red_dir, "data")
         self.tp_dir = op.join(self.red_dir, "throughput")
         self.calib_dir = op.join(self.hdr_dir[survey], "calib")
