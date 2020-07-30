@@ -10,15 +10,11 @@ Development version @ trunk
 - When initialising a ``SensitivityCube`` an nsigma parameter
   can be passed that converts the input to signmas via input/nsigma
 
-- The old ``return_completeness`` method has been replaced with
-  a new method where you must specify the detection 
-  significance S/N cut as the final parameter. The old
-  version of the method is available as ``return_completeness_hdr1``
-  for backward compatibility.
+- You must now pass a ``sncut`` parameter to all the flux limit
+  functions, which specifies the S/N cut
 
-- You may now specify a conversion between signal divided by
-  noise and detection significance using the ``conversion_poly``
-  parameter when initialising a ``SensitivityCube``
+- Different flux limit models for different releases are
+  now available via the ``flim_model`` option
 
 - The alphas array can be 3D, in which case an alpha can be specified for
 each location
