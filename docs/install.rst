@@ -52,7 +52,7 @@ for hetdex-api
 Pip Install hetdex-api: stable release version
 ----------------------------------------------
 
-A stable release of hetdex-api can now be o
+As of HDR2.1 release, a stable release of hetdex-api can now be pip installed from pypi 
 
 .. code-block:: bash
 
