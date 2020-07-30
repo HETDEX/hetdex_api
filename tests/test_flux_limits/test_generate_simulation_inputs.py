@@ -26,9 +26,9 @@ def mock_hdf_cube(datadir):
 
 
 
-@pytest.mark.parametrize("x, y, xexpt, yexpt", [(25.0, 10.0, 209.60643351, 51.51866332),
-                                                (10.0, 25.0, 209.61443495, 51.52934529),
-                                                (-10.0, -25.0, 209.5663673, 51.53027137)])
+@pytest.mark.parametrize("x, y, xexpt, yexpt", [(25.0, 10.0, 209.60520508, 51.51866332),
+                                                (10.0, 25.0, 209.61320548, 51.52934529),
+                                                (-10.0, -25.0, 209.56513767, 51.53027137)])
 def test_sensitivity_cube_astrometry(mock_hdf_cube, x, y, xexpt, yexpt):
     """ Test the astrometry in the header is same as in Karl's cube """
 

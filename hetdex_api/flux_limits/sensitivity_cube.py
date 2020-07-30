@@ -19,6 +19,8 @@ References
 """
 
 from __future__ import (absolute_import, print_function)
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval)
