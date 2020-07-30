@@ -4,8 +4,7 @@ Module that deals with storing and
 extracting sensitivity cubes in HDF5
 files
 
-Author: Daniel Farrow
-
+.. moduleauthor:: Daniel Farrow <dfarrow@mpe.mpg.de>
 
 """
 
@@ -81,12 +80,16 @@ class SensitivityCubeHDF5Container(object):
     ----------
     filename : string
         the filename of the HDF5
-
     flim_model : string (optional)
         specifies the flux limit model
         to use in the sensitivity
         cubes either hdr1 or hdr2pt1.
         Default is hdr2pt1
+    aper_corr : float (optional)
+        aperture correction to
+        apply to flux limits. Default
+        is 1.0, if None then read 
+        correction from header.
 
     Attributes
     ----------

@@ -1,16 +1,16 @@
 hetdex\_api.flux\_limits package
 ================================
 
-Submodules
-----------
+Module contents
+---------------
 
-hetdex\_api.flux\_limits.collapse\_cubes module
------------------------------------------------
-
-.. automodule:: hetdex_api.flux_limits.collapse_cubes
+.. automodule:: hetdex_api.flux_limits
     :members:
     :undoc-members:
     :show-inheritance:
+
+Submodules
+----------
 
 hetdex\_api.flux\_limits.hdf5\_sensitivity\_cubes module
 --------------------------------------------------------
@@ -28,11 +28,12 @@ hetdex\_api.flux\_limits.sensitivity\_cube module
     :undoc-members:
     :show-inheritance:
 
+hetdex\_api.flux\_limits.collapse\_cubes module
+-----------------------------------------------
 
-Module contents
----------------
-
-.. automodule:: hetdex_api.flux_limits
+.. automodule:: hetdex_api.flux_limits.collapse_cubes
     :members:
     :undoc-members:
     :show-inheritance:
+
+

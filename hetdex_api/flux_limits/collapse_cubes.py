@@ -4,7 +4,8 @@ Module to combine and collapse sensitivity
 cubes into single curves of wavelength and flux
 versus completeness 
 
-AUTHOR: Daniel Farrow (MPE)
+
+.. moduleauthor:: Daniel Farrow <dfarrow@mpe.mpg.de>
 
 """
 import logging

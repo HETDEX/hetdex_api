@@ -3,17 +3,17 @@ Sensitivity Cube Reader
 
 Read in Karl's sensitivity cubes and 
 produce expected detection fractions
-from the Fleming (Fleming+ 1995) parameterisation
+from the Fleming (Fleming et al 1995) 
+parameterisation
 
-References:
+References
+----------
 
-Fleming et al. 1995 
-http://adsabs.harvard.edu/abs/1995AJ....109.1044F
+- Fleming et al. 1995 
+  http://adsabs.harvard.edu/abs/1995AJ....109.1044F
 
-See also:
-
-Donghui Jeong's explanation
-https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
+- Donghui Jeong's explanation (internal to HETDEX)
+  https://luna.mpe.mpg.de/wikihetdex/index.php/Flim_files_and_Fleming_curve
 
 .. moduleauthor:: Daniel Farrow <dfarrow@mpe.mpg.de>
 """
@@ -36,7 +36,7 @@ class WavelengthException(Exception):
 
 def fleming_function(flux, flim, alpha):
     """
-    Implementation of the Fleming+ 1995
+    Implementation of the Fleming et al 1995
     completeness function
 
     Parameters
@@ -78,9 +78,9 @@ def read_cube(fn, datascale=1e-17):
     ------
     f50s : array
         the datacube of the flux limits
-    WCS : astropy.wcs:WCS 
-        the WCS to do x,y,z to ra,dec,wl
-        conversions
+    header : dict
+        the header of the cube's
+        FITS file
     """
 
     hdus = fits.open(fn)
@@ -101,9 +101,6 @@ class SensitivityCube(object):
         3D datacube of datascale/noise
         where noise is the noise on
         a point source detection
-    wcs : astropy.wcs:WCS
-        world coordinate system to convert between ra, dec, lambda
-        and pixel
     header : dict
         a dictionary of the headervalues to be stored in a
         FITS file
@@ -130,10 +127,16 @@ class SensitivityCube(object):
     ----------
     sigmas : array
         an array of the noise values
-
     alpha_func : callable
         returns the Fleming alpha
         for an input wavelength
+    wcs : astropy.wcs:WCS
+        world coordinate system to convert between ra, dec, lambda
+        and pixel
+    f50_from_noise : callable
+        function that converts the values
+        in `sigmas` to flux values at 
+        50% completeness
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
@@ -287,8 +290,8 @@ class SensitivityCube(object):
 
     def radecwltoxyz(self, ra, dec, lambda_):
         """
-        Convert ra, dec position to
-        x,y coordinate of cube
+        Convert ra, dec, wavelength position to
+        x,y, z coordinate of cube
 
         Parameters
         ----------
@@ -477,7 +480,7 @@ class SensitivityCube(object):
             applied to the data
         noise_cut : float
             remove areas with more noise
-            than this
+            than this. Default: 1e-16 erg/s/cm2
  
         Return
         ------
@@ -530,9 +533,9 @@ class SensitivityCube(object):
         sncut : float
             the detection significance (S/N) cut
             applied to the data
-        noise_cut : float
+        noise_cut : float (optional)
             remove areas with more noise
-            than this
+            than this. Default: 1e-16 erg/s/cm2
  
         Return
         ------
