@@ -4,8 +4,7 @@ Module that deals with storing and
 extracting sensitivity cubes in HDF5
 files
 
-Author: Daniel Farrow
-
+.. moduleauthor:: Daniel Farrow <dfarrow@mpe.mpg.de>
 
 """
 
@@ -30,7 +29,7 @@ class NoFluxLimsAvailable(Exception):
     pass
 
 
-def return_sensitivity_hdf_path(datevobs, release="hdr2"):
+def return_sensitivity_hdf_path(datevobs, release="hdr2.1"):
     """
     Return the full file path
     to a HDF5 container of sensitivity     
@@ -81,7 +80,16 @@ class SensitivityCubeHDF5Container(object):
     ----------
     filename : string
         the filename of the HDF5
-
+    flim_model : string (optional)
+        specifies the flux limit model
+        to use in the sensitivity
+        cubes either hdr1 or hdr2pt1.
+        Default is hdr2pt1
+    aper_corr : float (optional)
+        aperture correction to
+        apply to flux limits. Default
+        is 1.0, if None then read 
+        correction from header.
 
     Attributes
     ----------
@@ -90,7 +98,7 @@ class SensitivityCubeHDF5Container(object):
 
     """
 
-    def __init__(self, filename, mode="r", **kwargs):
+    def __init__(self, filename, mode="r", flim_model="hdr2pt1", aper_corr=1.0, **kwargs):
 
         if (mode == "w") and isfile(filename):
             raise FileExists("Error! Output file {:s} exists!".format(filename))
@@ -103,6 +111,8 @@ class SensitivityCubeHDF5Container(object):
             filename, mode=mode, filters=self.compress_filter, **kwargs
         )
         self.filename = filename
+        self.flim_model = flim_model
+        self.aper_corr = aper_corr
 
     def add_sensitivity_cube(self, datevshot, ifuslot, scube, flush=False):
         """
@@ -129,16 +139,21 @@ class SensitivityCubeHDF5Container(object):
 
         # Store this in a compressible array
         array = self.h5file.create_carray(
-            shot, ifuslot, obj=scube.f50vals, title="50% Detection Limits"
-        )
-
+                           shot, ifuslot, obj=scube.sigmas, 
+                           title="1 sigma noise")
+     
         #  Store what aperture correction has been applied
         array.attrs.aper_corr = scube.aper_corr
+
+        #
 
         # Store the header as an attribute
         array.attrs.header = scube.header
         array.attrs.wavelengths = scube.wavelengths
         array.attrs.alphas = scube.alphas
+
+        # should always be 1-sigma stored from now on
+        array.attrs.nsigma = 1.0
 
     def list_contents(self):
         """ List the contents of the HDF5 file """
@@ -185,9 +200,14 @@ class SensitivityCubeHDF5Container(object):
             header = ifu.attrs.header
             wavelengths = ifu.attrs.wavelengths
             alphas = ifu.attrs.alphas
-            f50vals = ifu.read() / ifu.attrs.aper_corr
+            sigmas = ifu.read() / ifu.attrs.aper_corr
 
-            yield ifu.name, SensitivityCube(f50vals, header, wavelengths, alphas)
+            # XXX HACK HACK HACK to change alpha
+            #alphas = [-1.9, -1.9]
+
+            yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas, 
+                                            flim_model=self.flim_model,
+                                            aper_corr=self.aper_corr)
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """
@@ -237,10 +257,20 @@ class SensitivityCubeHDF5Container(object):
         alphas = ifu.attrs.alphas
 
         # Remove any aperture correction
-        f50vals = ifu.read() / ifu.attrs.aper_corr
+        sigmas = ifu.read() / ifu.attrs.aper_corr
+
+        try:
+            nsigma = ifu.attrs.nsigma
+        except AttributeError as e:
+            # HDR1 cubes were all 6-sigma, but
+            # that wasn't saved in the HDF5
+            nsigma = 6.0
+            print("No nsigma found, assuming nsigma=6")
 
         # Force apcor to be 1.0 here, so we don't double count it
-        return SensitivityCube(f50vals, header, wavelengths, alphas)
+        return SensitivityCube(sigmas, header, wavelengths, alphas, 
+                               nsigma=nsigma, flim_model=self.flim_model,
+                               aper_corr=self.aper_corr)
 
     def flush(self):
         """ Write all alive leaves to disk """
@@ -275,7 +305,7 @@ def add_sensitivity_cube_to_hdf5(args=None):
 
     parser.add_argument(
         "--regex",
-        default=".*(2[0-9]{7}v[0-9]{3})_multi_[0-9]{3}_([0-9]{3})",
+        default=".*(2[0-9]{7}v[0-9]{3})_[0-9]{3}_([0-9]{3})",
         help="""Regex with two capture groups, the first for datevshot the second 
                                 for IFU slot""",
     )

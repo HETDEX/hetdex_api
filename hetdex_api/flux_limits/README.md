@@ -2,10 +2,9 @@
 
 ## Overview 
 
-The flux limits in HETDEX are stored in ra, dec, wavelength datacubes ("sensitivity cubes"). The flux 
-value stored is the inverse of the 6-sigma point source detection limit, which roughly corresponds to the flux at
-which 50% of the sources are detected. This is how we can store the flux limit as a 
-function of position and wavelength.
+The flux limits in HETDEX are stored in ra, dec, wavelength datacubes ("sensitivity cubes"). The 
+value stored is the inverse of the PSF weighted 1-sigma noise, which can be used to
+compute flux limits. This is how we can store the flux limit as a function of position and wavelength.
 
 To characterise the fraction of sources detected as a function of flux, a parameterisation
 from [Fleming et al 1995](http://adsabs.harvard.edu/abs/1995AJ....109.1044F) is used. One input

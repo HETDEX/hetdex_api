@@ -1,8 +1,9 @@
 """
 
-Compute biweight flux limits at a wavelength and
-optionally plot the histogram of flux limits
-at a chosen wavelength. Used to compute 
+Compute biweight PSF weighted 1 sigma 
+values at a wavelength and
+optionally plot the histogram of 1 sigma
+at a chosen wavelength. Used to compute
 e.g. fluxlimit_4540 type columns
 
 AUTHOR: Daniel Farrow (MPE)
@@ -20,13 +21,13 @@ from astropy.stats import biweight_location, biweight_midvariance
 from astropy.table import Table
 
 # Parse the arguments
-parser = argparse.ArgumentParser(description="Compute biweight flux limits and plot histograms")
+parser = argparse.ArgumentParser(description="Compute biweight PSF weighted 1-sigma and plot histograms")
 parser.add_argument("--wl", default=4540, type=int, help="Wavelength to compute median for")
-parser.add_argument("--hist", action="store_true", help="Plot histograms of flux limit")
-parser.add_argument("--hist_all", action="store_true", help="Plot histograms flux limit for all inputs")
+parser.add_argument("--hist", action="store_true", help="Plot histograms of 1 sigma flux")
+parser.add_argument("--hist_all", action="store_true", help="Plot histograms 1 sigma flux for all inputs")
 parser.add_argument("--fout", default=None, type=str, help="Ascii file to save results to")
 parser.add_argument("--fn-shot-average", default=None, type=str, help="Ascii file to append shot average flim to")
-parser.add_argument("files", help="Flux limit cubes to consider", nargs='+')
+parser.add_argument("files", help="Sensivitity cubes to consider", nargs='+')
 opts = parser.parse_args()
 
 bins = np.linspace(0.0, 5e-16, 40)
@@ -63,7 +64,15 @@ for fn in opts.files:
     slice_flattened = wavelength_slice.flatten()
     ztrimmed_slice = slice_flattened[slice_flattened > 0.0]
 
-    flims = header["APCOR"]*1.0e-17/ztrimmed_slice
+    if "APCOR" in header:
+        flims = header["APCOR"]*1.0e-17/ztrimmed_slice
+    elif "APCOR0" in header:
+        flims = header["APCOR0"]*1.0e-17/ztrimmed_slice
+    else:
+        print("WARNING: No aperture correction info found! Assuming = 1")
+        flims = 1.0e-17/ztrimmed_slice
+
+    flims = 1.0e-17/ztrimmed_slice
 
     flims_all.extend(flims)    
     biwt_ls.append(biweight_location(flims))
@@ -76,7 +85,7 @@ for fn in opts.files:
     # Find the dateshot and the IFU 
     add_ifu_datashot = True
     if add_ifu_datashot:
-        m = re.search('([0-9]*v[0-9]{3})_multi_([0-9]{3})', fn)
+        m = re.search('([0-9]*v[0-9]{3})_[0-9]{3}_([0-9]{3})_[0-9]{3}', fn)
         ifu.append(m.group(2))
         dateshot.append(m.group(1))
 

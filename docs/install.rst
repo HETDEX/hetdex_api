@@ -132,3 +132,14 @@ To contribute to github
    git push
 
 Please ask to become a member of HETDEX organization on github once you have an account. Please branch your development if you are doing major code work.
+
+If you want to build the documentation, you can install the necessary packages by adding ``[doc]`` to
+the package name when you install, e.g.
+
+.. code-block:: bash
+   
+   pip3 install -e hetdex_api[doc] --user --upgrade
+
+
+
+
