@@ -111,11 +111,12 @@ class SensitivityCube(object):
         arrays of the wavelength in
         Angstrom and the alpha parameter
         of the Fleming+ 1995 function
-    aper_corr : float
+    aper_corr : float (Optional)
         Aperture correction to multiply
         the cubes with. If None, read
         from header. If not in header
-        and aper_corr=None do nothing
+        and aper_corr=None do nothing.
+        Default is 1.0.
     nsigma : float
         If the cubes don't contain
         1 sigma noise (e.g. in the HDR1
@@ -135,7 +136,7 @@ class SensitivityCube(object):
         for an input wavelength
 
     """
-    def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=None, 
+    def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
                  nsigma=1.0, flim_model="hdr2pt1"): 
 
         self.sigmas = sigmas/nsigma
@@ -155,14 +156,12 @@ class SensitivityCube(object):
         # Deal with aperture corrections
         if aper_corr:
             self.aper_corr = aper_corr
-        elif flim_model == "hdr1":
-            # For HDR1 read from header
-            if "APCOR" in self.header:
-                self.aper_corr = self.header["APCOR"]
-            elif "APCOR0" in self.header: 
-                self.aper_corr = self.header["APCOR0"]
+        elif "APCOR" in self.header:
+            self.aper_corr = self.header["APCOR"]
+        elif "APCOR0" in self.header: 
+            self.aper_corr = self.header["APCOR0"]
         else:
-            self.aper_corr = 1.0 
+            self.aper_corr = 1.0
 
         self.sigmas = self.sigmas*self.aper_corr
 
@@ -459,7 +458,7 @@ class SensitivityCube(object):
 
 
     def return_wlslice_completeness(self, flux, lambda_low, lambda_high, 
-                                    sncut, noise_cut=5e-16):
+                                    sncut, noise_cut=1e-16):
         """
         Return completeness of a wavelength slice. NaN completeness
         values are replaced with zeroes, noise values greater than
@@ -519,7 +518,7 @@ class SensitivityCube(object):
         return array(compls)
 
     def return_wlslice_f50(self, lambda_low, lambda_high, 
-                           sncut, noise_cut=5e-16):
+                           sncut, noise_cut=1e-16):
         """
         Return flux at 50% completeness of a wavelength slice.  
 

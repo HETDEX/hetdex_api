@@ -82,6 +82,11 @@ class SensitivityCubeHDF5Container(object):
     filename : string
         the filename of the HDF5
 
+    flim_model : string (optional)
+        specifies the flux limit model
+        to use in the sensitivity
+        cubes either hdr1 or hdr2pt1.
+        Default is hdr2pt1
 
     Attributes
     ----------
@@ -90,7 +95,7 @@ class SensitivityCubeHDF5Container(object):
 
     """
 
-    def __init__(self, filename, mode="r", **kwargs):
+    def __init__(self, filename, mode="r", flim_model="hdr2pt1", aper_corr=1.0, **kwargs):
 
         if (mode == "w") and isfile(filename):
             raise FileExists("Error! Output file {:s} exists!".format(filename))
@@ -103,6 +108,8 @@ class SensitivityCubeHDF5Container(object):
             filename, mode=mode, filters=self.compress_filter, **kwargs
         )
         self.filename = filename
+        self.flim_model = flim_model
+        self.aper_corr = aper_corr
 
     def add_sensitivity_cube(self, datevshot, ifuslot, scube, flush=False):
         """
@@ -195,7 +202,9 @@ class SensitivityCubeHDF5Container(object):
             # XXX HACK HACK HACK to change alpha
             #alphas = [-1.9, -1.9]
 
-            yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas)
+            yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas, 
+                                            flim_model=self.flim_model,
+                                            aper_corr=self.aper_corr)
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """
@@ -257,7 +266,8 @@ class SensitivityCubeHDF5Container(object):
 
         # Force apcor to be 1.0 here, so we don't double count it
         return SensitivityCube(sigmas, header, wavelengths, alphas, 
-                               nsigma=nsigma)
+                               nsigma=nsigma, flim_model=self.flim_model,
+                               aper_corr=self.aper_corr)
 
     def flush(self):
         """ Write all alive leaves to disk """

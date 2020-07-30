@@ -35,8 +35,8 @@ def test_aper_corr(datadir, aper_corr):
 @pytest.mark.parametrize("model, flux, sncut, expected", [
                                                     ("hdr1", 2e-16, 6.0, 0.20411406725738124),
                                                     ("hdr1", 2e-16, 5.0, 0.47937941516439253),
-                                                    ("hdr2pt1", 4e-16, 6.0, 0.2658763689623256),
-                                                    ("hdr2pt1", 4e-16, 5.0, 0.5847931749572284)
+                                                    ("hdr2pt1", 4e-16, 6.0, 0.2115161903693431),
+                                                    ("hdr2pt1", 4e-16, 5.0, 0.4961144900645637)
                                                    ])
 def test_completeness_func(datadir, flux, model, sncut, expected):
     """
@@ -45,9 +45,14 @@ def test_completeness_func(datadir, flux, model, sncut, expected):
     filename = datadir.join("test_sensitivity_cube.fits").strpath
     wavelengths = [3500.0, 5500.0]
     alphas = [-3.5, -3.5]
-    scube = SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0,
-                                      flim_model=model)
 
+    if model == "hdr1":
+        scube = SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0,
+                                          flim_model=model, aper_corr=None)
+    else:
+        scube = SensitivityCube.from_file(filename, wavelengths, alphas, nsigma=1.0,
+                                          flim_model=model)
+ 
     c = scube.return_completeness(flux, 161.4201, 50.8822, 3478, sncut)
     assert c == pytest.approx(expected)
 

@@ -38,11 +38,10 @@ def hdr2pt1_f50_from_noise(noise, sncut):
        completeness
     """
 
-    snslope=0.95
-    intercept_poly=[0.1431439,  -2.25997733, 
-                    11.90737478, -21.11635338]
+    snslope=1.0
+    intercept_poly=[0.11268546,  -1.75103671,
+                    9.00946424, -15.71204789]
     intercept = 1e-17*polyval(intercept_poly, sncut)
-
 
     f50s = snslope*sncut*noise + intercept
         

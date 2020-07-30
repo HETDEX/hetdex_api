@@ -12,7 +12,8 @@ from os.path import isfile
 import pytest
 from hetdex_api.flux_limits.hdf5_sensitivity_cubes import (SensitivityCubeHDF5Container, 
                                                            add_sensitivity_cube_to_hdf5,
-                                                           extract_sensitivity_cube) 
+                                                           extract_sensitivity_cube,
+                                                           return_sensitivity_hdf_path) 
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
 @pytest.fixture(scope="function")
@@ -118,3 +119,36 @@ def test_extract_sensitivity_cube(tmpdir, datadir, datevshot):
     extract_sensitivity_cube(args=args)
      
     assert isfile(outfn)
+
+
+def test_flim_model(datadir):
+    """
+    Test that the flux limit model is 
+    being passed to the sensitivity cubes
+    """
+    # ifuslot_063
+    filename = datadir.join("test_hdf.h5").strpath
+    hdcon1 = SensitivityCubeHDF5Container(filename, flim_model="hdr1")
+    hdcon2 = SensitivityCubeHDF5Container(filename, flim_model="hdr2pt1")
+
+    scube1 = hdcon1.extract_ifu_sensitivity_cube("ifuslot_063")
+    scube2 = hdcon2.extract_ifu_sensitivity_cube("ifuslot_063")
+
+    s1 = scube1.get_f50(161.4201, 50.8822, 4500.0, 5.5)
+    s2 = scube2.get_f50(161.4201, 50.8822, 4500.0, 5.5)
+
+    # if different models passed should be different
+    assert abs(s1 - s2) > 1e-19
+
+
+@pytest.mark.parametrize("datevshot", ["20181203v013", "20191023v024"])
+def test_return_sensitivity_hdf_path(datevshot):
+    """ Test the correct path is returned """
+    fn = return_sensitivity_hdf_path(datevshot)
+    assert isfile(fn)    
+
+
+
+
+
+
