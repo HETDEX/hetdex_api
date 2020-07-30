@@ -80,6 +80,10 @@ def define_field(objname):
         field = "dex-fall"
     elif re.match("HS|DEXsp", str(objname)):
         field = "dex-spring"
+    elif re.match("NEP", str(objname)):
+        field = "nep"
+    elif re.match("SSA22", str(objname)):
+        field = "ssa22"
     else:
         field = "other"
 

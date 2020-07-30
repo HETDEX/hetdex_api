@@ -44,6 +44,7 @@ class Survey:
         self.filename = config.surveyh5
         self.hdfile = tb.open_file(self.filename, mode="r")
         colnames = self.hdfile.root.Survey.colnames
+
         for name in colnames:
             if name == "ra_flag":
                 setattr(
@@ -63,6 +64,24 @@ class Survey:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
+        # append flux limits
+        if survey == 'hdr2.1':
+            
+            flim = Table.read('/data/05350/ecooper/hdr2.1/survey/average_one_sigma.txt',
+                              format='ascii', names=['datevobs', 'fluxlimit_4550'])
+            fluxlimit = []
+            for datevobs in self.datevobs:
+                sel = flim['datevobs'] == datevobs
+                if np.sum(sel) == 1:
+                    fluxlimit.extend( flim['fluxlimit_4550'][sel] )
+                elif np.sum(sel) > 1:
+                    print('Found two fluxlimits for ', datevobs)
+                    fluxlimit.extend( flim['fluxlimit_4550'][sel][0])
+                else:
+                    fluxlimit.append( np.nan )
+                    
+            self.fluxlimit_4550 = np.array(fluxlimit)
+                              
     def __getitem__(self, indx):
         """ 
         This allows for slicing of the survey class
@@ -214,6 +233,7 @@ class Survey:
 
         survey_table['mjd'] = self.mjd[:,0]
         survey_table['exptime'] = np.mean(self.exptime, axis=1)
+        survey_table['fluxlimit_4550'] = self.fluxlimit_4550
         
         for col in survey_table.colnames:
             try:

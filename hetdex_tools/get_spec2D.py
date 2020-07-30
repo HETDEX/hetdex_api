@@ -29,6 +29,8 @@ from astropy.table import Table
 import astropy.units as u
 
 import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
@@ -37,8 +39,6 @@ from hetdex_api.input_utils import setup_logging
 from hetdex_api.shot import Fibers
 from hetdex_api.detections import Detections
 from elixer import catalogs
-
-matplotlib.use("agg")
 
 
 class PhotImage(tb.IsDescription):
@@ -139,12 +139,21 @@ def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
     im_fib = fibers.hdfile.root.Data.Fibers.cols.wavelength[idx]
 
     sel = np.where(im_fib >= wave_obj)[0][0]
+
     x1 = np.maximum(0, sel - int(width / 2))
     x2 = np.minimum(1032, sel + int(width / 2) + (width % 2))
 
-    x1_slice = np.minimum(0, width - (x2 - x1))
-    x2_slice = x2 - x1
+    if x1 == 0:
+        x1_slice = int(width - (x2 - x1))
+        x2_slice = width
 
+    elif x2 == 1032:
+        x1_slice = 0
+        x2_slice = x2 - x1
+    else:
+        x1_slice = 0
+        x2_slice = width
+                       
     im_wave = np.zeros(width)
     im_wave[x1_slice:x2_slice] = im_fib[x1:x2]
 
@@ -190,7 +199,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr2",
+        default="hdr2.1",
     )
 
     parser.add_argument(
@@ -268,7 +277,8 @@ def main(argv=None):
     parser = get_parser()
     args = parser.parse_args(argv)
     args.log = setup_logging()
-    print(args)
+
+    args.log.info(args)
 
     class FiberImage2D(tb.IsDescription):
         detectid = tb.Int64Col(pos=0)
@@ -335,15 +345,19 @@ def main(argv=None):
         detectlist = np.array(catalog["detectid"][selcat])
 
     elif args.dets:
-        try:
-            catalog = Table.read(args.dets, format="ascii")
-            selcat = catalog["shotid"] == int(shotid_i)
-            detectlist = np.array(catalog["detectid"][selcat])
-        except:
-            detectlist = np.loadtxt(args.dets, dtype=int)
-
+        if op.exists(args.dets):
+            try:
+                catalog = Table.read(args.dets, format="ascii")
+                selcat = catalog["shotid"] == int(shotid_i)
+                detectlist = np.array(catalog["detectid"][selcat])
+            except:
+                detectlist = np.loadtxt(args.dets, dtype=int)
+        else:
+            args.log.warning('No dets for ' + str(shotid_i))
+            sys.exit()
+            
     if len(detectlist) == 0:
-        sys.exit("No detections for shotid: {}".format(shotid_i))
+        sys.exit()
 
     # open up catalog library from elixer
     catlib = catalogs.CatalogLibrary()
@@ -408,9 +422,10 @@ def main(argv=None):
             # sel_det = detects.detectid == detectid_i
             # coord = detects.coords[sel_det]
 
-            sel_det = np.where(catalog["detectid"] == detectid_i)[0][0]
+            det_row = detects.hdfile.root.Detections.read_where('detectid == detectid_i')
+            
             coord = SkyCoord(
-                ra=catalog["ra"][sel_det] * u.deg, dec=catalog["dec"][sel_det] * u.deg
+                ra=det_row["ra"] * u.deg, dec=det_row["dec"] * u.deg
             )
 
             row_phot["detectid"] = detectid_i
@@ -427,11 +442,16 @@ def main(argv=None):
                         first=True,
                     )[0]
                     if cutout["instrument"] == "HSC":
-                        row_phot["im_phot"] = cutout["cutout"].data
+                        # get shape to ensure slicing on cropped images
+                        phot = np.shape(cutout["cutout"].data)
+                        row_phot["im_phot"][0:phot[0]][0:phot[1]] = cutout["cutout"].data
+                        
                         header = cutout["cutout"].wcs.to_header()
                         row_phot["im_phot_hdr"] = header.tostring()
-                except IndexError:
-                    args.log.warning("No imaging available for source")
+
+                except:
+                    pass
+                    #args.log.warning("No imaging available for source")
             else:
                 pass
 

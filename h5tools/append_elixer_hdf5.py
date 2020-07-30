@@ -1,7 +1,17 @@
+# -*- coding: utf-8 -*-
+"""
+Script to append elixer values to a detect h5 file
+ takes a detect h5 path as input
+
+>>> python3 append_elixer.hdf5 detect_hdr2.1_copy.h5
+
+"""
+
 import numpy as np
 from hetdex_api.config import HDRconfig
 import tables as tb
 from astropy.table import Table
+
 
 class Elixer(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -17,10 +27,11 @@ class Elixer(tb.IsDescription):
     combined_continuum = tb.Float32Col()
     combined_continuum_err = tb.Float32Col()
                                         
-
+detecth5 = sys.argv[1]
+    
 config = HDRconfig('hdr2.1')
 
-filedet = tb.open_file('/data/05350/ecooper/hdr2.1/detect/detect_merged.h5', 'a')
+filedet = tb.open_file(detecth5 , 'a')
 
 fileelix = tb.open_file(config.elixerh5, 'r')
 

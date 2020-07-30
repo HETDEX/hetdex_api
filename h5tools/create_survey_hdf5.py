@@ -35,21 +35,26 @@ from hetdex_api import config
 
 
 def define_field(objname):
+
     if re.match("par", str(objname)):
         field = "parallel"
     elif re.match("COS|cos|DEXcos", str(objname)):
         field = "cosmos"
-    elif re.match("EGS", str(objname)):
+    elif re.match("EGS|DEXeg", str(objname)):
         field = "egs"
-    elif re.match("GN", str(objname)):
+    elif re.match("GN|DEXgn", str(objname)):
         field = "goods-n"
     elif re.match("DEX0|DEXfl|HF", str(objname)):
         field = "dex-fall"
     elif re.match("HS|DEXsp", str(objname)):
         field = "dex-spring"
+    elif re.match("NEP", str(objname)):
+        field = "nep"
+    elif re.match("SSA22", str(objname)):
+        field = "ssa22"
     else:
         field = "other"
-
+        
     return field
 
 
@@ -96,22 +101,24 @@ def main(argv=None):
         "-of",
         "--outfilename",
         type=str,
-        help="""Relative or absolute path for output HDF5
-                        file.""",
+        help="""Relative or absolute path for output HDF5 file.""",
         default=None,
     )
 
     parser.add_argument(
         "-flim",
-        "--flim_dir",
+        "--flim",
         help="""Path to flim look up table""",
         type=str,
-        default="/work/04120/dfarrow/wrangler/flims/hdr1/average_flims_4500_4600.txt",
+        default="/data/05350/ecooper/hdr2.1/survey/average_one_sigma.txt",
     )
 
-    parser.add_argument("-survey", "--survey", type=str, default="hdr2")
-
+    parser.add_argument("-survey", "--survey", type=str, default="hdr2.1")
+    
     args = parser.parse_args(argv)
+
+    print(args)
+    
     args.log = setup_logging()
 
     fileh = tb.open_file(
@@ -132,15 +139,19 @@ def main(argv=None):
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
 
             shottable = Table(file_obs.root.Shot.read())
-            
+
+            # updating field in survey file 
+            shottable['field'] = define_field(str(shottable['objid'][0]))
+
             survey = vstack([survey, shottable])
             file_obs.close()
         except:
             args.log.error("Could not ingest %s" % datevshot)
     
     tableMain = fileh.create_table(fileh.root, "Survey", obj=survey.as_array())
+
+    tableMain.flush()
     fileh.close()
-
-
+    
 if __name__ == "__main__":
     main()
