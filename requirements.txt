@@ -31,3 +31,5 @@ speclite==0.8
 specutils==1.0
 scipy==1.2.0
 tables==3.6.0
+widgetsnbextension==3.5.1
+
