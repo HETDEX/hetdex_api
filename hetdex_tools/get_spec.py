@@ -841,7 +841,7 @@ def get_spectra(
 
     args.survey_class.close()
 
-    output = return_astropy_table(Source_dict)
+    output = return_astropy_table(Source_dict, fiberweights=args.fiberweights)
 
     args.log.info("Retrieved " + str(np.size(output)) + " spectra.")
 
