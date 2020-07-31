@@ -6,7 +6,7 @@ healpy==1.13.0
 ipydatawidgets==4.0.1
 ipyevents==0.7.0
 ipykernel==5.1.0
-ipython==7.2.0
+ipython>=7.16.1
 ipython-genutils==0.2.0
 ipyvolume==0.5.2
 ipywebrtc==0.5.0
@@ -19,9 +19,9 @@ jupyter-core==4.6.3
 jupyterlab==1.2.3
 jupyterlab-server==1.0.6
 matplotlib==3.2.1
-nbconvert==5.4.0
+nbconvert>=5.6.1
 nbformat==4.4.0
-notebook==6.0.3
+notebook>=6.0.3
 numexpr==2.6.9
 numpy==1.18.5
 pandas==0.24.1
