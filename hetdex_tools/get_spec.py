@@ -160,7 +160,7 @@ def get_source_spectra(shotid, args):
 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 try:
-                    fiber_weights = [x for x in zip(ra, dec, np.sum(weights*mask, axis=1))]
+                    fiber_weights = np.array( [x for x in zip(ra, dec, np.sum(weights*mask, axis=1))])
                 except:
                     fiber_weights = []
 
@@ -250,7 +250,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 try:
-                    fiber_weights = [x for x in zip(ra,dec,np.sum(weights*mask,axis=1))]
+                    fiber_weights = np.array( [x for x in zip(ra,dec,np.sum(weights*mask,axis=1))])
                 except:
                     fiber_weights = []
 
@@ -696,7 +696,7 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
-
+        output.remove_column('fiber_weights')
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
