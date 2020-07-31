@@ -296,7 +296,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
     return source_dict
         
 
-def return_astropy_table(Source_dict):
+def return_astropy_table(Source_dict, fiberweights=False):
     """Returns an astropy table fom a source dictionary"""
 
     id_arr = []
@@ -316,11 +316,9 @@ def return_astropy_table(Source_dict):
             spec = Source_dict[ID][shotid][0]
             spec_err = Source_dict[ID][shotid][1]
             weights = Source_dict[ID][shotid][2]
-            try:
+            if fiberweights:
                 fiber_weights = Source_dict[ID][shotid][3]
-            except:
-                pass
-
+            
             sel = np.isfinite(spec)
 
             if np.sum(sel) > 0:
@@ -330,10 +328,8 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
-                try:
+                if fiberweights:
                     fiber_weights_arr.append(fiber_weights)
-                except:
-                    pass
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -344,10 +340,8 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
-    try:
+    if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
-    except:
-        pass
 
     return output
 
@@ -715,7 +709,7 @@ def main(argv=None):
                     )
 
     if args.fits:
-        output = return_astropy_table(Source_dict)
+        output = return_astropy_table(Source_dict, fiberweights=args.fiberweights)
         if args.fiberweights:
             # cannot save fiberweights to a fits file
             output.remove_column('fiber_weights')
