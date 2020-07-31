@@ -219,6 +219,10 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
+        if self.survey == 'hdr2.1':
+            baddetects = pickle.load( open( config.baddetectmask, "rb"))
+            self = self[baddetects]
+            
     def __getitem__(self, indx):
         """ 
         This allows for slicing of the Detections class
