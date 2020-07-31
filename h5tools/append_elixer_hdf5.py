@@ -10,7 +10,7 @@ import sys
 import numpy as np
 from hetdex_api.config import HDRconfig
 import tables as tb
-from astropy.table import Table
+from astropy.table import Table, join, Column
 
 
 class Elixer(tb.IsDescription):
@@ -37,28 +37,34 @@ fileelix = tb.open_file(config.elixerh5, 'r')
 
 detectid = filedet.root.Detections.cols.detectid[:]
 
-elix_table = Table(fileelix.root.Detections.read())
+elix_table = fileelix.root.Detections
 
 try:
     filedet.remove_node(filedet.root.Elixer, recursive=True)
 except:
     pass
-    
+
 tableElixer = filedet.create_table(filedet.root, "Elixer", Elixer, "Elixer Info")
 
 for detid in detectid:
+
+    print(detid)
     row = tableElixer.row
 
-    sel_det = elix_table['detectid'] == detid
+    elix_row = elix_table.read_where('detectid == detid')
 
-    if np.sum(sel_det) == 1:
+    nmatch = np.size(elix_row)
+    
+    if nmatch == 1:
         for col in Elixer().columns:
-            row[col] = elix_table[col][sel_det]
+            row[col] = elix_row[col]
         row.append()
-    elif np.sum(sel_det) == 0:
+    elif nmatch == 0:
         row.append()
         print('No elixer match for %s' % detid)
     else:
+        for col in Elixer().columns:
+            row[col] = elix_row[col][0]
         row.append()
         print('More than 1 elixer match for %s' % detid)
 
