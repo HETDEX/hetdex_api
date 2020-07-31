@@ -330,8 +330,10 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
-                if args.fiberweights:
+                try:
                     fiber_weights_arr.append(fiber_weights)
+                except:
+                    pass
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -342,8 +344,10 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
-    if args.fiberweights:
+    try:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
+    except:
+        pass
 
     return output
 
