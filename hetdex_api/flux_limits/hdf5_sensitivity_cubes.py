@@ -206,11 +206,12 @@ class SensitivityCubeHDF5Container(object):
             try:
                 nsigma = ifu.attrs.nsigma
             except AttributeError as e:
-                # HDR1 cubes were all 6-sigma, but
-                # that wasn't saved in the HDF5
-                nsigma = 6.0
+                if self.flim_model == "hdr1":
+                    nsigma = 6.0
+                else:
+                    nsigma = 1.0
                 if warn:
-                    print("No nsigma found, assuming nsigma=6 (warning will not repeat)")
+                    print("No nsigma found, assuming nsigma={:2.1f} (warning will not repeat)".format(nsigma))
                     warn = False
 
             # XXX HACK HACK HACK to change alpha
@@ -274,10 +275,11 @@ class SensitivityCubeHDF5Container(object):
         try:
             nsigma = ifu.attrs.nsigma
         except AttributeError as e:
-            # HDR1 cubes were all 6-sigma, but
-            # that wasn't saved in the HDF5
-            nsigma = 6.0
-            print("No nsigma found, assuming nsigma=6")
+            if self.flim_model == "hdr1":
+                nsigma = 6.0
+            else:
+                nsigma = 1.0
+            print("No nsigma found, assuming nsigma={:2.1f} ".format(nsigma))
 
         # Force apcor to be 1.0 here, so we don't double count it
         return SensitivityCube(sigmas, header, wavelengths, alphas, 
