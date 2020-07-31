@@ -696,7 +696,7 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
-
+        output.remove_column('fiber_weights')
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
