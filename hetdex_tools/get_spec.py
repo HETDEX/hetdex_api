@@ -199,13 +199,9 @@ def get_source_spectra(shotid, args):
                         ]
 
         E.shoth5.close()
-        if args.fiberweights:
-            return source_dict
-        else:
-            if np.size(source_dict):
-                return source_dict['ID','shotid','wavelength','spec','spec_err', 'weights']
-            else:
-                return source_dict
+        
+    return source_dict
+        
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
     E = Extract()
@@ -296,14 +292,8 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         ]
 
         E.shoth5.close()
-
-        if args.fiberweights:
-            return source_dict
-        else:
-            if np.size(source_dict):
-                return source_dict['ID','shotid','wavelength','spec','spec_err', 'weights']
-            else:
-                return source_dict['ID','shotid','wavelength','spec','spec_err', 'weights']
+        
+    return source_dict
         
 
 def return_astropy_table(Source_dict):
