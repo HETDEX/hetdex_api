@@ -222,7 +222,16 @@ class Detections:
         if self.survey == 'hdr2.1':
             print('Automatically removing bad detections')
             baddetects = pickle.load( open( config.baddetectmask, "rb"))
-            self = self[baddetects]
+            
+            p = copy.copy(self)
+            attrnames = self.__dict__.keys()
+            for attrname in attrnames:
+                try:
+                    setattr(p, attrname, getattr(self, attrname)[baddetects])
+                except:
+                    setattr(p, attrname, getattr(self, attrname))
+                    
+            self = p
                         
             
     def __getitem__(self, indx):
