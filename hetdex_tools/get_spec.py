@@ -539,7 +539,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr2",
+        default="hdr2.1",
     )
 
     parser.add_argument("-tpmin", "--tpmin", type=float, default=None)
@@ -735,7 +735,7 @@ def get_spectra(
     rad=3.0,
     multiprocess=True,
     shotid=None,
-    survey="hdr2",
+    survey="hdr2.1",
     tpmin=None,
     ffsky=False,
     fiberweights=False
