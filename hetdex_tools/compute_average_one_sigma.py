@@ -64,13 +64,13 @@ for fn in opts.files:
     slice_flattened = wavelength_slice.flatten()
     ztrimmed_slice = slice_flattened[slice_flattened > 0.0]
 
-    if "APCOR" in header:
-        flims = header["APCOR"]*1.0e-17/ztrimmed_slice
-    elif "APCOR0" in header:
-        flims = header["APCOR0"]*1.0e-17/ztrimmed_slice
-    else:
-        print("WARNING: No aperture correction info found! Assuming = 1")
-        flims = 1.0e-17/ztrimmed_slice
+    #if "APCOR" in header:
+    #    flims = header["APCOR"]*1.0e-17/ztrimmed_slice
+    #elif "APCOR0" in header:
+    #    flims = header["APCOR0"]*1.0e-17/ztrimmed_slice
+    #else:
+    #    print("WARNING: No aperture correction info found! Assuming = 1")
+    #    flims = 1.0e-17/ztrimmed_slice
 
     flims = 1.0e-17/ztrimmed_slice
 
