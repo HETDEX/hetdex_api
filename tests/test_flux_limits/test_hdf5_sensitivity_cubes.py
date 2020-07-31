@@ -134,8 +134,6 @@ def test_flim_model(datadir):
     scube1 = hdcon1.extract_ifu_sensitivity_cube("ifuslot_063")
     scube2 = hdcon2.extract_ifu_sensitivity_cube("ifuslot_063")
 
-    print("HELOOOO")
-    print(scube1.header)
     s1 = scube1.get_f50(161.4201, 50.8822, 3470.0, 5.5)
     s2 = scube2.get_f50(161.4201, 50.8822, 3470.0, 5.5)
 
