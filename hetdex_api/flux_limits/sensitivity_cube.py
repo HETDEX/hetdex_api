@@ -19,6 +19,8 @@ References
 """
 
 from __future__ import (absolute_import, print_function)
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval)
@@ -353,7 +355,7 @@ class SensitivityCube(object):
         try:
             f50s[bad_vals] = 999.0
         except TypeError:
-            if isnan(bad_vals):
+            if bad_vals:
                 f50s = 999.0
 
         return f50s

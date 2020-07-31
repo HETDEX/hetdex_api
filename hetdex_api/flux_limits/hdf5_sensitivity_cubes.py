@@ -194,6 +194,7 @@ class SensitivityCubeHDF5Container(object):
         else:
             shot = self.h5file.get_node(self.h5file.root, name=datevshot)
 
+        warn = True
         for ifu in shot:
 
             # Extract the data we need for a sensitivity cube
@@ -202,12 +203,23 @@ class SensitivityCubeHDF5Container(object):
             alphas = ifu.attrs.alphas
             sigmas = ifu.read() / ifu.attrs.aper_corr
 
+            try:
+                nsigma = ifu.attrs.nsigma
+            except AttributeError as e:
+                # HDR1 cubes were all 6-sigma, but
+                # that wasn't saved in the HDF5
+                nsigma = 6.0
+                if warn:
+                    print("No nsigma found, assuming nsigma=6 (warning will not repeat)")
+                    warn = False
+
             # XXX HACK HACK HACK to change alpha
             #alphas = [-1.9, -1.9]
 
             yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas, 
                                             flim_model=self.flim_model,
-                                            aper_corr=self.aper_corr)
+                                            aper_corr=self.aper_corr, 
+                                            nsigma=nsigma)
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """
