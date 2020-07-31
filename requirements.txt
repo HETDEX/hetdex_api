@@ -35,4 +35,5 @@ scipy==1.2.0
 sphinx-argparse==0.2.5
 sphinx-markdown-tables
 tables>=3.6.0
+tornado==5.1.1
 widgetsnbextension==3.5.1
