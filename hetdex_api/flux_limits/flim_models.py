@@ -38,6 +38,9 @@ def hdr2pt1_f50_from_noise(noise, sncut):
        completeness
     """
 
+    if sncut < 4.5 or sncut > 7.5:
+        print("WARNING: model not calibrated for this S/N range")
+
     snslope=1.0
     intercept_poly=[0.11268546,  -1.75103671,
                     9.00946424, -15.71204789]
