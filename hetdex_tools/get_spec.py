@@ -288,6 +288,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         ]
 
         E.shoth5.close()
+        return source_dict
 
 
 def return_astropy_table(Source_dict):
