@@ -32,5 +32,7 @@ sep==1.0.3
 speclite==0.8
 specutils==1.0
 scipy==1.2.0
+sphinx-argparse==0.2.5
+sphinx-markdown-tables
 tables>=3.6.0
 widgetsnbextension==3.5.1

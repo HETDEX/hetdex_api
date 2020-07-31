@@ -38,18 +38,28 @@ and add in the following line to your $PATH:
 
    export PATH=$PATH:$HOME/bin:$HOME/.local/bin
 
+Install Required Packages for hetdex-api
+-----------------------------------------
+
+First install the required python modules that are needed
+for hetdex-api
+
+.. code-block:: bash
+
+   pip3 install -r /work/05350/ecooper/wrangler/hetdex-api/requirements.txt
+
 
 Pip Install hetdex-api: stable release version
 ----------------------------------------------
 
-A stable release of hetdex-api can now be o
+As of HDR2.1 release, a stable release of hetdex-api can now be pip installed from pypi 
 
 .. code-block:: bash
 
    pip3 install hetdex_api --user --upgrade
 
-Install hetde-api: latest version
----------------------------------
+Install hetdex-api: latest version
+----------------------------------
 
 Copy the git clone repository of hetdex_api 
 
@@ -80,7 +90,7 @@ We also recommend that you install elixer:
 Compute Nodes on TACC
 ---------------------
 
-You should not be doing any heavy computing or accessing more than one HDR2 product at a time on a login node. TACC users should use an interactive compute node on a shell by doing:
+You should not be doing any heavy computing or accessing more than one HDR product at a time on a login node. TACC users should use an interactive compute node on a shell by doing:
 
 .. code-block:: bash
 
@@ -104,20 +114,17 @@ If it fails, you can also run this script from a terminal:
 
 This will launch from whatever directory you are working in. 
     
-If on stampede2 (not relevant for wrangler), one final suggestion is to add a link from your home to your work directory. For example, I would do:
+One final suggestion is to add a link from your home to your work directory since a jupyter notebook node will open automatically in your /home directory. For example, I would do:
 
 .. code-block:: bash
    
    cd
-   ln -s /work/05350/ecooper/ work-stampede2
+   ln -s /work/05350/ecooper/ work-wrangler
 
 This will allow you to go to your work directory when you log onto vis.
 
 You can now open up a jupyter notebook and explore some of the notebooks in 
 hetdex-api/notebooks or just pop in some of the commands you see throughout this website. 
-
-In your favourite browser goto https://vis.tacc.utexas.edu and log onto stampede2. Choose the 
-jupyter notebook option and pick the skx-dev queue. 
 
 
 For Contributors
@@ -139,7 +146,5 @@ the package name when you install, e.g.
 .. code-block:: bash
    
    pip3 install -e hetdex_api[doc] --user --upgrade
-
-
 
 
