@@ -131,10 +131,8 @@ def get_source_spectra(shotid, args):
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
-            args.log.info("Loading full fibers table")
             E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
-            args.log.info("Accessing object one by one")
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
@@ -159,9 +157,12 @@ def get_source_spectra(shotid, args):
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
-                try:
-                    fiber_weights = np.array( [x for x in zip(ra, dec, np.sum(weights*mask, axis=1))])
-                except:
+                if args.fiberweights:
+                    try:
+                        fiber_weights = np.array( [x for x in zip(ra, dec, np.sum(weights*mask, axis=1))])
+                    except:
+                        fiber_weights = []
+                else:
                     fiber_weights = []
 
                 if np.size(args.ID) > 1:
@@ -198,7 +199,10 @@ def get_source_spectra(shotid, args):
                         ]
 
         E.shoth5.close()
-        return source_dict
+        if args.fiberweights:
+            return source_dict
+        else:
+            return source_dict['ID','shotid','wavelength','spec','spec_err', 'weights']
 
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
@@ -219,10 +223,8 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
-            args.log.info("Loading full fibers table")
             E.load_shot(shotid, fibers=True, survey=args.survey)
         else:
-            args.log.info("Accessing object one by one")
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
@@ -249,9 +251,13 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 sel = np.isfinite(spectrum_aper)
 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
-                try:
-                    fiber_weights = np.array( [x for x in zip(ra,dec,np.sum(weights*mask,axis=1))])
-                except:
+                if args.fiberweights:
+                    
+                    try:
+                        fiber_weights = np.array( [x for x in zip(ra,dec,np.sum(weights*mask,axis=1))])
+                    except:
+                        fiber_weights = []
+                else:
                     fiber_weights = []
 
                 if np.size(args.ID) > 1:
@@ -288,8 +294,12 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         ]
 
         E.shoth5.close()
-        return source_dict
 
+        if args.fiberweights:
+            return source_dict
+        else:
+            return source_dict['ID','shotid','wavelength','spec','spec_err', 'weights']
+        
 
 def return_astropy_table(Source_dict):
     """Returns an astropy table fom a source dictionary"""
@@ -325,7 +335,8 @@ def return_astropy_table(Source_dict):
                 spec_arr.append(spec)
                 spec_err_arr.append(spec_err)
                 weights_arr.append(weights)
-                fiber_weights_arr.append(fiber_weights)
+                if args.fiberweights:
+                    fiber_weights_arr.append(fiber_weights)
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -336,7 +347,8 @@ def return_astropy_table(Source_dict):
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
-    output.add_column(Column(fiber_weights_arr), name="fiber_weights")
+    if args.fiberweights:
+        output.add_column(Column(fiber_weights_arr), name="fiber_weights")
 
     return output
 
@@ -540,6 +552,17 @@ def get_parser():
         required=False,
         action="store_true",
     )
+
+    parser.add_argument(
+        "--fiberweights",
+        "-fw",
+        help="""Set to retrieve fibers weight. Warning this is slow on large sourcelists.""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+
+        
     return parser
 
 
@@ -658,9 +681,6 @@ def main(argv=None):
 
     else:
         pass
-        # sel_shot = args.survey_class.shotid > 20171200000
-        # args.survey_class = args.survey_class[sel_shot]
-        # args.log.info("Searching through all shots later than 20171201")
 
     # main function to retrieve spectra dictionary
     Source_dict = get_spectra_dictionary(args)
@@ -697,7 +717,9 @@ def main(argv=None):
 
     if args.fits:
         output = return_astropy_table(Source_dict)
-        output.remove_column('fiber_weights')
+        if args.fiberweights:
+            # cannot save fiberweights to a fits file
+            output.remove_column('fiber_weights')
         output.write(args.outfile + ".fits", format="fits", overwrite=True)
 
 
@@ -716,6 +738,7 @@ def get_spectra(
     survey="hdr2",
     tpmin=None,
     ffsky=False,
+    fiberweights=False
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -752,7 +775,11 @@ def get_spectra(
     ffsky
         Use the full frame 2D sky subtraction model. Default is
         to use the local sky subtracted, flux calibrated fibers.
-
+    fiberweights
+        Boolean flag to include fiber_weights tuple in source
+        dictionary. This is used in Elixer, but is slow
+        when used on large source lists.
+    
     Returns
     -------
     sources
@@ -769,6 +796,7 @@ def get_spectra(
     args.survey = survey
 
     args.ffsky = ffsky
+    args.fiberweights = fiberweights
 
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
