@@ -81,3 +81,4 @@ class HDRconfig:
             self.elixerh5 = "/data/03261/polonius/hdr2.1.run/detect/elixer.h5"
             self.elix_dir = "/data/03261/polonius/hdr2.1.run/detect/image_db"
             self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
+            self.baddetectmask = op.join(self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p")
