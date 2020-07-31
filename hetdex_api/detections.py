@@ -226,9 +226,9 @@ class Detections:
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
             for attrname in attrnames:
-                try:
+                if True:
                     setattr(p, attrname, getattr(self, attrname)[baddetects])
-                except:
+                else:
                     setattr(p, attrname, getattr(self, attrname))
                     
             self = p
