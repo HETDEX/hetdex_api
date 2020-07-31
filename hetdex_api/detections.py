@@ -223,8 +223,7 @@ class Detections:
             print('Automatically removing bad detections')
             gooddetmask = pickle.load( open( config.baddetectmask, "rb"))
 
-            self = self[gooddetmask]
-
+            self = self[np.array( gooddetmask).astype(bool)]
                         
             
     def __getitem__(self, indx):
