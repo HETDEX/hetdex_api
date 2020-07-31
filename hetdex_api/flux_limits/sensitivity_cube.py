@@ -355,7 +355,7 @@ class SensitivityCube(object):
         try:
             f50s[bad_vals] = 999.0
         except TypeError:
-            if isnan(bad_vals):
+            if bad_vals:
                 f50s = 999.0
 
         return f50s
