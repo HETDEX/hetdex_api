@@ -67,20 +67,20 @@ class Survey:
         # append flux limits
         if survey == 'hdr2.1':
             
-            flim = Table.read('/data/05350/ecooper/hdr2.1/survey/average_one_sigma_all.txt',
-                              format='ascii', names=['datevobs', 'fluxlimit_4550'])
+            flim = Table.read('/data/05350/ecooper/hdr2.1/survey/flux_limits_all.txt',
+                              format='ascii', names=['datevobs','col2', 'fluxlimit_4540'])
             fluxlimit = []
             for datevobs in self.datevobs:
                 sel = flim['datevobs'] == datevobs
                 if np.sum(sel) == 1:
-                    fluxlimit.extend( flim['fluxlimit_4550'][sel] )
+                    fluxlimit.extend( flim['fluxlimit_4540'][sel] )
                 elif np.sum(sel) > 1:
                     print('Found two fluxlimits for ', datevobs)
-                    fluxlimit.extend( flim['fluxlimit_4550'][sel][0])
+                    fluxlimit.extend( flim['fluxlimit_4540'][sel][0])
                 else:
                     fluxlimit.append( np.nan )
                     
-            self.fluxlimit_4550 = np.array(fluxlimit)
+            self.fluxlimit_4540 = np.array(fluxlimit)
                               
     def __getitem__(self, indx):
         """ 
@@ -233,7 +233,7 @@ class Survey:
 
         survey_table['mjd'] = self.mjd[:,0]
         survey_table['exptime'] = np.mean(self.exptime, axis=1)
-        survey_table['fluxlimit_4550'] = self.fluxlimit_4550
+        survey_table['fluxlimit_4540'] = self.fluxlimit_4540
         
         for col in survey_table.colnames:
             try:
