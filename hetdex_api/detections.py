@@ -228,7 +228,7 @@ class Detections:
                 if attrname == 'detectid':
                     print(attrname)
                     print(mask)
-                    setattr(p, attrname, getattr(self, attrname)[mask])
+                    setattr(p, attrname, getattr(self, attrname)[np.where( mask)])
                 else:
                     setattr(p, attrname, getattr(self, attrname))
             self = copy.copy(p)
