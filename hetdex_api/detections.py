@@ -219,9 +219,8 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
-        if self.survey == 'hdr2.1':
-            baddetects = pickle.load( open( config.baddetectmask, "rb"))
-            mask = np.where(baddetects)
+        if survey == 'hdr2.1' and catalog_type == 'lines':
+            mask = np.loadtxt('/data/05350/ecooper/hdr2.1/detect/spec2Dim/baddets_hdr2.1.0.mask').astype(bool)
             
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
