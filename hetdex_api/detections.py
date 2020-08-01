@@ -224,11 +224,11 @@ class Detections:
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
             for attrname in attrnames:
-                if True:#
+                try:
                     setattr(p, attrname, getattr(self, attrname)[baddetects])
-                else:#except:
+                except:
                     setattr(p, attrname, getattr(self, attrname))
-            self = p
+            self = copy.copy(p)
             
             
     def __getitem__(self, indx):
