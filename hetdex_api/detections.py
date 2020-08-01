@@ -220,15 +220,16 @@ class Detections:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         if self.survey == 'hdr2.1':
-            baddetects = np.array(pickle.load( open( config.baddetectmask, "rb")), dtype=bool)
+            baddetects = pickle.load( open( config.baddetectmask, "rb"))
+            mask = baddetects == 1
             
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
             for attrname in attrnames:
                 if attrname == 'detectid':
                     print(attrname)
-                    print(baddetects)
-                    setattr(p, attrname, getattr(self, attrname)[baddetects])
+                    print(mask)
+                    setattr(p, attrname, getattr(self, attrname)[mask])
                 else:
                     setattr(p, attrname, getattr(self, attrname))
             self = copy.copy(p)
