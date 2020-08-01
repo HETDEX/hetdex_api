@@ -220,10 +220,8 @@ class Detections:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         if self.survey == 'hdr2.1':
-            print('Automatically removing bad detections')
-            gooddetmask = pickle.load( open( config.baddetectmask, "rb"))
-
-            self = self[ gooddetmask]
+            baddetects = pickle.load( open( config.baddetectmask, "rb"))
+            self = self[baddetects]
                         
             
     def __getitem__(self, indx):
