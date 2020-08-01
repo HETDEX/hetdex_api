@@ -220,19 +220,9 @@ class Detections:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         if survey == 'hdr2.1' and catalog_type == 'lines':
-            mask = np.loadtxt('/data/05350/ecooper/hdr2.1/detect/spec2Dim/baddets_hdr2.1.0.mask').astype(bool)
-            
-            p = copy.copy(self)
-            attrnames = self.__dict__.keys()
-            for attrname in attrnames:
-                if attrname == 'detectid':
-                    print(attrname)
-                    print(mask)
-                    setattr(p, attrname, getattr(self, attrname)[np.where( mask)])
-                else:
-                    setattr(p, attrname, getattr(self, attrname))
-            self = copy.copy(p)
-            
+            if loadtable:
+                mask = self.remove_bad_detects()
+                self = self[mask]
             
     def __getitem__(self, indx):
         """ 
@@ -483,8 +473,6 @@ class Detections:
         for baddet in baddetects:
             maskdet = self.detectid == baddet
             mask = np.logical_or(mask, maskdet)
-
-        self.vis_class[mask] = -3
 
         return np.invert(mask)
 
