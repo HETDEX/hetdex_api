@@ -765,6 +765,11 @@ class Detections:
                     table[name] = getattr(self, name)
             except:
                 print('Could not add elixer columns')
+            try:
+                table.add_column(Column(self.fluxlimit_4540), index=3, name="fluxlimit_4540")
+            except:
+                print('Could not add average flux limit')
+                
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
