@@ -219,10 +219,6 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
-        if survey == 'hdr2.1' and catalog_type == 'lines':
-            if loadtable:
-                mask = self.remove_bad_detects()
-                self = self[mask]
             
     def __getitem__(self, indx):
         """ 
