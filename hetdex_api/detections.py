@@ -227,12 +227,12 @@ class Detections:
             for attrname in attrnames:
                 if attrname == 'detectid':
                     print(attrname)
+                    print(baddetects)
                     setattr(p, attrname, getattr(self, attrname)[baddetects])
                 else:
                     setattr(p, attrname, getattr(self, attrname))
             self = copy.copy(p)
-
-        return self
+            
             
     def __getitem__(self, indx):
         """ 
