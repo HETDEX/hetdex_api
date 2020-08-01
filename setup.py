@@ -10,11 +10,11 @@ extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
 setup(
     # package description and version
     name="hetdex_api",
-    version="0.3",
+    version="0.4",
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
-    download_url='https://github.com/HETDEX/hetdex_api/archive/0.3.tar.gz',
+    download_url='https://github.com/HETDEX/hetdex_api/archive/0.4.tar.gz',
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
