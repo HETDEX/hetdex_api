@@ -220,7 +220,8 @@ class Detections:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         if self.survey == 'hdr2.1':
-            baddetects = pickle.load( open( config.baddetectmask, "rb"))
+            baddetects = np.array(pickle.load( open( config.baddetectmask, "rb")), dtype=bool)
+            
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
             for attrname in attrnames:
@@ -481,7 +482,7 @@ class Detections:
             maskdet = self.detectid == baddet
             mask = np.logical_or(mask, maskdet)
 
-        self.vis_class[mask] = -2
+        self.vis_class[mask] = -3
 
         return np.invert(mask)
 
