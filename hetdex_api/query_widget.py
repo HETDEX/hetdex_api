@@ -59,8 +59,8 @@ class QueryWidget():
             self.detectid = detectid
             self.update_det_coords()
         else:
-            self.coords = SkyCoord(202.632278 * u.deg, 51.215137 * u.deg, frame='icrs')
-            self.detectid = 1000117061
+            self.coords = SkyCoord(191.663132 * u.deg, 50.712696 * u.deg, frame='icrs')
+            self.detectid = 2101848640
 
         #initialize the image widget from astrowidgets
         self.imw = ImageWidget(image_width=400, image_height=400)
