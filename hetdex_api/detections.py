@@ -164,6 +164,9 @@ class Detections:
             self.fwhm = np.zeros(np.size(self.detectid))
             if self.survey == "hdr1":
                 self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
+            else:
+                self.fluxlimit_4540 = np.zeros(np.size(self.detectid))
+                
             self.throughput = np.zeros(np.size(self.detectid))
             self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -178,6 +181,10 @@ class Detections:
                     self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
                 else:
                     self.fwhm[ix] = S.fwhm_virus[index]
+                try:
+                    self.fluxlimit_4540[ix] = S.fluxlimit_4540[index]
+                except:
+                    pass
                 self.throughput[ix] = S.response_4540[index]
                 self.n_ifu[ix] = S.n_ifu[index]
 
