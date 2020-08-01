@@ -38,7 +38,7 @@ from elixer import catalogs
 
 class QueryWidget():
 
-    def __init__(self, coords=None, detectid=None, survey='hdr2', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
+    def __init__(self, coords=None, detectid=None, survey='hdr2.1', aperture=3.*u.arcsec, cutout_size=5.*u.arcmin, zoom=3):
 
         self.survey = survey.lower()
 
@@ -49,7 +49,7 @@ class QueryWidget():
 
         config = HDRconfig(survey=survey)
         
-        self.fileh5dets = tb.open_file(config.detecth5)
+        self.fileh5dets = tb.open_file(config.detecth5, 'r')
         self.catlib = catalogs.CatalogLibrary()
 
         if coords:
@@ -65,7 +65,7 @@ class QueryWidget():
         #initialize the image widget from astrowidgets
         self.imw = ImageWidget(image_width=400, image_height=400)
         
-        self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2'], value=self.survey.upper(), layout=Layout(width='10%'))
+        self.survey_widget = widgets.Dropdown(options=['HDR1', 'HDR2','HDR2.1'], value=self.survey.upper(), layout=Layout(width='10%'))
         
         self.detectbox = widgets.BoundedIntText(value=self.detectid,
                                                 min=1000000000,
@@ -111,7 +111,9 @@ class QueryWidget():
 
     def on_survey_change(self, b):
         self.survey = self.survey_widget.value.lower()
-
+        self.fileh5dets.close()
+        self.fileh5dets = tb.open_file(config.detecth5, 'r')
+        
     def update_coords(self):
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
