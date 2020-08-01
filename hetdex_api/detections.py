@@ -221,7 +221,7 @@ class Detections:
 
         if self.survey == 'hdr2.1':
             baddetects = pickle.load( open( config.baddetectmask, "rb"))
-            mask = baddetects == 1
+            mask = np.where(baddetects)
             
             p = copy.copy(self)
             attrnames = self.__dict__.keys()
