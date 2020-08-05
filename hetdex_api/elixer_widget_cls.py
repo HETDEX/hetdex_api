@@ -36,8 +36,8 @@ except:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
 
 try: #using HDRconfig
-    HETDEX_API_CONFIG = HDRconfig(survey="hdr2")
-    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2"]
+    HETDEX_API_CONFIG = HDRconfig(survey="hdr2.1")
+    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2.1"]
     HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
     HETDEX_DETECT_HDF5_HANDLE = None
     HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
@@ -894,7 +894,7 @@ class ElixerWidget():
                               dec = self.e_manual_dec.value * u.deg,
                               frame = 'icrs')
 
-        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2')
+        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2.1')
 
         #if current_wavelength < 0:
         #current_wavelength = self.get_observed_wavelength()
