@@ -3,14 +3,19 @@ Config file for HETDEX data release paths
 """
 
 import os.path as op
-
+import socket
 
 class HDRconfig:
     def __init__(self, survey="hdr1"):
+        # find out which cpu cluster is in use
+        hostname = socket.gethostname()
+        self.host_dir = {
+            "login1.stampede2.tacc.utexas.edu": "/scratch/03946/hetdex",
+            "login1.wrangler.tacc.utexas.edu": "/data/05350/ecooper"}
         self.hdr_dir = {
             "hdr1": "/work/03946/hetdex/hdr1",
             "hdr2": "/data/05350/ecooper/hdr2",
-            "hdr2.1": "/data/05350/ecooper/hdr2.1"}
+            "hdr2.1": self.host_dir[hostname] + "hdr2.1"}
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
@@ -45,10 +50,9 @@ class HDRconfig:
         self.fiberindexh5 = op.join(
             self.hdr_dir[survey], "survey", "fiber_index_" + survey + ".h5"
         )
-        self.detectml = op.join(
-            self.hdr_dir[survey], "detect", "detect_ml_" + survey + ".h5"
-        )
-
+        self.detectml = op.join(self.hdr_dir[survey], "detect", "detect_ml_" + survey + ".h5" )
+        self.elix_dir = op.join(self.hdr_dir[survey], "detect", "image_db")
+               
         if survey == "hdr1":
             # here are files that are changing since HDR1 release
             self.bad_dir = "/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1"
@@ -68,9 +72,9 @@ class HDRconfig:
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
-            self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
-            self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
-            self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
+            #self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
+            #self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
+            #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
         if survey == 'hdr2.1':
             self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
@@ -78,7 +82,7 @@ class HDRconfig:
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
             self.badpix = op.join(self.bad_dir, "badpix.list")
-            self.elixerh5 = "/data/03261/polonius/hdr2.1.run/detect/elixer.h5"
-            self.elix_dir = "/data/03261/polonius/hdr2.1.run/detect/image_db"
-            self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
+            #self.elixerh5 = "/data/03261/polonius/hdr2.1.run/detect/elixer.h5"
+            #self.elix_dir = "/data/03261/polonius/hdr2.1.run/detect/image_db"
+            #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
             self.baddetectmask = op.join(self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p")
