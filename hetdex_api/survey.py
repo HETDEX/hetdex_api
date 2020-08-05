@@ -67,8 +67,9 @@ class Survey:
         # append flux limits
         if survey == 'hdr2.1':
             
-            flim = Table.read('/data/05350/ecooper/hdr2.1/survey/flux_limits_all.txt',
-                              format='ascii', names=['datevobs','col2', 'fluxlimit_4540'])
+            flim = Table.read(config.flim_avg,
+                              format='ascii',
+                              names=['datevobs','col2', 'fluxlimit_4540'])
             fluxlimit = []
             for datevobs in self.datevobs:
                 sel = flim['datevobs'] == datevobs
