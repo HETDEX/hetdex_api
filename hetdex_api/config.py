@@ -11,14 +11,12 @@ class HDRconfig:
     def __init__(self, survey="hdr1"):
         # find out which cpu cluster is in use
         hostname = socket.gethostname()
-        print(hostname)
-        if re.match("wrangler", str(hostname)):
+        if re.search("wrangler", str(hostname)):
             self.host_dir = "/data/05350/ecooper"
-        elif re.match("stampede2", str(hostname)):
+        elif re.search("stampede2", str(hostname)):
             self.host_dir = "/scratch/03946/hetdex"
         else:
-            print('Edit hetdex_api/config.py for your local dir')
-            sys.exit()
+            sys.exit('Edit hetdex_api/config.py for your local dir')
         self.hdr_dir = {
             "hdr1": "/work/03946/hetdex/hdr1",
             "hdr2": "/data/05350/ecooper/hdr2",
