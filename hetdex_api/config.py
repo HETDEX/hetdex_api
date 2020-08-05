@@ -20,7 +20,7 @@ class HDRconfig:
         self.hdr_dir = {
             "hdr1": "/work/03946/hetdex/hdr1",
             "hdr2": "/data/05350/ecooper/hdr2",
-            "hdr2.1": self.host_dir + "hdr2.1"}
+            "hdr2.1": op.join(self.host_dir, "hdr2.1")}
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
