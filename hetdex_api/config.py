@@ -5,14 +5,16 @@ Config file for HETDEX data release paths
 import os.path as op
 import re
 import socket
+import sys
 
 class HDRconfig:
     def __init__(self, survey="hdr1"):
         # find out which cpu cluster is in use
         hostname = socket.gethostname()
-        if re.match("wrangler", hostname):
+        print(hostname)
+        if re.match("wrangler", str(hostname)):
             self.host_dir = "/data/05350/ecooper"
-        elif re.match("stampede2", hostname):
+        elif re.match("stampede2", str(hostname)):
             self.host_dir = "/scratch/03946/hetdex"
         else:
             print('Edit hetdex_api/config.py for your local dir')
