@@ -34,15 +34,13 @@ except:
 #  xx0 = standard hetdex
 #  xx6 = broad emission lines
 #  xx9 = continuum sources
-DICT_DB_PATHS = {10: ["/data/03261/polonius/hdr1/detect/image_db",
-                     "/work/03946/hetdex/hdr1/detect/image_db",
+DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db",
                      ],
-                 20: ["/data/03261/polonius/hdr2/detect/image_db",
+                 20: ["/scratch/03261/polonius/hdr2/detect/image_db"
                      "/work/03261/polonius/hdr2/detect/image_db",
                      "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
-                 21: ["/data/03261/polonius/hdr2.1/detect/image_db",
-                      "/scratch/03261/polonius/hdr2.1/detect/image_db",
+                 21: ["/scratch/03261/polonius/hdr2.1/detect/image_db",
                       "/scratch/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03261/polonius/hdr2.1/detect/image_db"

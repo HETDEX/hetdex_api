@@ -169,9 +169,15 @@ class ElixerWidget():
             global HETDEX_DETECT_HDF5_HANDLE
             
             if HETDEX_DETECT_HDF5_HANDLE is None:
-                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+                try:
+                    HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+                except:
+                    print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
-            self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+            if HETDEX_DETECT_HDF5_HANDLE is not None:
+                self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+            else:
+                self.detectid = []
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -437,13 +443,17 @@ class ElixerWidget():
         current_wavelength = -1.0
 
         if HETDEX_DETECT_HDF5_HANDLE is None:
-            HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
+            try:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
+            except:
+                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
-        dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
-        q_detectid = self.detectbox.value
-        rows = dtb.read_where('detectid==q_detectid')
-        if (rows is not None) and (rows.size == 1):
-            current_wavelength = rows[0]['wave']
+        if HETDEX_DETECT_HDF5_HANDLE:
+            dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
+            q_detectid = self.detectbox.value
+            rows = dtb.read_where('detectid==q_detectid')
+            if (rows is not None) and (rows.size == 1):
+                current_wavelength = rows[0]['wave']
 
         return current_wavelength
 
