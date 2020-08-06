@@ -7,8 +7,10 @@ import os.path as op
 #import socket
 import sys
 
+LATEST_HDR_NAME = "hdr2.1"
+
 class HDRconfig:
-    def __init__(self, survey="hdr1"):
+    def __init__(self, survey=LATEST_HDR_NAME):
         # find out which cpu cluster is in use
         # hostname = socket.gethostname()
         # if re.search("wrangler", str(hostname)):
@@ -24,6 +26,7 @@ class HDRconfig:
             self.host_dir = "/scratch/03946/hetdex"
         else:
             sys.exit('Edit hetdex_api/config.py for your local dir')
+
         self.hdr_dir = {
             "hdr1": "/work/03946/hetdex/hdr1",
             "hdr2": "/data/05350/ecooper/hdr2",

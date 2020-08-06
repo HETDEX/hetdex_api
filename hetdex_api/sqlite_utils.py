@@ -32,11 +32,11 @@ except:
 #key is the HDR version number, value is list of directories that contain ELiXer imaging databses
 #Base paths
 #  xx0 = standard hetdex
-#  xx6 = broad emission lines
+#  xx6 = broad emission lines (still in with the xx0 detections as of hdr2.1)
 #  xx9 = continuum sources
 DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db",
                      ],
-                 20: ["/scratch/03261/polonius/hdr2/detect/image_db"
+                 20: ["/scratch/03261/polonius/hdr2/detect/image_db",
                      "/work/03261/polonius/hdr2/detect/image_db",
                      "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
@@ -45,14 +45,6 @@ DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db",
                       "/work/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03261/polonius/hdr2.1/detect/image_db"
                       ],
-                 # 21: ["/data/03261/polonius/hdr2.1/detect/broad_image_db",
-                 #       "/work/03261/polonius/hdr2.1/detect/broad_image_db",
-                 #       "/work/03946/hetdex/hdr2.1/detect/broad_image_db"
-                 #       ],
-                 # 21: ["/data/03261/polonius/hdr2.1/detect/continuum_image_db",
-                 #       "/work/03261/polonius/hdr2.1/detect/continuum_image_db",
-                 #       "/work/03946/hetdex/hdr2.1/detect/continuum_image_db"
-                 #       ],
                  }
 #
 # add paths from hetdex_api to search (place in first position)

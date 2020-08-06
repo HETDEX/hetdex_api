@@ -32,12 +32,17 @@ from hetdex_tools.get_spec import get_spectra
 
 try:
     from hetdex_api.config import HDRconfig
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 except:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
+    LATEST_HDR_NAME = "hdr2.1"
+
+
+HDR_NAME_DICT = {10: "hdr1",20:"hdr2",21:"hdr2.1"}
 
 try: #using HDRconfig
-    HETDEX_API_CONFIG = HDRconfig(survey="hdr2.1")
-    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2.1"]
+    HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
+    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
     HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
     HETDEX_DETECT_HDF5_HANDLE = None
     HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
@@ -85,6 +90,8 @@ line_id_dict = {line_id_dict_default:-1.0,
                 "4342 H-gamma": 4341.68,
                 line_id_dict_other:-1.0
                 }
+
+
 
 class ElixerWidget():
 
@@ -869,6 +876,16 @@ class ElixerWidget():
             else:
                 print("neighborhood not found")
 
+    def get_hdr_name_for_detectid(self):
+        hdr_name = LATEST_HDR_NAME
+        try:
+            hdr_prefix = int(np.int64(self.detectbox.value) / 1e8)
+            hdr_name = HDR_NAME_DICT[hdr_prefix]
+        except:
+            print("Could not identify or map detectid to hdr version")
+
+        return hdr_name
+
     def plot_spec(self, matchnum):
         
         global current_wavelength
@@ -894,7 +911,9 @@ class ElixerWidget():
                               dec = self.e_manual_dec.value * u.deg,
                               frame = 'icrs')
 
-        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2.1')
+
+        spec_table = get_spectra(coords, ID=self.detectbox.value,
+                                 survey=self.get_hdr_name_for_detectid())
 
         #if current_wavelength < 0:
         #current_wavelength = self.get_observed_wavelength()
