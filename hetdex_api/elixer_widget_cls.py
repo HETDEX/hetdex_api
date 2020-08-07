@@ -33,8 +33,8 @@ from hetdex_tools.get_spec import get_spectra
 try:
     from hetdex_api.config import HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-except:
-    print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
 
 
