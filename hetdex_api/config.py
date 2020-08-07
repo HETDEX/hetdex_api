@@ -7,9 +7,12 @@ import os.path as op
 #import socket
 import sys
 
-LATEST_HDR_NAME = "hdr2.1"
+
 
 class HDRconfig:
+
+    LATEST_HDR_NAME = "hdr2.1"
+
     def __init__(self, survey=LATEST_HDR_NAME):
         # find out which cpu cluster is in use
         # hostname = socket.gethostname()
