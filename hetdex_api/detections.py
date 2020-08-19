@@ -276,8 +276,10 @@ class Detections:
         else:
             mask1 = self.remove_bad_amps()
             mask2 = self.remove_bad_detects()
-
-            mask = mask1 * mask2
+            mask3 = self.remove_bright_stuff(gmagcut)
+            mask4 = self.remove_bad_pix()
+            
+            mask = mask1 * mask2 * mask3 * mask4
             
         return self[mask]
 
@@ -557,24 +559,28 @@ class Detections:
         
         """
 
-        badpixlist = ascii.read(
-            config.badpix, names=["multiframe", "x1", "x2", "y1", "y2"]
-        )
-
-        mask = np.zeros(np.size(self.detectid), dtype=bool)
-
-        for row in badpixlist:
-            maskbadpix = (
-                (self.multiframe == row["multiframe"])
-                * (self.x_raw > row["x1"])
-                * (self.x_raw < row["x2"])
-                * (self.y_raw > row["y1"])
-                * (self.y_raw < row["y2"])
+        try:
+            badpixlist = ascii.read(
+                config.badpix, names=["multiframe", "x1", "x2", "y1", "y2"]
             )
-            mask = np.logical_or(maskbadpix, mask)
 
-        self.vis_class[mask] = 0
+            mask = np.zeros(np.size(self.detectid), dtype=bool)
 
+            for row in badpixlist:
+                maskbadpix = (
+                    (self.multiframe == row["multiframe"])
+                    * (self.x_raw > row["x1"])
+                    * (self.x_raw < row["x2"])
+                    * (self.y_raw > row["y1"])
+                    * (self.y_raw < row["y2"])
+                )
+                mask = np.logical_or(maskbadpix, mask)
+                
+            self.vis_class[mask] = 0
+
+        except:
+            mask = np.zeros(np.size(self.detectid), dtype=bool)
+            
         return np.invert(mask)
 
     def remove_shots(self):
