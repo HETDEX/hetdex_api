@@ -240,9 +240,9 @@ class Detections:
         p = copy.copy(self)
         attrnames = self.__dict__.keys()
         for attrname in attrnames:
-            if True:
+            try:
                 setattr(p, attrname, getattr(self, attrname)[indx])
-            else: #except:
+            except:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
