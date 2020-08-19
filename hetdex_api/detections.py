@@ -529,7 +529,11 @@ class Detections:
             badamps = Table.read(config.badamp)
             
             det_table = self.return_astropy_table()
+            
             join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
+            # this is needed to match with detection class object sorting
+            join_tab.sort('detectid')
+            
             mask = join_tab['flag'] != 0
 
             del det_table, join_tab
