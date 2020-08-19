@@ -526,7 +526,7 @@ class Detections:
 
             return np.logical_not(mask)
         else:
-            badamps = Table.read(config.badamp, format='ascii')
+            badamps = Table.read(config.badamp)
             
             det_table = self.return_astropy_table()
             join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
