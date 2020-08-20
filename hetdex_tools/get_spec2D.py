@@ -448,8 +448,8 @@ def main(argv=None):
                     if cutout["instrument"] == "HSC":
                         # get shape to ensure slicing on cropped images
                         phot = np.shape(cutout["cutout"].data)
-                        row_phot["im_phot"][0:phot[0]][0:phot[1]] = cutout["cutout"].data
                         
+                        row_phot["im_phot"] = cutout["cutout"].data            
                         header = cutout["cutout"].wcs.to_header()
                         row_phot["im_phot_hdr"] = header.tostring()
 
