@@ -1,22 +1,42 @@
 Installation
 ============
 
-For TACC Users
---------------
+For TACC Users 
+---------------
 
-If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your /work directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
+If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your $WORK, $SCRATCH (on stampede2) and $DATA (on wrangler) directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
+
+For wrangler:
 
 .. code-block:: bash
 
-   ssh wrangler
+   ssh username@wrangler.tacc.utexas.edu
    cd $STOCKYARD
    chmod -R a+rX .
+   cd $DATA
+   chmod -R a+rX .
    cdw
+
+For stampede2:
+
+.. code-block:: bash
+
+   ssh username@stampede2.tacc.utexas.edu
+   cd $STOCKYARD
+   chmod -R a+rX .
+   cd $SCRATCH
+   chmod -R a+rX .
+   cdw
+
+A note about TACC data drives. $DATA on wrangler, $SCRATCH on stampede2 should host active computing and file creation. It is not subject to a data limit but it is also not backed up. Files untouched may be deleted by the system admin. Your $HOME drive is backed up but has limited storage. $WORK storage is limited to 1 Tb and this is across all computing clusters. For more info please read: 
+
+https://portal.tacc.utexas.edu/tutorials/managingio
 
 Then get the default bash script from TACC by running this script
 
 .. code-block:: bash
 
+   cd $HOME
    /usr/local/startup_scripts/install_default_scripts
 
 Then open your .bashrc and uncomment this line:
@@ -46,7 +66,7 @@ for hetdex-api
 
 .. code-block:: bash
 
-   pip3 install -r /work/05350/ecooper/wrangler/hetdex-api/requirements.txt
+   pip3 install -r /work/05350/ecooper/wrangler/hetdex_api/requirements.txt
 
 
 Pip Install hetdex-api: stable release version
@@ -98,15 +118,48 @@ You should not be doing any heavy computing or accessing more than one HDR produ
 
 This will automatically switch you over to a compute node where you will have access to 48 cores per node and 128 GB of memory. Go nuts there!
 
-Also, it is generally preferred that users store large files on their /data storage drive and any high I/O runs should be done on /tmp.
+Also, it is generally preferred that users store large files on their $DATA (on wrangler) and $SCRATCH (on stampede2) storage drive and any high I/O runs should be done on /tmp.
 
-If you would like to use a jupyter notebook, wrangler is now accessible at 
+
+Jupyter Notebook Access
+-----------------------
+
+Both wrangler and stampede2 are setup for HDR access through hetdex-api. No configuration is needed after install. To access a notebook, in a browser go to:
+
 
 https://vis.tacc.utexas.edu
 
-Choose the 'all' queue mode under the wrangler cluster option.
+Choose the 'all' queue mode under the wrangler or 'skx-dev' under stampede2.
 
-If it fails, you can also run this script from a terminal:
+We suggest you add symbolic links from your home to your $WORK and $SCRATCH or $DATA directories 
+since a jupyter notebook node will open automatically in your $HOME directory. 
+
+For example, 
+
+.. code-block:: bash
+
+   cd $HOME
+   ln -s $WORK work-stampede2
+   ln -s $SCRATCH scratch-stampede2
+
+or on wrangler:
+
+.. code-block:: bash
+
+   cd $HOME
+   ln -s $WORK work-wrangler
+   ln -s $DATA data-wrangler 
+
+This will allow you to go to your work directory when you log onto vis.
+
+You can now open up a jupyter notebook and explore some of the notebooks in
+hetdex-api/notebooks or just pop in some of the commands you see throughout this website.
+
+Running a notebook from the command line
+----------------------------------------
+
+If accessing a node on https://vis.tacc.utexas.edu fails, you can also run this 
+script from a terminal on wrangler:
 
 .. code-block:: bash
 
@@ -114,19 +167,6 @@ If it fails, you can also run this script from a terminal:
 
 This will launch from whatever directory you are working in. 
     
-One final suggestion is to add a link from your home to your work directory since a jupyter notebook node will open automatically in your /home directory. For example, I would do:
-
-.. code-block:: bash
-   
-   cd
-   ln -s /work/05350/ecooper/ work-wrangler
-
-This will allow you to go to your work directory when you log onto vis.
-
-You can now open up a jupyter notebook and explore some of the notebooks in 
-hetdex-api/notebooks or just pop in some of the commands you see throughout this website. 
-
-
 For Contributors
 ----------------
 
