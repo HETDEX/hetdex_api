@@ -33,9 +33,18 @@ np.warnings.filterwarnings("ignore")
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
 
+try:
+    from hetdex_api.config import HDRconfig
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
 
+    
 class Detections:
-    def __init__(self, survey="hdr2.1", catalog_type="lines", loadtable=True):
+    def __init__(self, survey=LATEST_CATALOG_VERSION, catalog_type="lines",
+                 version=None, loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
@@ -54,7 +63,8 @@ class Detections:
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1"]
         catalog_type_options = ["lines", "continuum", "broad"]
-
+        version_options = ["2.1.0", "2.1.1"]
+        
         if survey.lower() not in survey_options:
             print("survey not in survey options")
             print(survey_options)
@@ -65,6 +75,11 @@ class Detections:
             print(catalog_type_options)
             return None
 
+        if ( version is not None) and ( catalog_type=="lines"):
+            if version.lower() not in version_options:
+                print("Pick lines catalog version")
+                print( version_options)
+            
         global config
         config = HDRconfig(survey=survey)
 
@@ -83,8 +98,12 @@ class Detections:
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
-        self.loadtable = loadtable
-
+        if version is not None:
+            self.version = version
+            self.loadtable = False
+        else:
+            self.loadtable = loadtable
+            
         if loadtable:
             colnames = self.hdfile.root.Detections.colnames
             for name in colnames:
@@ -216,6 +235,14 @@ class Detections:
                             open(config.plae_poii_hetdex_gmag, "rb"), encoding="bytes"
                         )
                     )
+
+        elif version is not None:
+            det_table = Table.read( op.join( config.hdr_dir,
+                                             "detect",
+                                             "detect_" + version + ".tab"),
+                                    format='ascii')
+            for col in det_table.colnames:
+                self.col = det_table[col]
 
         else:
             # just get coordinates and detectid
