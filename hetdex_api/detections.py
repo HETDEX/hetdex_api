@@ -44,7 +44,7 @@ except Exception as e:
     
 class Detections:
     def __init__(self, survey=LATEST_HDR_NAME, catalog_type="lines",
-                 version=None, loadtable=True):
+                 curated_version=None, loadtable=True):
         """
         Initialize the detection catalog class for a given data release
 
@@ -63,7 +63,7 @@ class Detections:
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1"]
         catalog_type_options = ["lines", "continuum", "broad"]
-        version_options = ["2.1.0", "2.1.1"]
+        curated_version_options = ["2.1.0", "2.1.1"]
         
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -75,10 +75,10 @@ class Detections:
             print(catalog_type_options)
             return None
 
-        if ( version is not None) and ( catalog_type=="lines"):
-            if version.lower() not in version_options:
+        if ( curated_version is not None) and ( catalog_type=="lines"):
+            if curated_version.lower() not in curated_version_options:
                 print("Pick lines catalog version")
-                print( version_options)
+                print( curated_version_options)
             
         global config
         config = HDRconfig(survey=survey)
@@ -98,8 +98,8 @@ class Detections:
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
-        if version is not None:
-            self.version = version
+        if curated_version is not None:
+            self.version = curated_version
             self.loadtable = False
         else:
             self.loadtable = loadtable
@@ -122,6 +122,7 @@ class Detections:
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type=='lines':
+
                 self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
                 for name2 in colnames2:
@@ -236,7 +237,7 @@ class Detections:
                         )
                     )
 
-        elif version is not None:
+        elif curated_version is not None:
             det_table = Table.read( op.join( config.hdr_dir,
                                              "detect",
                                              "detect_" + version + ".fits"),
