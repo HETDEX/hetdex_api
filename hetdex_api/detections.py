@@ -239,7 +239,7 @@ class Detections:
         elif version is not None:
             det_table = Table.read( op.join( config.hdr_dir,
                                              "detect",
-                                             "detect_" + version + ".tab"),
+                                             "detect_" + version + ".fits"),
                                     format='ascii')
             for col in det_table.colnames:
                 self.col = det_table[col]
