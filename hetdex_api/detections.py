@@ -43,7 +43,7 @@ except Exception as e:
 
     
 class Detections:
-    def __init__(self, survey=LATEST_CATALOG_VERSION, catalog_type="lines",
+    def __init__(self, survey=LATEST_HDR_VERSION, catalog_type="lines",
                  version=None, loadtable=True):
         """
         Initialize the detection catalog class for a given data release
