@@ -109,10 +109,10 @@ class Detections:
             self.loadtable = loadtable
 
         if self.version is not None:
-        
+
             try:
                 catfile = op.join( config.detect_dir,
-                                   catalogs, 
+                                   'catalogs',
                                    "detect_hdr" + self.version + ".fits")
                 det_table = Table.read( catfile )
 
