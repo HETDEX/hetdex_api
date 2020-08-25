@@ -232,13 +232,15 @@ class Detections:
                     )
 
         elif curated_version is not None:
+            print(curated_version)
+            catfile = op.join( config.hdr_dir, "detect",
+                               "detect_" + curated_version + ".fits")
+            print(catfile)
             try:
-                det_table = Table.read( op.join( config.hdr_dir,
-                                                 "detect",
-                                                 "detect_" +
-                                                 curated_version +
-                                                 ".fits"))
-           
+                catfile = op.join( config.hdr_dir, "detect",
+                                    "detect_" + curated_version + ".fits")
+                det_table = Table.read( catfile )
+                print(catfile)
                 for col in det_table.colnames:
                     self.col = det_table[col]
             except:
