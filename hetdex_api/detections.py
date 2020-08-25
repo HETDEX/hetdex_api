@@ -107,7 +107,8 @@ class Detections:
                 det_table = Table.read( catfile )
                 print(catfile)
                 for col in det_table.colnames:
-                    self.col = det_table[col]
+                    setattr(self, col, det_table[col])
+
             else:#except:
                 print('Could not open curated catalog version: ' + self.version)
 
