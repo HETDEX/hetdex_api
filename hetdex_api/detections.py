@@ -76,11 +76,6 @@ class Detections:
 
         global config
         config = HDRconfig(survey=survey)
-
-        print(curated_version)
-        catfile = op.join( config.hdr_dir, "detect",
-                           "detect_" + curated_version + ".fits")
-        print(catfile)
         
         self.survey = survey
 
@@ -238,11 +233,11 @@ class Detections:
 
         elif curated_version:
             print(curated_version)
-            catfile = op.join( config.hdr_dir, "detect",
+            catfile = op.join( config.detect_dir, 
                                "detect_" + curated_version + ".fits")
             print(catfile)
             try:
-                catfile = op.join( config.hdr_dir, "detect",
+                catfile = op.join( config.detect_dir, 
                                     "detect_" + curated_version + ".fits")
                 det_table = Table.read( catfile )
                 print(catfile)
