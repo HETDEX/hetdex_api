@@ -80,6 +80,7 @@ class Detections:
             self.loadtable = False
             self.survey = 'hdr' + curated_version[0:3]
         else:
+            self.version = None
             self.survey = survey
             self.loadtable = loadtable
 
