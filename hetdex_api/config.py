@@ -43,6 +43,7 @@ class HDRconfig:
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "ergfiles")
+        self.detect_dir = op.join(self.hdr_dir[survey], "detect")
         self.path_gpinfo = op.join(self.calib_dir, "DR1FWHM.txt")
         self.path_acc_flags = op.join(self.red_dir, "status_summary_hdr1.txt")
         self.path_radec = op.join(self.calib_dir, "radec.all")
