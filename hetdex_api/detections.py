@@ -112,6 +112,7 @@ class Detections:
         
             try:
                 catfile = op.join( config.detect_dir,
+                                   catalogs, 
                                    "detect_hdr" + self.version + ".fits")
                 det_table = Table.read( catfile )
 
