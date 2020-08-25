@@ -84,7 +84,7 @@ class Detections:
             self.loadtable = loadtable
 
         global config
-        config = HDRconfig(survey=survey)
+        config = HDRconfig(survey=self.survey)
 
         if catalog_type == "lines":
             self.filename = config.detecth5
