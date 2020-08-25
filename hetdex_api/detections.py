@@ -74,10 +74,17 @@ class Detections:
             print(catalog_type_options)
             return None
 
+        # store to class
+        if curated_version is not None:
+            self.version = curated_version
+            self.loadtable = False
+            self.survey = 'hdr' + curated_version[0:3]
+        else:
+            self.survey = survey
+            self.loadtable = loadtable
+
         global config
         config = HDRconfig(survey=survey)
-
-        self.survey = survey
 
         if catalog_type == "lines":
             self.filename = config.detecth5
@@ -231,10 +238,10 @@ class Detections:
 
             self.vis_class = -1 * np.ones(np.size(self.detectid))
 
-            if survey == "hdr1":
+            if self.survey == "hdr1":
                 self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
             
-            if survey == "hdr1":
+            if self.survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
                         pickle.load(open(config.plae_poii_hetdex_gmag, "rb"))
