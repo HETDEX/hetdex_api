@@ -236,7 +236,7 @@ class Detections:
                 det_table = Table.read( op.join( config.hdr_dir,
                                                  "detect",
                                                  "detect_" +
-                                                 version +
+                                                 curated_version +
                                                  ".fits"))
            
                 for col in det_table.colnames:
