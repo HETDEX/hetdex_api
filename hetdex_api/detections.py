@@ -97,8 +97,21 @@ class Detections:
             self.loadtable = False
         else:
             self.loadtable = loadtable
-            
-        if loadtable:
+
+        if self.version is not None:
+        
+            if True:#try:
+                catfile = op.join( config.detect_dir,
+                                   "detect_hdr" + self.version + ".fits")
+                print(catfile)
+                det_table = Table.read( catfile )
+                print(catfile)
+                for col in det_table.colnames:
+                    self.col = det_table[col]
+                else:#except:
+                    print('Could not open curated catalog version: ' + version)
+
+        elif self.loadtable:
             colnames = self.hdfile.root.Detections.colnames
             for name in colnames:
                 if isinstance(
@@ -230,21 +243,6 @@ class Detections:
                             open(config.plae_poii_hetdex_gmag, "rb"), encoding="bytes"
                         )
                     )
-
-        elif curated_version is not None:
-            print(curated_version)
-            catfile = op.join( config.detect_dir, 
-                               "detect_hdr" + curated_version + ".fits")
-            print(catfile)
-            try:
-                catfile = op.join( config.detect_dir, 
-                                    "detect_hdr" + curated_version + ".fits")
-                det_table = Table.read( catfile )
-                print(catfile)
-                for col in det_table.colnames:
-                    self.col = det_table[col]
-            except:
-                print('Could not open curated catalog version: ' + version)
 
         else:
             # just get coordinates and detectid
