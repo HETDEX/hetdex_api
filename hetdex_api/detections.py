@@ -109,7 +109,8 @@ class Detections:
                     setattr(self, col, np.array( det_table[col] ) )
 
             except:
-                sys.exit('Could not open curated catalog version: ' + self.version)
+                print('Could not open curated catalog version: ' + self.version)
+                return None
 
         elif self.loadtable:
             colnames = self.hdfile.root.Detections.colnames
