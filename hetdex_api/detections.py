@@ -105,9 +105,8 @@ class Detections:
                                    "detect_hdr" + self.version + ".fits")
                 print(catfile)
                 det_table = Table.read( catfile )
-                print(catfile)
                 for col in det_table.colnames:
-                    setattr(self, col, det_table[col])
+                    setattr(self, col, np.array( det_table[col] ) )
 
             else:#except:
                 print('Could not open curated catalog version: ' + self.version)
