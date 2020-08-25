@@ -63,7 +63,6 @@ class Detections:
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1"]
         catalog_type_options = ["lines", "continuum", "broad"]
-        curated_version_options = ["2.1.0", "2.1.1"]
         
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -75,11 +74,6 @@ class Detections:
             print(catalog_type_options)
             return None
 
-        if ( curated_version is not None) and ( catalog_type=="lines"):
-            if curated_version.lower() not in curated_version_options:
-                print("Pick lines catalog version")
-                print( curated_version_options)
-            
         global config
         config = HDRconfig(survey=survey)
 
@@ -238,11 +232,17 @@ class Detections:
                     )
 
         elif curated_version is not None:
-            det_table = Table.read( op.join( config.hdr_dir,
-                                             "detect",
-                                             "detect_" + version + ".fits"))
-            for col in det_table.colnames:
-                self.col = det_table[col]
+            try:
+                det_table = Table.read( op.join( config.hdr_dir,
+                                                 "detect",
+                                                 "detect_" +
+                                                 version +
+                                                 ".fits"))
+           
+                for col in det_table.colnames:
+                    self.col = det_table[col]
+            except:
+                print('Could not open curated catalog version: ' + version)
 
         else:
             # just get coordinates and detectid
