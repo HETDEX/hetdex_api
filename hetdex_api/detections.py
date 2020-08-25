@@ -100,15 +100,15 @@ class Detections:
 
         if self.version is not None:
         
-            if True:#try:
+            try:
                 catfile = op.join( config.detect_dir,
                                    "detect_hdr" + self.version + ".fits")
-                print(catfile)
                 det_table = Table.read( catfile )
+
                 for col in det_table.colnames:
                     setattr(self, col, np.array( det_table[col] ) )
 
-            else:#except:
+            except:
                 print('Could not open curated catalog version: ' + self.version)
 
         elif self.loadtable:
