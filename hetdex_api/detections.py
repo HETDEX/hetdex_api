@@ -231,7 +231,7 @@ class Detections:
                         )
                     )
 
-        elif curated_version is not None:
+        elif curated_version:
             print(curated_version)
             catfile = op.join( config.hdr_dir, "detect",
                                "detect_" + curated_version + ".fits")
