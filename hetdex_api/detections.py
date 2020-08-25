@@ -108,8 +108,8 @@ class Detections:
                 print(catfile)
                 for col in det_table.colnames:
                     self.col = det_table[col]
-                else:#except:
-                    print('Could not open curated catalog version: ' + version)
+            else:#except:
+                print('Could not open curated catalog version: ' + self.version)
 
         elif self.loadtable:
             colnames = self.hdfile.root.Detections.colnames
