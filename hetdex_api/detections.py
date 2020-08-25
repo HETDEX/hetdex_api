@@ -64,10 +64,6 @@ class Detections:
         survey_options = ["hdr1", "hdr2", "hdr2.1"]
         catalog_type_options = ["lines", "continuum", "broad"]
 
-        print(curated_version)
-        catfile = op.join( config.hdr_dir, "detect", "detect_" + curated_version + ".fits")
-        print(catfile)
-        
         if survey.lower() not in survey_options:
             print("survey not in survey options")
             print(survey_options)
@@ -81,6 +77,11 @@ class Detections:
         global config
         config = HDRconfig(survey=survey)
 
+        print(curated_version)
+        catfile = op.join( config.hdr_dir, "detect",
+                           "detect_" + curated_version + ".fits")
+        print(catfile)
+        
         self.survey = survey
 
         if catalog_type == "lines":
