@@ -110,6 +110,7 @@ class Detections:
 
             except:
                 print('Could not open curated catalog version: ' + self.version)
+                sys.exit()
 
         elif self.loadtable:
             colnames = self.hdfile.root.Detections.colnames
