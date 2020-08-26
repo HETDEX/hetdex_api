@@ -18,8 +18,6 @@ import numpy as np
 import tables as tb
 import copy
 
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from astropy.table import vstack, Table, Column, join
@@ -31,6 +29,9 @@ import speclite.filters
 
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
+
+import matplotlib
+matplotlib.use('Agg')
 
 np.warnings.filterwarnings("ignore")
 PYTHON_MAJOR_VERSION = sys.version_info[0]
