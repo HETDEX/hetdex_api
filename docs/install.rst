@@ -67,9 +67,9 @@ for hetdex-api
 .. code-block:: bash
 
    pip3 install -r /work/05350/ecooper/wrangler/hetdex_api/requirements.txt
+   pip3 install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
 
-
-Pip Install hetdex-api: stable release version
+Install hetdex-api: stable release version
 ----------------------------------------------
 
 As of HDR2.1 release, a stable release of hetdex-api can now be pip installed from pypi 
@@ -81,7 +81,9 @@ As of HDR2.1 release, a stable release of hetdex-api can now be pip installed fr
 Install hetdex-api: latest version
 ----------------------------------
 
-Copy the git clone repository of hetdex_api 
+If you want to be working with the most recent copy of hetdex-api please copy the git 
+clone repository of hetdex_api. For anyone not on the core data team, we recommend you 
+stick with the release versions.
 
 .. code-block:: bash
 		
