@@ -120,7 +120,7 @@ class Detections:
                 det_table = Table.read( catfile )
 
                 for col in det_table.colnames:
-                    if isinstance( np.array( det_table[col]), np.bytes_):
+                    if isinstance( det_table[col][0], np.bytes_):
                         setattr(self, col, np.array( det_table[col] ).astype(str) )
                     else:
                         setattr(self, col, np.array( det_table[col] ) )
