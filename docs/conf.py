@@ -24,7 +24,7 @@ copyright = '2020, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2'
+release = '0.5'
 
 
 # -- General configuration ---------------------------------------------------
@@ -68,7 +68,7 @@ html_theme = 'sphinx_rtd_theme'
 #html_static_path = ['_static']
 
 autodoc_mock_imports = ['catalogs','astropy', 'tables', 'ipywidgets', 'elixer',
-                        'astroquery', 'speclite']
+                        'astroquery', 'speclite','pyhetdex']
 master_doc = 'index'
 
 source_parsers = {
