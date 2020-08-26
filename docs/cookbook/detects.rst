@@ -1,9 +1,5 @@
-.. container:: cell markdown
-
-   .. rubric:: Detections Database and API
-      :name: detections-database-and-api
-
-.. container:: cell markdown
+Detections Database and API
+===========================
 
    This notebook demonstrates how to access the HDF5 container for the
    HETDEX line detections database. This database is a catalog of line
