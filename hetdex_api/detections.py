@@ -609,7 +609,7 @@ class Detections:
         
         """
 
-        try:
+        if True:
             badpixlist = ascii.read(
                 config.badpix, names=["multiframe", "x1", "x2", "y1", "y2"]
             )
@@ -628,7 +628,7 @@ class Detections:
                 
             self.vis_class[mask] = 0
 
-        except:
+        else: #except:
             mask = np.zeros(np.size(self.detectid), dtype=bool)
             
         return np.invert(mask)
