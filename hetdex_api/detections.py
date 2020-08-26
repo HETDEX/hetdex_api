@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+B1;95;0c# -*- coding: utf-8 -*-
 """
 
 Initiates the Detections class.
@@ -616,10 +616,10 @@ class Detections:
             for row in badpixlist:
                 maskbadpix = (
                     (self.multiframe == row["multiframe"])
-                    * (self.x_raw > row["x1"])
-                    * (self.x_raw < row["x2"])
-                    * (self.y_raw > row["y1"])
-                    * (self.y_raw < row["y2"])
+                    * (self.x_raw >= row["x1"])
+                    * (self.x_raw <= row["x2"])
+                    * (self.y_raw >= row["y1"])
+                    * (self.y_raw <= row["y2"])
                 )
                 mask = np.logical_or(maskbadpix, mask)
                 
