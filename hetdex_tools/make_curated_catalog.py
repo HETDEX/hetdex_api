@@ -5,7 +5,7 @@ from hetdex_api.detections import Detections
 
 detects = Detections(survey='hdr2.1', catalog_type='lines').refine()
 
-sel_field = (detects.field == b'cosmos') |(detects.field == b'dex-fall') | (detects.field == b'dex-spring') | (detects.field == b'egs') | (detects.field == b'goods-n')
+sel_field = (detects.field == 'cosmos') |(detects.field == 'dex-fall') | (detects.field == 'dex-spring') | (detects.field == 'egs') | (detects.field == 'goods-n')
 sel_chi2 = detects.chi2 < 1.2
 sel_wave = ( detects.wave >= 3510 ) * (detects.wave <= 5490)
 sel_lw = (detects.linewidth <= 6)
