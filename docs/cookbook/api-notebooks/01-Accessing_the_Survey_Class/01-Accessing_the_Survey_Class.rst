@@ -1,6 +1,6 @@
 
-Survey Class - Searching basic survey properties
-================================================
+Surve Table and API
+===================
 
 The survey HDF5 file is a master look up table for each observation made
 by VIRUS for HETDEX. It can be accessed directly through the HDF5 survey
@@ -287,8 +287,8 @@ Example: Plotting up the locations of all cosmos shots:
 .. image:: output_35_0.png
 
 
-Accessing the Master Fiber Index Table:
-=======================================
+Fiber Index Table:
+==================
 
 New to HDR2 is a Master Fiber Index table for all Fibers in the HDR2
 survey. This file can be accessed through the FiberIndex class:
