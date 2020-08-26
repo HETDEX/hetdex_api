@@ -286,8 +286,8 @@ Example: Plotting up the locations of all cosmos shots:
 .. image:: output_35_0.png
 
 
-Fiber Index Table:
-==================
+Fiber Index Table
+=================
 
 New to HDR2 is a Master Fiber Index table for all Fibers in the HDR2
 survey. This file can be accessed through the FiberIndex class:
