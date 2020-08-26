@@ -120,7 +120,10 @@ class Detections:
                 det_table = Table.read( catfile )
 
                 for col in det_table.colnames:
-                    setattr(self, col, np.array( det_table[col] ) )
+                    if isinstance( np.array( det_table[col]), np.bytes_):
+                        setattr(self, col, np.array( det_table[col] ).astype(str) )
+                    else:
+                        setattr(self, col, np.array( det_table[col] ) )
 
             except:
                 print('Could not open curated catalog version: ' + self.version)
@@ -202,7 +205,7 @@ class Detections:
                     print('No Elixer table found')
                     
             # also assign a field and some QA identifiers
-            self.field = np.chararray(np.size(self.detectid), 12)
+            self.field = np.chararray(np.size(self.detectid), 12, unicode=True)
             self.fwhm = np.zeros(np.size(self.detectid))
             if self.survey == "hdr1":
                 self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
