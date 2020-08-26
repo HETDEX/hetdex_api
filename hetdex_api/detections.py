@@ -125,6 +125,8 @@ class Detections:
                     else:
                         setattr(self, col, np.array( det_table[col] ) )
 
+                self.vis_class = -1 * np.ones(np.size(self.detectid))
+                        
             except:
                 print('Could not open curated catalog version: ' + self.version)
                 return None
