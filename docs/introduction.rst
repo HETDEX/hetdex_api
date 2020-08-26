@@ -12,4 +12,4 @@ HDR1 Data Model
       |image0|
 
 
-.. |image0| image:: hdr1_data_model.png
+.. |image0| image:: HDR2_data_model.pdf
