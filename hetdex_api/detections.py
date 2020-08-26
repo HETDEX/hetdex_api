@@ -17,6 +17,9 @@ import os.path as op
 import numpy as np
 import tables as tb
 import copy
+
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from astropy.table import vstack, Table, Column, join
