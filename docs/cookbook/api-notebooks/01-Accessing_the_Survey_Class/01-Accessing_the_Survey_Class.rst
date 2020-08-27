@@ -1,5 +1,5 @@
-Surve Table and API
-===================
+Survey Table and API
+====================
 
 The survey HDF5 file is a master look up table for each observation made
 by VIRUS for HETDEX. It can be accessed directly through the HDF5 survey
