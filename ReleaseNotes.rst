@@ -1,6 +1,10 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.50
+------------
+Release for HDR2.1.1 
+
 Development version @ trunk
 ---------------------------
 
