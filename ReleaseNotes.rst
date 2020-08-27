@@ -3,7 +3,14 @@
 
 Release 0.50
 ------------
-Release for HDR2.1.1 
+
+- Release for HDR2.1.1 
+
+- Detections class function refine() now operational for HDR2.1
+
+- Added curated_version option for Detections class to pull stable catalog
+
+- small changes in docs for cleaner organization
 
 Development version @ trunk
 ---------------------------
