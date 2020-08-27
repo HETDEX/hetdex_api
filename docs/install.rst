@@ -66,7 +66,7 @@ for hetdex-api
 
 .. code-block:: bash
 
-   pip3 install -r /work/05350/ecooper/wrangler/hetdex_api/requirements.txt
+   pip3 install -r /work/05350/ecooper/wrangler/hetdex_api/requirements.txt --user
    pip3 install --user --extra-index-url https://gate.mpe.mpg.de/pypi/simple/ pyhetdex
 
 Install hetdex-api: stable release version
