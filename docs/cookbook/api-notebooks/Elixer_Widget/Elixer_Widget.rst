@@ -1,5 +1,5 @@
-
-Elixer Widget
+B
+E1;95;0clixer Widget
 -------------
 
 In order to streamline classifications we have developed a GUI using the
@@ -76,7 +76,7 @@ option to remove all sources brighter than that value.
 
 .. code:: ipython3
 
-    detects = Detections('hdr2').refine(gmagcut=23)
+    detects = Detections('hdr2.1').refine(gmagcut=23)
 
 For example here is a selection that would help us find a sample of nice
 bright LAEs, and of course some interloping OII emitters:
