@@ -269,7 +269,7 @@ class Survey:
 
 
 class FiberIndex:
-    def __init__(self, survey="hdr2.1", loadall=False):
+    def __init__(self, survey=LATEST_HDR_NAME, loadall=False):
         """
         Initialize the Fiber class for a given data release
         
@@ -278,7 +278,7 @@ class FiberIndex:
         survey : string
             Data release you would like to load, i.e., 'hdr1','HDR2'
             This is case insensitive.
-        
+
         Returns
         -------
         FiberIndex class object
@@ -317,7 +317,8 @@ class FiberIndex:
                 self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
             )
 
-    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None, astropy=True):
+    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None,
+                     astropy=True):
         """
         Function to retrieve the indexes of the FiberIndex table
         for a specific region
