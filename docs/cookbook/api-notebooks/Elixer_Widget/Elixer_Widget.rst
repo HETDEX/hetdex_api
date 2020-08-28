@@ -1,5 +1,4 @@
-B
-E1;95;0clixer Widget
+Elixer Widget
 -------------
 
 In order to streamline classifications we have developed a GUI using the
