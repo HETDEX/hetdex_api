@@ -10,7 +10,11 @@ Release 0.50
 
 - Added curated_version option for Detections class to pull stable catalog
 
+- using healpy to speed up query speed on FiberIndex
+
 - small changes in docs for cleaner organization
+
+- catalog curation: added 82 new bad shots, a bad fiber and some bad amps, caught 960 charge trap issues. 
 
 Development version @ trunk
 ---------------------------
