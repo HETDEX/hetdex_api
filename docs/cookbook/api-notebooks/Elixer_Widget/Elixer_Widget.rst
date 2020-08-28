@@ -1,5 +1,5 @@
 Elixer Widget
--------------
+=============
 
 In order to streamline classifications we have developed a GUI using the
 ipywidgets package to quickly scan through ELixer report summaries and
