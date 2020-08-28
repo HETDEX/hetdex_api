@@ -160,7 +160,7 @@ The QueryWidget: Interactive spectral extraction
 
       query_widget2 = QueryWidget(coords=coord)
 
-.. image:: images/elix_widget.png
+.. image:: images/query_widget.png
 
 .. container:: cell markdown
 
