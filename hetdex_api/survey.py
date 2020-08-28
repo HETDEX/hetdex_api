@@ -18,12 +18,17 @@ import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-
 from hetdex_api.config import HDRconfig
+
+try:
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
 
 
 class Survey:
-    def __init__(self, survey='hdr2.1'):
+    def __init__(self, survey=LATEST_HDR_NAME):
         """
         Initialize the Survey class for a given data release
 
@@ -65,24 +70,26 @@ class Survey:
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
         # append flux limits
-        if survey == 'hdr2.1':
-            
-            flim = Table.read(config.flim_avg,
-                              format='ascii',
-                              names=['datevobs','col2', 'fluxlimit_4540'])
+        if survey == "hdr2.1":
+
+            flim = Table.read(
+                config.flim_avg,
+                format="ascii",
+                names=["datevobs", "col2", "fluxlimit_4540"],
+            )
             fluxlimit = []
             for datevobs in self.datevobs:
-                sel = flim['datevobs'] == datevobs
+                sel = flim["datevobs"] == datevobs
                 if np.sum(sel) == 1:
-                    fluxlimit.extend( flim['fluxlimit_4540'][sel] )
+                    fluxlimit.extend(flim["fluxlimit_4540"][sel])
                 elif np.sum(sel) > 1:
-                    print('Found two fluxlimits for ', datevobs)
-                    fluxlimit.extend( flim['fluxlimit_4540'][sel][0])
+                    print("Found two fluxlimits for ", datevobs)
+                    fluxlimit.extend(flim["fluxlimit_4540"][sel][0])
                 else:
-                    fluxlimit.append( np.nan )
-                    
+                    fluxlimit.append(np.nan)
+
             self.fluxlimit_4540 = np.array(fluxlimit)
-                              
+
     def __getitem__(self, indx):
         """ 
         This allows for slicing of the survey class
@@ -150,7 +157,7 @@ class Survey:
 
         notvalid = self.shotid < 20170000
         mask = mask | notvalid
-        
+
         return np.invert(mask)
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
@@ -208,7 +215,6 @@ class Survey:
 
         return self.shotid[idx]
 
-
     def return_astropy_table(self, return_good=True):
         """
         Function to return an astropy table that is machine readable
@@ -230,24 +236,24 @@ class Survey:
 
         good_shots = self.remove_shots()
 
-        survey_table['shot_flag'] = good_shots
+        survey_table["shot_flag"] = good_shots
 
-        survey_table['mjd'] = self.mjd[:,0]
-        survey_table['exptime'] = np.mean(self.exptime, axis=1)
-        survey_table['fluxlimit_4540'] = self.fluxlimit_4540
-        
+        survey_table["mjd"] = self.mjd[:, 0]
+        survey_table["exptime"] = np.mean(self.exptime, axis=1)
+        survey_table["fluxlimit_4540"] = self.fluxlimit_4540
+
         for col in survey_table.colnames:
             try:
                 if np.shape(survey_table[col])[1] == 3:
                     survey_table.remove_column(col)
             except:
                 pass
-                    
+
         if return_good:
             return survey_table[good_shots]
         else:
             return survey_table
-            
+
     def close(self):
         """
         Close the HDF5 file when you are done using
@@ -261,8 +267,9 @@ class Survey:
 
         self.hdfile.close()
 
+
 class FiberIndex:
-    def __init__(self, survey='hdr2.1', loadall=False):
+    def __init__(self, survey="hdr2.1", loadall=False):
         """
         Initialize the Fiber class for a given data release
         
@@ -277,9 +284,9 @@ class FiberIndex:
         FiberIndex class object
         """
         self.survey = survey
-        
-        if self.survey == 'hdr1':
-            print('Sorry there is no FiberIndex for hdr1')
+
+        if self.survey == "hdr1":
+            print("Sorry there is no FiberIndex for hdr1")
             return None
 
         global config
@@ -290,11 +297,11 @@ class FiberIndex:
 
         if loadall:
             colnames = self.hdfile.root.FiberIndex.colnames
-            
+
             for name in colnames:
-            
+
                 if isinstance(
-                        getattr(self.hdfile.root.FiberIndex.cols, name)[0], np.bytes_
+                    getattr(self.hdfile.root.FiberIndex.cols, name)[0], np.bytes_
                 ):
                     setattr(
                         self,
@@ -302,14 +309,15 @@ class FiberIndex:
                         getattr(self.hdfile.root.FiberIndex.cols, name)[:].astype(str),
                     )
                 else:
-                    setattr(self, name,
-                            getattr(self.hdfile.root.FiberIndex.cols, name)[:])
-                    
-            self.coords = SkyCoord(self.ra[:] * u.degree,
-                                   self.dec[:] * u.degree,
-                                   frame="icrs")
+                    setattr(
+                        self, name, getattr(self.hdfile.root.FiberIndex.cols, name)[:]
+                    )
 
-    def query_region(self, coords, radius=3.*u.arcsec, shotid=None, astropy=True):
+            self.coords = SkyCoord(
+                self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
+            )
+
+    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None, astropy=True):
         """
         Function to retrieve the indexes of the FiberIndex table
         for a specific region
@@ -326,17 +334,19 @@ class FiberIndex:
         shotid
             Specific shotid (dtype=int) you want
         """
-        
-        ra_obj = coords.ra.deg
-        ra_sep = radius.to(u.degree).value + 3./3600.
-        
-        tab = self.hdfile.root.FiberIndex
-        seltab = tab.read_where( '(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))')
 
-        fibcoords = SkyCoord(seltab['ra'] * u.degree, seltab['dec'] * u.degree, frame='icrs')
+        ra_obj = coords.ra.deg
+        ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
+
+        tab = self.hdfile.root.FiberIndex
+        seltab = tab.read_where("(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))")
+
+        fibcoords = SkyCoord(
+            seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
+        )
 
         if shotid:
-            idx = (coords.separation(fibcoords) < radius) * (seltab['shotid'] == shotid)
+            idx = (coords.separation(fibcoords) < radius) * (seltab["shotid"] == shotid)
         else:
             idx = coords.separation(fibcoords) < radius
 
@@ -348,6 +358,6 @@ class FiberIndex:
     def get_fib_from_hp(self, hp, astropy=True):
 
         if astropy:
-            return Table(self.hdfile.root.FiberIndex.read_where('healpix == hp'))
+            return Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
         else:
-            return self.hdfile.root.FiberIndex.read_where('healpix == hp')
+            return self.hdfile.root.FiberIndex.read_where("healpix == hp")
