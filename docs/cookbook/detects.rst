@@ -149,11 +149,7 @@ Detections Database and API
 
       elix_widget = ElixerWidget(detectlist = detects.detectid[sel_lae])
 
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"819dd0dde46849fc95bc2cf1d1979430","version_major":2,"version_minor":0}
+.. image:: images/elix_widget.png
 
 .. container:: cell markdown
 
@@ -487,11 +483,7 @@ Detections Database and API
       elix_widget = ElixerWidget(detectlist = detects_in_region.detectid)
       #elix_widget = ElixerWidget(detectfile='detects_obj.txt')
 
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"3cd3da9069ec4d05a8c4cdc3ec8e458d","version_major":2,"version_minor":0}
+.. image:: images/elix_widget.png
 
 .. container:: cell markdown
 
