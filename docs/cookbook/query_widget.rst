@@ -110,23 +110,7 @@ The QueryWidget: Interactive spectral extraction
 
       query_widget = QueryWidget()
 
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"55c7d30a5c894e819ba2dfec050e809e","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"fa763c310af64e1a9ca6ef782492e2a0","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"eafa003fe67b4f2aab04214b0beb573a","version_major":2,"version_minor":0}
+.. image:: images/query_widget.png
 
 .. container:: cell markdown
 
@@ -176,23 +160,7 @@ The QueryWidget: Interactive spectral extraction
 
       query_widget2 = QueryWidget(coords=coord)
 
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"77b47915b3b645ada8a6ff3b4d75bde3","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"0d901496e78443b2a385b4122772d9da","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"d0b0960834e44162899772c5a554e7e9","version_major":2,"version_minor":0}
+.. image:: images/elix_widget.png
 
 .. container:: cell markdown
 
@@ -204,25 +172,3 @@ The QueryWidget: Interactive spectral extraction
    .. code:: python
 
       query_widget3 = QueryWidget(detectid = 1000615767)
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"a6291bb3b97e48918aad61a2ef6bf9f3","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"72d49f5c11ad486ba80200cc8b8a2d40","version_major":2,"version_minor":0}
-
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"9e3d68667d564dd8b2035416d3f78aaf","version_major":2,"version_minor":0}
-
-.. container:: cell code
-
-   .. code:: python
