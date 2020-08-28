@@ -5,8 +5,8 @@ Navigating the Data
    :maxdepth: 1
 
    cookbook/detects.rst
-   cookbook/api-notebooks/14-Extracting_a_sourcelist/14-Extracting_a_sourcelist.rst
    cookbook/api-notebooks/Elixer_Widget/Elixer_Widget.rst
+   cookbook/api-notebooks/14-Extracting_a_sourcelist/14-Extracting_a_sourcelist.rst
    cookbook/api-notebooks/01-Accessing_the_Survey_Class/01-Accessing_the_Survey_Class.rst
    cookbook/shot.rst
    cookbook/flux_lim.rst
