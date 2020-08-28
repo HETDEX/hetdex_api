@@ -92,7 +92,7 @@ Detections Database and API
    .. code:: python
 
       # this is a suggested query to find LAEs:
-      sel_lae = (detects.sn > 5.5) * (detects.plae_classification > 0.75) * (np.logical_not(detects.gmag<20))
+      sel_lae = (detects.sn > 5.5) * (detects.combined_plae > 2.0) * (detects.plae_classification > 0.5)
 
 .. container:: cell code
 
