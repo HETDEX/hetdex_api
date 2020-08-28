@@ -17,7 +17,9 @@ import numpy
 import copy
 import astropy.units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
+from astropy.table import Table, vstack
+
+import healpy as hp
 from hetdex_api.config import HDRconfig
 
 try:
@@ -317,8 +319,7 @@ class FiberIndex:
                 self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
             )
 
-    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None,
-                     astropy=True):
+    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None):
         """
         Function to retrieve the indexes of the FiberIndex table
         for a specific region
@@ -334,13 +335,27 @@ class FiberIndex:
             radius you want to search. An astropy quantity object
         shotid
             Specific shotid (dtype=int) you want
+
+        Returns
+        -------
+        An astropy table of Fiber infomation in queried aperture
         """
 
+        Nside = 2 ** 15
+
         ra_obj = coords.ra.deg
+        dec_obj = coords.dec.deg
+
         ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
 
-        tab = self.hdfile.root.FiberIndex
-        seltab = tab.read_where("(ra < ra_obj + ra_sep) & (ra > (ra_obj - ra_sep))")
+        vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
+
+        pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
+
+        seltab = Table()
+        for hpix in pix_region:
+            h_tab = self.get_fib_from_hp(hpix)
+            seltab = vstack([seltab, h_tab])
 
         fibcoords = SkyCoord(
             seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
@@ -351,10 +366,7 @@ class FiberIndex:
         else:
             idx = coords.separation(fibcoords) < radius
 
-        if astropy:
-            return Table(seltab[idx])
-        else:
-            return seltab[idx]
+        return seltab[idx]
 
     def get_fib_from_hp(self, hp, astropy=True):
 
