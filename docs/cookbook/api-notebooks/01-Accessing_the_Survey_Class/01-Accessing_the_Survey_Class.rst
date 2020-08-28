@@ -308,7 +308,7 @@ query\_region() function:
 
 .. code:: ipython3
 
-    fiber_table_region = FibIndex.query_region(coords, radius=3.*u.arcsec, shotid=None, astropy=True)
+    fiber_table_region = FibIndex.query_region(coords, radius=3.*u.arcsec, shotid=None)
 
 .. code:: ipython3
 
