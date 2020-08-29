@@ -2,7 +2,8 @@ from setuptools import setup, find_packages
 
 install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0',
                     'tables', 'ipywidgets', 'speclite', 'astrowidgets',
-                    'jsonschema==3.1.1', 'ipyevents', 'tornado==5.1.1']
+                    'jsonschema==3.1.1', 'ipyevents', 'tornado==5.1.1',
+                    'healpy']
 
 extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx_rtd_theme']}
