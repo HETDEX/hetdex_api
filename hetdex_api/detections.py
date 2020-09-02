@@ -586,10 +586,10 @@ class Detections:
             # this is needed to match with detection class object sorting
             join_tab.sort('detectid')
 
-            del det_table, join_tab
-            
             mask1 = join_tab['flag'] != 0
 
+            del det_table, join_tab
+            
             # add in any newly found badamps that haven't made it into the
             # amp_flag.fits file yet
             
