@@ -576,6 +576,8 @@ class Detections:
 
             return np.logical_not(mask)
         else:
+
+            # first read in amp_flag.fits file
             badamps = Table.read(config.badamp)
             
             det_table = self.return_astropy_table()
@@ -584,9 +586,25 @@ class Detections:
             # this is needed to match with detection class object sorting
             join_tab.sort('detectid')
             
-            mask = join_tab['flag'] != 0
+            mask1 = join_tab['flag'] != 0
 
             del det_table, join_tab
+
+            # add in any newly found badamps that haven't made it into the
+            # amp_flag.fits file yet
+            
+            mask2 = np.zeros(np.size(self.detectid), dtype=bool)
+            
+            badamps2 = Table.read(config.badamp2, format='ascii')
+
+            for row in badamps2:
+                selmf = amp_stats['multiframe'] == row['multiframe']
+                seldate = (amp_stats['date'] >= row['date_start']) \
+                          * (amp_stats['date'] <= row['date_end'])
+                mask2 = np.logical_or(mask2, selmf*seldate)
+
+                
+            mask = mask1 | np.logical_not( mask2)
             
             return mask
 
