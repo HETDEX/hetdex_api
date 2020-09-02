@@ -100,6 +100,7 @@ class HDRconfig:
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
+            self.badamp2 = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
             #self.elixerh5 = "/data/03261/polonius/hdr2.1.run/detect/elixer.h5"
             #self.elix_dir = "/data/03261/polonius/hdr2.1.run/detect/image_db"
