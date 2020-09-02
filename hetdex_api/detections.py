@@ -588,8 +588,6 @@ class Detections:
             
             mask1 = join_tab['flag'] != 0
 
-            del det_table, join_tab
-
             # add in any newly found badamps that haven't made it into the
             # amp_flag.fits file yet
             
@@ -598,13 +596,15 @@ class Detections:
             badamps2 = Table.read(config.badamp2, format='ascii')
 
             for row in badamps2:
-                selmf = amp_stats['multiframe'] == row['multiframe']
-                seldate = (amp_stats['date'] >= row['date_start']) \
-                          * (amp_stats['date'] <= row['date_end'])
+                selmf = det_table['multiframe'] == row['multiframe']
+                seldate = (det_table['date'] >= row['date_start']) \
+                          * (det_table['date'] <= row['date_end'])
                 mask2 = np.logical_or(mask2, selmf*seldate)
 
                 
             mask = mask1 | np.logical_not( mask2)
+
+            del det_table, join_tab
             
             return mask
 
