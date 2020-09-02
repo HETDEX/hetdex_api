@@ -585,26 +585,25 @@ class Detections:
             join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
             # this is needed to match with detection class object sorting
             join_tab.sort('detectid')
+
+            del det_table, join_tab
             
             mask1 = join_tab['flag'] != 0
 
             # add in any newly found badamps that haven't made it into the
             # amp_flag.fits file yet
             
-            mask2 = np.zeros(np.size(self.detectid), dtype=bool)
+            mask2 = np.zeros( np.size(self.detectid), dtype=bool)
             
             badamps2 = Table.read(config.badamp2, format='ascii')
 
             for row in badamps2:
-                selmf = det_table['multiframe'] == row['multiframe']
-                seldate = (det_table['date'] >= row['date_start']) \
-                          * (det_table['date'] <= row['date_end'])
+                selmf = self.multiframe == row['multiframe']
+                seldate = (self.date >= row['date_start']) \
+                          * (self.date <= row['date_end'])
                 mask2 = np.logical_or(mask2, selmf*seldate)
-
                 
             mask = mask1 | np.logical_not( mask2)
-
-            del det_table, join_tab
             
             return mask
 
