@@ -603,7 +603,7 @@ class Detections:
                           * (self.date <= row['date_end'])
                 mask2 = np.logical_or(mask2, selmf*seldate)
                 
-            mask = mask1 | np.logical_not( mask2)
+            mask = mask1 * np.logical_not( mask2)
             
             return mask
 
