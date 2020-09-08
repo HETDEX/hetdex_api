@@ -157,7 +157,7 @@ def meteor_flag_from_coords(coords, shotid=None):
         
         met_coords = SkyCoord(ra=coords.ra, dec=dec_met*u.deg)
 
-        meteor_match = coords.separation(met_coords) < 8.*u.arcsec
+        meteor_match = coords.separation(met_coords) < 3.*u.arcsec
 
         if np.any(meteor_match):
             flag = False
