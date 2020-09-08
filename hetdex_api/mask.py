@@ -57,7 +57,7 @@ def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, s
 
             flags.append(bad_amps_table['flag'][sel][0])
 
-        amp_flag = np.all(flag)
+        amp_flag = np.all(flags)
     else:
         amp_flag = None
 
