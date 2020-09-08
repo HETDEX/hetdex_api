@@ -40,10 +40,10 @@ def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, s
     
     """
 
-    fiber_region = FibIndex.query_region(coords,
-                                         radius=radius,
-                                         shotid=shotid)
-    if np.size(fiber_region) > 0:
+    fiber_table = FibIndex.query_region(coords,
+                                        radius=radius,
+                                        shotid=shotid)
+    if np.size(fiber_table) > 0:
         mf_list = np.unique(fiber_table['multiframe']).astype(str)
         
         flags = []
