@@ -63,3 +63,10 @@ def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, s
 
     return amp_flag
 
+def amp_flag_from_fiberid(fiberid, bad_amps_table):
+    shotid = int(fiberid[0:11])
+    mf = fiberid[14:34]
+    
+    sel = (bad_amps_table['shotid'] == shotid) * (bad_amps_table['multiframe'] == mf)
+
+    return bad_amps_table['flag'][sel][0]
