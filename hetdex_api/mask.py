@@ -130,7 +130,11 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=5*u.arcsec):
     shotid
         shotid to search. If none it will search all shots at once. If
         any are flagged bad then it will return False for all.
-
+    streaksize
+        an astropy quantity object defining how far off the
+        perpendicular line of the meteor streak to mask out. Default
+        is 5*u.arcsec
+    
     Returns
     -------
     bool
