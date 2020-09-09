@@ -119,7 +119,7 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
     return bad_amps_table['flag'][sel][0]
 
     
-def meteor_flag_from_coords(coords, shotid=None, streaksize=5*u.arcsec):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
     """
     Returns a boolean flag value to mask out meteors
 
@@ -133,7 +133,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=5*u.arcsec):
     streaksize
         an astropy quantity object defining how far off the
         perpendicular line of the meteor streak to mask out. Default
-        is 5*u.arcsec
+        is 8*u.arcsec
     
     Returns
     -------
@@ -157,9 +157,9 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=5*u.arcsec):
         b = met_tab['b'][sel_shot]
 
         ra_met = coords.ra + np.arange(-90,90)*u.arcsec
-        dec_met = a + ra_met.deg*b
+        dec_met = (a + ra_met.deg*b ) * u.deg
         
-        met_coords = SkyCoord(ra=coords.ra, dec=dec_met*u.deg)
+        met_coords = SkyCoord(ra=ra_met, dec=dec_met)
 
         meteor_match = coords.separation(met_coords) < streaksize
 
