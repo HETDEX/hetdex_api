@@ -119,7 +119,7 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
     return bad_amps_table['flag'][sel][0]
 
     
-def meteor_flag_from_coords(coords, shotid=None):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=5*u.arcsec):
     """
     Returns a boolean flag value to mask out meteors
 
@@ -157,7 +157,7 @@ def meteor_flag_from_coords(coords, shotid=None):
         
         met_coords = SkyCoord(ra=coords.ra, dec=dec_met*u.deg)
 
-        meteor_match = coords.separation(met_coords) < 3.*u.arcsec
+        meteor_match = coords.separation(met_coords) < streaksize
 
         if np.any(meteor_match):
             flag = False
