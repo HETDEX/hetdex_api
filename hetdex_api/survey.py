@@ -368,9 +368,92 @@ class FiberIndex:
 
         return seltab[idx]
 
+        
     def get_fib_from_hp(self, hp, astropy=True):
 
         if astropy:
             return Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
         else:
             return self.hdfile.root.FiberIndex.read_where("healpix == hp")
+
+            
+    def get_closest_fiber_index(self, coords, shotid=None, maxdistance=8.*u.arcsec):
+        """
+        Function to retrieve the closest fiberid in a shot
+        
+        Parameters
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        coords
+            center coordinate you want to search. This should
+            be an astropy SkyCoord object
+        shotid
+            Specific shotid (dtype=int) you want
+        maxdistance
+            The max distance you want to search for a nearby fiber.
+            Default is 8.*u.arcsec 
+        
+        Returns
+        -------
+        idx
+           row index of the closest fiber in the shot
+        """
+
+        Nside = 2 ** 15
+        
+        ra_obj = coords.ra.deg
+        dec_obj = coords.dec.deg
+        
+        ra_sep = maxdistance.to(u.degree).value + 3.0 / 3600.0
+        
+        vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
+        
+        pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
+        
+        seltab = Table()
+        for hpix in pix_region:
+            h_tab = self.get_fib_from_hp(hpix)
+            seltab = vstack([seltab, h_tab])
+            
+        if shotid:
+            seltab_shot = seltab[seltab["shotid"] == shotid]
+
+            fibcoords = SkyCoord(
+                seltab_shot["ra"] * u.degree, seltab_shot["dec"] * u.degree, frame="icrs"
+            )
+        else:
+            fibcoords = SkyCoord(
+                seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
+            )
+            
+        idx = np.argmin(coords.separation(fibcoords)) 
+                    
+        return idx
+
+    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
+        """
+        Function to retrieve the closest fiberid in a shot
+        
+        Parameters
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        coords
+            center coordinate you want to search. This should
+            be an astropy SkyCoord object
+        shotid
+            Specific shotid (dtype=int) you want
+        maxdistance
+            The max distance you want to search for a nearby fiber.
+            Default is 8.*u.arcsec
+
+        Returns
+        -------
+        idx
+            row index of the closest fiber in the shot
+        """
+
+        idx = get_closest_fiber_index(self, coords, shotid=None, maxdistance=8.*u.arcsec)
+
+        return fiberid
