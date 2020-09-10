@@ -719,6 +719,26 @@ class Detections:
 
         return np.invert(mask)
 
+    def remove_meteors(self):
+        """
+        Returns boolean mask with detections landing on meteor
+        streaks masked. Use np.invert(mask) to find meteors
+        """
+        
+        global config
+
+        met_tab = Table.read(config.meteor, format='ascii')
+
+        mask = np.ones_like(self.detectid, dtype=bool)
+        
+        for row in met_tab:
+            sel_shot = np.where(self.shotid == row['shotid'])[0]
+            for idx in sel_shot:
+                coord = self.coords[idx]
+                mask[idx] = meteor_flag_from_coords(coord,
+                                                    row['shotid'])
+        return mask
+        
     def get_spectrum(self, detectid_i):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
