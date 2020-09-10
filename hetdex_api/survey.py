@@ -401,8 +401,16 @@ class FiberIndex:
         
         """
 
-        fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
+        #start searching at small radius to search more efficiently
+        search = 2.*u.arcsec
         
+        while search <= maxdistance:
+            fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
+            if np.size(fiber_table) > 0:
+                break
+            else:
+                search = search + 1.*u.arcsec
+
         if np.size(fiber_table) > 0:
             fibcoords = SkyCoord(
                 fiber_table["ra"] * u.degree, fiber_table["dec"] * u.degree, frame="icrs"
