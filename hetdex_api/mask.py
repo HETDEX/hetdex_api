@@ -65,6 +65,7 @@ def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, s
     
     """
 
+    
     fiber_table = FibIndex.query_region(coords,
                                         radius=radius,
                                         shotid=shotid)
@@ -117,6 +118,49 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
     sel = (bad_amps_table['shotid'] == shotid) * (bad_amps_table['multiframe'] == mf)
 
     return bad_amps_table['flag'][sel][0]
+
+
+def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
+                                shotid=None,
+                                maxdistance=8.*u.arcsec):
+    """
+    Function to retrieve the amp flag for the closest fiberid in a shot
+    
+    Parameters
+    ----------
+    self
+        the FiberIndex class for a specific survey
+    coords
+        coordinate you want to search for the closest fiber.
+        This should be an astropy SkyCoord object
+    FibIndex
+        a hetdex_api.survey FiberIndex class object
+    bad_amps_table
+        astropy table containing the bad amp flag values. This can
+        be retrieved from config.badamp   
+    shotid
+        Specific shotid (dtype=int) you want
+    maxdistance
+        The max distance you want to search for a nearby fiber.
+        Default is 8.*u.arcsec
+    
+    Returns
+    -------
+    bool
+        None if no matching fiber is found to the coords
+        True if amp is usable
+        False if any fiber in the defined region is flagged in a bad amp
+
+    """           
+
+    fiberid = FibIndex.get_closest_fiberid(coords, shotid=shotid,
+                                           maxdistance=maxdistance)
+    flag = amp_flag_from_fiberid(fiberid, bad_amps_table)
+
+    if len(flag):
+        return flag
+    else:
+        return None
 
     
 def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
