@@ -157,10 +157,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
                                            maxdistance=maxdistance)
     flag = amp_flag_from_fiberid(fiberid, bad_amps_table)
 
-    if len(flag):
-        return flag
-    else:
-        return None
+    return None
 
     
 def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
