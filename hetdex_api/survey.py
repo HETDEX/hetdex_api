@@ -455,6 +455,6 @@ class FiberIndex:
         """
 
         idx = get_closest_fiber_index(self, coords, shotid=None, maxdistance=8.*u.arcsec)
-        fiberid = FibIndex.hdfile.root.FiberIndex.cols.fiber_id[idx].astype(str)
+        fiberid = self.hdfile.root.FiberIndex.cols.fiber_id[idx].astype(str)
 
         return fiberid
