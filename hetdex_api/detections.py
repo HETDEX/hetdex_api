@@ -328,8 +328,9 @@ class Detections:
             mask3 = self.remove_bright_stuff(gmagcut)
             mask4 = self.remove_bad_pix()
             mask5 = self.remove_shots()
+            mask6 = self.remove_meteors()
             
-            mask = mask1 * mask2 * mask3 * mask4 * mask5
+            mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
             
         return self[mask]
 
