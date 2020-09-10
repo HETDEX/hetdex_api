@@ -414,4 +414,9 @@ class FiberIndex:
             return fiber_table['fiber_id'][idx]
         else:
             return None
-            
+
+    def close(self):
+        """
+        Close the hdfile when done
+        """
+        self.hdfile.close()
