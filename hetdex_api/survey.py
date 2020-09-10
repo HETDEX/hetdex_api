@@ -427,8 +427,8 @@ class FiberIndex:
                 seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
             )
             
-        idx = np.argmin(coords.separation(fibcoords)) 
-                    
+        idx = np.argmin(coords.separation(fibcoords))
+        
         return idx
 
     def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
@@ -455,5 +455,6 @@ class FiberIndex:
         """
 
         idx = get_closest_fiber_index(self, coords, shotid=None, maxdistance=8.*u.arcsec)
+        fiberid = FibIndex.hdfile.root.FiberIndex.cols.fiber_id[idx].astype(str)
 
         return fiberid
