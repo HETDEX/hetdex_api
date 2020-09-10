@@ -107,3 +107,4 @@ class HDRconfig:
             #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
             self.baddetectmask = op.join(self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p")
             self.flim_avg = op.join(self.hdr_dir[survey], "survey", "flux_limits_all.txt")
+            self.meteor = op.join(self.bad_dir, "meteor.txt")
