@@ -193,7 +193,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
     met_tab = Table.read('/work/05350/ecooper/wrangler/mask/meteor.list', format='ascii')
     sel_shot = met_tab['shotid'] == shotid
 
-    if np.size(sel_shot) > 0:
+    if np.sum(sel_shot) > 0:
         a = met_tab['a'][sel_shot]
         b = met_tab['b'][sel_shot]
 
