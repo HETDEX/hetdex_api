@@ -416,7 +416,7 @@ class FiberIndex:
             h_tab = self.get_fib_from_hp(hpix)
             seltab = vstack([seltab, h_tab])
             
-        if shotid:
+        if shotid is not None:
             seltab_shot = seltab[seltab["shotid"] == shotid]
 
             fibcoords = SkyCoord(
