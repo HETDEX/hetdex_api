@@ -33,7 +33,7 @@ import speclite.filters
 
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
-
+from hetdex_api.mask import *
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
