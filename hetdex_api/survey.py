@@ -409,7 +409,7 @@ class FiberIndex:
             if np.size(fiber_table) > 0:
                 break
             else:
-                search = search + 1.*u.arcsec
+                search = search + 2.*u.arcsec
 
         if np.size(fiber_table) > 0:
             fibcoords = SkyCoord(
