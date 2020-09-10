@@ -405,7 +405,7 @@ class FiberIndex:
         search = 2.*u.arcsec
         
         while search <= maxdistance:
-            fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
+            fiber_table = self.query_region(coords, radius=search, shotid=shotid)
             if np.size(fiber_table) > 0:
                 break
             else:
