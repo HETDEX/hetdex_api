@@ -401,37 +401,14 @@ class FiberIndex:
         
         """
 
-        Nside = 2 ** 15
+        fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
         
-        ra_obj = coords.ra.deg
-        dec_obj = coords.dec.deg
-        
-        ra_sep = maxdistance.to(u.degree).value + 3.0 / 3600.0
-        
-        vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
-        
-        pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
-        
-        seltab = Table()
-        for hpix in pix_region:
-            h_tab = self.get_fib_from_hp(hpix)
-            seltab = vstack([seltab, h_tab])
-            
-        if shotid is not None:
-            seltab_shot = seltab[seltab["shotid"] == shotid]
 
-            fibcoords = SkyCoord(
-                seltab_shot["ra"] * u.degree, seltab_shot["dec"] * u.degree, frame="icrs"
+        fibcoords = SkyCoord(
+                fiber_table["ra"] * u.degree, fiber_table["dec"] * u.degree, frame="icrs"
             )
-            fiberid = seltab_shot['fiber_id'].astype(str)
-            
-        else:
-            fibcoords = SkyCoord(
-                seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
-            )
-            fiberid = seltab['fiber_id'].astype(str)
             
         idx = np.argmin(coords.separation(fibcoords))
         
-        return fiberid[idx]
+        return fiber_table['fiber_id'][idx]
 
