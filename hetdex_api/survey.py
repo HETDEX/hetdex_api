@@ -377,7 +377,7 @@ class FiberIndex:
             return self.hdfile.root.FiberIndex.read_where("healpix == hp")
 
             
-    def get_closest_fiber_index(self, coords, shotid=None, maxdistance=8.*u.arcsec):
+    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
         """
         Function to retrieve the closest fiberid in a shot
         
@@ -396,8 +396,9 @@ class FiberIndex:
         
         Returns
         -------
-        idx
-           row index of the closest fiber in the shot
+        fiberid
+            unique fiber identifier for the shot
+        
         """
 
         Nside = 2 ** 15
@@ -422,39 +423,15 @@ class FiberIndex:
             fibcoords = SkyCoord(
                 seltab_shot["ra"] * u.degree, seltab_shot["dec"] * u.degree, frame="icrs"
             )
+            fiberid = seltab_shot['fiber_id'].astype(str)
+            
         else:
             fibcoords = SkyCoord(
                 seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
             )
+            fiberid = seltab['fiber_id'].astype(str)
             
         idx = np.argmin(coords.separation(fibcoords))
         
-        return idx
+        return fiberid[idx]
 
-    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
-        """
-        Function to retrieve the closest fiberid in a shot
-        
-        Parameters
-        ----------
-        self
-            the FiberIndex class for a specific survey
-        coords
-            center coordinate you want to search. This should
-            be an astropy SkyCoord object
-        shotid
-            Specific shotid (dtype=int) you want
-        maxdistance
-            The max distance you want to search for a nearby fiber.
-            Default is 8.*u.arcsec
-
-        Returns
-        -------
-        idx
-            row index of the closest fiber in the shot
-        """
-
-        idx = self.get_closest_fiber_index( coords, shotid=shotid, maxdistance=maxdistance)
-        fiberid = self.hdfile.root.FiberIndex.cols.fiber_id[idx].astype(str)
-
-        return fiberid
