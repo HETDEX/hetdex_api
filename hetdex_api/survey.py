@@ -403,12 +403,15 @@ class FiberIndex:
 
         fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
         
-
-        fibcoords = SkyCoord(
+        if np.size(fiber_table) > 0:
+            fibcoords = SkyCoord(
                 fiber_table["ra"] * u.degree, fiber_table["dec"] * u.degree, frame="icrs"
             )
             
-        idx = np.argmin(coords.separation(fibcoords))
+            idx = np.argmin(coords.separation(fibcoords))
+            fiberid = fiber_table['fiber_id'][idx]
         
-        return fiber_table['fiber_id'][idx]
-
+            return fiber_table['fiber_id'][idx]
+        else:
+            return None
+            
