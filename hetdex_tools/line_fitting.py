@@ -192,6 +192,8 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
     lfdata_fit = []
     lfmodel_fit = []
     lfdata_err_fit = []
+    g_fit_array = []
+    cont_fit = []
     
     for row in sources:
         spec = row['spec']
@@ -222,6 +224,7 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
             lfdata_fit.append(line_flux_data.value)
             lfmodel_fit.append(line_flux_model.value)
             lfdata_err_fit.append(line_flux_data_err)
+            cont_fit.append(cont.value)
         except:
 
             detectid.append(row['ID'])
@@ -234,6 +237,7 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
             lfdata_fit.append(np.nan)
             lfmodel_fit.append(np.nan)
             lfdata_err_fit.append(np.nan)
+            cont_fit.append(np.nan)
 
         output=Table()
         output.add_column(Column(detectid), name='ID')
@@ -246,27 +250,67 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
         output.add_column(Column(lfdata_fit), name='line_flux_data')
         output.add_column(Column(lfmodel_fit), name='line_flux_model')
         output.add_column(Column(lfdata_err_fit), name='line_flux_data_err')
+        output.add_column(Column(cont_fit), name='cont_fit')
         
         output_tab = join(input_table, output, keys=['ID'])
 
     return output_tab
 
-def plot_line():
-    plt.figure()
-    wave = (2.0 * np.arange(1036) + 3470.)
-    sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
-    plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
-    x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
-    plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
-    plt.plot(x, cont(x),'b-', label='cont')
+def plot_line(objid, sources, output_tab, shotid=None, save=False):
+    """
+    Function to plot up objid from a fit
+    Parameters
+    ----------
+    objid
+       str object name to match in the 'ID' column
+    sources
+       astropy table with spectra. Produced by get_spectra
+    output_tab
+       an astropy table with output produced from make_line_catalog
+    shotid
+       optional shotid to plot. If there are two matches, two plots
+       will be produced
+    save
+       boolean flag to save line fit to a png
+    Returns
+    -------
+    a matplotlib figure
+    """
+
+    sel_obj = output_tab['ID'] == objid
+
     
-    plt.xlabel('Spectral Axis ({})'.format(u.AA))
-    plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
-    plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
-    plt.legend()
-    
-    if not op.exist('line_fits'):
-        os.makedirs('line_fits')
+    for row in output_tab[sel_obj]:
+        plt.figure()
+        wave_obj = row['wave']
+        shotid = row['shotid']
+
+        sel_spec = (sources['ID'] == objid) * (sources['shotid'] == shotid)
+        spec = sources['spec'][sel_spec]
+        spec_err = sources['spec'][sel_spec]
+
+        line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
+            spec*sources['spec'].unit,
+            spec_err*sources['spec_err'].unit,
+            wave_obj*u.AA)
+
+        wave = (2.0 * np.arange(1036) + 3470.)
+        sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
+        plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
+        x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
+                
+        plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
+        plt.plot(x, cont(x),'b-', label='cont')
         
-    plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
-    plt.close()
+        plt.xlabel('Spectral Axis ({})'.format(u.AA))
+        plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
+        plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
+        plt.legend()
+        
+        if not op.exist('line_fits'):
+            os.makedirs('line_fits')
+            
+        if save:
+            plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
+
+        plt.close()
