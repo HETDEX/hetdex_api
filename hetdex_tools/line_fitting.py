@@ -222,28 +222,8 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
             lfdata_fit.append(line_flux_data.value)
             lfmodel_fit.append(line_flux_model.value)
             lfdata_err_fit.append(line_flux_data_err)
-
-
-            plt.figure()
-            wave = (2.0 * np.arange(1036) + 3470.)
-            sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
-            plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
-            x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
-            plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
-            plt.plot(x, cont(x),'b-', label='cont')
-            
-            plt.xlabel('Spectral Axis ({})'.format(u.AA))
-            plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
-            plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
-            plt.legend()
-
-            if not op.exist('line_fits'):
-                os.makedirs('line_fits')
-                
-            plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
-            plt.close()
-            
         except:
+
             detectid.append(row['ID'])
             shotid.append(row['shotid'])
             chi2_fit.append(np.nan)
@@ -267,6 +247,26 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
         output.add_column(Column(lfmodel_fit), name='line_flux_model')
         output.add_column(Column(lfdata_err_fit), name='line_flux_data_err')
         
-        output_tab = join(output, input_table, keys=['ID'])
+        output_tab = join(input_table, output, keys=['ID'])
 
     return output_tab
+
+def plot_line():
+    plt.figure()
+    wave = (2.0 * np.arange(1036) + 3470.)
+    sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
+    plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
+    x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
+    plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
+    plt.plot(x, cont(x),'b-', label='cont')
+    
+    plt.xlabel('Spectral Axis ({})'.format(u.AA))
+    plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
+    plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
+    plt.legend()
+    
+    if not op.exist('line_fits'):
+        os.makedirs('line_fits')
+        
+    plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
+    plt.close()
