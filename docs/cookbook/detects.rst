@@ -1,12 +1,11 @@
-Detections Database
-===================
+Detections Database and API
+===========================
 
    This notebook demonstrates how to access the HDF5 container for the
-   HETDEX line detections database through the API. Querying of the
-   database through an interactive GUI follows in Notebook 11 - Querying
-   Detections GUI. This database is a catalog of line emission
-   detections and their associated 1D, aperture summed, psf-weighted
-   spectra. There are three tables contained within this HDF5 file:
+   HETDEX line detections database. This database is a catalog of line
+   emission detections and their associated 1D, aperture summed,
+   psf-weighted spectra. There are three tables contained within this
+   HDF5 file:
 
    #. Detections - this is the main database of line detection sources.
       It provides the position and central wavelength of each detection
@@ -28,32 +27,134 @@ Detections Database
       corresponding errors. Non-calibrated spectra is also provided in
       counts
 
+   #. Elixer - a direct row matching of Elixer classification info for
+      each row in the Detections table. The hetdex gmag value is also
+      found in this table. For full Elixer data including catalog and
+      aperture P(LAE)/P(OII) values please see the detects/elixer.h5
+      file for a specific release. These are the ones currently
+      accessible in the API and the curated catalogs:
+
+      "plae_sdss_g" = P(LAE)/P(OII) from g-mag with HETDEX 1 D spectrum
+      limits in plae_sdss_g_max/min
+
+      "combined_plae" = ELiXer weighted combination of the multiple
+      PLAE/POII with error in combine_plae_err
+
+      "plae_classification" = ELiXer probability that the line is LyA
+      (0.0 - 1.0) [WARNING! Very experimental!!]
+
 .. container:: cell code
 
    .. code:: python
 
       %matplotlib inline
-      import sys
-      import os
-      import os.path
-      import subprocess
+
       import numpy as np
       import tables as tb
       import matplotlib.pyplot as plt
 
-      from astropy.io import ascii
-      from astropy.table import Table, Column
+      from astropy.table import Table, Column, join
       from astropy.coordinates import SkyCoord
       import astropy.units as u
 
-      from hetdex_api import config
+      from hetdex_api.config import HDRconfig
       from hetdex_api.detections import Detections
-      from hetdex_api.elixer_widgets import *
+      from hetdex_api.elixer_widget_cls import ElixerWidget
+
+.. container:: cell code
+
+   .. code:: python
+
+      %%javascript
+      IPython.OutputArea.prototype._should_scroll = function(lines) {
+          return false;
+      }
+
+   .. container:: output display_data
+
+      ::
+
+         <IPython.core.display.Javascript object>
 
 .. container:: cell markdown
 
-   .. rubric:: Initiate the API
-      :name: initiate-the-api
+   .. rubric:: Use the latest curated catalog:
+      :name: use-the-latest-curated-catalog
+
+.. container:: cell code
+
+   .. code:: python
+
+      detects = Detections( curated_version='2.1.1')
+
+.. container:: cell code
+
+   .. code:: python
+
+      # this is a suggested query to find LAEs:
+      sel_lae = (detects.sn > 5.5) * (detects.combined_plae > 2.0) * (detects.plae_classification > 0.5)
+
+.. container:: cell code
+
+   .. code:: python
+
+      #spectra can be accessed using get_spectrum()
+
+      spec = detects.get_spectrum(2100191119)
+
+.. container:: cell code
+
+   .. code:: python
+
+      spec
+
+   .. container:: output execute_result
+
+      ::
+
+         <Table length=1036>
+          wave1d             spec1d                     spec1d_err         
+         Angstrom 1e-17 erg / (Angstrom cm2 s) 1e-17 erg / (Angstrom cm2 s)
+         float32            float32                      float32           
+         -------- ---------------------------- ----------------------------
+           3470.0                 -0.016949153                         9.75
+           3472.0                 -0.016949153                         9.75
+           3474.0                 -0.016949153                         9.75
+           3476.0                 -0.016949153                         9.75
+           3478.0                 -0.016949153                         9.75
+           3480.0                 -0.016949153                         9.75
+           3482.0                 -0.016949153                         9.75
+           3484.0                        0.875                     9.254767
+           3486.0                    0.5010593                     9.188029
+              ...                          ...                          ...
+           5522.0                  -0.05632306                     1.176408
+           5524.0                  -0.05632306                     1.176408
+           5526.0                  -0.05632306                     1.176408
+           5528.0                  -0.05632306                     1.176408
+           5530.0                  -0.05632306                     1.176408
+           5532.0                  -0.05632306                     1.176408
+           5534.0                  -0.05632306                     1.176408
+           5536.0                  -0.05632306                     1.176408
+           5538.0                  -0.05632306                     1.176408
+           5540.0                  -0.05632306                     1.176408
+
+.. container:: cell markdown
+
+   .. rubric:: Explore Using ElixerWidget:
+      :name: explore-using-elixerwidget
+
+.. container:: cell code
+
+   .. code:: python
+
+      elix_widget = ElixerWidget(detectlist = detects.detectid[sel_lae])
+
+.. image:: images/elix_widget.png
+
+.. container:: cell markdown
+
+   .. rubric:: Initiate the API and Access the full database
+      :name: initiate-the-api-and-access-the-full-database
 
 .. container:: cell markdown
 
@@ -75,10 +176,70 @@ Detections Database
 
    .. code:: python
 
-      detects = Detections('hdr1').refine()
-      # detects = Detections('hdr1').refine(gmagcut=22)
-      ## or if you want to open the continuum source catalog:
-      ## detects = Detections('cont_sources')
+      # To access the latest HDRX.X lines database (ie. the full H5 file):
+
+      detects = Detections()
+
+      # to remove the latest bad amps and pixels (this isn't needed if you are using a curated catalog)
+
+      # detects = Detections(survey='hdr2.1', catalog_type='lines').refine()
+
+      # or if you want to open the continuum source catalog:
+      # detects = Detections(survey='hdr2.1', catalog_type='continuum')
+
+.. container:: cell markdown
+
+   .. rubric:: Note if you do not want to load the whole table, but just
+      access spectra for a specific detectid:
+      :name: note-if-you-do-not-want-to-load-the-whole-table-but-just-access-spectra-for-a-specific-detectid
+
+.. container:: cell code
+
+   .. code:: python
+
+      det_object = Detections('hdr2.1', loadtable=False)
+
+.. container:: cell code
+
+   .. code:: python
+
+      spec = det_object.get_spectrum(2100191119)
+
+.. container:: cell code
+
+   .. code:: python
+
+      spec
+
+   .. container:: output execute_result
+
+      ::
+
+         <Table length=1036>
+          wave1d             spec1d                     spec1d_err         
+         Angstrom 1e-17 erg / (Angstrom cm2 s) 1e-17 erg / (Angstrom cm2 s)
+         float32            float32                      float32           
+         -------- ---------------------------- ----------------------------
+           3470.0                 -0.016949153                         9.75
+           3472.0                 -0.016949153                         9.75
+           3474.0                 -0.016949153                         9.75
+           3476.0                 -0.016949153                         9.75
+           3478.0                 -0.016949153                         9.75
+           3480.0                 -0.016949153                         9.75
+           3482.0                 -0.016949153                         9.75
+           3484.0                        0.875                     9.254767
+           3486.0                    0.5010593                     9.188029
+              ...                          ...                          ...
+           5522.0                  -0.05632306                     1.176408
+           5524.0                  -0.05632306                     1.176408
+           5526.0                  -0.05632306                     1.176408
+           5528.0                  -0.05632306                     1.176408
+           5530.0                  -0.05632306                     1.176408
+           5532.0                  -0.05632306                     1.176408
+           5534.0                  -0.05632306                     1.176408
+           5536.0                  -0.05632306                     1.176408
+           5538.0                  -0.05632306                     1.176408
+           5540.0                  -0.05632306                     1.176408
 
 .. container:: cell markdown
 
@@ -94,23 +255,80 @@ Detections Database
 
       ::
 
-         dict_keys(['survey', 'filename', 'hdfile', 'detectid', 'detectname', 'inputid', 'date', 'obsid', 'ra', 'dec', 'wave', 'wave_err', 'flux', 'flux_err', 'linewidth', 'linewidth_err', 'continuum', 'continuum_err', 'sn', 'sn_err', 'chi2', 'chi2_err', 'multiframe', 'fibnum', 'x_raw', 'y_raw', 'amp', 'ifuid', 'ifuslot', 'shotid', 'specid', 'coords', 'hdfile_elix', 'detectid_elix', 'plae_poii_hetdex', 'aperture_mag', 'plae_poii_aperture', 'aperture_filter', 'mag_match', 'cat_filter', 'plae_poii_cat', 'dec_match', 'dist_match', 'ra_match', 'z_prelim', 'field', 'fwhm', 'fluxlimit_4550', 'throughput', 'n_ifu', 'vis_class', 'gmag', 'plae_poii_hetdex_gmag'])
+         dict_keys(['version', 'survey', 'loadtable', 'filename', 'hdfile', 'detectid', 'shotid', 'ra', 'dec', 'date', 'obsid', 'wave', 'wave_err', 'flux', 'flux_err', 'linewidth', 'linewidth_err', 'continuum', 'continuum_err', 'sn', 'sn_err', 'chi2', 'chi2_err', 'multiframe', 'fibnum', 'x_raw', 'y_raw', 'amp', 'chi2fib', 'detectname', 'expnum', 'fiber_id', 'ifuid', 'ifuslot', 'inputid', 'noise_ratio', 'specid', 'weight', 'x_ifu', 'y_ifu', 'combined_continuum', 'combined_continuum_err', 'combined_plae', 'combined_plae_err', 'mag_sdss_g', 'mag_sdss_g_err', 'plae_classification', 'plae_sdss_g', 'plae_sdss_g_max', 'plae_sdss_g_min', 'gmag', 'gmag_err', 'field', 'fwhm', 'fluxlimit_4540', 'throughput', 'n_ifu', 'vis_class', 'coords'])
 
 .. container:: cell markdown
 
-   Most of these columns come directly from the Detections table in the
-   detect_hdr1.h5 file. You can find information for each column in the
-   HETDEX DR1 Document
-   (/work/03946/hetdex/hdr1/doc/Hetdex_Data_Release_1.pdf). Some values
-   including field (survey.field), fwhm (guider
-   seeing/survey.fwhm_moffat), throughput (survey.response_4540),
-   flux_limit (survey.fluxlimit_4550), n_ifu (survey.n_ifu) are copied
-   in from the Survey HDF5 file for additional analysis. We also attach
-   probabilities for a source to be an LAE compared to an OII emitter
-   (plae_poii) calculated by ELiXer using the VIRUS continuum
-   ('plae_poii_hetdex'), a matched catalog magnitude ('plae_poii_cat'),
-   or from a magnitude measured from associated optical imaging
-   ('plae_poii_aperture').
+   If you prefer working in astropy tables, you can grab it this way:
+
+.. container:: cell code
+
+   .. code:: python
+
+      detect_table = detects.return_astropy_table()
+
+.. container:: cell code
+
+   .. code:: python
+
+      detect_table
+
+   .. container:: output execute_result
+
+      ::
+
+         <Table length=1482880>
+          detectid         fwhm        ... plae_sdss_g_max plae_sdss_g_min
+           int64         float64       ...     float32         float32    
+         ---------- ------------------ ... --------------- ---------------
+         2100000000 2.3224666118621826 ...          1000.0          1000.0
+         2100000001 2.3224666118621826 ...          1000.0          1000.0
+         2100000003 2.3224666118621826 ...          1000.0          1000.0
+         2100000004 2.3224666118621826 ...          1000.0          1000.0
+         2100000009 2.3224666118621826 ...          1000.0          1000.0
+         2100000011 2.3224666118621826 ...           0.001           0.001
+         2100000014 2.3224666118621826 ...           0.001           0.001
+         2100000015 2.3224666118621826 ...           0.001           0.001
+         2100000018 2.3224666118621826 ...           0.001           0.001
+         2100000019 2.3224666118621826 ...    0.0010718828           0.001
+                ...                ... ...             ...             ...
+         2102591412 1.2000000476837158 ...     0.028081242     0.020003833
+         2102591413 1.2000000476837158 ...       0.9141632       0.6729304
+         2102591414 1.2000000476837158 ...          1000.0          1000.0
+         2102591415 1.2000000476837158 ...          1000.0          1000.0
+         2102591416 1.2000000476837158 ...          1000.0          1000.0
+         2102591417 1.2000000476837158 ...          1000.0          1000.0
+         2102591418 1.2000000476837158 ...          1000.0          1000.0
+         2102591420 1.2000000476837158 ...          1000.0          1000.0
+         2102591421 1.2000000476837158 ...          1000.0          1000.0
+         2102591422 1.2000000476837158 ...        891.0008        73.63269
+
+.. container:: cell markdown
+
+   .. rubric:: How we made the subset catalog for the team:
+      :name: how-we-made-the-subset-catalog-for-the-team
+
+.. container:: cell code
+
+   .. code:: python
+
+      sel_field = (detects.field == 'cosmos') | (detects.field == 'dex-fall') | (detects.field == 'dex-spring') | (detects.field == 'egs') | (detects.field == 'goods-n')
+      sel_chi2 = detects.chi2 < 1.2
+      sel_wave = ( detects.wave >= 3510 ) * (detects.wave <= 5490)
+      sel_lw = (detects.linewidth <= 6)
+      sel_cont = detects.continuum > -3
+      sel_sn = detects.sn >= 4.8
+      sel_chi2fib = (detects.chi2fib < 4.5)
+
+      sel_cat = sel_field * sel_chi2 * sel_wave * sel_lw * sel_cont * sel_sn * sel_chi2fib
+
+      det_table = detects.return_astropy_table()
+
+.. container:: cell code
+
+   .. code:: python
+
+      team_table = detect_table[sel_cat]
 
 .. container:: cell markdown
 
@@ -134,9 +352,9 @@ Detections Database
       ::
 
          <SkyCoord (ICRS): (ra, dec) in deg
-             [(149.77184,  1.948503), (149.78958,  1.900873),
-              (149.84552,  1.935277), ..., (189.64575, 50.83938 ),
-              (170.32608, 51.549652), (170.32336, 51.58739 )]>
+             [(149.79932 , 1.986114), (149.80261 , 1.991804),
+              (149.80013 , 1.987484), ..., ( 36.488354, 0.404577),
+              ( 36.49977 , 0.405466), ( 36.496384, 0.411001)]>
 
 .. container:: cell markdown
 
@@ -173,14 +391,75 @@ Detections Database
 
       ::
 
-         12
+         6
+
+.. container:: cell markdown
+
+   .. rubric:: Find a direct line match
+      :name: find-a-direct-line-match
+
+.. container:: cell markdown
+
+   If you want to find an exact line match you can use the function
+   ``find_match()``
+
+.. container:: cell code
+
+   .. code:: python
+
+      obj_coords = SkyCoord(199.35704 * u.deg, 51.06718 * u.deg, frame='icrs')
+
+.. container:: cell code
+
+   .. code:: python
+
+      wave_obj = 3836.
+
+.. container:: cell code
+
+   .. code:: python
+
+      idx = detects.find_match(obj_coords, wave=wave_obj, radius=5.*u.arcsec, dwave=5 )
+
+.. container:: cell code
+
+   .. code:: python
+
+      detects.detectid[idx]
+
+   .. container:: output execute_result
+
+      ::
+
+         array([2100191119])
+
+.. container:: cell code
+
+   .. code:: python
+
+      detect_table[idx]
+
+   .. container:: output execute_result
+
+      ::
+
+         <Table length=1>
+          detectid         fwhm        ... plae_sdss_g_max plae_sdss_g_min
+           int64         float64       ...     float32         float32    
+         ---------- ------------------ ... --------------- ---------------
+         2100191119 1.4780957698822021 ...          1000.0          1000.0
+
+.. container:: cell markdown
+
+   .. rubric:: Check out matched sources in the ElixerWidget
+      :name: check-out-matched-sources-in-the-elixerwidget
 
 .. container:: cell markdown
 
    For this example, we have found 12 detections in this region, we can
    examine these via the ELiXer reports using the ``ElixerWidget()``
-   class from ``elixer_widgets.py``. To do so we need to save the
-   detectid list to examine in the widget.
+   class from ``hetdex_api.elixer_widget_cls.py``. To do so we need to
+   save the detectid list to examine in the widget.
 
 .. container:: cell code
 
@@ -201,13 +480,10 @@ Detections Database
 
    .. code:: python
 
-      elix_widget = ElixerWidget(detectfile='detects_obj.txt')
+      elix_widget = ElixerWidget(detectlist = detects_in_region.detectid)
+      #elix_widget = ElixerWidget(detectfile='detects_obj.txt')
 
-   .. container:: output display_data
-
-      .. code:: json
-
-         {"model_id":"c8eb54e7d388405598f37edff94bfc2d","version_major":2,"version_minor":0}
+.. image:: images/elix_widget.png
 
 .. container:: cell markdown
 
@@ -238,13 +514,14 @@ Detections Database
 
       ::
 
-         /work/03946/hetdex/hdr1/detect/detect_hdr1.h5 (File) 'HDR1 Detections Database'
-         Last modif.: 'Mon Apr  1 12:39:46 2019'
+         /scratch/03946/hetdex/hdr2.1/detect/detect_hdr2.1.h5 (File) ''
+         Last modif.: 'Thu Aug 13 11:38:47 2020'
          Object Tree: 
-         / (RootGroup) 'HDR1 Detections Database'
-         /Detections (Table(690868,)) 'HETDEX Line Detection Catalog'
-         /Fibers (Table(9397618,)) 'Fiber info for each detection'
-         /Spectra (Table(690797,)) '1D Spectra for each Line Detection'
+         / (RootGroup) ''
+         /Detections (Table(1482880,)) 'HETDEX Line Detection Catalog'
+         /Elixer (Table(1482880,)) 'Elixer Info'
+         /Fibers (Table(28328155,)) 'Fiber info for each detection'
+         /Spectra (Table(1482880,)) '1D Spectra for each Line Detection'
 
 .. container:: cell code
 
@@ -267,15 +544,19 @@ Detections Database
 
       ::
 
-         /Spectra.cols (Cols), 8 columns
-           detectid (Column(690797,), int64)
-           wave1d (Column(690797, 1036), ('<f4', (1036,)))
-           spec1d (Column(690797, 1036), ('<f4', (1036,)))
-           spec1d_err (Column(690797, 1036), ('<f4', (1036,)))
-           counts1d (Column(690797, 1036), ('<f4', (1036,)))
-           counts1d_err (Column(690797, 1036), ('<f4', (1036,)))
-           apsum_counts (Column(690797, 1036), ('<f4', (1036,)))
-           apsum_counts_err (Column(690797, 1036), ('<f4', (1036,)))
+         /Spectra.cols (Cols), 12 columns
+           detectid (Column(1482880,), int64)
+           wave1d (Column(1482880, 1036), ('<f4', (1036,)))
+           spec1d (Column(1482880, 1036), ('<f4', (1036,)))
+           spec1d_err (Column(1482880, 1036), ('<f4', (1036,)))
+           counts1d (Column(1482880, 1036), ('<f4', (1036,)))
+           counts1d_err (Column(1482880, 1036), ('<f4', (1036,)))
+           apsum_counts (Column(1482880, 1036), ('<f4', (1036,)))
+           apsum_counts_err (Column(1482880, 1036), ('<f4', (1036,)))
+           apcor (Column(1482880, 1036), ('<f4', (1036,)))
+           flag_pix (Column(1482880, 1036), ('<f4', (1036,)))
+           spec1d_nc (Column(1482880, 1036), ('<f4', (1036,)))
+           spec1d_nc_err (Column(1482880, 1036), ('<f4', (1036,)))
 
 .. container:: cell markdown
 
@@ -286,7 +567,7 @@ Detections Database
 
    .. code:: python
 
-      detectid_nice_lae = 1000208773
+      detectid_nice_lae = 2100744791
       spec_table = detects.get_spectrum(detectid_nice_lae) 
 
 .. container:: cell code
@@ -330,102 +611,6 @@ Detections Database
 
 .. container:: cell markdown
 
-   .. rubric:: Example: Finding average number of sources per IFU
-      :name: example-finding-average-number-of-sources-per-ifu
-
-.. container:: cell markdown
-
-   To reach our survey goal we need to obtain a critical number of
-   detections per IFU on average. Here we show how the number of
-   detections based on the signal-to-noise requirement.
-
-.. container:: cell code
-
-   .. code:: python
-
-      ndets_ifu = []
-
-      sn_array = np.arange(start = 5, stop = 10, step = 1)
-
-      # only choose detections that lied on good shots
-
-      for sn_i in sn_array:
-          sel = (detects.sn > sn_i) * (detects.n_ifu > 0) * (detects.chi2 < 3) * (detects.chi2 >0.1)
-          detifu = 1./(detects.n_ifu[sel])
-          ndets_ifu.append(np.sum(detifu)/np.size(np.unique(detects.shotid)))
-          
-      ndets_ifult2 = []
-
-      for sn_i in sn_array:
-          sel = (detects.sn > sn_i) * (detects.n_ifu > 0) * (detects.chi2 < 2) * (detects.chi2 >0.1)
-          detifu = 1./(detects.n_ifu[sel])
-          ndets_ifult2.append(np.sum(detifu)/np.size(np.unique(detects.shotid)))
-          
-      # only choose detections that lied on good shots
-      sel = (detects.throughput > 0.095) * (detects.fwhm < 2.5)
-      detects_good_shots = detects[sel]
-
-      ndets_ifu_gs =[]
-      for sn_i in sn_array:
-          sel = (detects_good_shots.sn > sn_i) * (detects_good_shots.n_ifu > 0) * (detects_good_shots.chi2 < 3) * (detects_good_shots.chi2 >0.1)
-          detifu = 1./(detects_good_shots.n_ifu[sel])
-          ndets_ifu_gs.append(np.sum(detifu)/np.size(np.unique(detects_good_shots.shotid)))
-          
-      ndets_ifu_gs_lt2 = []
-      for sn_i in sn_array:
-          sel = (detects_good_shots.sn > sn_i) * (detects_good_shots.n_ifu > 0) * (detects_good_shots.chi2 < 2) * (detects_good_shots.chi2 >0.1)
-          detifu = 1./(detects_good_shots.n_ifu[sel])
-          ndets_ifu_gs_lt2.append(np.sum(detifu)/np.size(np.unique(detects_good_shots.shotid)))
-          
-
-.. container:: cell code
-
-   .. code:: python
-
-      plt.rcParams.update({'font.size': 18})
-      plt.figure(figsize=(9,9))
-      plt.scatter(sn_array, ndets_ifu, label='Chi2 < 3')
-      plt.scatter(sn_array, ndets_ifu_gs, label='Chi2 < 3, tp > 0.095, fwhm < 2.5')
-      plt.scatter(sn_array, ndets_ifult2, label='Chi2 < 2')
-      plt.scatter(sn_array, ndets_ifu_gs_lt2, label='Chi2 < 2, tp > 0.095, fwhm < 2.5')
-      plt.xlabel('SN')
-      plt.ylabel('N detections per IFU')
-      plt.legend(fontsize='small')
-      plt.savefig('ndetsperifu_vs_sn.png')
-
-   .. container:: output display_data
-
-      |image2|
-
-.. container:: cell markdown
-
-   .. rubric:: Saving to a file
-      :name: saving-to-a-file
-
-.. container:: cell markdown
-
-   If you want to just save a subset of columns for a subset of
-   detections, use the ``return_astropy_table()`` function to return all
-   column attributes of the Detections class into an astropy table which
-   you may then save.
-
-.. container:: cell code
-
-   .. code:: python
-
-      detects = Detections('hdr1').refine(gmagcut=21)
-      sel = (detects.throughput > 0.09) * (detects.fwhm < 2.6) * (detects.chi2 < 1.6) * (detects.chi2 < 1.1+0.9*(detects.sn-5.2)/(8-5.2)) 
-      detects_sel = detects[sel]
-      table_sel = detects_sel.return_astropy_table()
-
-.. container:: cell code
-
-   .. code:: python
-
-      ascii.write(table_sel, 'HDR1_source_catalog_20190628.dat', overwrite=True)
-
-.. container:: cell markdown
-
    .. rubric:: Getting Fiber information for a detection
       :name: getting-fiber-information-for-a-detection
 
@@ -447,27 +632,30 @@ Detections Database
 
       ::
 
-         /Fibers.cols (Cols), 20 columns
-           detectid (Column(9397618,), int64)
-           ra (Column(9397618,), float32)
-           dec (Column(9397618,), float32)
-           multiframe (Column(9397618,), |S20)
-           fibnum (Column(9397618,), int32)
-           x_ifu (Column(9397618,), float32)
-           y_ifu (Column(9397618,), float32)
-           date (Column(9397618,), int32)
-           obsid (Column(9397618,), int32)
-           expnum (Column(9397618,), int32)
-           distance (Column(9397618,), float32)
-           timestamp (Column(9397618,), |S17)
-           wavein (Column(9397618,), float32)
-           flag (Column(9397618,), int32)
-           weight (Column(9397618,), float32)
-           ADC (Column(9397618, 5), ('<f4', (5,)))
-           amp (Column(9397618,), |S2)
-           ifuid (Column(9397618,), |S3)
-           ifuslot (Column(9397618,), |S3)
-           specid (Column(9397618,), |S3)
+         /Fibers.cols (Cols), 23 columns
+           detectid (Column(28328155,), int64)
+           ra (Column(28328155,), float32)
+           dec (Column(28328155,), float32)
+           multiframe (Column(28328155,), |S20)
+           fiber_id (Column(28328155,), |S38)
+           x_ifu (Column(28328155,), float32)
+           y_ifu (Column(28328155,), float32)
+           date (Column(28328155,), int32)
+           obsid (Column(28328155,), int32)
+           expnum (Column(28328155,), int32)
+           distance (Column(28328155,), float32)
+           timestamp (Column(28328155,), |S17)
+           wavein (Column(28328155,), float32)
+           flag (Column(28328155,), int32)
+           weight (Column(28328155,), float32)
+           ADC (Column(28328155, 5), ('<f4', (5,)))
+           amp (Column(28328155,), |S2)
+           fibnum (Column(28328155,), int32)
+           ifuid (Column(28328155,), |S3)
+           ifuslot (Column(28328155,), |S3)
+           specid (Column(28328155,), |S3)
+           x_raw (Column(28328155,), int32)
+           y_raw (Column(28328155,), int32)
 
 .. container:: cell markdown
 
@@ -489,26 +677,32 @@ Detections Database
 
       ::
 
-         <Table length=16>
-          detectid      ra       dec         multiframe      ... ifuid  ifuslot specid
-           int64     float32   float32        bytes20        ... bytes3  bytes3 bytes3
-         ---------- --------- --------- -------------------- ... ------ ------- ------
-         1000208773 199.35771 51.066715 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35664 51.066483 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35793 51.067413 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35686  51.06718 multi_025_076_032_RU ...    032     076    025
-         1000208773  199.3558 51.066948 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35707 51.067875 multi_025_076_032_RU ...    032     076    025
-         1000208773   199.356 51.067642 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35814 51.067024 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35707  51.06679 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35728 51.067486 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35622 51.067257 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35728  51.06641 multi_025_076_032_RU ...    032     076    025
-         1000208773  199.3575 51.067104 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35643  51.06687 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35771   51.0678 multi_025_076_032_RU ...    032     076    025
-         1000208773 199.35664 51.067566 multi_025_076_032_RU ...    032     076    025
+         <Table length=22>
+          detectid      ra       dec         multiframe      ... specid x_raw y_raw
+           int64     float32   float32        bytes20        ... bytes3 int32 int32
+         ---------- --------- --------- -------------------- ... ------ ----- -----
+         2100744791 211.52325  51.71597 multi_025_076_032_LU ...    025   415    40
+         2100744791 211.52484 51.714375 multi_025_076_032_LL ...    025   418   524
+         2100744791 211.52377 51.714127 multi_025_076_032_LL ...    025   418   533
+         2100744791 211.52502 51.715073 multi_025_076_032_LL ...    025   416   690
+         2100744791 211.52396 51.714825 multi_025_076_032_LL ...    025   416   707
+         2100744791 211.52289 51.714573 multi_025_076_032_LL ...    025   416   716
+         2100744791 211.52414 51.715523 multi_025_076_032_LL ...    025   415   872
+         2100744791 211.52307 51.715275 multi_025_076_032_LL ...    025   415   881
+         2100744791 211.52524 51.714676 multi_025_076_032_LL ...    025   418   524
+         2100744791 211.52417 51.714428 multi_025_076_032_LL ...    025   418   533
+         2100744791 211.52435 51.715126 multi_025_076_032_LL ...    025   416   707
+         2100744791 211.52328 51.714874 multi_025_076_032_LL ...    025   416   716
+         2100744791 211.52454 51.715824 multi_025_076_032_LL ...    025   415   872
+         2100744791 211.52347 51.715576 multi_025_076_032_LL ...    025   415   881
+         2100744791  211.5224 51.715324 multi_025_076_032_LL ...    025   415   890
+         2100744791 211.52388 51.715908 multi_025_076_032_LU ...    025   415    40
+         2100744791 211.52281 51.715656 multi_025_076_032_LU ...    025   415    49
+         2100744791 211.52458  51.71476 multi_025_076_032_LL ...    025   416   707
+         2100744791 211.52351  51.71451 multi_025_076_032_LL ...    025   416   716
+         2100744791 211.52477 51.715458 multi_025_076_032_LL ...    025   415   872
+         2100744791  211.5237  51.71521 multi_025_076_032_LL ...    025   415   881
+         2100744791 211.52263 51.714962 multi_025_076_032_LL ...    025   415   890
 
 .. container:: cell markdown
 
@@ -530,36 +724,97 @@ Detections Database
 
    .. code:: python
 
+      config = HDRconfig(survey='hdr2.1')
       file_elix = tb.open_file(config.elixerh5)
 
 .. container:: cell code
 
    .. code:: python
 
-      file_elix.root.Classifications
+      file_elix.root.Detections
 
    .. container:: output execute_result
 
       ::
 
-         /Classifications (Table(690868,)) ''
+         /Detections (Table(1567634,)) 'ELiXer Detection Summary Table'
            description := {
            "detectid": Int64Col(shape=(), dflt=0, pos=0),
-           "plae_poii_hetdex": Float32Col(shape=(), dflt=0.0, pos=1),
-           "aperture_mag": Float32Col(shape=(), dflt=0.0, pos=2),
-           "plae_poii_aperture": Float32Col(shape=(), dflt=0.0, pos=3),
-           "aperture_filter": StringCol(itemsize=15, shape=(), dflt=b'', pos=4),
-           "mag_match": Float32Col(shape=(), dflt=0.0, pos=5),
-           "cat_filter": StringCol(itemsize=15, shape=(), dflt=b'', pos=6),
-           "plae_poii_cat": Float32Col(shape=(), dflt=0.0, pos=7),
-           "dec": Float32Col(shape=(), dflt=0.0, pos=8),
-           "dec_match": Float32Col(shape=(), dflt=0.0, pos=9),
-           "dist_match": Float32Col(shape=(), dflt=0.0, pos=10),
-           "ra": Float32Col(shape=(), dflt=0.0, pos=11),
-           "ra_match": Float32Col(shape=(), dflt=0.0, pos=12),
-           "z_prelim": Float32Col(shape=(), dflt=0.0, pos=13)}
+           "detectname": StringCol(itemsize=64, shape=(), dflt=b'', pos=1),
+           "elixer_version": StringCol(itemsize=16, shape=(), dflt=b'', pos=2),
+           "elixer_datetime": StringCol(itemsize=21, shape=(), dflt=b'', pos=3),
+           "ra": Float32Col(shape=(), dflt=-999.999, pos=4),
+           "dec": Float32Col(shape=(), dflt=-999.999, pos=5),
+           "wavelength_obs": Float32Col(shape=(), dflt=-999.999, pos=6),
+           "wavelength_obs_err": Float32Col(shape=(), dflt=-999.999, pos=7),
+           "ccd_adjacent_mag": Float32Col(shape=(), dflt=99.9, pos=8),
+           "central_single_fiber_mag": Float32Col(shape=(), dflt=99.9, pos=9),
+           "chi2": Float32Col(shape=(), dflt=-999.999, pos=10),
+           "chi2_err": Float32Col(shape=(), dflt=-999.999, pos=11),
+           "combined_continuum": Float32Col(shape=(), dflt=-999.999, pos=12),
+           "combined_continuum_err": Float32Col(shape=(), dflt=-999.999, pos=13),
+           "combined_plae": Float32Col(shape=(), dflt=-999.999, pos=14),
+           "combined_plae_err": Float32Col(shape=(), dflt=-999.999, pos=15),
+           "continuum_full_spec": Float32Col(shape=(), dflt=-999.999, pos=16),
+           "continuum_full_spec_err": Float32Col(shape=(), dflt=-999.999, pos=17),
+           "continuum_line": Float32Col(shape=(), dflt=-999.999, pos=18),
+           "continuum_line_err": Float32Col(shape=(), dflt=-999.999, pos=19),
+           "continuum_sdss_g": Float32Col(shape=(), dflt=-999.999, pos=20),
+           "continuum_sdss_g_err": Float32Col(shape=(), dflt=-999.999, pos=21),
+           "eqw_rest_lya_full_spec": Float32Col(shape=(), dflt=-999.999, pos=22),
+           "eqw_rest_lya_full_spec_err": Float32Col(shape=(), dflt=-999.999, pos=23),
+           "eqw_rest_lya_line": Float32Col(shape=(), dflt=-999.999, pos=24),
+           "eqw_rest_lya_line_err": Float32Col(shape=(), dflt=-999.999, pos=25),
+           "eqw_rest_lya_sdss_g": Float32Col(shape=(), dflt=-999.999, pos=26),
+           "eqw_rest_lya_sdss_g_err": Float32Col(shape=(), dflt=-999.999, pos=27),
+           "ffsky_subtraction": BoolCol(shape=(), dflt=False, pos=28),
+           "fieldname": StringCol(itemsize=32, shape=(), dflt=b'', pos=29),
+           "flux_line": Float32Col(shape=(), dflt=-999.999, pos=30),
+           "flux_line_err": Float32Col(shape=(), dflt=-999.999, pos=31),
+           "fwhm_line_aa": Float32Col(shape=(), dflt=-999.999, pos=32),
+           "fwhm_line_aa_err": Float32Col(shape=(), dflt=-999.999, pos=33),
+           "ifuid": StringCol(itemsize=3, shape=(), dflt=b'', pos=34),
+           "ifuslot": StringCol(itemsize=3, shape=(), dflt=b'', pos=35),
+           "mag_full_spec": Float32Col(shape=(), dflt=-999.999, pos=36),
+           "mag_full_spec_err": Float32Col(shape=(), dflt=-999.999, pos=37),
+           "mag_sdss_g": Float32Col(shape=(), dflt=-999.999, pos=38),
+           "mag_sdss_g_err": Float32Col(shape=(), dflt=-999.999, pos=39),
+           "multiline_flag": BoolCol(shape=(), dflt=False, pos=40),
+           "multiline_frac_score": Float32Col(shape=(), dflt=-999.999, pos=41),
+           "multiline_name": StringCol(itemsize=16, shape=(), dflt=b'', pos=42),
+           "multiline_prob": Float32Col(shape=(), dflt=-999.999, pos=43),
+           "multiline_raw_score": Float32Col(shape=(), dflt=-999.999, pos=44),
+           "multiline_rest_w": Float32Col(shape=(), dflt=-999.999, pos=45),
+           "multiline_z": Float32Col(shape=(), dflt=-999.999, pos=46),
+           "obsid": Int32Col(shape=(), dflt=0, pos=47),
+           "plae_classification": Float32Col(shape=(), dflt=-999.999, pos=48),
+           "plae_full_spec": Float32Col(shape=(), dflt=-999.999, pos=49),
+           "plae_full_spec_max": Float32Col(shape=(), dflt=-999.999, pos=50),
+           "plae_full_spec_min": Float32Col(shape=(), dflt=-999.999, pos=51),
+           "plae_line": Float32Col(shape=(), dflt=-999.999, pos=52),
+           "plae_line_max": Float32Col(shape=(), dflt=-999.999, pos=53),
+           "plae_line_min": Float32Col(shape=(), dflt=-999.999, pos=54),
+           "plae_sdss_g": Float32Col(shape=(), dflt=-999.999, pos=55),
+           "plae_sdss_g_max": Float32Col(shape=(), dflt=-999.999, pos=56),
+           "plae_sdss_g_min": Float32Col(shape=(), dflt=-999.999, pos=57),
+           "pseudo_color_blue_flux": Float32Col(shape=(), dflt=-999.999, pos=58),
+           "pseudo_color_blue_flux_err": Float32Col(shape=(), dflt=-999.999, pos=59),
+           "pseudo_color_flag": Int64Col(shape=(), dflt=0, pos=60),
+           "pseudo_color_red_flux": Float32Col(shape=(), dflt=-999.999, pos=61),
+           "pseudo_color_red_flux_err": Float32Col(shape=(), dflt=-999.999, pos=62),
+           "pseudo_color_rvb_ratio": Float32Col(shape=(), dflt=-999.999, pos=63),
+           "pseudo_color_rvb_ratio_err": Float32Col(shape=(), dflt=-999.999, pos=64),
+           "response": Float32Col(shape=(), dflt=-999.999, pos=65),
+           "seeing_fwhm": Float32Col(shape=(), dflt=-999.999, pos=66),
+           "shotid": Int64Col(shape=(), dflt=0, pos=67),
+           "sn": Float32Col(shape=(), dflt=-999.999, pos=68),
+           "sn_err": Float32Col(shape=(), dflt=-999.999, pos=69),
+           "specid": StringCol(itemsize=3, shape=(), dflt=b'', pos=70),
+           "spectral_slope": Float32Col(shape=(), dflt=-999.999, pos=71),
+           "spectral_slope_err": Float32Col(shape=(), dflt=0.0, pos=72),
+           "spurious_reason": StringCol(itemsize=32, shape=(), dflt=b'', pos=73)}
            byteorder := 'little'
-           chunkshape := (799,)
+           chunkshape := (574,)
            autoindex := True
            colindexes := {
              "detectid": Index(9, full, shuffle, zlib(1)).is_csi=True}
@@ -575,14 +830,7 @@ Detections Database
 
    .. code:: python
 
-      detects.plae_poii_hetdex
-
-   .. container:: output execute_result
-
-      ::
-
-         array([9.9900000e+02, 7.2290176e-01, 9.9900000e+02, ..., 1.4184024e+00,
-                8.7493747e-01, 2.0698796e-01], dtype=float32)
+      #detects.plae_poii_hetdex
 
 .. container:: cell markdown
 
@@ -593,14 +841,7 @@ Detections Database
 
    .. code:: python
 
-      detects.mag_match
-
-   .. container:: output execute_result
-
-      ::
-
-         array([23.479797, 99.9     , 99.9     , ..., 99.9     , 99.9     ,
-                99.9     ], dtype=float32)
+      #detects.mag_match
 
 .. container:: cell markdown
 
@@ -610,14 +851,11 @@ Detections Database
 
    .. code:: python
 
-      detects.cat_filter
+      #detects.cat_filter
 
-   .. container:: output execute_result
+.. container:: cell code
 
-      ::
+   .. code:: python
 
-         array(['r', '?', '?', ..., '?', '?', '?'], dtype='<U15')
-
-.. |image0| image:: images/68ce842e38ec438396778621fb6847f390b730c5.png
-.. |image1| image:: images/4b0f69464bddc450c2dadb63ed71e67d5b1ba89a.png
-.. |image2| image:: images/19c8b4ebadce2360bfdeea697d9d1cd601c65198.png
+.. |image0| image:: images/676a2bb08065419320a1ec09fcdae176c895c0d9.png
+.. |image1| image:: images/724d0d9db25fa92bfa5556fa92ab313bc731a34e.png

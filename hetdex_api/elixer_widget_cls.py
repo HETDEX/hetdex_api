@@ -32,12 +32,17 @@ from hetdex_tools.get_spec import get_spectra
 
 try:
     from hetdex_api.config import HDRconfig
-except:
-    print("Warning! Cannot find or import HDRconfig from hetdex_api!!")
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
+
+
+HDR_NAME_DICT = {10: "hdr1",20:"hdr2",21:"hdr2.1"}
 
 try: #using HDRconfig
-    HETDEX_API_CONFIG = HDRconfig(survey="hdr2")
-    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir["hdr2"]
+    HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
+    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
     HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
     HETDEX_DETECT_HDF5_HANDLE = None
     HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
@@ -85,6 +90,8 @@ line_id_dict = {line_id_dict_default:-1.0,
                 "4342 H-gamma": 4341.68,
                 line_id_dict_other:-1.0
                 }
+
+
 
 class ElixerWidget():
 
@@ -169,9 +176,15 @@ class ElixerWidget():
             global HETDEX_DETECT_HDF5_HANDLE
             
             if HETDEX_DETECT_HDF5_HANDLE is None:
-                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+                try:
+                    HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+                except:
+                    print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
-            self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+            if HETDEX_DETECT_HDF5_HANDLE is not None:
+                self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+            else:
+                self.detectid = []
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -437,13 +450,17 @@ class ElixerWidget():
         current_wavelength = -1.0
 
         if HETDEX_DETECT_HDF5_HANDLE is None:
-            HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
+            try:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
+            except:
+                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
-        dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
-        q_detectid = self.detectbox.value
-        rows = dtb.read_where('detectid==q_detectid')
-        if (rows is not None) and (rows.size == 1):
-            current_wavelength = rows[0]['wave']
+        if HETDEX_DETECT_HDF5_HANDLE:
+            dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
+            q_detectid = self.detectbox.value
+            rows = dtb.read_where('detectid==q_detectid')
+            if (rows is not None) and (rows.size == 1):
+                current_wavelength = rows[0]['wave']
 
         return current_wavelength
 
@@ -859,6 +876,16 @@ class ElixerWidget():
             else:
                 print("neighborhood not found")
 
+    def get_hdr_name_for_detectid(self):
+        hdr_name = LATEST_HDR_NAME
+        try:
+            hdr_prefix = int(np.int64(self.detectbox.value) / 1e8)
+            hdr_name = HDR_NAME_DICT[hdr_prefix]
+        except:
+            print("Could not identify or map detectid to hdr version")
+
+        return hdr_name
+
     def plot_spec(self, matchnum):
         
         global current_wavelength
@@ -884,7 +911,9 @@ class ElixerWidget():
                               dec = self.e_manual_dec.value * u.deg,
                               frame = 'icrs')
 
-        spec_table = get_spectra(coords, ID=self.detectbox.value, survey='hdr2')
+
+        spec_table = get_spectra(coords, ID=self.detectbox.value,
+                                 survey=self.get_hdr_name_for_detectid())
 
         #if current_wavelength < 0:
         #current_wavelength = self.get_observed_wavelength()

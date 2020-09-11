@@ -389,23 +389,27 @@ def main(argv=None):
             sel = detects.detectid == detectid_i
 
             try:
-                row = fibim2D_table.row
-                row["detectid"] = detectid_i
+                row["im_wave"] = get_2Dimage_wave(detectid_i,
+                                                  detects, fibers,
+                                                  width=args.width,
+                                                  height=args.height)
+            except:
+                args.log.error("Could not get wave array for %s" % detectid_i)
 
-                row["im_wave"] = get_2Dimage_wave(
-                    detectid_i, detects, fibers, width=args.width, height=args.height
-                )
-
+            try:
                 row["im_sum"] = get_2Dimage(
                     detectid_i, detects, fibers, width=args.width, height=args.height
                 )
+            except:
+                args.log.error("Could not get Fiber sum for %s" % detectid_i)
+            try:
                 im_arr, fiber_table = get_2Dimage_array(
                     detectid_i, detects, fibers, width=args.width, height=args.height
                 )
 
                 row["im_array"] = im_arr
             except:
-                args.log.error("Could not get Fiber info for %s" % detectid_i)
+                args.log.error("Could not get 4 Fiber info for %s" % detectid_i)
 
             row.append()
 
@@ -444,8 +448,8 @@ def main(argv=None):
                     if cutout["instrument"] == "HSC":
                         # get shape to ensure slicing on cropped images
                         phot = np.shape(cutout["cutout"].data)
-                        row_phot["im_phot"][0:phot[0]][0:phot[1]] = cutout["cutout"].data
                         
+                        row_phot["im_phot"] = cutout["cutout"].data            
                         header = cutout["cutout"].wcs.to_header()
                         row_phot["im_phot_hdr"] = header.tostring()
 

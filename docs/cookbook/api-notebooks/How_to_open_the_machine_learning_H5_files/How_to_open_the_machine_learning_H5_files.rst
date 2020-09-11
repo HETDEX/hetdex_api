@@ -26,7 +26,7 @@ cutout of HSC r-band imaging for the detection in available.
 
 .. code:: ipython3
 
-    config = HDRconfig('hdr2')
+    config = HDRconfig('hdr2.1')
 
 Pytables and hetdex\_api.config provide an easy interface to the ML products
 ----------------------------------------------------------------------------
@@ -95,7 +95,7 @@ subsets of detections to work with.
 
 .. code:: ipython3
 
-    detectid_obj = 2000559445
+    detectid_obj = 2100208240
 
 .. code:: ipython3
 

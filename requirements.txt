@@ -23,16 +23,15 @@ nbconvert>=5.6.1
 nbformat==4.4.0
 notebook>=6.0.3
 numexpr==2.6.9
-numpy==1.18.5
+numpy>=1.18.5
 pandas==0.24.1
 photutils==0.7.1
---extra-index-url https://gate.mpe.mpg.de/pypi/simple/
-pyhetdex 
 sep==1.0.3
 speclite==0.8
 specutils==1.0
-scipy==1.2.0
+scipy>=1.4
 sphinx-argparse==0.2.5
 sphinx-markdown-tables
-tables>=3.6.0
+tables>=3.5.2
+tornado==5.1.1
 widgetsnbextension==3.5.1

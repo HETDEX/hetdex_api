@@ -2,7 +2,8 @@ from setuptools import setup, find_packages
 
 install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0',
                     'tables', 'ipywidgets', 'speclite', 'astrowidgets',
-                    'jsonschema==3.1.1', 'ipyevents', 'tornado>=6.0.3']
+                    'jsonschema==3.1.1', 'ipyevents', 'tornado==5.1.1',
+                    'healpy']
 
 extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx_rtd_theme']}
@@ -10,11 +11,11 @@ extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
 setup(
     # package description and version
     name="hetdex_api",
-    version="0.3",
+    version="0.6",
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
-    download_url='https://github.com/HETDEX/hetdex_api/archive/0.3.tar.gz',
+    download_url='https://github.com/HETDEX/hetdex_api/archive/0.6.tar.gz',
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
