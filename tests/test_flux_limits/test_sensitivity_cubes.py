@@ -27,7 +27,7 @@ def test_aper_corr(datadir, aper_corr):
                                             aper_corr=1.0)
 
     # The aper_corr should be multiplied though in the cubes
-    ratio = scube.sigmas/scube_corr1.sigmas
+    ratio = scube.sigmas.filled()/scube_corr1.sigmas.filled()
 
     assert ratio == pytest.approx(aper_corr)
 
@@ -73,7 +73,7 @@ def test_flux_calib_corr(datadir, plot=False):
     scube_corr1.apply_flux_recalibration(1.0, flux_calib_correction_file=fcalib_corr) 
 
     # The aper_corr should be multiplied though in the cubes
-    ratio = scube.sigmas/scube_corr1.sigmas
+    ratio = scube.sigmas.filled()/scube_corr1.sigmas.filled()
 
     if plot:
         import matplotlib.pyplot as plt
@@ -83,3 +83,4 @@ def test_flux_calib_corr(datadir, plot=False):
 
     # Check something happened
     assert ratio != pytest.approx(1.0)
+
