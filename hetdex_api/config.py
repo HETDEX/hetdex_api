@@ -10,6 +10,7 @@ import sys
 
 
 class HDRconfig:
+<<<<<<< Updated upstream
 
     LATEST_HDR_NAME = "hdr2.1"
 
@@ -27,13 +28,17 @@ class HDRconfig:
             self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
+        elif op.exists("/data/hetdex/u/dfarrow/hetdex_data")
+            self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
             sys.exit('Edit hetdex_api/config.py for your local dir')
 
         self.hdr_dir = {
-            "hdr1": "/work/03946/hetdex/hdr1",
-            "hdr2": "/data/05350/ecooper/hdr2",
-            "hdr2.1": op.join(self.host_dir, "hdr2.1")}
+                        "hdr1": "/work/03946/hetdex/hdr1",
+                        "hdr2": "/data/05350/ecooper/hdr2",
+                        "hdr2.1": op.join(self.host_dir, "hdr2.1")}
+                       }
+
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
@@ -41,7 +46,7 @@ class HDRconfig:
         self.calib_dir = op.join(self.hdr_dir[survey], "calib")
         self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
-        self.flim_dir = op.join(self.red_dir, "flim")
+        self.flim_dir = op.join(self.hdr_dir[survey], "flim")
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "ergfiles")
         self.detect_dir = op.join(self.hdr_dir[survey], "detect")
         self.path_gpinfo = op.join(self.calib_dir, "DR1FWHM.txt")
@@ -96,7 +101,8 @@ class HDRconfig:
             #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
         if survey == 'hdr2.1':
-            self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
+            #self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
+            self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
