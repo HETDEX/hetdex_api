@@ -16,7 +16,7 @@ from hetdex_api.flux_limits.generate_simulation_inputs import (create_sensitivit
 def mock_hdf_cube(datadir):
     """ Generate a mock HDF cube for a given shot """
     datevobs = "20190201v019"
-    survey_obj = Survey("hdr2")
+    survey_obj = Survey("hdr2.1")
     shot = survey_obj[survey_obj.datevobs == datevobs]
     sencube_hdf = generate_sencube_hdf(datevobs, shot.ra[0], 
                                        shot.dec[0], shot.pa[0], datadir, 

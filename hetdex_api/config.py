@@ -10,7 +10,6 @@ import sys
 
 
 class HDRconfig:
-<<<<<<< Updated upstream
 
     LATEST_HDR_NAME = "hdr2.1"
 
@@ -28,7 +27,7 @@ class HDRconfig:
             self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
-        elif op.exists("/data/hetdex/u/dfarrow/hetdex_data")
+        elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
             sys.exit('Edit hetdex_api/config.py for your local dir')
@@ -36,7 +35,7 @@ class HDRconfig:
         self.hdr_dir = {
                         "hdr1": "/work/03946/hetdex/hdr1",
                         "hdr2": "/data/05350/ecooper/hdr2",
-                        "hdr2.1": op.join(self.host_dir, "hdr2.1")}
+                        "hdr2.1": op.join(self.host_dir, "hdr2.1")
                        }
 
         self.software_dir = op.join(self.hdr_dir[survey], "software")
