@@ -58,7 +58,7 @@ def calc_chi2(sub_spectrum, g_fit, reduced=True, n_free=2):
     return chi2
 
 
-def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
+def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA, sigmamax=14.*u.AA):
     '''
     Function to fit a 1D gaussian to a HETDEX spectrum from get_spec.py
 
