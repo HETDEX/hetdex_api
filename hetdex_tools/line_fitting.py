@@ -281,12 +281,11 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     -------
     a matplotlib figure
     """
-
+    
     sel_obj = sources['ID'] == objid
     
     for row in sources[sel_obj]:
         plt.figure()
-        wave_obj = row['wave']
         shotid = row['shotid']
         spec = row['spec']
         spec_err = row['spec_err']
