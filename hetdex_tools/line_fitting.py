@@ -106,10 +106,11 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
     cont_spectrum = extract_region(spectrum, cont_region)
     cont = np.median(cont_spectrum.flux)
 
-    # now get region to fit the line
+    # now get region to fit the continuum subtracted line
+    
     sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
     sub_spectrum = extract_region(spectrum, sub_region)
-    line_param = estimate_line_parameters(sub_spectrum, models.Gaussian1D())
+    line_param = estimate_line_parameters(sub_spectrum-cont, models.Gaussian1D())
     
     try:
         sigma = np.minimum(line_param.stddev, sigmamax)
@@ -148,7 +149,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
     sn = np.sum(np.array(sub_spectrum.flux )) / np.sqrt(np.sum(
         sub_spectrum.uncertainty.array**2))
     
-    line_flux_data = line_flux(sub_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+    line_flux_data = line_flux(sub_spectrum-cont).to(u.erg * u.cm**-2 * u.s**-1)
     
     line_flux_data_err = np.sqrt(np.sum(sub_spectrum.uncertainty.array**2))
 
