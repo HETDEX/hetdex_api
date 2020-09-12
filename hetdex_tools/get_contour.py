@@ -17,6 +17,8 @@ import sys
 import argparse as ap
 import os
 import numpy as np
+import tables as tb
+from scipy.stats import norm
 
 from astropy import wcs
 from astropy.io import fits
@@ -31,33 +33,21 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 
+from hetdex_api.config import HDRconfig
 from hetdex_api.input_utils import setup_logging
+from hetdex_api.detections import Detections
 from hetdex_tools.get_spec import get_spectra
+from hetdex_tools.line_fitting import *
+
 from astropy.modeling import models
 from specutils import Spectrum1D, SpectralRegion
 from specutils.analysis import equivalent_width, line_flux
 from specutils.fitting import estimate_line_parameters
 from specutils.manipulation import extract_region
 
-from elixer import catalogs 
+from elixer import catalogs
 
-
-def line_fit(index, wave_obj, sources):
-    spectrum = Spectrum1D(
-        flux=sources["spec"][index] * u.erg * u.cm ** -2 / u.s / u.AA,
-        spectral_axis=(2.0 * np.arange(1036) + 3470.0) * u.AA,
-    )
-
-    sub_region = SpectralRegion((wave_obj - 10) * u.AA, (wave_obj + 10) * u.AA)
-
-    sub_spectrum = extract_region(spectrum, sub_region)
-
-    line_param = estimate_line_parameters(sub_spectrum, models.Gaussian1D())
-
-    lf = line_flux(sub_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
-    
-    return line_param.mean.value, line_param.amplitude.value, line_param.fwhm.value, lf.value
-
+plt.style.use('fivethirtyeight')
 
 def main(argv=None):
     """ Main Function """
@@ -165,23 +155,30 @@ def main(argv=None):
         default=None
     )
 
+    parser.add_argument(
+        "--survey",
+        "-survey",
+        type=str,
+        help="""Data Release you want to access""",
+        default="hdr2.1",
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     print(args)
 
-    cat = Table.read(
-        "/work/05350/ecooper/hdr1/catalogs/hdr1_sngt6pt5_for.tab",
-        format="ascii"
-    )
-
     if args.detectid:
-        detectid_obj = args.detectid
-        sel_obj = cat["detectid"] == detectid_obj
-        shot_obj = cat["shotid"][sel_obj][0]
-        wave_obj = cat["wave"][sel_obj][0]
-        ra_cen = cat["ra"][sel_obj][0]
-        dec_cen = cat["dec"][sel_obj][0]
+        config = HDRconfig()
+        fileh = tb.open_file(config.detecth5)
+        det_tab = fileh.root.Detections
+        detectid_obj = args.detectid      
+        det_row = det_tab.read_where('detectid == detectid_obj')
+        shot_obj = det_row['shotid'][0]
+        wave_obj = det_row['wave'][0]
+        ra_cen = det_row['ra'][0]
+        dec_cen = det_row['dec'][0]
+        fileh.close()
     else:
         detectid_obj = args.ID
         ra_cen = args.ra
@@ -211,121 +208,113 @@ def main(argv=None):
     coords = SkyCoord(tab["ra"], tab["dec"], unit=u.deg)
     id_list = np.array(tab["ID"])
 
-    sources = get_spectra(coords, shotid=shot_obj, multiprocess=False, survey='hdr2')
+    sources = get_spectra(coords, shotid=shot_obj, multiprocess=False, survey='hdr2.1')
 
-    wave_fit = []
-    amp_fit = []
-    fwhm_fit = []
-    lf_fit = []
-
-    for i in np.arange(np.size(sources)):
-        line_param = line_fit(i, wave_obj, sources)
-        lf_fit.append(line_param[3])
-        wave_fit.append(line_param[0])
-        amp_fit.append(line_param[1])
-        fwhm_fit.append(line_param[2] / 2.355)
-
-    sources.add_column(Column(np.array(lf_fit)), name='lf_fit')
-    sources.add_column(Column(np.array(wave_fit)), name="wave_fit")
-    sources.add_column(Column(np.array(amp_fit)), name="amp_fit")
-    sources.add_column(Column(np.array(fwhm_fit)), name="fwhm_fit")
-
-    # to match up with coordinates:
-    # out_table = join(tab, sources)
-    # outfile = 'output_' + str(detectid_obj) + '.fits'
-    # out_table.write(outfile, overwrite=True)
+    tab.add_column(wave_obj, name='wave')
+    
+    output = make_line_catalog(tab, sources)
 
     amp_array = np.zeros([ndim, ndim])
     wave_array = np.zeros([ndim, ndim])
-    fwhm_array = np.zeros([ndim, ndim])
+    sigma_array = np.zeros([ndim, ndim])
+    cont_array = np.zeros([ndim, ndim])
     lf_array = np.zeros([ndim, ndim])
     
     count = 1
     for i in np.arange(ndim):
         for j in np.arange(ndim):
-            sel = np.where(sources["ID"] == count)[0]
+            sel = np.where(output["ID"] == count)[0]
             if sel:
-                amp_array[j, i] = sources["amp_fit"][sel]
-                wave_array[j, i] = sources["wave_fit"][sel]
-                fwhm_array[j, i] = sources["fwhm_fit"][sel]
-                lf_array[j, i] = sources["lf_fit"][sel]
+                amp_array[j, i] = output["amp_fit"][sel]
+                wave_array[j, i] = output["wave_fit"][sel]
+                sigma_array[j, i] = output["sigma_fit"][sel]
+                lf_array[j, i] = output["line_flux_data"][sel]
+                cont_array[j,i] = output["cont_fit"][sel]
             else:
                 amp_array[j, i] = np.nan
                 wave_array[j, i] = np.nan
-                fwhm_array[j, i] = np.nan
+                sigma_array[j, i] = np.nan
                 lf_array[j, i] = np.nan
+                cont_array[j,i] = np.nan
             count += 1
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 6))
-    cs1 = ax1.contour(ra, dec, amp_array)
-    cs2 = ax2.contour(
-        ra, dec, wave_array,
-        levels=np.arange(wave_obj - 4, wave_obj + 4, 1, dtype=int)
-    )
-    cs3 = ax3.contour(ra, dec, fwhm_array)
-
-    ax1.set_xlabel("RA")
-    ax1.set_ylabel("Dec")
-    ax2.set_xlabel("RA")
-    ax2.set_ylabel("Dec")
-    ax3.set_xlabel("RA")
-    ax3.set_ylabel("Dec")
-
-    ax1.set_title("Line amplitude (10^-17 erg /cm^2/s/AA) )")
-    ax2.set_title("wavelength center from fit (AA)")
-    ax3.set_title("fwhm (AA)")
-
-    ax1.clabel(cs1, inline=1, fontsize=10, fmt="%i")
-    ax2.clabel(cs2, inline=1, fontsize=10, fmt="%i")
-    ax3.clabel(cs3, inline=1, fontsize=10, fmt="%i")
-
-    imfile = "contours_" + str(detectid_obj) + ".png"
-    plt.savefig(imfile)
 
     header = w.to_header()
     hdu = fits.PrimaryHDU(lf_array, header=header)
-    #    fitsfile = 'imcont_' + str(detectid_obj) + '.fits'
-    #    hdu.writeto(fitsfile, overwrite=True)
-
-    # grab image from elixer API and plot with amp contour
 
     catlib = catalogs.CatalogLibrary()
 
-    cutout = catlib.get_cutouts(
-        position=SkyCoord(ra_cen * u.deg, dec_cen * u.deg),
-        radius=args.gridsize,
-        aperture=None,
-        dynamic=False,
-        filter=["r", "g", "f606W"],
-        first=True,
-    )[0]
+    try:
+        cutout = catlib.get_cutouts(
+            position=SkyCoord(ra_cen * u.deg, dec_cen * u.deg),
+            radius=args.gridsize,
+            aperture=None,
+            dynamic=False,
+            filter=["r", "g", "f606W"],
+            first=True,
+            allow_bad_image=False,
+            allow_web=True,
+        )[0]
+    except:
+        print("Could not get imaging for " + str(detectid_obj) )
+        
+    zscale = ZScaleInterval(contrast=0.5, krej=2.5)
+    vmin, vmax = zscale.get_limits(values=cutout["cutout"].data)
+    fig = plt.figure(figsize=(25, 6))
 
-    if cutout:
-        zscale = ZScaleInterval(contrast=0.5, krej=2.5)
-        vmin, vmax = zscale.get_limits(values=cutout["cutout"].data)
-        fig = plt.figure(figsize=(8, 8))
-        ax = fig.add_subplot(111, projection=cutout["cutout"].wcs)
-        plt.imshow(
-            cutout["cutout"].data,
-            vmin=vmin,
-            vmax=vmax,
-            origin="lower",
-            cmap=plt.get_cmap("gray"),
-            interpolation="none",
-        )
-    else:
-        print("No image data found")
+    ax = fig.add_subplot(131, projection=cutout["cutout"].wcs)
+    plt.imshow(
+        cutout["cutout"].data,
+        vmin=vmin,
+        vmax=vmax,
+        origin="lower",
+        cmap=plt.get_cmap("gray"),
+        interpolation="none",
+    )
+    
+    plt.text( 0.8, 0.9, cutout['instrument'] + cutout['filter'], transform=ax.transAxes)
+    
+    inten =  hdu.data[ np.isfinite( hdu.data)].flatten()
+    sel = inten < 3.*np.median(inten)
 
-    plt.contour(
-        hdu.data,
-        alpha=0.8,
-        cmap="Reds",
+    (mu, sigma) = norm.fit(inten[sel])
+    cont_levels = [0,1,2,3,4,5,7,10,15]
+
+    contplot = plt.contour(
+        hdu.data/sigma,
+        levels=cont_levels,
+        cmap="Greens",
         transform=ax.get_transform(wcs.WCS(hdu.header)),
     )
+    plt.clabel(contplot)
+    plt.colorbar()
     plt.xlabel("RA")
     plt.ylabel("DEC")
-    plt.savefig("im_" + str(detectid_obj) + ".png")
+    
+    plt.title( 'filter='+ cutout['instrument'] + '-' +  cutout['filter'] )
 
+    ax2 = fig.add_subplot(132, projection=cutout["cutout"].wcs)
+
+    zscale = ZScaleInterval(contrast=0.25, krej=2.5)
+    vmin, vmax = zscale.get_limits(values=lf_array)
+
+    plt.imshow(lf_array, vmin=vmin, vmax=vmax)
+    plt.colorbar(label='Line Flux (ergs/s/cm^2)')
+    plt.xlabel("RA")
+    plt.ylabel("DEC")
+    plt.title( str(detectid_obj) + '  z = ' + '{:4.2f}   '.format( wave_obj/1216 - 1.))
+
+    ax3 = fig.add_subplot(133, projection=cutout["cutout"].wcs)
+
+    mask = hdu.data/sigma > 2
+
+    plt.imshow(wave_array*mask,vmin=wave_obj-5, vmax=wave_obj+5)
+    plt.colorbar(label='wave (AA)')
+    plt.title('fitted central wavelength')
+    plt.xlabel("RA")
+    plt.ylabel("DEC")
+    
+    plt.savefig("im_" + str(detectid_obj) + ".png")
 
 if __name__ == "__main__":
     main()
