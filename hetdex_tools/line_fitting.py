@@ -58,7 +58,8 @@ def calc_chi2(sub_spectrum, g_fit, reduced=True, n_free=2):
     return chi2
 
 
-def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA, sigmamax=14.*u.AA):
+def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
+             dwave_cont=50.*u.AA, sigmamax=14.*u.AA):
     '''
     Function to fit a 1D gaussian to a HETDEX spectrum from get_spec.py
 
@@ -73,9 +74,12 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA, sigmamax=14.*u.AA):
         Will assume unit of 10**-17*u.Unit('erg cm-2 s-1 AA-1') if no units
         are provided.
     wave_obj
-        wavelength you want to fit. If no unit is provided, assumes u.AA
+        wavelength you want to fit, an astropy quantity
     dwave
-        spectral region above and below wave_obj to fit. Assumes u.AA
+        spectral region above and below wave_obj to fit a line, an astropy quantity.
+        Default is 20.*u.AA
+    dwave_cont
+        spectral region to fit continuum. Default is +/- 50.*u.AA
     sigmamax
         Maximum linewidth (this is sigma/stdev of the gaussian fit) to allow
         for a fit. Assumes unit of u.AA if not given
@@ -95,9 +99,14 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA, sigmamax=14.*u.AA):
                               spectral_axis=(2.0 * np.arange(1036) + 3470.) * u.AA,
                               uncertainty=StdDevUncertainty(spec_err * 10**-17 * u.Unit('erg cm-2 s-1 AA-1')),
                               velocity_convention=None)
-        
+
+    # measure continuum over 2*dwave_cont wide window first:
+    cont_region = SpectralRegion((wave_obj-dwave_cont), (wave_obj+dwave_cont))
+    cont_spectrum = extract_region(spectrum, cont_region)
+    cont = np.median(cont_spectrum.flux)
+
+    # now get region to fit the line
     sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
-    
     sub_spectrum = extract_region(spectrum, sub_region)
     line_param = estimate_line_parameters(sub_spectrum, models.Gaussian1D())
     
@@ -113,7 +122,6 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA, sigmamax=14.*u.AA):
 
 #    cont = fit_generic_continuum(sub_spectrum, exclude_regions=lineregion,
 #                                 model=models.Linear1D(slope=0))
-    cont = np.median(sub_spectrum.flux)
 
     #r1 = SpectralRegion((wave_obj-dwave), (wave_obj-2*sigma))
     #r2 = SpectralRegion((wave_obj+2*sigma), (wave_obj+dwave))
@@ -295,7 +303,8 @@ def plot_line(objid, sources, output_tab, shotid=None, save=False):
         x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
                 
         plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
-        plt.plot(x, cont(x),'b-', label='cont')
+        #plt.plot(x, cont(x),'b-', label='cont')
+        plt.axhline(y = cont.value,label='cont', color='green')
         
         plt.xlabel('Spectral Axis ({})'.format(u.AA))
         plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
