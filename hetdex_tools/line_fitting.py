@@ -9,7 +9,8 @@ discussing it with Erin.
 
 author = Erin Mentuch Cooper
 """
-
+import os
+import os.path as op
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -308,11 +309,10 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
         plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
         plt.legend()
-        
-        if not op.exist('line_fits'):
-            os.makedirs('line_fits')
-            
+
         if save:
+            if not op.exist('line_fits'):
+                os.makedirs('line_fits')
             plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
 
         plt.close()
