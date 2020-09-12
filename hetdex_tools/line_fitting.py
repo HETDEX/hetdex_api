@@ -59,7 +59,7 @@ def calc_chi2(sub_spectrum, g_fit, reduced=True, n_free=2):
     return chi2
 
 
-def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
+def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
              dwave_cont=100.*u.AA, sigmamax=14.*u.AA):
     '''
     Function to fit a 1D gaussian to a HETDEX spectrum from get_spec.py
@@ -78,7 +78,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
         wavelength you want to fit, an astropy quantity
     dwave
         spectral region above and below wave_obj to fit a line, an astropy quantity.
-        Default is 20.*u.AA
+        Default is 10.*u.AA
     dwave_cont
         spectral region to fit continuum. Default is +/- 100.*u.AA
     sigmamax
@@ -116,6 +116,9 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
     except ValueError:
         sigma = np.minimum(line_param.stddev, sigmamax*u.AA)
 
+    if np.isnan(sigma):
+        sigma=sigmamax
+        
     g_init = models.Gaussian1D(amplitude=line_param.amplitude,
                                mean=line_param.mean, stddev=sigma)
     
@@ -145,6 +148,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
 
     fitted_region = SpectralRegion((line_param.mean - 2*sigma),
                                    (line_param.mean + 2*sigma))
+
     fitted_spectrum = extract_region(spectrum, fitted_region)
 
     line_param = estimate_line_parameters(fitted_spectrum, models.Gaussian1D())
