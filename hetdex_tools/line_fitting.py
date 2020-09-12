@@ -59,7 +59,7 @@ def calc_chi2(sub_spectrum, g_fit, reduced=True, n_free=2):
 
 
 def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
-             dwave_cont=50.*u.AA, sigmamax=14.*u.AA):
+             dwave_cont=100.*u.AA, sigmamax=14.*u.AA):
     '''
     Function to fit a 1D gaussian to a HETDEX spectrum from get_spec.py
 
@@ -79,7 +79,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=20.*u.AA,
         spectral region above and below wave_obj to fit a line, an astropy quantity.
         Default is 20.*u.AA
     dwave_cont
-        spectral region to fit continuum. Default is +/- 50.*u.AA
+        spectral region to fit continuum. Default is +/- 100.*u.AA
     sigmamax
         Maximum linewidth (this is sigma/stdev of the gaussian fit) to allow
         for a fit. Assumes unit of u.AA if not given
@@ -259,17 +259,19 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
 
     return output_tab
 
-def plot_line(objid, sources, output_tab, shotid=None, save=False):
+def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     """
-    Function to plot up objid from a fit
+    Function to plot up objid at a wavelength in an extracted source
+    table from get_spectra
+    
     Parameters
     ----------
     objid
        str object name to match in the 'ID' column
     sources
        astropy table with spectra. Produced by get_spectra
-    output_tab
-       an astropy table with output produced from make_line_catalog
+    wave_obj
+       wavelength you want to fit around. 
     shotid
        optional shotid to plot. If there are two matches, two plots
        will be produced
@@ -280,17 +282,14 @@ def plot_line(objid, sources, output_tab, shotid=None, save=False):
     a matplotlib figure
     """
 
+    sel_obj = sources['ID'] == objid
     
-    sel_obj = output_tab['ID'] == objid
-    
-    for row in output_tab[sel_obj]:
+    for row in sources[sel_obj]:
         plt.figure()
         wave_obj = row['wave']
         shotid = row['shotid']
-
-        sel_spec = (sources['ID'] == objid) * (sources['shotid'] == shotid)
-        spec = sources['spec'][sel_spec]
-        spec_err = sources['spec'][sel_spec]
+        spec = row['spec']
+        spec_err = row['spec_err']
 
         line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
             spec*sources['spec'].unit,
