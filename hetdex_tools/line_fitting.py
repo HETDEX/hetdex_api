@@ -300,7 +300,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
         x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
                 
-        plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
+        plt.plot(x, g_fit(x).value + cont.value*np.ones(np.size(x.value)), 'r', label='model')
         #plt.plot(x, cont(x),'b-', label='cont')
         plt.axhline(y = cont.value,label='cont', color='green')
         
