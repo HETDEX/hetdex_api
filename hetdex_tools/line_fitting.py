@@ -96,13 +96,8 @@ def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
                               uncertainty=StdDevUncertainty(spec_err * 10**-17 * u.Unit('erg cm-2 s-1 AA-1')),
                               velocity_convention=None)
         
-    try:
-        sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
-    except ValueError:
-        wave_obj.unit = u.AA
-        dwave.unit = u.AA
-        sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
-
+    sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
+    
     sub_spectrum = extract_region(spectrum, sub_region)
     line_param = estimate_line_parameters(sub_spectrum, models.Gaussian1D())
     
@@ -277,8 +272,8 @@ def plot_line(objid, sources, output_tab, shotid=None, save=False):
     a matplotlib figure
     """
 
+    
     sel_obj = output_tab['ID'] == objid
-
     
     for row in output_tab[sel_obj]:
         plt.figure()
