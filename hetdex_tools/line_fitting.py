@@ -315,4 +315,3 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
                 os.makedirs('line_fits')
             plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
 
-        plt.close()
