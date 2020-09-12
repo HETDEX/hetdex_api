@@ -122,8 +122,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
     g_init = models.Gaussian1D(amplitude=line_param.amplitude,
                                mean=line_param.mean, stddev=sigma)
     
-    lineregion = SpectralRegion((wave_obj-2*sigma), (wave_obj+2*sigma))
-
+#    lineregion = SpectralRegion((wave_obj-2*sigma), (wave_obj+2*sigma))
 #    cont = fit_generic_continuum(sub_spectrum, exclude_regions=lineregion,
 #                                 model=models.Linear1D(slope=0))
 
@@ -146,19 +145,26 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
 
     chi2 = calc_chi2(sub_spectrum - cont, g_fit)
 
-    fitted_region = SpectralRegion((line_param.mean - 2*sigma),
-                                   (line_param.mean + 2*sigma))
+    sn = np.sum(np.array(sub_spectrum.flux )) / np.sqrt(np.sum(
+        sub_spectrum.uncertainty.array**2))
+    
+    line_flux_data = line_flux(sub_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+    
+    line_flux_data_err = np.sqrt(np.sum(sub_spectrum.uncertainty.array**2))
 
-    fitted_spectrum = extract_region(spectrum, fitted_region)
+    #fitted_region = SpectralRegion((line_param.mean - 2*sigma),
+    #                               (line_param.mean + 2*sigma))
 
-    line_param = estimate_line_parameters(fitted_spectrum, models.Gaussian1D())
+    #fitted_spectrum = extract_region(spectrum, fitted_region)
 
-    sn = np.sum(np.array(fitted_spectrum.flux)) / np.sqrt(np.sum(
-        fitted_spectrum.uncertainty.array**2))
+    #line_param = estimate_line_parameters(fitted_spectrum, models.Gaussian1D())
 
-    line_flux_data = line_flux(fitted_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+    #sn = np.sum(np.array(fitted_spectrum.flux)) / np.sqrt(np.sum(
+    #    fitted_spectrum.uncertainty.array**2))
 
-    line_flux_data_err = np.sqrt(np.sum(fitted_spectrum.uncertainty.array**2))
+    #line_flux_data = line_flux(fitted_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+
+    #line_flux_data_err = np.sqrt(np.sum(fitted_spectrum.uncertainty.array**2))
 
     return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
 
