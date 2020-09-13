@@ -297,7 +297,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
 
     if shotid is None:
         sel_obj = sources['ID'] == objid
-        shots = np.unique(sources['shotid'][sel_obj])
+        shots = np.array( np.unique(sources['shotid'][sel_obj]))
         print('Source ' + str(objid) + ' is found in shotids: ', shots)
         return None
         
@@ -307,7 +307,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         print('No unique match found')
         return None
     
-    try:
+    if True:
         plt.figure()
         spec = sources['spec'][sel_obj]
         spec_err = sources['spec_err'][sel_obj]
@@ -339,6 +339,6 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
 
         return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
 
-    except:
+    else:
         print('No spectrum found for ' + str(objid) + ' in shotid = ' + str(shotid))
         return None
