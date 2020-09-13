@@ -364,6 +364,8 @@ class FiberIndex:
             seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
         )
 
+        idx = coords.separation(fibcoords) < radius
+        
         return seltab[idx]
 
         
