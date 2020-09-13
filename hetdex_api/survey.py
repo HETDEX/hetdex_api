@@ -367,7 +367,7 @@ class FiberIndex:
         return seltab[idx]
 
         
-    def get_fib_from_hp(self, hp, shotid=shotid, astropy=True):
+    def get_fib_from_hp(self, hp, shotid=None, astropy=True):
 
         if astropy:
             tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
