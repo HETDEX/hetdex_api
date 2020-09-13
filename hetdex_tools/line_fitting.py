@@ -302,12 +302,16 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         return None
         
     sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
+
+    if np.sum(sel_obj != 1):
+        print('No unique match found')
+        return None
     
     try:
         plt.figure()
-        shotid = row['shotid']
-        spec = row['spec']
-        spec_err = row['spec_err']
+        shotid = sources['shotid']
+        spec = sources['spec'][sel_obj]
+        spec_err = sources['spec_err'][sel_obj]
 
         line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
             spec*sources['spec'].unit,
