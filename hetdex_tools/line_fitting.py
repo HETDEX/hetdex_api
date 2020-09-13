@@ -285,7 +285,8 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     wave_obj
        wavelength you want to fit around. 
     shotid
-       shotid
+       shotid to get spectrum from. Will return shotid list
+       with spectra if not provided
     save
        boolean flag to save line fit to a png
     Returns
@@ -297,7 +298,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         sel_obj = (sources['ID'] == objid)
         shots = sources['shotid'][sel_obj]
         print('Source ' + str(objid) + 'is found in shotids: ', shots)
-        sys.exit()
+        return None
         
     sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
     
@@ -336,3 +337,4 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
 
     except:
         print('No spectrum found for ' + str(objid) + ' in shotid = ' + str(shotid))
+        return None
