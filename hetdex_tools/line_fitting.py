@@ -110,8 +110,11 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
     
     sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
     sub_spectrum = extract_region(spectrum, sub_region)
-    line_param = estimate_line_parameters(sub_spectrum-cont, models.Gaussian1D())
-    
+    try:
+        line_param = estimate_line_parameters(sub_spectrum-cont, models.Gaussian1D())
+    except:
+        return None
+        
     try:
         sigma = np.minimum(line_param.stddev, sigmamax)
     except ValueError:
