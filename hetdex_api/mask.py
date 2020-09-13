@@ -156,7 +156,10 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
     fiberid = FibIndex.get_closest_fiberid(coords, shotid=shotid,
                                            maxdistance=maxdistance)
     if fiberid is not None:
-        flag = amp_flag_from_fiberid(fiberid, bad_amps_table)
+        try:
+            flag = amp_flag_from_fiberid(fiberid, bad_amps_table)
+        except:
+            flag = False
     else:
         flag = None
         
