@@ -354,27 +354,28 @@ class FiberIndex:
 
         seltab = Table()
         for hpix in pix_region:
-            h_tab = self.get_fib_from_hp(hpix)
+            if shotid:
+                h_tab = self.get_fib_from_hp(hpix, shotid=shotid)
+            else:
+                h_tab = self.get_fib_from_hp(hpix)
             seltab = vstack([seltab, h_tab])
 
         fibcoords = SkyCoord(
             seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
         )
 
-        if shotid:
-            idx = (coords.separation(fibcoords) < radius) * (seltab["shotid"] == shotid)
-        else:
-            idx = coords.separation(fibcoords) < radius
-
         return seltab[idx]
 
         
-    def get_fib_from_hp(self, hp, astropy=True):
+    def get_fib_from_hp(self, hp, shotid=shotid, astropy=True):
 
         if astropy:
-            return Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
+            tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
+            sel_shot = tab['shotid'] == shotid
+            return tab
         else:
-            return self.hdfile.root.FiberIndex.read_where("healpix == hp")
+            sid = shotid
+            return self.hdfile.root.FiberIndex.read_where("(healpix == hp) & (shotid=sid)")
 
             
     def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
