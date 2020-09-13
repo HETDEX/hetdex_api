@@ -285,18 +285,23 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     wave_obj
        wavelength you want to fit around. 
     shotid
-       optional shotid to plot. If there are two matches, two plots
-       will be produced
+       shotid
     save
        boolean flag to save line fit to a png
     Returns
     -------
     a matplotlib figure
     """
+
+    if shotid is None:
+        sel_obj = (sources['ID'] == objid)
+        shots = sources['shotid'][sel_obj]
+        print('Source ' + str(objid) + 'is found in shotids: ', shots)
+        sys.exit()
+        
+    sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
     
-    sel_obj = sources['ID'] == objid
-    
-    for row in sources[sel_obj]:
+    try:
         plt.figure()
         shotid = row['shotid']
         spec = row['spec']
@@ -327,4 +332,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
             plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
 
 
-    return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
+        return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
+
+    except:
+        print('No spectrum found for ' + str(objid) + ' in shotid = ' + str(shotid))
