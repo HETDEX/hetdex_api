@@ -297,7 +297,8 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     if shotid is None:
         sel_obj = (sources['ID'] == objid)
         shots = sources['shotid'][sel_obj]
-        print('Source ' + str(objid) + 'is found in shotids: ', shots)
+        print('Source ' + str(objid) + ' is found in shotids: ')
+        print(shots)
         return None
         
     sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
