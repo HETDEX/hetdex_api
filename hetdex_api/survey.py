@@ -372,14 +372,21 @@ class FiberIndex:
     def get_fib_from_hp(self, hp, shotid=None, astropy=True):
 
         if astropy:
-            tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
-            sel_shot = tab['shotid'] == shotid
-            return tab
-        else:
-            sid = shotid
-            return self.hdfile.root.FiberIndex.read_where("(healpix == hp) & (shotid=sid)")
 
+            tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
             
+            if shotid:
+                sel_shot = tab['shotid'] == shotid
+                return tab[sel_shot]
+            else:
+                return tab
+        else:
+            if shotid:
+                sid = shotid
+                return self.hdfile.root.FiberIndex.read_where("(healpix == hp) & (shoti d== sid)")
+            else:
+                return self.hdfile.root.FiberIndex.read_where("(healpix == hp)")
+                
     def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
         """
         Function to retrieve the closest fiberid in a shot
