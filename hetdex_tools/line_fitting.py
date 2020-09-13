@@ -279,7 +279,8 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     Parameters
     ----------
     objid
-       str object name to match in the 'ID' column
+       object name to match in the 'ID' column. Make sure dtype
+       maches that in the sources table
     sources
        astropy table with spectra. Produced by get_spectra
     wave_obj
@@ -303,7 +304,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         
     sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
 
-    if np.sum(sel_obj != 1):
+    if np.sum(sel_obj) != 1:
         print('No unique match found')
         return None
     
