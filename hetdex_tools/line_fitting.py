@@ -312,8 +312,8 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
     
     if True:
         plt.figure()
-        spec = sources['spec'][sel_obj]
-        spec_err = sources['spec_err'][sel_obj]
+        spec = np.array(sources['spec'][sel_obj]).flatten()
+        spec_err = np.array(sources['spec_err'][sel_obj]).flatten()
 
         line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
             spec*sources['spec'].unit,
