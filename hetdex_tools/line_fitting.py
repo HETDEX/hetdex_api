@@ -229,23 +229,36 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
         try:
 
             wave_obj = input_table['wave'][sel_obj]
-            
-            line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
-                spec*sources['spec'].unit,
-                spec_err*sources['spec_err'].unit,
-                wave_obj*u.AA)
-            
+
+            result = line_fit(spec*sources['spec'].unit,
+                              spec_err*sources['spec_err'].unit,
+                              wave_obj*u.AA)
+
             detectid.append(row['ID'])
             shotid.append(row['shotid'])
-            chi2_fit.append(chi2)
-            sn_fit.append(sn)
-            wave_fit.append(line_param.mean.value)
-            amp_fit.append(line_param.amplitude.value)
-            sigma_fit.append(line_param.stddev.value)
-            lfdata_fit.append(line_flux_data.value)
-            lfmodel_fit.append(line_flux_model.value)
-            lfdata_err_fit.append(line_flux_data_err)
-            cont_fit.append(cont.value)
+
+            if result is not None:
+                line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont = result
+            
+                chi2_fit.append(chi2)
+                sn_fit.append(sn)
+                wave_fit.append(line_param.mean.value)
+                amp_fit.append(line_param.amplitude.value)
+                sigma_fit.append(line_param.stddev.value)
+                lfdata_fit.append(line_flux_data.value)
+                lfmodel_fit.append(line_flux_model.value)
+                lfdata_err_fit.append(line_flux_data_err)
+                cont_fit.append(cont.value)
+            else:
+                chi2_fit.append(np.nan)
+                sn_fit.append(np.nan)
+                wave_fit.append(np.nan)
+                amp_fit.append(np.nan)
+                sigma_fit.append(np.nan)
+                lfdata_fit.append(np.nan)
+                lfmodel_fit.append(np.nan)
+                lfdata_err_fit.append(np.nan)
+                cont_fit.append(np.nan)
         except:
 
             detectid.append(row['ID'])
@@ -314,7 +327,7 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
         return None
     
     if True:
-        plt.figure()
+        plt.figure(figsize=(10,8))
         spec = np.array(sources['spec'][sel_obj]).flatten()
         spec_err = np.array(sources['spec_err'][sel_obj]).flatten()
 
@@ -330,11 +343,11 @@ def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
                 
         plt.plot(x, g_fit(x).value + cont.value*np.ones(np.size(x.value)), 'r', label='model')
         #plt.plot(x, cont(x),'b-', label='cont')
-        plt.axhline(y = cont.value,label='cont', color='green')
+        plt.axhline(y = cont.value,label='cont', color='green', linestyle='dashed')
         
         plt.xlabel('Spectral Axis ({})'.format(u.AA))
         plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
-        plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
+        plt.title('ID = {:8s} SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(str(objid), sn, chi2, line_param.stddev.value))
         plt.legend()
 
         if save:
