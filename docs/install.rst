@@ -6,6 +6,8 @@ For TACC Users
 
 If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your $WORK, $SCRATCH (on stampede2) and $DATA (on wrangler) directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
 
+To do these steps you can either ssh in (for example, with the terminal app on Mac OS) or you can access a terminal from vis.tacc.utexas.edu. For cluster specific connection details, please see `Jupyter Notebook Access`. 
+
 For wrangler:
 
 .. code-block:: bash
@@ -28,7 +30,7 @@ For stampede2:
    chmod -R a+rX .
    cdw
 
-A note about TACC data drives. $DATA on wrangler, $SCRATCH on stampede2 should host active computing and file creation. It is not subject to a data limit but it is also not backed up. Files untouched may be deleted by the system admin. Your $HOME drive is backed up but has limited storage. $WORK storage is limited to 1 Tb and this is across all computing clusters. For more info please read: 
+A note about TACC data drives: $DATA on wrangler, $SCRATCH on stampede2 should host active computing and file creation. It is not subject to a data limit but it is also not backed up. Files untouched may be deleted by the system admin. Your $HOME drive is backed up but has limited storage. $WORK storage is limited to 1 Tb and this is across all computing clusters. For more info please read: 
 
 https://portal.tacc.utexas.edu/tutorials/managingio
 
@@ -37,6 +39,8 @@ Copy over Erin's .bashrc script to set up your environment.
 .. code-block:: bash
 
     cp ~ecooper/.bashrc $HOME/.bashrc
+
+Now you need to exit the terminal session by completely closing your ssh connection or your vis.tacc.utexas.edu notebook session. Then log back in to finish the install.
 
 Install Required Packages for hetdex-api
 -----------------------------------------
@@ -57,6 +61,7 @@ As of HDR2.1 release, a stable release of hetdex-api can now be pip installed fr
 .. code-block:: bash
 
    pip3 install hetdex_api --user --upgrade
+
 
 Install hetdex-api: latest version
 ----------------------------------
