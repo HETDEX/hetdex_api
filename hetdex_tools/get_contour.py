@@ -262,7 +262,7 @@ def main(argv=None):
     vmin, vmax = zscale.get_limits(values=cutout["cutout"].data)
     fig = plt.figure(figsize=(25, 6))
 
-    ax = fig.add_subplot(131, projection=cutout["cutout"].wcs)
+    ax1 = fig.add_subplot(131, projection=cutout["cutout"].wcs)
     plt.imshow(
         cutout["cutout"].data,
         vmin=vmin,
@@ -272,7 +272,7 @@ def main(argv=None):
         interpolation="none",
     )
     
-    plt.text( 0.8, 0.9, cutout['instrument'] + cutout['filter'], transform=ax.transAxes)
+    plt.text( 0.8, 0.9, cutout['instrument'] + cutout['filter'], transform=ax1.transAxes)
     
     inten =  hdu.data[ np.isfinite( hdu.data)].flatten()
     sel = inten < 3.*np.median(inten)
@@ -284,7 +284,7 @@ def main(argv=None):
         hdu.data/sigma,
         levels=cont_levels,
         cmap="Greens",
-        transform=ax.get_transform(wcs.WCS(hdu.header)),
+        transform=ax1.get_transform(wcs.WCS(hdu.header)),
     )
     plt.clabel(contplot)
     plt.colorbar()
