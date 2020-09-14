@@ -101,11 +101,14 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
                               uncertainty=StdDevUncertainty(spec_err * 10**-17 * u.Unit('erg cm-2 s-1 AA-1')),
                               velocity_convention=None)
 
-    # measure continuum over 2*dwave_cont wide window first:
-    cont_region = SpectralRegion((wave_obj-dwave_cont), (wave_obj+dwave_cont))
-    cont_spectrum = extract_region(spectrum, cont_region)
-    cont = np.median(cont_spectrum.flux)
-
+    try:
+        # measure continuum over 2*dwave_cont wide window first:
+        cont_region = SpectralRegion((wave_obj-dwave_cont), (wave_obj+dwave_cont))
+        cont_spectrum = extract_region(spectrum, cont_region)
+        cont = np.median(cont_spectrum.flux)
+    except:
+        cont = 0.0
+        
     # now get region to fit the continuum subtracted line
     
     sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
