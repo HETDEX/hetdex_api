@@ -32,31 +32,11 @@ A note about TACC data drives. $DATA on wrangler, $SCRATCH on stampede2 should h
 
 https://portal.tacc.utexas.edu/tutorials/managingio
 
-Then get the default bash script from TACC by running this script
+Copy over Erin's .bashrc script to set up your environment.
 
 .. code-block:: bash
 
-   cd $HOME
-   /usr/local/startup_scripts/install_default_scripts
-
-Then open your .bashrc and uncomment this line:
-::
-
-   umask 022
-
-and add in the following module loads/unloads:
-::
-
-   module unload python
-   module unload python2
-   module load intel/18.0.2
-   module load python3
-   alias python='python3'
-
-and add in the following line to your $PATH:
-::
-
-   export PATH=$PATH:$HOME/bin:$HOME/.local/bin
+    cp ~ecooper/.bashrc $HOME/.bashrc
 
 Install Required Packages for hetdex-api
 -----------------------------------------
@@ -156,6 +136,11 @@ This will allow you to go to your work directory when you log onto vis.
 
 You can now open up a jupyter notebook and explore some of the notebooks in
 hetdex-api/notebooks or just pop in some of the commands you see throughout this website.
+We recommend you copy over the notebook tutorials to explore in your local directory.
+
+.. code-block:: bash
+
+    cp -r /work/05350/ecooper/wrangler/hetdex_api/notebooks $WORK/
 
 Running a notebook from the command line
 ----------------------------------------
