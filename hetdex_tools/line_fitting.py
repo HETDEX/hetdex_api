@@ -106,7 +106,7 @@ def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
     cont_spectrum = extract_region(spectrum, cont_region)
     cont = np.median(cont_spectrum.flux)
 
-    if np.isnan(cont.value):
+    if np.isnan(cont):
         #set continuum if its NaN
         print('Continuum fit is NaN. Setting to 0.0')
         cont = 0.0*cont_spectrum.unit
