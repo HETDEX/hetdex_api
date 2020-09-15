@@ -9,7 +9,8 @@ discussing it with Erin.
 
 author = Erin Mentuch Cooper
 """
-
+import os
+import os.path as op
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -58,7 +59,8 @@ def calc_chi2(sub_spectrum, g_fit, reduced=True, n_free=2):
     return chi2
 
 
-def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
+def line_fit(spec, spec_err, wave_obj, dwave=10.*u.AA,
+             dwave_cont=100.*u.AA, sigmamax=14.*u.AA):
     '''
     Function to fit a 1D gaussian to a HETDEX spectrum from get_spec.py
 
@@ -73,9 +75,12 @@ def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
         Will assume unit of 10**-17*u.Unit('erg cm-2 s-1 AA-1') if no units
         are provided.
     wave_obj
-        wavelength you want to fit. If no unit is provided, assumes u.AA
+        wavelength you want to fit, an astropy quantity
     dwave
-        spectral region above and below wave_obj to fit. Assumes u.AA
+        spectral region above and below wave_obj to fit a line, an astropy quantity.
+        Default is 10.*u.AA
+    dwave_cont
+        spectral region to fit continuum. Default is +/- 100.*u.AA
     sigmamax
         Maximum linewidth (this is sigma/stdev of the gaussian fit) to allow
         for a fit. Assumes unit of u.AA if not given
@@ -95,30 +100,45 @@ def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
                               spectral_axis=(2.0 * np.arange(1036) + 3470.) * u.AA,
                               uncertainty=StdDevUncertainty(spec_err * 10**-17 * u.Unit('erg cm-2 s-1 AA-1')),
                               velocity_convention=None)
-        
-    try:
-        sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
-    except ValueError:
-        wave_obj.unit = u.AA
-        dwave.unit = u.AA
-        sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
 
-    sub_spectrum = extract_region(spectrum, sub_region)
-    line_param = estimate_line_parameters(sub_spectrum, models.Gaussian1D())
+    # measure continuum over 2*dwave_cont wide window first:
+    cont_region = SpectralRegion((wave_obj-dwave_cont), (wave_obj+dwave_cont))
+    cont_spectrum = extract_region(spectrum, cont_region)
+    cont = np.median(cont_spectrum.flux)
+
+    if np.isnan(cont):
+        #set continuum if its NaN
+        print('Continuum fit is NaN. Setting to 0.0')
+        cont = 0.0*cont_spectrum.unit
+        
+    # now get region to fit the continuum subtracted line
     
+    sub_region = SpectralRegion((wave_obj-dwave), (wave_obj+dwave))
+    sub_spectrum = extract_region(spectrum, sub_region)
+
+    try:
+        line_param = estimate_line_parameters(sub_spectrum-cont, models.Gaussian1D())
+    except:
+        return None
+
+    if np.isnan(line_param.amplitude.value):
+        print('Line fit yields NaN result. Exiting.')
+        return None
+        
     try:
         sigma = np.minimum(line_param.stddev, sigmamax)
     except ValueError:
         sigma = np.minimum(line_param.stddev, sigmamax*u.AA)
 
+    if np.isnan(sigma):
+        sigma=sigmamax
+        
     g_init = models.Gaussian1D(amplitude=line_param.amplitude,
                                mean=line_param.mean, stddev=sigma)
     
-    lineregion = SpectralRegion((wave_obj-2*sigma), (wave_obj+2*sigma))
-
+#    lineregion = SpectralRegion((wave_obj-2*sigma), (wave_obj+2*sigma))
 #    cont = fit_generic_continuum(sub_spectrum, exclude_regions=lineregion,
 #                                 model=models.Linear1D(slope=0))
-    cont = np.median(sub_spectrum.flux)
 
     #r1 = SpectralRegion((wave_obj-dwave), (wave_obj-2*sigma))
     #r2 = SpectralRegion((wave_obj+2*sigma), (wave_obj+dwave))
@@ -139,18 +159,26 @@ def line_fit(spec, spec_err, wave_obj, dwave=50.*u.AA, sigmamax=14.*u.AA):
 
     chi2 = calc_chi2(sub_spectrum - cont, g_fit)
 
-    fitted_region = SpectralRegion((line_param.mean - 2*sigma),
-                                   (line_param.mean + 2*sigma))
-    fitted_spectrum = extract_region(spectrum, fitted_region)
+    sn = np.sum(np.array(sub_spectrum.flux )) / np.sqrt(np.sum(
+        sub_spectrum.uncertainty.array**2))
+    
+    line_flux_data = line_flux(sub_spectrum-cont).to(u.erg * u.cm**-2 * u.s**-1)
+    
+    line_flux_data_err = np.sqrt(np.sum(sub_spectrum.uncertainty.array**2))
 
-    line_param = estimate_line_parameters(fitted_spectrum, models.Gaussian1D())
+    #fitted_region = SpectralRegion((line_param.mean - 2*sigma),
+    #                               (line_param.mean + 2*sigma))
 
-    sn = np.sum(np.array(fitted_spectrum.flux)) / np.sqrt(np.sum(
-        fitted_spectrum.uncertainty.array**2))
+    #fitted_spectrum = extract_region(spectrum, fitted_region)
 
-    line_flux_data = line_flux(fitted_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+    #line_param = estimate_line_parameters(fitted_spectrum, models.Gaussian1D())
 
-    line_flux_data_err = np.sqrt(np.sum(fitted_spectrum.uncertainty.array**2))
+    #sn = np.sum(np.array(fitted_spectrum.flux)) / np.sqrt(np.sum(
+    #    fitted_spectrum.uncertainty.array**2))
+
+    #line_flux_data = line_flux(fitted_spectrum).to(u.erg * u.cm**-2 * u.s**-1)
+
+    #line_flux_data_err = np.sqrt(np.sum(fitted_spectrum.uncertainty.array**2))
 
     return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
 
@@ -192,6 +220,8 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
     lfdata_fit = []
     lfmodel_fit = []
     lfdata_err_fit = []
+    g_fit_array = []
+    cont_fit = []
     
     for row in sources:
         spec = row['spec']
@@ -206,44 +236,38 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
         try:
 
             wave_obj = input_table['wave'][sel_obj]
-            
-            line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
-                spec*sources['spec'].unit,
-                spec_err*sources['spec_err'].unit,
-                wave_obj*u.AA)
-            
+
+            result = line_fit(spec*sources['spec'].unit,
+                              spec_err*sources['spec_err'].unit,
+                              wave_obj*u.AA)
+
             detectid.append(row['ID'])
             shotid.append(row['shotid'])
-            chi2_fit.append(chi2)
-            sn_fit.append(sn)
-            wave_fit.append(line_param.mean.value)
-            amp_fit.append(line_param.amplitude.value)
-            sigma_fit.append(line_param.stddev.value)
-            lfdata_fit.append(line_flux_data.value)
-            lfmodel_fit.append(line_flux_model.value)
-            lfdata_err_fit.append(line_flux_data_err)
 
-
-            plt.figure()
-            wave = (2.0 * np.arange(1036) + 3470.)
-            sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
-            plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
-            x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
-            plt.plot(x, g_fit(x).value + cont*np.ones(np.size(x.value)), 'r', label='model')
-            plt.plot(x, cont(x),'b-', label='cont')
+            if result is not None:
+                line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont = result
             
-            plt.xlabel('Spectral Axis ({})'.format(u.AA))
-            plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
-            plt.title('SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(sn, chi2, line_param.stddev.value))
-            plt.legend()
-
-            if not op.exist('line_fits'):
-                os.makedirs('line_fits')
-                
-            plt.savefig('line_fit_ID' + str(row['ID']) + 's' + row['shotid'] + '.png')
-            plt.close()
-            
+                chi2_fit.append(chi2)
+                sn_fit.append(sn)
+                wave_fit.append(line_param.mean.value)
+                amp_fit.append(line_param.amplitude.value)
+                sigma_fit.append(line_param.stddev.value)
+                lfdata_fit.append(line_flux_data.value)
+                lfmodel_fit.append(line_flux_model.value)
+                lfdata_err_fit.append(line_flux_data_err)
+                cont_fit.append(cont.value)
+            else:
+                chi2_fit.append(np.nan)
+                sn_fit.append(np.nan)
+                wave_fit.append(np.nan)
+                amp_fit.append(np.nan)
+                sigma_fit.append(np.nan)
+                lfdata_fit.append(np.nan)
+                lfmodel_fit.append(np.nan)
+                lfdata_err_fit.append(np.nan)
+                cont_fit.append(np.nan)
         except:
+
             detectid.append(row['ID'])
             shotid.append(row['shotid'])
             chi2_fit.append(np.nan)
@@ -254,6 +278,7 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
             lfdata_fit.append(np.nan)
             lfmodel_fit.append(np.nan)
             lfdata_err_fit.append(np.nan)
+            cont_fit.append(np.nan)
 
         output=Table()
         output.add_column(Column(detectid), name='ID')
@@ -266,7 +291,80 @@ def make_line_catalog(input_table, sources, shotidmatch=False):
         output.add_column(Column(lfdata_fit), name='line_flux_data')
         output.add_column(Column(lfmodel_fit), name='line_flux_model')
         output.add_column(Column(lfdata_err_fit), name='line_flux_data_err')
+        output.add_column(Column(cont_fit), name='cont_fit')
         
-        output_tab = join(output, input_table, keys=['ID'])
+        output_tab = join(input_table, output, keys=['ID'])
 
     return output_tab
+
+def plot_line(objid, sources, wave_obj=None, shotid=None, save=False):
+    """
+    Function to plot up objid at a wavelength in an extracted source
+    table from get_spectra
+    
+    Parameters
+    ----------
+    objid
+       object name to match in the 'ID' column. Make sure dtype
+       maches that in the sources table
+    sources
+       astropy table with spectra. Produced by get_spectra
+    wave_obj
+       wavelength you want to fit around. 
+    shotid
+       shotid to get spectrum from. Will return shotid list
+       with spectra if not provided
+    save
+       boolean flag to save line fit to a png
+    Returns
+    -------
+    a matplotlib figure
+    """
+
+    if shotid is None:
+        sel_obj = sources['ID'] == objid
+        shots = np.array( np.unique(sources['shotid'][sel_obj]))
+        print('Source ' + str(objid) + ' is found in shotids: ', shots)
+        return None
+        
+    sel_obj = (sources['ID'] == objid) * (sources['shotid'] == shotid)
+
+    if np.sum(sel_obj) != 1:
+        print('No unique match found')
+        return None
+    
+    if True:
+        plt.figure(figsize=(10,8))
+        spec = np.array(sources['spec'][sel_obj]).flatten()
+        spec_err = np.array(sources['spec_err'][sel_obj]).flatten()
+
+        line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont=line_fit(
+            spec*sources['spec'].unit,
+            spec_err*sources['spec_err'].unit,
+            wave_obj*u.AA)
+
+        wave = (2.0 * np.arange(1036) + 3470.)
+        sel_w = (wave >= wave_obj - 50) * ( wave <= wave_obj + 50)
+        plt.errorbar(wave[sel_w], spec[sel_w], yerr=spec_err[sel_w],fmt='o', label='extract')
+        x = np.arange(wave_obj-50, wave_obj+50, 0.5)*u.AA
+                
+        plt.plot(x, g_fit(x).value + cont.value*np.ones(np.size(x.value)), 'r', label='model')
+        #plt.plot(x, cont(x),'b-', label='cont')
+        plt.axhline(y = cont.value,label='cont', color='green', linestyle='dashed')
+        
+        plt.xlabel('Spectral Axis ({})'.format(u.AA))
+        plt.ylabel('Flux Axis({})'.format(sources['spec'].unit))
+        plt.title('ID = {:8s} SN = {:4.2f}  Chi2 = {:4.2f}  sigma = {:4.2f}'.format(str(objid), sn, chi2, line_param.stddev.value))
+        plt.legend()
+
+        if save:
+            if not op.exist('line_fits'):
+                os.makedirs('line_fits')
+            plt.savefig('line_fit_ID' + str(row['ID']) + '_' + str(shotid) + '.png')
+
+
+        return line_param, sn, chi2, sigma, line_flux_data, line_flux_model, line_flux_data_err, g_fit, cont
+
+    else:
+        print('No spectrum found for ' + str(objid) + ' in shotid = ' + str(shotid))
+        return None

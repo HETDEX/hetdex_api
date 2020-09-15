@@ -354,29 +354,39 @@ class FiberIndex:
 
         seltab = Table()
         for hpix in pix_region:
-            h_tab = self.get_fib_from_hp(hpix)
+            if shotid:
+                h_tab = self.get_fib_from_hp(hpix, shotid=shotid)
+            else:
+                h_tab = self.get_fib_from_hp(hpix)
             seltab = vstack([seltab, h_tab])
 
         fibcoords = SkyCoord(
             seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
         )
 
-        if shotid:
-            idx = (coords.separation(fibcoords) < radius) * (seltab["shotid"] == shotid)
-        else:
-            idx = coords.separation(fibcoords) < radius
-
+        idx = coords.separation(fibcoords) < radius
+        
         return seltab[idx]
 
         
-    def get_fib_from_hp(self, hp, astropy=True):
+    def get_fib_from_hp(self, hp, shotid=None, astropy=True):
 
         if astropy:
-            return Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
-        else:
-            return self.hdfile.root.FiberIndex.read_where("healpix == hp")
 
+            tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
             
+            if shotid:
+                sel_shot = tab['shotid'] == shotid
+                return tab[sel_shot]
+            else:
+                return tab
+        else:
+            if shotid:
+                sid = shotid
+                return self.hdfile.root.FiberIndex.read_where("(healpix == hp) & (shoti d== sid)")
+            else:
+                return self.hdfile.root.FiberIndex.read_where("(healpix == hp)")
+                
     def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
         """
         Function to retrieve the closest fiberid in a shot
@@ -403,13 +413,12 @@ class FiberIndex:
 
         #start searching at small radius to search more efficiently
         search = 2.*u.arcsec
-        
-        fiber_table = self.query_region(coords, radius=search, shotid=shotid)
 
-        if np.size(fiber_table) > 0:
-            pass
-        else:
-            fiber_table = self.query_region(coords, radius=maxdistance, shotid=shotid)
+        while search <= maxdistance:
+            fiber_table = self.query_region(coords, radius=search, shotid=shotid)
+            search = search + 4.*u.arcsec
+            if np.size(fiber_table) > 0:
+                break
 
         if np.size(fiber_table) > 0:
             fibcoords = SkyCoord(
