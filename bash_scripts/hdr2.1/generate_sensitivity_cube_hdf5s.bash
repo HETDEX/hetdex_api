@@ -19,11 +19,11 @@ DATE_FN=shotlist
 redo="false"
 
 # input and output paths
-INPATH=/data/04120/dfarrow/hdr2.1_fits_cubes/run$1
-OUTPATH=/data/04120/dfarrow/hdr2.1_hdfs
+INPATH=/data/04120/dfarrow/hdr2.1_fits_cubes_rerun/run$1
+OUTPATH=/data/04120/dfarrow/hdr2.1_hdfs_rerun
 
 # File in to which to write the biweight location of the flux limits at 4540AA for each shot
-AVERAGE_FLIM_FILE=$OUTPATH/average_one_sigma_run$1.txt.fixbadifu
+AVERAGE_FLIM_FILE=$OUTPATH/average_one_sigma_run$1.txt
 
 cd $INPATH
 

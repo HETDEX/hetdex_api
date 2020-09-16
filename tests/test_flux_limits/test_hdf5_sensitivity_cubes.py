@@ -73,8 +73,8 @@ def test_hdf5_add_extract(hdf5_container, sensitivity_cube, flush):
     scube = hdf5_container.extract_ifu_sensitivity_cube("ifuslot_000")
 
     # Check it's the same (multiply by big number of approx thinks they're the same)
-    vals_new = scube.sigmas.flatten()*1e16
-    vals_old = sensitivity_cube.sigmas.flatten()*1e16
+    vals_new = scube.sigmas.filled().flatten()*1e16
+    vals_old = sensitivity_cube.sigmas.filled().flatten()*1e16
 
     assert vals_new == pytest.approx(vals_old)
 

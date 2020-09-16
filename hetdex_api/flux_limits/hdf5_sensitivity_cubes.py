@@ -14,6 +14,7 @@ from re import compile
 import tables as tb
 from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
+from numpy.ma import MaskedArray
 
 _logger = logging.getLogger()
 _logger.setLevel("INFO")
@@ -29,7 +30,8 @@ class NoFluxLimsAvailable(Exception):
     pass
 
 
-def return_sensitivity_hdf_path(datevobs, release="hdr2.1"):
+def return_sensitivity_hdf_path(datevobs, release="hdr2.1", 
+                                return_mask_fn = False):
     """
     Return the full file path
     to a HDF5 container of sensitivity     
@@ -57,11 +59,16 @@ def return_sensitivity_hdf_path(datevobs, release="hdr2.1"):
     """
     config = HDRconfig(release)
     flim_dir = config.flim_dir
+    mask_dir = config.flimmask
 
     path_to_hdf5s = join(flim_dir, "{:s}_sensitivity_cube.h5".format(datevobs))
 
     if isfile(path_to_hdf5s):
-        return path_to_hdf5s
+        if return_mask_fn:
+            mask_fn = join(mask_dir, "{:s}_mask.h5".format(datevobs))
+            return path_to_hdf5s, mask_fn
+        else:
+            return path_to_hdf5s
     else:
         raise NoFluxLimsAvailable(
             "Cannot find flux limits for that shot!"
@@ -90,6 +97,9 @@ class SensitivityCubeHDF5Container(object):
         apply to flux limits. Default
         is 1.0, if None then read 
         correction from header.
+    mask_filename : str (optional)
+        optional mask to apply, path to
+        one of the _mask.h5 files
 
     Attributes
     ----------
@@ -98,7 +108,8 @@ class SensitivityCubeHDF5Container(object):
 
     """
 
-    def __init__(self, filename, mode="r", flim_model="hdr2pt1", aper_corr=1.0, **kwargs):
+    def __init__(self, filename, mode="r", flim_model="hdr2pt1", aper_corr=1.0, 
+                 mask_filename = None, **kwargs):
 
         if (mode == "w") and isfile(filename):
             raise FileExists("Error! Output file {:s} exists!".format(filename))
@@ -110,6 +121,11 @@ class SensitivityCubeHDF5Container(object):
         self.h5file = tb.open_file(
             filename, mode=mode, filters=self.compress_filter, **kwargs
         )
+        if mask_filename:
+            self.h5mask = tb.open_file(mask_filename)
+        else:
+            self.h5mask = None
+
         self.filename = filename
         self.flim_model = flim_model
         self.aper_corr = aper_corr
@@ -138,14 +154,17 @@ class SensitivityCubeHDF5Container(object):
             shot = self.h5file.create_group(self.h5file.root, datevshot)
 
         # Store this in a compressible array
-        array = self.h5file.create_carray(
-                           shot, ifuslot, obj=scube.sigmas, 
-                           title="1 sigma noise")
-     
+        if type(scube.sigmas) == MaskedArray.__class__:
+            array = self.h5file.create_carray(
+                               shot, ifuslot, obj=scube.sigmas.data, 
+                               title="1 sigma noise")
+        else:     
+            array = self.h5file.create_carray(
+                                shot, ifuslot, obj=scube.sigmas, 
+                                title="1 sigma noise")
+ 
         #  Store what aperture correction has been applied
         array.attrs.aper_corr = scube.aper_corr
-
-        #
 
         # Store the header as an attribute
         array.attrs.header = scube.header
@@ -203,6 +222,12 @@ class SensitivityCubeHDF5Container(object):
             alphas = ifu.attrs.alphas
             sigmas = ifu.read() / ifu.attrs.aper_corr
 
+            if self.h5mask:
+                mask = self.h5mask.get_node(self.h5mask.root.Mask, 
+                                            name=ifu.name).read()
+            else:
+                mask = None
+
             try:
                 nsigma = ifu.attrs.nsigma
             except AttributeError as e:
@@ -220,7 +245,7 @@ class SensitivityCubeHDF5Container(object):
             yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas, 
                                             flim_model=self.flim_model,
                                             aper_corr=self.aper_corr, 
-                                            nsigma=nsigma)
+                                            nsigma=nsigma, mask=mask)
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """
@@ -261,6 +286,13 @@ class SensitivityCubeHDF5Container(object):
         else:
             shot = self.h5file.get_node(self.h5file.root, name=datevshot)
 
+
+        if self.h5mask:
+            mask = self.h5mask.get_node(self.h5mask.root.Mask, 
+                                        name=ifuslot).read()
+        else:
+            mask = None
+
         # Now get the desired IFU
         ifu = self.h5file.get_node(shot, name=ifuslot)
 
@@ -284,7 +316,7 @@ class SensitivityCubeHDF5Container(object):
         # Force apcor to be 1.0 here, so we don't double count it
         return SensitivityCube(sigmas, header, wavelengths, alphas, 
                                nsigma=nsigma, flim_model=self.flim_model,
-                               aper_corr=self.aper_corr)
+                               aper_corr=self.aper_corr, mask=mask)
 
     def flush(self):
         """ Write all alive leaves to disk """

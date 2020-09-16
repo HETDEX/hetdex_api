@@ -23,7 +23,9 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
-                   median, sqrt, divide, linspace, ones, log10, loadtxt, polyval)
+                   median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
+                   repeat, newaxis, logical_not)
+from numpy.ma import array as maskedarray
 from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
@@ -124,6 +126,10 @@ class SensitivityCube(object):
         the name of the flux limit model 
         to use. This can either be 'hdr1' or
         'hdr2pt1'
+    mask : array (optional)
+        a spatial ra, dec mask with the same
+        WCS and dimensions as the data (default:
+        None)
 
     Attributes
     ----------
@@ -142,9 +148,15 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1"): 
+                 nsigma=1.0, flim_model="hdr2pt1", mask=None): 
 
-        self.sigmas = sigmas/nsigma
+        if type(mask) != type(None):
+            mask = logical_not(mask)
+            mask3d = repeat(mask[newaxis, :, :], sigmas.shape[0], axis=0)
+            self.sigmas = maskedarray(sigmas/nsigma, mask=mask3d, fill_value=999.0)
+        else:
+            self.sigmas = maskedarray(sigmas/nsigma, fill_value=999.0)
+
         self.nsigma = nsigma
 
         # Fix issue with header
@@ -188,6 +200,7 @@ class SensitivityCube(object):
         except AttributeError as e:
             print("Chosen flux limit model not found!")
             raise e
+
 
     def get_alpha(self, ra, dec, lambda_):
         """
@@ -349,7 +362,7 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50_from_noise(self.sigmas[iz, iy, ix], sncut)
+        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
 
         # Support arrays and floats
         try:
@@ -392,7 +405,7 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        noise = self.sigmas[iz, iy, ix]
+        noise = self.sigmas.filled()[iz, iy, ix]
         snr = flux/noise
 
         # Support arrays and floats
@@ -497,7 +510,7 @@ class SensitivityCube(object):
 
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
-        noise = self.sigmas[izlo:(izhigh + 1), :, :]
+        noise = self.sigmas.filled()[izlo:(izhigh + 1), :, :]
         noise = noise[(noise < noise_cut) & isfinite(noise)] 
 
         f50s = self.f50_from_noise(noise, sncut)
@@ -559,7 +572,7 @@ class SensitivityCube(object):
  
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
-        noise = self.sigmas[izlo:(izhigh + 1), :, :]
+        noise = self.sigmas.filled()[izlo:(izhigh + 1), :, :]
         noise = noise[(noise < noise_cut) & (noise > 0)]
   
         f50 = self.f50_from_noise(median(noise), sncut)
@@ -586,7 +599,7 @@ class SensitivityCube(object):
             function
         """
 
-        fits.writeto(filename, self.aper_corr*datascale/self.sigmas,
+        fits.writeto(filename, self.aper_corr*datascale/self.sigmas.data,
                      header=self.header, **kwargs)
 
 def plot_completeness(args=None):
