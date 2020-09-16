@@ -163,6 +163,15 @@ def main(argv=None):
         default="hdr2.1",
     )
 
+    parser.add_argument(
+        "--ffsky",
+        "-ffsky",
+        help="""Set to True to use the full frame sky sutraction.""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+        
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
@@ -208,7 +217,8 @@ def main(argv=None):
     coords = SkyCoord(tab["ra"], tab["dec"], unit=u.deg)
     id_list = np.array(tab["ID"])
 
-    sources = get_spectra(coords, shotid=shot_obj, multiprocess=False, survey='hdr2.1')
+    sources = get_spectra(coords, shotid=shot_obj, multiprocess=False,
+                          survey=args.survey, ffsky=args.ffsky)
 
     tab.add_column(wave_obj, name='wave')
     
