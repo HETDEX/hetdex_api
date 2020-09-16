@@ -4,7 +4,7 @@
 
 # List of dates and shots to verify
 INLIST=/data/00115/gebhardt/getcen/fulllist
-BADLIST=/data/05350/ecooper/hdr2.1/survey/badshots.list
+BADLIST=/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1/badshots.list
 
 echo "If nothing is printed then everything worked: "
 
@@ -21,6 +21,7 @@ do
  
         # test if a bad shot
         bad=`grep "${date}${shot}" $BADLIST`
+        #bad=""
 
         if [ "$bad" == "" ] ; then
             echo "Missing! $fn"

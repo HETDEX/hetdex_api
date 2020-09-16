@@ -8,7 +8,8 @@ AUTHOR: Daniel Farrow (MPE) 2020
 """
 
 from __future__ import print_function
-
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 from os.path import basename
 from argparse import ArgumentParser
@@ -74,6 +75,7 @@ plt.ylim(0, 50)
 plt.xlabel("Flux $10^{-17}$ erg/s/cm$^{-2}$")
 plt.ylabel("50% Flux Limit $10^{-17}$ erg/s/cm$^{-2}$ ")
 
-plt.show()
+plt.savefig("flim_test.pdf")
 
-table_out.write(args.output_fn)
+if args.output_fn:
+    table_out.write(args.output_fn)

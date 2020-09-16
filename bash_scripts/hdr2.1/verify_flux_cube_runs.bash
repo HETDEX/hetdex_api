@@ -6,8 +6,8 @@
 # size
 
 
-#for run in $(seq 1 17)
-for run in 17
+for run in $(seq 1 17)
+#for run in 17
 do
    pushd run$run
    cat rflim | while read line
@@ -22,8 +22,8 @@ do
      size=`echo $duo | awk '{print $1}'` 
 
      if [ "$rval" != "0" ] || [ "$size" == "0" ]; then
-         echo "pushd run${run} ; ${line} ; popd" >> ../torerun
-         echo $fn >> ../failures
+         echo "pushd run${run} ; ${line} ; popd" >> ../torerun3
+         echo $fn >> ../failures3
      fi
    done
    popd
