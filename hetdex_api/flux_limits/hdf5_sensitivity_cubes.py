@@ -59,12 +59,13 @@ def return_sensitivity_hdf_path(datevobs, release="hdr2.1",
     """
     config = HDRconfig(release)
     flim_dir = config.flim_dir
+    mask_dir = config.flimmask
 
     path_to_hdf5s = join(flim_dir, "{:s}_sensitivity_cube.h5".format(datevobs))
 
     if isfile(path_to_hdf5s):
         if return_mask_fn:
-            mask_fn = "/data/05350/ecooper/mask/{:s}_mask.h5".format(datevobs)
+            mask_fn = join(mask_dir, "{:s}_mask.h5".format(datevobs))
             return path_to_hdf5s, mask_fn
         else:
             return path_to_hdf5s
