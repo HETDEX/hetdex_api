@@ -166,7 +166,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
     return flag
 
     
-def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
     """
     Returns a boolean flag value to mask out meteors
 
