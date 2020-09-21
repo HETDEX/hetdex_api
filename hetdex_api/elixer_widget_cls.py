@@ -74,20 +74,20 @@ line_id_dict_other = "Other (xxxx)"
 
 line_id_dict_default = "Unk (????)"
 line_id_dict = {line_id_dict_default:-1.0,
-                line_id_dict_lae:1216.0,
-                "3727 OII":3727.0,
-                "4863 H-beta": 4862.68,
-                "4960 OIII":4960.295,
-                "5008 OIII":5008.240,
+                line_id_dict_lae:1216,
+                "3727 OII":3727,
+                "4863 H-beta": 4863,
+                "4959 OIII":4959,
+                "5007 OIII":5007,
                 line_id_dict_sep:-1.0,
-                "1241 NV":1240.81,
-                "1260 SiII": 1260.0,
-                "1549 CIV":1549.48,
-                "1640 HeII": 1640.4,
-                "1909 CII":1908.734,
-                "2799 MgII":2799.117,
-                "4102 H-delta": 4102.0,
-                "4342 H-gamma": 4341.68,
+                "1241 NV":1241,
+                "1260 SiII": 1260,
+                "1549 CIV":1549,
+                "1640 HeII": 1640,
+                "1909 CII":1909,
+                "2799 MgII":2799,
+                "4102 H-delta": 4102,
+                "4341 H-gamma": 4341,
                 line_id_dict_other:-1.0
                 }
 
@@ -252,16 +252,18 @@ class ElixerWidget():
                 self.c_green_button.on_click(self.c_green_button_click)
                 self.c_other_button.on_click(self.c_other_button_click)
 
-            display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
+            display(widgets.HBox([self.sm1_button,self.lowz_button,self.other_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
 
             self.sm1_button.on_click(self.sm1_button_click)
-            self.s0_button.on_click(self.s0_button_click)
+            #self.s0_button.on_click(self.s0_button_click)
             self.s1_button.on_click(self.s1_button_click)
             self.s2_button.on_click(self.s2_button_click)
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+            self.lowz_button.on_click(self.lowz_button_click)
+            self.other_button.on_click(self.other_button_click)
         else:
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
@@ -405,16 +407,19 @@ class ElixerWidget():
         # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
         # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
 
-        self.sm1_button = widgets.Button(description='Spurious',
+        self.sm1_button = widgets.Button(description='Artifact',
                                          button_style='danger',
                                          layout=Layout(width='10%'))
 
-        self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
-        self.s1_button = widgets.Button(description='          (1) ', button_style='success')
-        self.s2_button = widgets.Button(description='          (2) ', button_style='success')
-        self.s3_button = widgets.Button(description='          (3) ', button_style='success')
-        self.s4_button = widgets.Button(description='          (4) ', button_style='success')
-        self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
+        self.other_button = widgets.Button(description=' Other ', button_style='warning')
+        self.lowz_button = widgets.Button(description=' Low-z ', button_style='warning')
+
+        #self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
+        self.s1_button = widgets.Button(description='     LAE  1 ', button_style='success')
+        self.s2_button = widgets.Button(description='          2 ', button_style='success')
+        self.s3_button = widgets.Button(description='          3 ', button_style='success')
+        self.s4_button = widgets.Button(description='          4 ', button_style='success')
+        self.s5_button = widgets.Button(description='      LAE 5 ', button_style='success')
 
 
 
@@ -687,8 +692,10 @@ class ElixerWidget():
 
 
         # reset all to base
+        self.lowz_button.icon  = ''
+        self.other_button.icon = ''
         self.sm1_button.icon = ''
-        self.s0_button.icon = ''
+        #self.s0_button.icon = ''
         self.s1_button.icon = ''
         self.s2_button.icon = ''
         self.s3_button.icon = ''
@@ -704,9 +711,9 @@ class ElixerWidget():
 
         # mark the label on the button
         if self.flag[idx] != 0:
-            if self.vis_class[idx] == 0:
-                self.s0_button.icon = 'check'
-            elif self.vis_class[idx] == 1:
+            #if self.vis_class[idx] == 0:
+            #    self.s0_button.icon = 'check'
+            if self.vis_class[idx] == 1:
                 self.s1_button.icon = 'check'
             elif self.vis_class[idx] == 2:
                 self.s2_button.icon = 'check'
@@ -716,6 +723,10 @@ class ElixerWidget():
                 self.s4_button.icon = 'check'
             elif self.vis_class[idx] == 5:
                 self.s5_button.icon = 'check'
+            elif self.vis_class[idx] == 11:
+                self.lowz_button.icon = 'check'
+            elif self.vis_class[idx] == 12:
+                self.other_button.icon = 'check'
             elif self.vis_class[idx] == -1:
                 self.sm1_button.icon = 'check'
 
@@ -767,17 +778,26 @@ class ElixerWidget():
 
         self.set_classification(-1)
 
-    def s0_button_click(self, b):
-        global line_id_dict_lae
-        if self.is_consistent_with_lae():
-            #NOT okay, if you say is not LAE
-            self.line_id_drop.value == line_id_dict_default
-            self.wave_box.value = -1.0
-            self.z_box.value = -1.0
-        else:
-            pass #okay, already NOT consistent with LAE
 
-        self.set_classification(0)
+    def lowz_button_click(self, b):
+        global line_id_dict_lae
+        self.set_classification(11)
+
+    def other_button_click(self, b):
+        global line_id_dict_lae
+        self.set_classification(12)
+
+    # def s0_button_click(self, b):
+    #     global line_id_dict_lae
+    #     if self.is_consistent_with_lae():
+    #         #NOT okay, if you say is not LAE
+    #         self.line_id_drop.value == line_id_dict_default
+    #         self.wave_box.value = -1.0
+    #         self.z_box.value = -1.0
+    #     else:
+    #         pass #okay, already NOT consistent with LAE
+    #
+    #     self.set_classification(0)
 
     def s1_button_click(self, b):
         global line_id_dict_lae
