@@ -981,4 +981,4 @@ class ElixerWidget():
         if HETDEX_DETECT_HDF5_HANDLE is not None:
             detid = self.detectbox.value
             self.det_row = Table(HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where('detectid == detid'))
-            print(self.det_row)
+            print(self.det_row.show_in_notebook())
