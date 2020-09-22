@@ -969,6 +969,9 @@ class ElixerWidget():
         pass
 
     def det_table_button_click(self, b):
+
+        global HETDEX_DETECT_HDF5_HANDLE
+        
         if HETDEX_DETECT_HDF5_HANDLE is None:
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
