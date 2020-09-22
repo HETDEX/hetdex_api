@@ -320,11 +320,16 @@ class ElixerWidget():
                               self.e_manual_dec,
                               self.e_manual_button]))
 
+        display(self.det_table_button)
+        
         self.e_blue_button.on_click(self.e_blue_button_click)
         self.e_red_button.on_click(self.e_red_button_click)
         self.e_green_button.on_click(self.e_green_button_click)
         self.e_manual_button.on_click(self.e_manual_button_click)
 
+        self.det_table_button.on_click(self.det_table_button_click)
+
+        
     def setup_widget(self):
         if self.resume:
             try:
@@ -357,7 +362,7 @@ class ElixerWidget():
             description='DetectID:',
             disabled=False
         )
-        
+
         self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
         self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
 
@@ -445,6 +450,8 @@ class ElixerWidget():
         self.e_manual_ra = widgets.FloatText(value=0.0, description='RA (deg):', layout=Layout(width='20%'))
         self.e_manual_dec = widgets.FloatText(value=0.0, description='DEC (deg):', layout=Layout(width='20%'))
         self.e_manual_button = widgets.Button(description='Go')
+
+        self.det_table_button = widgets.Button(description='Get Detection Table Info')
         
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -915,7 +922,7 @@ class ElixerWidget():
         if matchnum > 0:
             col_name = ['blue', 'red', 'green']
             
-            object_label = col_name[matchnum-1] + 'Counterpart'
+            object_label = col_name[matchnum-1] + ' Counterpart'
 
             try:
                 coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
@@ -960,3 +967,15 @@ class ElixerWidget():
 
     def get_spec(self, b):
         pass
+
+    def det_table_button_click(self, b):
+        if HETDEX_DETECT_HDF5_HANDLE is None:
+            try:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+            except:
+                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                
+        if HETDEX_DETECT_HDF5_HANDLE is not None:
+            detid = self.detectbox.value
+            self.det_row = Table(HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where('detectid == detid'))
+            print(self.det_row)
