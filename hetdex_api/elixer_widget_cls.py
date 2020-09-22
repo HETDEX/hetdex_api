@@ -451,7 +451,7 @@ class ElixerWidget():
         self.e_manual_dec = widgets.FloatText(value=0.0, description='DEC (deg):', layout=Layout(width='20%'))
         self.e_manual_button = widgets.Button(description='Go')
 
-        self.det_table_button = widgets.Button(description='Get Detection Table Info', layout=Layout(width='30%')
+        self.det_table_button = widgets.Button(description='Get Detection Table Info', layout=Layout(width='30%'))
         
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
