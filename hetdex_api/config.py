@@ -22,8 +22,9 @@ class HDRconfig:
         #     self.host_dir = "/scratch/03946/hetdex"
         # else:
         #     sys.exit('Edit hetdex_api/config.py for your local dir')
-
-        if op.exists("/data/05350/ecooper"):
+        if op.exists("/home/idies/workspace/HETDEX"):
+            self.host_dir = "/home/idies/workspace/HETDEX"
+        elif op.exists("/data/05350/ecooper"):
             self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"

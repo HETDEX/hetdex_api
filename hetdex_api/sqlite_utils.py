@@ -54,7 +54,13 @@ DICT_DB_PATHS = {10: ["/data/03261/polonius/hdr1/detect/image_db",
 #
 for v in DICT_DB_PATHS.keys():
     try:
-        DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=f"hdr{v}").elix_dir,"image_db"))
+        release_number = v/10.0
+        if v % 10 == 0:
+            release_string = "hdr{:d}".format(int(release_number))
+        else:
+            release_string = "hdr{:2.1f}".format(release_number)
+
+        DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=release_string).elix_dir))
     except:# Exception as e:
         #print(e)
         continue
