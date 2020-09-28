@@ -32,8 +32,12 @@ from hetdex_api.detections import Detections
 
 date = sys.argv[1]
 obs = sys.argv[2]
-wave_slice = float(sys.argv[3])
 
+try:
+    wave_slice = float(sys.argv[3])
+except:
+    wave_slice = 4540.
+    
 datevobs = str(date) + 'v' + str(obs).zfill(3)
 shotid = int(str(date) + str(obs).zfill(3))
 
@@ -86,13 +90,13 @@ mask_array, footprint = reproject_and_coadd(hdus_mask,
                                             shape_out=shape_mask_out,
                                             reproject_function=reproject_exact)
 
-plt.figure(figsize=(20,20), dpi=300)
+plt.figure(figsize=(15,12))
 plt.rcParams.update({'font.size': 22})
 ax = plt.subplot(111, projection=wcs_out)
 #plt.imshow(mask_array, cmap='Oranges')
-plt.imshow(array, cmap='BuGn')
+plt.imshow(array, cmap='Greys')#, cmap='BuGn')
 plt.colorbar( label="50% Detection Flux $10^{-17}$ erg/s/cm$^2$")
-plt.clim(2.0, 15)
+plt.clim(2.0, 18)
 plt.xlabel('RA')
 plt.ylabel('DEC')
 
@@ -100,8 +104,8 @@ plt.scatter(detects_shot.ra*u.deg, detects_shot.dec*u.deg, transform=ax.get_tran
                       edgecolor='red', facecolor='none')
 #plot up IFUnumber:
 for i_ifu in np.arange( 0, np.size(ifu_name_list)):
-    plt.text( ifu_ra[i_ifu]-0.01, ifu_dec[i_ifu]+0.008, ifu_name_list[i_ifu][9:],
+    plt.text( ifu_ra[i_ifu]-0.012, ifu_dec[i_ifu]+0.008, ifu_name_list[i_ifu][9:],
               transform=ax.get_transform('fk5'), fontsize=12)
 
-plt.title( "FlimMask" + str(datevobs) + ' at ' + str(wave[sel_slice]))
-plt.savefig("FlimMask" + str(datevobs)  + 'w' + str(wave[sel_slice]) + '.png')
+plt.title( "Flim" + str(datevobs) + ' at ' + str(int(wave[sel_slice])))
+plt.savefig("FlimSlice" + str(datevobs)  + 'w' + str(int(wave[sel_slice])) + '.png')
