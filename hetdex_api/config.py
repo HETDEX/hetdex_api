@@ -31,8 +31,9 @@ class HDRconfig:
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
-            sys.exit('Edit hetdex_api/config.py for your local dir')
-
+            print("Can't find data release directory on this system")
+            self.host_dir = os.get_cwd()
+            
         self.hdr_dir = {
                         "hdr1": "/work/03946/hetdex/hdr1",
                         "hdr2": "/data/05350/ecooper/hdr2",
