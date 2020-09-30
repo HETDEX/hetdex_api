@@ -2,9 +2,8 @@
 Config file for HETDEX data release paths
 """
 
+import os
 import os.path as op
-#import re
-#import socket
 import sys
 
 
@@ -14,14 +13,6 @@ class HDRconfig:
     LATEST_HDR_NAME = "hdr2.1"
 
     def __init__(self, survey=LATEST_HDR_NAME):
-        # find out which cpu cluster is in use
-        # hostname = socket.gethostname()
-        # if re.search("wrangler", str(hostname)):
-        #     self.host_dir = "/data/05350/ecooper"
-        # elif re.search("stampede2", str(hostname)):
-        #     self.host_dir = "/scratch/03946/hetdex"
-        # else:
-        #     sys.exit('Edit hetdex_api/config.py for your local dir')
         if op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
         elif op.exists("/data/05350/ecooper"):
