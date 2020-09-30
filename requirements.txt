@@ -6,7 +6,6 @@ healpy==1.13.0
 ipywidgets>=7.5.1
 matplotlib>=3.2.1
 numpy>=1.18.5
-pandas==0.24.1
 photutils==0.7.1
 sep==1.0.3
 speclite==0.8
@@ -15,4 +14,4 @@ scipy>=1.4
 sphinx-argparse==0.2.5
 sphinx-markdown-tables
 tables>=3.5.2
-widgetsnbextension==3.5.1
+widgetsnbextension>=3.5.1
