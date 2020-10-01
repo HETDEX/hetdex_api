@@ -49,14 +49,19 @@ try: #using HDRconfig
     ELIXER_H5= None
     elix_dir = None
 except Exception as e:
-    print(e)
     HETDEX_API_CONFIG = None
     #needed only if detection observered wavelength is not supplied
-    HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+    try:
+        HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+        HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+    except:
+        HETDEX_DETECT_HDF5_FN = None
+        HETDEX_ELIXER_HDF5_HANDLE = None
+
     HETDEX_DETECT_HDF5_HANDLE = None
-    HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
     ELIXER_H5= None
     elix_dir = None
+        
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
