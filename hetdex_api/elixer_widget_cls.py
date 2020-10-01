@@ -184,18 +184,18 @@ class ElixerWidget():
                 try:
                     HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
                 except:
-                    print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                    print("Could not open detections database")
 
             if HETDEX_DETECT_HDF5_HANDLE is not None:
                 self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+                self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                self.z = np.full(np.size(self.detectid), -1.0)
+                self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
+                self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+                
             else:
                 self.detectid = []
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
         else:
             self.detectid = np.array(detectlist).flatten()
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
