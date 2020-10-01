@@ -22,8 +22,7 @@ class HDRconfig:
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
-            print("Can't find data release directory on this system")
-            self.host_dir = os.get_cwd()
+            self.host_dir = os.getcwd()
             
         self.hdr_dir = {
                         "hdr1": "/work/03946/hetdex/hdr1",
