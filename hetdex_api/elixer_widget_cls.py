@@ -286,18 +286,22 @@ class ElixerWidget():
                     if op.exists(fname):
                         display(Image(fname))
                     else: #try the archive location
-                        print("Cannot load ELiXer Report image: ", fname)
+                        pass
+                        #print("Cannot load ELiXer Report image: ", fname)
                 else:
-                    print("Cannot load ELiXer Report image: ", str(detectid))
+                    pass
+                    #print("Cannot load ELiXer Report image: ", str(detectid))
         except:
-            print("Cannot load ELiXer Report image: ", str(detectid))
+            pass
+            #print("Cannot load ELiXer Report image: ", str(detectid))
 
 
         if ELIXER_H5 is None:
             if op.exists(HETDEX_ELIXER_HDF5):
                 ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, 'r')
             else:
-                print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+                pass
+                #print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
                 return
 
         #only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
@@ -470,7 +474,8 @@ class ElixerWidget():
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
             except:
-                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                pass
+                #print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
         if HETDEX_DETECT_HDF5_HANDLE:
             dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
@@ -981,7 +986,8 @@ class ElixerWidget():
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
             except:
-                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                pass
+                #print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
                 
         if HETDEX_DETECT_HDF5_HANDLE is not None:
             detid = self.detectbox.value
