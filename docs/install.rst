@@ -15,7 +15,7 @@ This script will copy over hetdex-api notebooks to the directory `hetdex-noteboo
 
 Once you have executed this script logout and log back in to update your environment.
 
-You can now log onto vis.tacc.utexas.edu and run Jupyter notebooks. Choose the options resource ='Stampede2', Session Type='Jupyter Notebook', Queue='skx-dev'.
+You can now log onto https://vis.tacc.utexas.edu and run Jupyter notebooks. Choose the options resource ='Stampede2', Session Type='Jupyter Notebook', Queue='skx-dev'.
  
 
 For TACC Users 
