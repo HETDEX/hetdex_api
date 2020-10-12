@@ -7,6 +7,7 @@ Easy Install for stampede2
 To get going on stampede2 you need to run a script to install hetdex-api and set up your permissions. You will need to ssh into stampede2. This step will require setting up dual authentication at TACC. Instructions are here: https://portal.tacc.utexas.edu/tutorials/multifactor-authentication. 
 
 .. code-block:: bash
+
    ssh username@stampede2.tacc.utexas.edu
    ~ecooper/tacc_setup
 
