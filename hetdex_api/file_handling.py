@@ -60,14 +60,17 @@ def delete_file(yourfile):
         print('Deleting ' + yourfile)
         subprocess.call(['rm', yourfile])
     else:
-        # this is specific to the TACC JupyterHub
-        filename = yourfile
-        env = os.environ
-        your_classify_dir = join( env['HOME'],
-                                  'team_classify',
-                                  'classified',
-                                  env['JUPYTERHUB_USER'])
-        yourfile = join(your_classify_dir, filename)
+        try:
+            # this is specific to the TACC JupyterHub
+            filename = yourfile
+            env = os.environ
+            your_classify_dir = join( env['HOME'],
+                                      'team_classify',
+                                      'classified',
+                                      env['JUPYTERHUB_USER'])
+            yourfile = join(your_classify_dir, filename)
+            print('Deleting ' + yourfile)
+            subprocess.call(['rm', yourfile])
+        except KeyError:
+            print('Could not delete ' + yourfile)
 
-        print('Deleting ' + yourfile)
-        subprocess.call(['rm', yourfile])
