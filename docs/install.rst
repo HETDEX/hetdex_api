@@ -9,7 +9,7 @@ To get going on stampede2 you need to run a script to install hetdex-api and set
 .. code-block:: bash
 
    ssh username@stampede2.tacc.utexas.edu
-   ~ecooper/tacc_setup
+   ~ecooper/bin/tacc_setup
 
 This script will copy over hetdex-api notebooks to the directory `hetdex-notebook-tutorials` for you to try out some hetdex-api tutorials. It will also make a symlink to your /work directory on stampede2 so when you launch a notebook on vis.tacc.utexas.edu, you will be able to navigate to your work directory.
 
