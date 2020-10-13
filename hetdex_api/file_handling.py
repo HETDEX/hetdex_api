@@ -11,12 +11,10 @@ def get_system_info():
         team_classify_dir = '/home/jovyan/team_classify'
         classifier = env['JUPYTERHUB_USER']
         env['system'] = 'tacc-cloud'
-        
     elif exists('/work/05350/ecooper/wrangler/team_classify'):
         team_classify_dir = '/work/05350/ecooper/wrangler/team_classify'
         classifier = env['USER']
         env['system'] = 'tacc-work'
-        
     elif exists("/home/idies/workspace/hetdex_workspace/team_classify"):
         team_classify_dir = "/home/idies/workspace/hetdex_workspace/team_classify"
         classifier = ''
@@ -24,14 +22,14 @@ def get_system_info():
     else:
         print("Can't determine your system. Manually enter classify directory")
         return None
-    
+
     env['team_classify_dir'] = team_classify_dir
     env['classifier'] = classifier
     env['training_dir'] = join(team_classify_dir, 'training')
     env['elixer_dir'] = join(team_classify_dir, 'all_pngs')
 
     return env
-    
+
 
 def activate_file(filename):
 
@@ -44,8 +42,8 @@ def activate_file(filename):
             subprocess.call(['chmod', 'g+rw', your_classify_dir])
     else:
         your_classify_dir = os.getcwd()
-        
-    filepath = join(join(team_classify_dir, "dets", filename))
+
+    filepath = join(join(env['team_classify_dir'], "dets", filename))
     yourfile = join(your_classify_dir, filename)
 
     if not exists(yourfile):
@@ -56,6 +54,7 @@ def activate_file(filename):
 
     return yourfile
 
+
 def delete_file(yourfile):
     if exists(yourfile):
         print('Deleting ' + yourfile)
@@ -64,8 +63,10 @@ def delete_file(yourfile):
         # this is specific to the TACC JupyterHub
         filename = yourfile
         env = os.environ
-        team_classify_dir = join( env['HOME'], 'team_classify')
-        your_classify_dir = join( team_classify_dir, 'classified', env['JUPYTERHUB_USER'] )
+        your_classify_dir = join( env['HOME'],
+                                  'team_classify',
+                                  'classified',
+                                  env['JUPYTERHUB_USER'])
         yourfile = join(your_classify_dir, filename)
 
         print('Deleting ' + yourfile)
