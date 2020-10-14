@@ -26,7 +26,7 @@ class HDRconfig:
             
         self.hdr_dir = {
                         "hdr1": "/work/03946/hetdex/hdr1",
-                        "hdr2": "/data/05350/ecooper/hdr2",
+                        "hdr2": "/work/03946/hetdex/hdr2",
                         "hdr2.1": op.join(self.host_dir, "hdr2.1")
                        }
 
