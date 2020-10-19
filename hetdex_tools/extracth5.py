@@ -24,9 +24,11 @@ t = tables.open_file(filename, 'r')
 ra = t.root.Data.Fibers.cols.ra[:]
 dec = t.root.Data.Fibers.cols.dec[:]
 fwhm = t.root.Shot.cols.fwhm_virus[0]
+az = t.root.Shot.cols.structaz[0]
 
 multiframe = t.root.Data.Fibers.cols.multiframe[:]
 fibnum = t.root.Data.Fibers.cols.fibnum[:]
+expnum = t.root.Data.Fibers.cols.expnum[:]
 
 multiname = []
 
@@ -38,9 +40,12 @@ error = t.root.Data.Fibers.cols.calfibe[:]
 spectra[np.isnan(spectra)] = 0
 error[np.isnan(error)] = 0
 
-T = Table([ra, dec, multiname], names=['ra', 'dec', 'multiname'])
+T = Table([ra, dec, multiname, expnum],
+          names=['ra', 'dec', 'multiname','expnum'])
 h = fits.PrimaryHDU()
 h.header['fwhm'] = fwhm
+h.header['az'] = az
+
 L = fits.HDUList([h, fits.ImageHDU(spectra),
                   fits.ImageHDU(error), fits.BinTableHDU(T)])
 fitsname = op.basename(filename).split('.h5')[0] + '.fits'
