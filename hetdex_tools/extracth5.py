@@ -8,7 +8,7 @@ arg1 = h5 file path
 
 Examples
 --------
-python3 export_to_fits.py
+python3 extracth5.py /corral-repl/utexas/Hobby-Eberly-Telesco/hdr2.1/reduction/data/20200424v013.h5
 
 """
 import tables
