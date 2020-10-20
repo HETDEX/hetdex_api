@@ -326,6 +326,8 @@ class SensitivityCubeHDF5Container(object):
         """ Close the file and destroy the object """
         self.h5file.close()
         _logger.info("Closed {:s}".format(self.filename))
+        if self.h5mask:
+            self.h5mask.close()
 
     def __enter__(self):
         """ Added to support using the `with` statement """
