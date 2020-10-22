@@ -6,9 +6,6 @@ Created on September 23 2020
 """
 import sys
 import numpy as np
-import os.path as op
-import tables as tb
-
 
 import matplotlib
 matplotlib.use("agg")
@@ -64,6 +61,7 @@ hdus_mask = []
 ifu_name_list = []
 ifu_ra = []
 ifu_dec = []
+
 sncut=6
 
 for ifu_name, tscube in hdfcont_hdr2.itercubes():
