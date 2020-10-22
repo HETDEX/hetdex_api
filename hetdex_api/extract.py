@@ -487,7 +487,7 @@ class Extract:
         interp_kind="linear",
     ):
         """ 
-        Collapse spectra to make a signle image on a rectified grid.  This
+        Collapse spectra to make a single image on a rectified grid.  This
         may be done for a wavelength range and using a number of chunks
         of wavelength to take ADR into account.
         
@@ -495,7 +495,7 @@ class Extract:
         ----------
         xc: float
             The ifu x-coordinate for the center of the collapse frame
-        yc: float 
+        yc: float
             The ifu y-coordinate for the center of the collapse frame
         xloc: numpy array
             The ifu x-coordinate for each fiber
