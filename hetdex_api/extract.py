@@ -580,20 +580,20 @@ class Extract:
         return zarray
 
     def make_band_image(
-            self,
-            xc,
-            yc,
-            xloc,
-            yloc,
-            data,
-            mask,
-            scale=0.25,
-            seeing_fac=1.8,
-            boxsize=4.0,
-            wrange=[3470, 5540],
-            nchunks=11,
-            convolve_image=False,
-            interp_kind="linear",
+        self,
+        xc,
+        yc,
+        xloc,
+        yloc,
+        data,
+        mask,
+        scale=0.25,
+        seeing_fac=1.8,
+        boxsize=4.0,
+        wrange=[3470, 5540],
+        nchunks=11,
+        convolve_image=False,
+        interp_kind="linear",
     ):
         """
         Sum spectra across a wavelength range or filter to make a single image
@@ -655,10 +655,11 @@ class Extract:
         if convolve_image:
             seeing = seeing_fac / scale
             G = Gaussian2DKernel(seeing / 2.35)
-            if interp_kind not in ["linear", "cubic"]:
-                self.log.warning('interp_kind must be "linear" or "cubic"')
-                self.log.warning('Using "linear" for interp_kind')
-                interp_kind = "linear"
+
+        if interp_kind not in ["linear", "cubic"]:
+            self.log.warning('interp_kind must be "linear" or "cubic"')
+            self.log.warning('Using "linear" for interp_kind')
+            interp_kind = "linear"
                 
         for chunk, mchunk in zip(
                 np.array_split(data[:, sel], nchunks, axis=1),
@@ -682,12 +683,11 @@ class Extract:
             )
             if convolve_image:
                 grid_z = convolve(grid_z, G)
+            image_list.append(grid_z)
 
-        image_list.append(grid_z)
         image = np.sum(image_list, axis=0)
         image[np.isnan(image)] = 0.0
         zarray = np.array([image, xgrid - xc, ygrid - yc])
-        
         return zarray
 
         
