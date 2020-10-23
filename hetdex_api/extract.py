@@ -659,35 +659,37 @@ class Extract:
                 self.log.warning('Using "linear" for interp_kind')
                 interp_kind = "linear"
                 
-            for chunk, mchunk in zip(
-                    np.array_split(data[:, sel], nchunks, axis=1),
-                    np.array_split(mask[:, sel], nchunks, axis=1),
-            ):
-                marray = np.ma.array(chunk, mask=mchunk < 1e-8)
-                image = np.ma.median(marray, axis=1)
-                image = image / np.ma.sum(image)
-                S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
-                S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
-                cnt += 1
-                grid_z = (
-                    griddata(
-                        S[~image.mask],
-                        image.data[~image.mask],
-                        (xgrid, ygrid),
-                        method=interp_kind,
-                    )
-                    * scale ** 2
-                    / area
+        for chunk, mchunk in zip(
+                np.array_split(data[:, sel], nchunks, axis=1),
+                np.array_split(mask[:, sel], nchunks, axis=1),
+        ):
+            marray = np.ma.array(chunk, mask=mchunk < 1e-8)
+            image = np.ma.median(marray, axis=1)
+            image = image / np.ma.sum(image)
+            S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
+            S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
+            cnt += 1
+            grid_z = (
+                griddata(
+                    S[~image.mask],
+                    image.data[~image.mask],
+                    (xgrid, ygrid),
+                    method=interp_kind,
                 )
-            if convolve_image:
-                grid_z = convolve(grid_z, G)
-                image_list.append(grid_z)
-                image = np.median(image_list, axis=0)
-                image[np.isnan(image)] = 0.0
-                zarray = np.array([image, xgrid - xc, ygrid - yc])
+                * scale ** 2
+                / area
+            )
+        if convolve_image:
+            grid_z = convolve(grid_z, G)
 
-            return zarray
-                    
+        image_list.append(grid_z)
+        image = np.median(image_list, axis=0)
+        image[np.isnan(image)] = 0.0
+        zarray = np.array([image, xgrid - xc, ygrid - yc])
+        
+        return zarray
+
+        
     def get_psf_curve_of_growth(self, psf):
         """
         Analyse the curve of growth for an input psf
