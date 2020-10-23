@@ -683,7 +683,7 @@ class Extract:
             grid_z = convolve(grid_z, G)
 
         image_list.append(grid_z)
-        image = np.median(image_list, axis=0)
+        image = np.sum(image_list, axis=0)
         image[np.isnan(image)] = 0.0
         zarray = np.array([image, xgrid - xc, ygrid - yc])
         
