@@ -486,7 +486,7 @@ class Extract:
         convolve_image=False,
         interp_kind="linear",
     ):
-        """ 
+        """
         Collapse spectra to make a single image on a rectified grid.  This
         may be done for a wavelength range and using a number of chunks
         of wavelength to take ADR into account.
@@ -578,6 +578,116 @@ class Extract:
         zarray = np.array([image, xgrid - xc, ygrid - yc])
         return zarray
 
+    def make_band_image(
+            self,
+            xc,
+            yc,
+            xloc,
+            yloc,
+            data,
+            mask,
+            scale=0.25,
+            seeing_fac=1.8,
+            boxsize=4.0,
+            wrange=[3470, 5540],
+            nchunks=11,
+            convolve_image=False,
+            interp_kind="linear",
+    ):
+        """
+        Sum spectra across a wavelength range or filter to make a single image
+        on a rectified grid.  This may be done for a wavelength range and
+        using a number of chunk of wavelength to take ADR into account.
+        
+        Parameters
+        ----------
+        xc: float
+            The ifu x-coordinate for the center of the collapse frame
+        yc: float
+            The ifu y-coordinate for the center of the collapse frame
+        xloc: numpy array
+            The ifu x-coordinate for each fiber
+        yloc: numpy array
+            The ifu y-coordinate for each fiber
+        data: numpy 2d array
+            The calibrated spectra for each fiber
+        mask: numpy 2d array
+            The good fiber wavelengths to be used in collapsed frame
+        scale: float
+            Pixel scale for output collapsed image
+        seeing_fac: float
+            seeing_fac = 2.35 * radius of the Gaussian kernel used
+            if convolving the images to smooth out features. Unit: arcseconds
+        boxsize: float
+            Length of the side in arcseconds for the convolved image
+        wrange: list
+            The wavelength range to use for collapsing the frame
+        nchunks: int
+            Number of chunks used to take ADR into account when collapsing
+            the fibers.  Use a larger number for a larger wavelength.
+            A small wavelength may only need one chunk
+        convolve_image: bool
+            If true, the collapsed frame is smoothed at the seeing_fac scale
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
+       
+        Returns
+        -------
+        zarray: numpy 3d array
+        An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        """
+        a, b = data.shape
+        N = int(boxsize / scale)
+        xl, xh = (xc - boxsize / 2.0, xc + boxsize / 2.0)
+        yl, yh = (yc - boxsize / 2.0, yc + boxsize / 2.0)
+        x, y = (np.linspace(xl, xh, N), np.linspace(yl, yh, N))
+        xgrid, ygrid = np.meshgrid(x, y)
+        S = np.zeros((a, 2))
+        area = np.pi * 0.75 ** 2
+        sel = (self.wave > wrange[0]) * (self.wave <= wrange[1])
+        I = np.arange(b)
+        ichunk = [np.mean(xi) for xi in np.array_split(I[sel], nchunks)]
+        ichunk = np.array(ichunk, dtype=int)
+        cnt = 0
+        image_list = []
+        
+        if convolve_image:
+            seeing = seeing_fac / scale
+            G = Gaussian2DKernel(seeing / 2.35)
+            if interp_kind not in ["linear", "cubic"]:
+                self.log.warning('interp_kind must be "linear" or "cubic"')
+                self.log.warning('Using "linear" for interp_kind')
+                interp_kind = "linear"
+                
+            for chunk, mchunk in zip(
+                    np.array_split(data[:, sel], nchunks, axis=1),
+                    np.array_split(mask[:, sel], nchunks, axis=1),
+            ):
+                marray = np.ma.array(chunk, mask=mchunk < 1e-8)
+                image = np.ma.median(marray, axis=1)
+                image = image / np.ma.sum(image)
+                S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
+                S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
+                cnt += 1
+                grid_z = (
+                    griddata(
+                        S[~image.mask],
+                        image.data[~image.mask],
+                        (xgrid, ygrid),
+                        method=interp_kind,
+                    )
+                    * scale ** 2
+                    / area
+                )
+            if convolve_image:
+                grid_z = convolve(grid_z, G)
+                image_list.append(grid_z)
+                image = np.median(image_list, axis=0)
+                image[np.isnan(image)] = 0.0
+                zarray = np.array([image, xgrid - xc, ygrid - yc])
+
+            return zarray
+                    
     def get_psf_curve_of_growth(self, psf):
         """
         Analyse the curve of growth for an input psf
