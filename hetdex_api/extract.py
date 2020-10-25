@@ -12,15 +12,25 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
-from hetdex_api.shot import *
+from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
+
+try:
+    from hetdex_api.config import HDRconfig
+
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig()
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
+    config = None
 
 
 class Extract:
     def __init__(self, wave=None):
         """
         Initialize Extract class
-        
+
         Parameters
         ----------
         wave: numpy 1d array
@@ -69,7 +79,9 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, survey='hdr2', dither_pattern=None, fibers=True):
+    def load_shot(
+        self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True
+    ):
         """
         Load fiber info from hdf5 for given shot_input
         
@@ -176,8 +188,8 @@ class Extract:
 
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
-            
-            if self.survey == 'hdr1':
+
+            if self.survey == "hdr1":
                 mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
@@ -187,9 +199,11 @@ class Extract:
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
         else:
-        
-            fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
-            
+
+            fib_table = get_fibers_table(
+                self.shot, coord, survey=self.survey, radius=radius
+            )
+
             if np.size(fib_table) < fiber_lower_limit:
                 return None
 
@@ -203,7 +217,7 @@ class Extract:
                 spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
-            if self.survey == 'hdr1':
+            if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
@@ -323,7 +337,7 @@ class Extract:
 
     def gaussian_psf(self, xstd, ystd, theta, boxsize, scale):
         """
-        Gaussian PSF profile image 
+        Gaussian PSF profile image
         
         Parameters
         ----------
@@ -651,7 +665,7 @@ class Extract:
         ichunk = np.array(ichunk, dtype=int)
         cnt = 0
         image_list = []
-        
+
         if convolve_image:
             seeing = seeing_fac / scale
             G = Gaussian2DKernel(seeing / 2.35)
@@ -660,13 +674,13 @@ class Extract:
             self.log.warning('interp_kind must be "linear" or "cubic"')
             self.log.warning('Using "linear" for interp_kind')
             interp_kind = "linear"
-                
+
         for chunk, mchunk in zip(
-                np.array_split(data[:, sel], nchunks, axis=1),
-                np.array_split(mask[:, sel], nchunks, axis=1),
+            np.array_split(data[:, sel], nchunks, axis=1),
+            np.array_split(mask[:, sel], nchunks, axis=1),
         ):
             marray = np.ma.array(chunk, mask=mchunk < 1e-8)
-            image = np.ma.sum(marray, axis=1)
+            image = np.ma.sum(marray, axis=1) * 2.0 #multiply by 2AA? 
             image = image / np.ma.sum(image)
             S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
             S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
@@ -690,7 +704,6 @@ class Extract:
         zarray = np.array([image, xgrid - xc, ygrid - yc])
         return zarray
 
-        
     def get_psf_curve_of_growth(self, psf):
         """
         Analyse the curve of growth for an input psf
@@ -775,8 +788,10 @@ class Extract:
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
         )
-        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0) / np.sum(
-            mask * weights ** 2, axis=0))
+        spectrum_error = np.sqrt(
+            np.sum(error ** 2 * mask * weights, axis=0)
+            / np.sum(mask * weights ** 2, axis=0)
+        )
 
         # Only use wavelengths with enough weight to avoid large noise spikes
         w = np.sum(mask * weights ** 2, axis=0)
@@ -785,3 +800,10 @@ class Extract:
         spectrum_error[sel] = np.nan
 
         return spectrum, spectrum_error
+
+    def close(self):
+        """
+        Close open shot h5 file if open
+        """
+        if self.shoth5 is not None:
+            self.shoth5.close()
