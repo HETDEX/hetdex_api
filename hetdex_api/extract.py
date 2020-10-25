@@ -680,8 +680,8 @@ class Extract:
             np.array_split(mask[:, sel], nchunks, axis=1),
         ):
             marray = np.ma.array(chunk, mask=mchunk < 1e-8)
-            image = np.ma.sum(marray, axis=1) * 2.0 #multiply by 2AA? 
-            image = image / np.ma.sum(image)
+            image = np.ma.sum(marray, axis=1)
+            image = 2.0 * image / np.ma.sum(image)  #multiply by 2AA?  
             S[:, 0] = xloc - self.ADRx[ichunk[cnt]]
             S[:, 1] = yloc - self.ADRy[ichunk[cnt]]
             cnt += 1
