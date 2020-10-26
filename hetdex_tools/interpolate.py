@@ -13,7 +13,7 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
 config = HDRconfig()
 surveyh5 = tb.open_file(config.surveyh5, "r")
-deth5 = tb.open_file(config.detecth5, "r")
+detecth5 = tb.open_file(config.detecth5, "r")
 
 
 def make_narrowband_image(
@@ -76,8 +76,7 @@ def make_narrowband_image(
 
     if detectid is not None:
         detectid_obj = detectid
-        deth5 = tb.open_file(config.detecth5, "r")
-        det_info = deth5.root.Detections.read_where("detectid == detectid_obj")[0]
+        det_info = detecth5.root.Detections.read_where("detectid == detectid_obj")[0]
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
         linewidth = det_info["linewidth"]
