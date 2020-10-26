@@ -690,8 +690,9 @@ class Extract:
         if convolve_image:
             grid_z = convolve(grid_z, G)
 
-        image = grid_z       
+        image = grid_z
         image[np.isnan(image)] = 0.0
+
         zarray = np.array([image, xgrid - xc, ygrid - yc])
 
         return zarray
