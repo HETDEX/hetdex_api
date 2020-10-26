@@ -54,7 +54,8 @@ def make_narrowband_image(
     Returns
     -------
     hdu: PrimaryHDU object
-        the data cube 3D array and associated 3d header
+        the 2D summed data array and associated 2d header
+        Units are '10^-17 erg cm-2 s-1'
     
     Examples
     --------
@@ -133,8 +134,7 @@ def make_narrowband_image(
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
-    w.wcs.unit = '10^-17 erg cm-2 s-1'
-
+    
     hdu = fits.PrimaryHDU(zarray[0], header=w.to_header())
 
     return hdu
@@ -181,6 +181,7 @@ def make_data_cube(
     -------
     hdu: PrimaryHDU object
         the data cube 3D array and associated 3d header
+        Units are '10^-17 erg cm-2 s-1'
 
     Examples
     --------
@@ -224,7 +225,7 @@ def make_data_cube(
     w.wcs.crpix = [center, center, 1]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
-    w.wcs.unit = '10^-17 erg cm-2 s-1'
+    
     rad = imsize
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
