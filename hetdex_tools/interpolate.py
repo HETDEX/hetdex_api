@@ -72,7 +72,7 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, deth5, surveyh5
+    global config, detecth5, surveyh5
 
     if detectid is not None:
         detectid_obj = detectid
