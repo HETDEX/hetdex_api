@@ -79,7 +79,9 @@ def make_narrowband_image(
         det_info = deth5.root.Detections.read_where("detectid == detectid_obj")[0]
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
-        redshift = wave_obj / (1216) - 1
+        linewidth = det_info["linewidth"]
+        wave_range = [wave_obj - 2.0 * linewidth,
+                      wave_obj + 2.0 * linewidth]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
     elif coords is not None:
         if shotid is not None:
@@ -112,10 +114,6 @@ def make_narrowband_image(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
-    # use 4*linewidth as wave_range if wave_range not given:
-    if wave_range is None:
-        wave_range = [wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth]
-
     zarray = E.make_narrowband_image(
         ifux_cen,
         ifuy_cen,
@@ -136,8 +134,7 @@ def make_narrowband_image(
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
     w.wcs.unit = '10^-17 erg cm-2 s-1'
-    
-    header = w.to_header()
+
     hdu = fits.PrimaryHDU(zarray[0], header=w.to_header())
 
     return hdu
