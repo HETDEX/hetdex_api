@@ -1,30 +1,13 @@
 import numpy as np
 import tables as tb
 
-from photutils.isophote import EllipseGeometry, Ellipse
-from photutils import EllipticalAperture
-from photutils import SkyCircularAperture
-from photutils import aperture_photometry
-from photutils.isophote import build_ellipse_model
-
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy import wcs
 from astropy.io import fits
-from astropy.table import Table
-from astropy.modeling import models, fitting
-from astropy.cosmology import WMAP9 as cosmo
-from astropy.convolution import Gaussian2DKernel, convolve
-from astropy.visualization import ZScaleInterval
-
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 
 from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
-from hetdex_api.survey import Survey
-from hetdex_api.detections import Detections
-
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
