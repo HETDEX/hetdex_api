@@ -43,7 +43,7 @@ else:
 
 # also check if shot is in bad throughput list
 # and set mask to zero everywhere
-badtpshots = np.loadtxt('survey_shots_low_response.txt',dtype=int)
+badtpshots = np.loadtxt(config.lowtpshots, dtype=int)
 if shotid in badtpshots:
     badshot=True
     print('Shot has bad throughput. Setting flux limit mask to 0')
