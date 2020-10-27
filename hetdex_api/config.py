@@ -106,3 +106,4 @@ class HDRconfig:
             self.flim_avg = op.join(self.hdr_dir[survey], "survey", "flux_limits_all.txt")
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, 'masks')
+            self.lowtpshots = op.join(self.bad_dir, 'survey_shots_low_response.txt')
