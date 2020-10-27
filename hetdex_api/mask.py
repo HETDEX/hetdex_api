@@ -125,7 +125,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
                                 maxdistance=8.*u.arcsec):
     """
     Function to retrieve the amp flag for the closest fiberid in a shot
-    
+   
     Parameters
     ----------
     self
@@ -180,7 +180,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
     streaksize
         an astropy quantity object defining how far off the
         perpendicular line of the meteor streak to mask out. Default
-        is 8*u.arcsec
+        is 9*u.arcsec
     
     Returns
     -------
