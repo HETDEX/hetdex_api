@@ -196,7 +196,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
     global config
 
     # meteors are found with +/- 8 arcsec of the line DEC=a+RA*b in this file
-    met_tab = Table.read('/work/05350/ecooper/wrangler/mask/meteor.list', format='ascii')
+    met_tab = Table.read(config.meteor, format='ascii')
     sel_shot = met_tab['shotid'] == shotid
 
     if np.sum(sel_shot) > 0:
