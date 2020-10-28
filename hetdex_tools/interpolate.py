@@ -25,6 +25,7 @@ def make_narrowband_image(
     wave_range=None,
     convolve_image=True,
     ffsky=True,
+    subcont=False,
 ):
 
     """
@@ -50,7 +51,11 @@ def make_narrowband_image(
     ffsky: bool
         option to use full frame calibrated fibers. Default is
         True.
-
+    subcont: bool
+        option to subtract continuum. Default is False. This
+        will measure the continuum 50AA below and above the
+        input wave_range
+    
     Returns
     -------
     hdu: PrimaryHDU object
@@ -75,6 +80,7 @@ def make_narrowband_image(
     global config, detecth5, surveyh5
 
     if detectid is not None:
+        
         detectid_obj = detectid
         det_info = detecth5.root.Detections.read_where("detectid == detectid_obj")[0]
         shotid_obj = det_info["shotid"]
@@ -127,6 +133,42 @@ def make_narrowband_image(
         wrange=wave_range,
         convolve_image=convolve_image,
     )
+
+    imslice = zarray[0]
+
+    if subcont:
+        zarray_blue = E.make_narrowband_image(
+            ifux_cen,
+            ifuy_cen,
+            ifux,
+            ifuy,
+            data,
+            mask,
+            seeing_fac=fwhm,
+            scale=pixscale.to(u.arcsec).value,
+            boxsize=imsize.to(u.arcsec).value,
+            wrange=[wave_range[0]-50, wave_range[0]],
+            convolve_image=convolve_image,
+        )
+
+        zarray_red = E.make_narrowband_image(
+            ifux_cen,
+            ifuy_cen,
+            ifux,
+            ifuy,
+            data,
+            mask,
+            seeing_fac=fwhm,
+            scale=pixscale.to(u.arcsec).value,
+            boxsize=imsize.to(u.arcsec).value,
+            wrange=[wave_range[1], wave_range[1]+50],
+            convolve_image=convolve_image,
+        )
+        dwave = wave_range[1]-wave_range[0]
+
+        im_cont = np.median([zarray_blue[0], zarray_red[0]])/50.
+        imslice = zarray[0] - im_cont*dwave
+        
     w = wcs.WCS(naxis=2)
     imsize = imsize.to(u.arcsec).value
     w.wcs.crval = [coords.ra.deg, coords.dec.deg]
@@ -134,7 +176,7 @@ def make_narrowband_image(
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
     
-    hdu = fits.PrimaryHDU(zarray[0], header=w.to_header())
+    hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
     return hdu
 
