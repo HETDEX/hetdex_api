@@ -167,7 +167,9 @@ def make_narrowband_image(
         dwave = wave_range[1]-wave_range[0]
 
         im_cont = np.median([zarray_blue[0], zarray_red[0]])/50.
-        imslice = zarray[0] - im_cont*dwave
+
+        imslice = (zarray[0]/dwave - im_cont)*dwave
+        
         
     w = wcs.WCS(naxis=2)
     imsize = imsize.to(u.arcsec).value
@@ -191,6 +193,7 @@ def make_data_cube(
     dwave=2.0,
     convolve_image=True,
     ffsky=True,
+    subcont=False,
 ):
 
     """
@@ -217,6 +220,10 @@ def make_data_cube(
     ffsky: bool
                 option to use full frame calibrated fibers. Default is
                 True.
+    subcont: bool
+        option to subtract continuum. Default is False. This
+        will measure the continuum 50AA below and above the
+        input wave_range 
 
     Returns
     -------
