@@ -164,20 +164,20 @@ def make_narrowband_image(
             wrange=[wave_range[1], wave_range[1]+50],
             convolve_image=convolve_image,
         )
+        
         dwave = wave_range[1]-wave_range[0]
 
-        im_cont = np.median([zarray_blue[0], zarray_red[0]])/50.
+        im_cont = np.sum([zarray_blue[0], zarray_red[0]])
 
-        imslice = (zarray[0]/dwave - im_cont)*dwave
-        
-        
+        imslice = zarray[0] - dwave*(im_cont/100)
+
     w = wcs.WCS(naxis=2)
     imsize = imsize.to(u.arcsec).value
     w.wcs.crval = [coords.ra.deg, coords.dec.deg]
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
-    
+
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
     return hdu
