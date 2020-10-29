@@ -1,3 +1,5 @@
+#python3 make_curated_catalog.py 2.1.2
+#
 import sys
 from astropy.table import Table, join, Column
 import numpy as np
@@ -5,9 +7,12 @@ import numpy as np
 from hetdex_api.detections import Detections
 from hetdex_api.config import HDRconfig
 
-version = sys.argv[0]
+version = str(sys.argv[1])
 
 config = HDRconfig()
+
+# Note because refine is constantly updated, it isn't possible to
+# truly replicate older catalogs. TODO for HDR3
 
 detects = Detections(survey='hdr2.1', catalog_type='lines').refine()
 
@@ -45,9 +50,12 @@ elif version == '2.1.2':
     sel_cat = sel1 | sel2
 
 else:
-    print("Provide a version : eg. '2.1.2'")
+    print("Provide a version : eg. 2.1.2")
+    sys.exit()
 
 det_table = detects.return_astropy_table()
 
-det_table[sel_cat].write('detect_hdr{}.tab'.format(version), format='ascii', overwrite=True)
-det_table[sel_cat].write('detect_hdr{}.fits'.format(version, overwrite=True)
+det_table[sel_cat].write('detect_hdr{}.tab'.format(version),
+                         format='ascii',
+                         overwrite=True)
+det_table[sel_cat].write('detect_hdr{}.fits'.format(version), overwrite=True)
