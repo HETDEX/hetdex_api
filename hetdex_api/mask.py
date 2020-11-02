@@ -204,7 +204,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
         a = met_tab['a'][sel_shot]
         b = met_tab['b'][sel_shot]
 
-        ra_met = coords.ra + np.arange(-180, 180)*u.arcsec
+        ra_met = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
         dec_met = (a + ra_met.deg*b ) * u.deg
 
         met_coords = SkyCoord(ra=ra_met, dec=dec_met)
