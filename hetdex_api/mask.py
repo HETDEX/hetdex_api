@@ -125,7 +125,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
                                 maxdistance=8.*u.arcsec):
     """
     Function to retrieve the amp flag for the closest fiberid in a shot
-    
+   
     Parameters
     ----------
     self
@@ -166,7 +166,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
     return flag
 
     
-def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
     """
     Returns a boolean flag value to mask out meteors
 
@@ -180,7 +180,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
     streaksize
         an astropy quantity object defining how far off the
         perpendicular line of the meteor streak to mask out. Default
-        is 8*u.arcsec
+        is 9*u.arcsec
     
     Returns
     -------
@@ -195,21 +195,23 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=8*u.arcsec):
 
     global config
 
-    # meteors are found with +/- 8 arcsec of the line DEC=a+RA*b in this file
-    met_tab = Table.read('/work/05350/ecooper/wrangler/mask/meteor.list', format='ascii')
+    # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
+
+    met_tab = Table.read(config.meteor, format='ascii')
     sel_shot = met_tab['shotid'] == shotid
 
     if np.sum(sel_shot) > 0:
         a = met_tab['a'][sel_shot]
         b = met_tab['b'][sel_shot]
 
-        ra_met = coords.ra + np.arange(-90,90)*u.arcsec
+        ra_met = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
         dec_met = (a + ra_met.deg*b ) * u.deg
-        
+
         met_coords = SkyCoord(ra=ra_met, dec=dec_met)
 
-        meteor_match = coords.separation(met_coords) < streaksize
+        meteor_match = met_coords.separation(coords) < streaksize
 
+        
         if np.any(meteor_match):
             flag = False
         else:

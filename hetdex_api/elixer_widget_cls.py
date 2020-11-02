@@ -49,14 +49,19 @@ try: #using HDRconfig
     ELIXER_H5= None
     elix_dir = None
 except Exception as e:
-    print(e)
     HETDEX_API_CONFIG = None
     #needed only if detection observered wavelength is not supplied
-    HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+    try:
+        HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
+        HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+    except:
+        HETDEX_DETECT_HDF5_FN = None
+        HETDEX_ELIXER_HDF5_HANDLE = None
+
     HETDEX_DETECT_HDF5_HANDLE = None
-    HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
     ELIXER_H5= None
     elix_dir = None
+        
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
 # as an array of detectids or a text file that can be loaded in
@@ -74,20 +79,20 @@ line_id_dict_other = "Other (xxxx)"
 
 line_id_dict_default = "Unk (????)"
 line_id_dict = {line_id_dict_default:-1.0,
-                line_id_dict_lae:1216.0,
-                "3727 OII":3727.0,
-                "4863 H-beta": 4862.68,
-                "4960 OIII":4960.295,
-                "5008 OIII":5008.240,
+                line_id_dict_lae:1216,
+                "3727 OII":3727,
+                "4863 H-beta": 4863,
+                "4959 OIII":4959,
+                "5007 OIII":5007,
                 line_id_dict_sep:-1.0,
-                "1241 NV":1240.81,
-                "1260 SiII": 1260.0,
-                "1549 CIV":1549.48,
-                "1640 HeII": 1640.4,
-                "1909 CII":1908.734,
-                "2799 MgII":2799.117,
-                "4102 H-delta": 4102.0,
-                "4342 H-gamma": 4341.68,
+                "1241 NV":1241,
+                "1260 SiII": 1260,
+                "1549 CIV":1549,
+                "1640 HeII": 1640,
+                "1909 CII":1909,
+                "2799 MgII":2799,
+                "4102 H-delta": 4102,
+                "4341 H-gamma": 4341,
                 line_id_dict_other:-1.0
                 }
 
@@ -179,18 +184,18 @@ class ElixerWidget():
                 try:
                     HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
                 except:
-                    print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                    print("Could not open detections database")
 
             if HETDEX_DETECT_HDF5_HANDLE is not None:
                 self.detectid =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+                self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                self.z = np.full(np.size(self.detectid), -1.0)
+                self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
+                self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+                
             else:
                 self.detectid = []
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), '?', dtype='|S80').astype(str)
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
         else:
             self.detectid = np.array(detectlist).flatten()
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
@@ -252,16 +257,18 @@ class ElixerWidget():
                 self.c_green_button.on_click(self.c_green_button_click)
                 self.c_other_button.on_click(self.c_other_button_click)
 
-            display(widgets.HBox([self.sm1_button,self.s0_button,self.s1_button,self.s2_button,self.s3_button,
+            display(widgets.HBox([self.sm1_button,self.lowz_button,self.other_button,self.s1_button,self.s2_button,self.s3_button,
                                   self.s4_button,self.s5_button]))
 
             self.sm1_button.on_click(self.sm1_button_click)
-            self.s0_button.on_click(self.s0_button_click)
+            #self.s0_button.on_click(self.s0_button_click)
             self.s1_button.on_click(self.s1_button_click)
             self.s2_button.on_click(self.s2_button_click)
             self.s3_button.on_click(self.s3_button_click)
             self.s4_button.on_click(self.s4_button_click)
             self.s5_button.on_click(self.s5_button_click)
+            self.lowz_button.on_click(self.lowz_button_click)
+            self.other_button.on_click(self.other_button_click)
         else:
             display(widgets.HBox([self.previousbutton, self.nextbutton, self.elixerNeighborhood]))
 
@@ -279,18 +286,22 @@ class ElixerWidget():
                     if op.exists(fname):
                         display(Image(fname))
                     else: #try the archive location
-                        print("Cannot load ELiXer Report image: ", fname)
+                        pass
+                        #print("Cannot load ELiXer Report image: ", fname)
                 else:
-                    print("Cannot load ELiXer Report image: ", str(detectid))
+                    pass
+                    #print("Cannot load ELiXer Report image: ", str(detectid))
         except:
-            print("Cannot load ELiXer Report image: ", str(detectid))
+            pass
+            #print("Cannot load ELiXer Report image: ", str(detectid))
 
 
         if ELIXER_H5 is None:
             if op.exists(HETDEX_ELIXER_HDF5):
                 ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, 'r')
             else:
-                print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+                pass
+                #print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
                 return
 
         #only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
@@ -313,16 +324,21 @@ class ElixerWidget():
         else:
             pass
 
-        display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
-                              self.e_manual_ra,
-                              self.e_manual_dec,
-                              self.e_manual_button]))
+#        display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
+#                              self.e_manual_ra,
+#                              self.e_manual_dec,
+#                              self.e_manual_button]))
 
+        display(self.det_table_button)
+        
         self.e_blue_button.on_click(self.e_blue_button_click)
         self.e_red_button.on_click(self.e_red_button_click)
         self.e_green_button.on_click(self.e_green_button_click)
         self.e_manual_button.on_click(self.e_manual_button_click)
 
+        self.det_table_button.on_click(self.det_table_button_click)
+
+        
     def setup_widget(self):
         if self.resume:
             try:
@@ -355,7 +371,7 @@ class ElixerWidget():
             description='DetectID:',
             disabled=False
         )
-        
+
         self.previousbutton = widgets.Button(layout=Layout(width='5%'))#description='Previous DetectID')
         self.nextbutton = widgets.Button(layout=Layout(width='5%'))#description='Next DetectID')
 
@@ -405,16 +421,19 @@ class ElixerWidget():
         # self.s4_button = widgets.Button(description=' Maybe LAE ', button_style='success')
         # self.s5_button = widgets.Button(description=' Definite LAE ', button_style='success')
 
-        self.sm1_button = widgets.Button(description='Spurious',
+        self.sm1_button = widgets.Button(description='Artifact',
                                          button_style='danger',
                                          layout=Layout(width='10%'))
 
-        self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
-        self.s1_button = widgets.Button(description='          (1) ', button_style='success')
-        self.s2_button = widgets.Button(description='          (2) ', button_style='success')
-        self.s3_button = widgets.Button(description='          (3) ', button_style='success')
-        self.s4_button = widgets.Button(description='          (4) ', button_style='success')
-        self.s5_button = widgets.Button(description=' YES! LAE (5) ', button_style='success')
+        self.other_button = widgets.Button(description=' Other ', button_style='warning')
+        self.lowz_button = widgets.Button(description=' Low-z ', button_style='warning')
+
+        #self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
+        self.s1_button = widgets.Button(description='     LAE  1 ', button_style='success')
+        self.s2_button = widgets.Button(description='          2 ', button_style='success')
+        self.s3_button = widgets.Button(description='          3 ', button_style='success')
+        self.s4_button = widgets.Button(description='          4 ', button_style='success')
+        self.s5_button = widgets.Button(description='      LAE 5 ', button_style='success')
 
 
 
@@ -440,6 +459,8 @@ class ElixerWidget():
         self.e_manual_ra = widgets.FloatText(value=0.0, description='RA (deg):', layout=Layout(width='20%'))
         self.e_manual_dec = widgets.FloatText(value=0.0, description='DEC (deg):', layout=Layout(width='20%'))
         self.e_manual_button = widgets.Button(description='Go')
+
+        self.det_table_button = widgets.Button(description='Get Detection Table Info', layout=Layout(width='30%'))
         
         #self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         #self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -453,7 +474,8 @@ class ElixerWidget():
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
             except:
-                print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                pass
+                #print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
         if HETDEX_DETECT_HDF5_HANDLE:
             dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
@@ -687,8 +709,10 @@ class ElixerWidget():
 
 
         # reset all to base
+        self.lowz_button.icon  = ''
+        self.other_button.icon = ''
         self.sm1_button.icon = ''
-        self.s0_button.icon = ''
+        #self.s0_button.icon = ''
         self.s1_button.icon = ''
         self.s2_button.icon = ''
         self.s3_button.icon = ''
@@ -704,9 +728,9 @@ class ElixerWidget():
 
         # mark the label on the button
         if self.flag[idx] != 0:
-            if self.vis_class[idx] == 0:
-                self.s0_button.icon = 'check'
-            elif self.vis_class[idx] == 1:
+            #if self.vis_class[idx] == 0:
+            #    self.s0_button.icon = 'check'
+            if self.vis_class[idx] == 1:
                 self.s1_button.icon = 'check'
             elif self.vis_class[idx] == 2:
                 self.s2_button.icon = 'check'
@@ -716,6 +740,10 @@ class ElixerWidget():
                 self.s4_button.icon = 'check'
             elif self.vis_class[idx] == 5:
                 self.s5_button.icon = 'check'
+            elif self.vis_class[idx] == 11:
+                self.lowz_button.icon = 'check'
+            elif self.vis_class[idx] == 12:
+                self.other_button.icon = 'check'
             elif self.vis_class[idx] == -1:
                 self.sm1_button.icon = 'check'
 
@@ -767,17 +795,26 @@ class ElixerWidget():
 
         self.set_classification(-1)
 
-    def s0_button_click(self, b):
-        global line_id_dict_lae
-        if self.is_consistent_with_lae():
-            #NOT okay, if you say is not LAE
-            self.line_id_drop.value == line_id_dict_default
-            self.wave_box.value = -1.0
-            self.z_box.value = -1.0
-        else:
-            pass #okay, already NOT consistent with LAE
 
-        self.set_classification(0)
+    def lowz_button_click(self, b):
+        global line_id_dict_lae
+        self.set_classification(11)
+
+    def other_button_click(self, b):
+        global line_id_dict_lae
+        self.set_classification(12)
+
+    # def s0_button_click(self, b):
+    #     global line_id_dict_lae
+    #     if self.is_consistent_with_lae():
+    #         #NOT okay, if you say is not LAE
+    #         self.line_id_drop.value == line_id_dict_default
+    #         self.wave_box.value = -1.0
+    #         self.z_box.value = -1.0
+    #     else:
+    #         pass #okay, already NOT consistent with LAE
+    #
+    #     self.set_classification(0)
 
     def s1_button_click(self, b):
         global line_id_dict_lae
@@ -895,7 +932,7 @@ class ElixerWidget():
         if matchnum > 0:
             col_name = ['blue', 'red', 'green']
             
-            object_label = col_name[matchnum-1] + 'Counterpart'
+            object_label = col_name[matchnum-1] + ' Counterpart'
 
             try:
                 coords = SkyCoord(ra = self.CatalogMatch['cat_ra'][match] * u.deg,
@@ -940,3 +977,19 @@ class ElixerWidget():
 
     def get_spec(self, b):
         pass
+
+    def det_table_button_click(self, b):
+        
+        global HETDEX_DETECT_HDF5_HANDLE
+        
+        if HETDEX_DETECT_HDF5_HANDLE is None:
+            try:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
+            except:
+                pass
+                #print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
+                
+        if HETDEX_DETECT_HDF5_HANDLE is not None:
+            detid = self.detectbox.value
+            self.det_row = Table(HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where('detectid == detid'))
+            display(self.det_row.show_in_notebook())

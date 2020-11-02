@@ -251,7 +251,8 @@ def main(argv=None):
 
     header = w.to_header()
     hdu = fits.PrimaryHDU(lf_array, header=header)
-
+    hdu.writeto( str(detectid_obj) + '.fits' )
+    
     catlib = catalogs.CatalogLibrary()
 
     try:

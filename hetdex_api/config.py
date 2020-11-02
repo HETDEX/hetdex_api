@@ -2,9 +2,8 @@
 Config file for HETDEX data release paths
 """
 
+import os
 import os.path as op
-#import re
-#import socket
 import sys
 
 
@@ -14,27 +13,20 @@ class HDRconfig:
     LATEST_HDR_NAME = "hdr2.1"
 
     def __init__(self, survey=LATEST_HDR_NAME):
-        # find out which cpu cluster is in use
-        # hostname = socket.gethostname()
-        # if re.search("wrangler", str(hostname)):
-        #     self.host_dir = "/data/05350/ecooper"
-        # elif re.search("stampede2", str(hostname)):
-        #     self.host_dir = "/scratch/03946/hetdex"
-        # else:
-        #     sys.exit('Edit hetdex_api/config.py for your local dir')
-
-        if op.exists("/data/05350/ecooper"):
+        if op.exists("/home/idies/workspace/HETDEX"):
+            self.host_dir = "/home/idies/workspace/HETDEX"
+        elif op.exists("/data/05350/ecooper"):
             self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
-            sys.exit('Edit hetdex_api/config.py for your local dir')
-
+            self.host_dir = os.getcwd()
+            
         self.hdr_dir = {
                         "hdr1": "/work/03946/hetdex/hdr1",
-                        "hdr2": "/data/05350/ecooper/hdr2",
+                        "hdr2": "/work/03946/hetdex/hdr2",
                         "hdr2.1": op.join(self.host_dir, "hdr2.1")
                        }
 
@@ -100,7 +92,7 @@ class HDRconfig:
             #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
         if survey == 'hdr2.1':
-            self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2.1"
+            self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
             #self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
@@ -114,3 +106,4 @@ class HDRconfig:
             self.flim_avg = op.join(self.hdr_dir[survey], "survey", "flux_limits_all.txt")
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, 'masks')
+            self.lowtpshots = op.join(self.bad_dir, 'survey_shots_low_response.txt')

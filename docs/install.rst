@@ -1,6 +1,23 @@
 Installation
 ============
 
+Easy Install for stampede2
+---------------------------
+
+To get going on stampede2 you need to run a script to install hetdex-api and set up your permissions. You will need to ssh into stampede2. This step will require setting up dual authentication at TACC. Instructions are here: https://portal.tacc.utexas.edu/tutorials/multifactor-authentication. 
+
+.. code-block:: bash
+
+   ssh username@stampede2.tacc.utexas.edu
+   ~ecooper/bin/tacc_setup
+
+This script will copy over hetdex-api notebooks to the directory `hetdex-notebook-tutorials` for you to try out some hetdex-api tutorials. It will also make a symlink to your /work directory on stampede2 so when you launch a notebook on vis.tacc.utexas.edu, you will be able to navigate to your work directory.
+
+Once you have executed this script logout and log back in to update your environment.
+
+You can now log onto https://vis.tacc.utexas.edu and run Jupyter notebooks. Choose the options resource ='Stampede2', Session Type='Jupyter Notebook', Queue='skx-dev'.
+ 
+
 For TACC Users 
 ---------------
 

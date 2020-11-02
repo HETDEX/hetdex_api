@@ -12,15 +12,25 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
-from hetdex_api.shot import *
+from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
+
+try:
+    from hetdex_api.config import HDRconfig
+
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig()
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
+    config = None
 
 
 class Extract:
     def __init__(self, wave=None):
         """
         Initialize Extract class
-        
+
         Parameters
         ----------
         wave: numpy 1d array
@@ -69,7 +79,9 @@ class Extract:
         self.ADRx = np.cos(np.deg2rad(angle)) * ADR
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
-    def load_shot(self, shot_input, survey='hdr2', dither_pattern=None, fibers=True):
+    def load_shot(
+        self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True
+    ):
         """
         Load fiber info from hdf5 for given shot_input
         
@@ -176,8 +188,8 @@ class Extract:
 
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
             ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
-            
-            if self.survey == 'hdr1':
+
+            if self.survey == "hdr1":
                 mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
@@ -187,9 +199,11 @@ class Extract:
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
         else:
-        
-            fib_table = get_fibers_table(self.shot, coord, survey=self.survey, radius=radius)
-            
+
+            fib_table = get_fibers_table(
+                self.shot, coord, survey=self.survey, radius=radius
+            )
+
             if np.size(fib_table) < fiber_lower_limit:
                 return None
 
@@ -203,7 +217,7 @@ class Extract:
                 spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
-            if self.survey == 'hdr1':
+            if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
@@ -323,7 +337,7 @@ class Extract:
 
     def gaussian_psf(self, xstd, ystd, theta, boxsize, scale):
         """
-        Gaussian PSF profile image 
+        Gaussian PSF profile image
         
         Parameters
         ----------
@@ -486,8 +500,8 @@ class Extract:
         convolve_image=False,
         interp_kind="linear",
     ):
-        """ 
-        Collapse spectra to make a signle image on a rectified grid.  This
+        """
+        Collapse spectra to make a single image on a rectified grid.  This
         may be done for a wavelength range and using a number of chunks
         of wavelength to take ADR into account.
         
@@ -495,7 +509,7 @@ class Extract:
         ----------
         xc: float
             The ifu x-coordinate for the center of the collapse frame
-        yc: float 
+        yc: float
             The ifu y-coordinate for the center of the collapse frame
         xloc: numpy array
             The ifu x-coordinate for each fiber
@@ -573,9 +587,114 @@ class Extract:
             if convolve_image:
                 grid_z = convolve(grid_z, G)
             image_list.append(grid_z)
+
         image = np.median(image_list, axis=0)
         image[np.isnan(image)] = 0.0
         zarray = np.array([image, xgrid - xc, ygrid - yc])
+        return zarray
+
+    def make_narrowband_image(
+        self,
+        xc,
+        yc,
+        xloc,
+        yloc,
+        data,
+        mask,
+        scale=0.25,
+        seeing_fac=1.8,
+        boxsize=4.0,
+        wrange=[3470, 5540],
+        nchunks=11,
+        convolve_image=False,
+        interp_kind="linear",
+    ):
+        """
+        Sum spectra across a wavelength range or filter to make a single image
+        on a rectified grid.  ADR will be calculated at mean wavelength in wrange.
+        
+        Parameters
+        ----------
+        xc: float
+            The ifu x-coordinate for the center of the collapse frame
+        yc: float
+            The ifu y-coordinate for the center of the collapse frame
+        xloc: numpy array
+            The ifu x-coordinate for each fiber
+        yloc: numpy array
+            The ifu y-coordinate for each fiber
+        data: numpy 2d array
+            The calibrated spectra for each fiber
+        mask: numpy 2d array
+            The good fiber wavelengths to be used in collapsed frame
+        scale: float
+            Pixel scale for output collapsed image
+        seeing_fac: float
+            seeing_fac = 2.35 * radius of the Gaussian kernel used
+            if convolving the images to smooth out features. Unit: arcseconds
+        boxsize: float
+            Length of the side in arcseconds for the convolved image
+        wrange: list
+            The wavelength range to use for collapsing the frame
+        convolve_image: bool
+            If true, the collapsed frame is smoothed at the seeing_fac scale
+        interp_kind: str
+            Kind of interpolation to pixelated grid from fiber intensity
+
+        Returns
+        -------
+        zarray: numpy 3d array
+        An array with length 3 for the first axis: wavelength summed image
+        across wrange in units of 10^-17/ergs/cm^2
+        xgrid, ygrid in relative arcsec from center coordinates
+       
+        """
+        a, b = data.shape
+        N = int(boxsize / scale)
+        xl, xh = (xc - boxsize / 2.0, xc + boxsize / 2.0)
+        yl, yh = (yc - boxsize / 2.0, yc + boxsize / 2.0)
+        x, y = (np.linspace(xl, xh, N), np.linspace(yl, yh, N))
+        xgrid, ygrid = np.meshgrid(x, y)
+        S = np.zeros((a, 2))
+        area = np.pi * 0.75 ** 2
+        sel = (self.wave > wrange[0]) * (self.wave <= wrange[1])
+
+        I = np.arange(b)
+
+        if convolve_image:
+            seeing = seeing_fac / scale
+            G = Gaussian2DKernel(seeing / 2.35)
+
+        if interp_kind not in ["linear", "cubic"]:
+            self.log.warning('interp_kind must be "linear" or "cubic"')
+            self.log.warning('Using "linear" for interp_kind')
+            interp_kind = "linear"
+
+        marray = np.ma.array(data[:, sel], mask=mask[:, sel] < 1e-8)
+        image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
+
+        S[:, 0] = xloc - np.mean(self.ADRx[sel])
+        S[:, 1] = yloc - np.mean(self.ADRy[sel])
+
+        grid_z = (
+            griddata(
+                S[~image.mask],
+                image.data[~image.mask],
+                (xgrid, ygrid),
+                method=interp_kind,
+            )
+            * scale ** 2
+            / area
+        )
+
+        if convolve_image:
+            grid_z = convolve(grid_z, G)
+
+        image = grid_z
+        image[np.isnan(image)] = 0.0
+
+        zarray = np.array([image, xgrid - xc, ygrid - yc])
+
         return zarray
 
     def get_psf_curve_of_growth(self, psf):
@@ -662,8 +781,10 @@ class Extract:
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
         )
-        spectrum_error = np.sqrt(np.sum(error ** 2 * mask * weights, axis=0) / np.sum(
-            mask * weights ** 2, axis=0))
+        spectrum_error = np.sqrt(
+            np.sum(error ** 2 * mask * weights, axis=0)
+            / np.sum(mask * weights ** 2, axis=0)
+        )
 
         # Only use wavelengths with enough weight to avoid large noise spikes
         w = np.sum(mask * weights ** 2, axis=0)
@@ -672,3 +793,10 @@ class Extract:
         spectrum_error[sel] = np.nan
 
         return spectrum, spectrum_error
+
+    def close(self):
+        """
+        Close open shot h5 file if open
+        """
+        if self.shoth5 is not None:
+            self.shoth5.close()

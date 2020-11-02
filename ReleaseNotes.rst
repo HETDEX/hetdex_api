@@ -1,6 +1,21 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.7
+-----------
+
+- added hetdex_tools/get_contour.py to perform grid line fitting
+
+- updated hetdex_api/elixer_widget_cls.py for new team classifying
+
+- add API for mask development hetdex_api/mask.py
+
+- updated line fitting tools in hetdex_tools/line_fitting.py
+
+- added hetdex_tools/make_curated_catalog.py to document catalog creation
+
+- added tool to grab flim slice and detections hetdex_tools/plot_flim_slice.py
+
 Release 0.6
 -----------
 

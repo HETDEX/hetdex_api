@@ -1,9 +1,7 @@
 from setuptools import setup, find_packages
 
 install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'scipy>=0.17.0',
-                    'tables', 'ipywidgets', 'speclite', 'astrowidgets',
-                    'jsonschema==3.1.1', 'ipyevents', 'tornado==5.1.1',
-                    'healpy']
+                    'tables', 'ipywidgets', 'astrowidgets', 'healpy']
 
 extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx_rtd_theme']}
@@ -11,7 +9,7 @@ extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
 setup(
     # package description and version
     name="hetdex_api",
-    version="0.6",
+    version="0.8.1c",
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
