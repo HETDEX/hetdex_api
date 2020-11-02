@@ -195,7 +195,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
 
     global config
 
-    # meteors are found with +/- 8 arcsec of the line DEC=a+RA*b in this file
+    # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
     met_tab = Table.read(config.meteor, format='ascii')
     sel_shot = met_tab['shotid'] == shotid
 
@@ -203,7 +203,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
         a = met_tab['a'][sel_shot]
         b = met_tab['b'][sel_shot]
 
-        ra_met = coords.ra + np.arange(-90,90)*u.arcsec
+        ra_met = coords.ra + np.arange(-180, 180)*u.arcsec
         dec_met = (a + ra_met.deg*b ) * u.deg
         
         met_coords = SkyCoord(ra=ra_met, dec=dec_met)
