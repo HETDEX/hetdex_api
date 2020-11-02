@@ -41,6 +41,7 @@ setup(
 
     entry_points = {
                     "console_scripts" : [
+                        'plot_shot_completeness = hetdex_api.flux_limits.hdf5_sensitivity_cubes:shot_completeness_plot',
                         'plot_completeness = hetdex_api.flux_limits.sensitivity_cube:plot_completeness',
                         'plot_completeness_versus_wl = hetdex_api.flux_limits.sensitivity_cube:plot_completeness_versus_wl',
                         'collapse_combine_sensitivity = hetdex_api.flux_limits.collapse_cubes:collapse_datacubes_command',

@@ -12,9 +12,12 @@ import logging
 from os.path import isfile, join
 from re import compile
 import tables as tb
+from numpy.ma import MaskedArray
+from numpy import linspace, mean, arange, array
+from astropy.stats import biweight_location
+from astropy.table import Table
 from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
-from numpy.ma import MaskedArray
 
 _logger = logging.getLogger()
 _logger.setLevel("INFO")
@@ -58,7 +61,7 @@ def return_sensitivity_hdf_path(datevobs, release="hdr2.1",
 
     """
     config = HDRconfig(release)
-    flim_dir = config.flim_dir
+    flim_dir = config.flim_dir 
     mask_dir = config.flimmask
 
     path_to_hdf5s = join(flim_dir, "{:s}_sensitivity_cube.h5".format(datevobs))
@@ -318,6 +321,31 @@ class SensitivityCubeHDF5Container(object):
                                nsigma=nsigma, flim_model=self.flim_model,
                                aper_corr=self.aper_corr, mask=mask)
 
+    def return_shot_completeness(self, flux, lambda_low, lambda_high, sncut):
+        """
+        Parameters
+        ----------
+        flux : array
+            flux to return completeness
+            for
+        lambda_high, lambda_low : float
+            wavelength range
+        sncut : float
+            S/N cut to return completness for
+        """
+
+        compl_all = []
+        for ifuslot, scube in self.itercubes():
+            compl = scube.return_wlslice_completeness(flux,
+                                                      lambda_low, lambda_high,
+                                                      sncut)
+            if len(compl)>0:
+                compl_all.append(compl)
+            else:
+                print("Warning! No good data for {:s}, skipping".format(ifuslot))
+ 
+        return mean(compl_all, axis=0)
+ 
     def flush(self):
         """ Write all alive leaves to disk """
         self.h5file.flush()
@@ -334,6 +362,47 @@ class SensitivityCubeHDF5Container(object):
     def __exit__(self, type_, value, traceback):
         """ Support tidying up after using the `with` statement """
         self.close()
+
+def shot_completeness_plot(args=None):
+
+    import argparse
+    import matplotlib as mpl
+    mpl.use("Qt4Agg")
+    import matplotlib.pyplot as plt
+
+    parser = argparse.ArgumentParser(
+        description="Plot completeness curves in a lambda range",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument('h5file')
+    parser.add_argument('--sim-results', help="Filename of sim results to overplot", default=None)
+    parser.add_argument('--mask', help="Mask filename, if not passed assume no mask.", default=None)
+    parser.add_argument('lambda_low', type=float, help="Lower wavelength limit (A)")
+    parser.add_argument('lambda_high', type=float, help="Upper wavelength limit (A)")
+    parser.add_argument('sncut', type=float, help="Signal to noise cut")
+    parser.add_argument('--flux_low', type=float, default="1e-17")
+    parser.add_argument('--flux_high', type=float, default="3e-16")
+    opts = parser.parse_args()
+
+    if opts.sim_results:
+        table = Table.read(opts.sim_results, format="ascii")
+        plt.plot(table["flux"], table["complete"], "r*", label="Sim results")
+ 
+    h5s = SensitivityCubeHDF5Container(opts.h5file, mask_filename = opts.mask) 
+ 
+    fluxes = linspace(opts.flux_low, opts.flux_high, 1000)
+    compl = h5s.return_shot_completeness(fluxes, opts.lambda_low, 
+                                         opts.lambda_high, opts.sncut)
+
+    plt.plot(fluxes*1e17, compl, "k-", label="Model S/N > {:3.2f}".format(opts.sncut))
+
+    plt.title("{:5.1f}<wavelength (A)<{:5.1f}".format(opts.lambda_low,  opts.lambda_high))
+    plt.legend()
+    plt.ylabel("Completeness")
+    plt.xlabel("Fluxes [10$^{-17}$ erg/s/cm2]")
+    plt.show()
+
 
 
 def add_sensitivity_cube_to_hdf5(args=None):
@@ -432,6 +501,43 @@ def extract_sensitivity_cube(args=None):
     scube.write(opts.outfile)
 
 
+def return_biweight_one_sigma(shots, pixlo=5, pixhi=25):
+    """
+    Return the biweight midvariance of the 
+    1 sigma values of a series of shots. Trim
+    off edge values
+   
+    Parameters
+    ----------
+    shots : list
+        a list of shots to loop
+        over
+    pixlo, pixhi : int (optional)
+        limits for the 2D ra/dec
+        pixel array when computing 
+        the values. Default is 5,25.
+    """
+    sigmas_all = []
+    for shot in shots:
+        fn, fnmask = return_sensitivity_hdf_path(shot, 
+                                                 return_mask_fn = True)
+
+        print(fn)
+        with SensitivityCubeHDF5Container(fn, mask_filename = fnmask) as hdf:
+
+            for ifuslot, scube in hdf.itercubes():
+                 sigmas = scube.sigmas[:, pixlo:pixhi, pixlo:pixhi]
+                 sigmas = sigmas.reshape(sigmas.shape[0], sigmas.shape[1]*sigmas.shape[2])
+                 sigmas_all.extend(sigmas.T)
+
+            pixels = arange(scube.sigmas.shape[0])
+            junkras, junkdecs, waves = scube.wcs.all_pix2world(0*pixels, 0*pixels, 
+                                                               pixels, 0)
+
+    biwt = biweight_location(array(sigmas_all), axis=0, ignore_nan=True)
+
+    return waves, biwt 
+
 if __name__ == "__main__":
     extract_sensitivity_cube()
-    # add_sensitivity_cube_to_hdf5()
+    ## add_sensitivity_cube_to_hdf5()

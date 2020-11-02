@@ -476,7 +476,7 @@ class SensitivityCube(object):
 
 
     def return_wlslice_completeness(self, flux, lambda_low, lambda_high, 
-                                    sncut, noise_cut=1e-16):
+                                    sncut, noise_cut=2e-16):
         """
         Return completeness of a wavelength slice. NaN completeness
         values are replaced with zeroes, noise values greater than
@@ -512,6 +512,9 @@ class SensitivityCube(object):
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
         noise = self.sigmas.filled()[izlo:(izhigh + 1), :, :]
         noise = noise[(noise < noise_cut) & isfinite(noise)] 
+
+        if len(noise) == 0:
+            return []
 
         f50s = self.f50_from_noise(noise, sncut)
 
@@ -704,6 +707,7 @@ def plot_completeness_versus_wl(args=None):
     opts = parser.parse_args(args=args)
 
     coord = SkyCoord(opts.ra, opts.dec)
+    print("WARNING using fixed alpha=-3.1")
     scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [-3.1, -3.1])
 
     wls = linspace(3500, 5490.0, 1000)
