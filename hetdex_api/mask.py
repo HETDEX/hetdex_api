@@ -166,7 +166,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
     return flag
 
     
-def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=12.*u.arcsec):
     """
     Returns a boolean flag value to mask out meteors
 
@@ -180,7 +180,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=9*u.arcsec):
     streaksize
         an astropy quantity object defining how far off the
         perpendicular line of the meteor streak to mask out. Default
-        is 9*u.arcsec
+        is 12*u.arcsec
     
     Returns
     -------
