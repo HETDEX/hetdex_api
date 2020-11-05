@@ -13,7 +13,9 @@ class HDRconfig:
     LATEST_HDR_NAME = "hdr2.1"
 
     def __init__(self, survey=LATEST_HDR_NAME):
-        if op.exists("/home/idies/workspace/HETDEX"):
+        if op.exists('/home/jovyan/Hobby-Eberly-Telesco'):
+            self.host_dir = '/home/jovyan/Hobby-Eberly-Telesco'
+        elif op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
         elif op.exists("/data/05350/ecooper"):
             self.host_dir = "/data/05350/ecooper"
@@ -23,12 +25,25 @@ class HDRconfig:
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
             self.host_dir = os.getcwd()
-            
-        self.hdr_dir = {
-                        "hdr1": "/work/03946/hetdex/hdr1",
-                        "hdr2": "/work/03946/hetdex/hdr2",
-                        "hdr2.1": op.join(self.host_dir, "hdr2.1")
-                       }
+
+        if op.exists('/home/jovyan/Hobby-Eberly-Telesco'):
+            self.hdr_dir = {
+                "hdr1": op.join(self.host_dir, "hdr1"),
+                "hdr2": op.join(self.host_dir, "hdr2"),
+                "hdr2.1": op.join(self.host_dir, "hdr2"),
+                }
+        elif op.exists('/corral-repl/utexas/Hobby-Eberly-Telesco'):
+            self.hdr_dir = {
+                "hdr1": op.join(self.host_dir, "hdr1"),
+                "hdr2": op.join(self.host_dir, "hdr2"),
+                "hdr2.1": op.join(self.host_dir, "hdr2"),
+            }
+        else:
+            self.hdr_dir = {
+                "hdr1": "/work/03946/hetdex/hdr1",
+                "hdr2": "/work/03946/hetdex/hdr2",
+                "hdr2.1": op.join(self.host_dir, "hdr2.1")
+            }
 
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
@@ -87,23 +102,22 @@ class HDRconfig:
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
-            #self.elixerh5 = "/data/03261/polonius/hdr2/detect/elixer.h5"
-            #self.elix_dir = "/data/03261/polonius/hdr2/detect/image_db"
-            #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
         if survey == 'hdr2.1':
-            self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
+            if op.exists('/home/jovyan/software/hetdex_api'):
+                self.bad_dir = '/home/jovyan/software/hetdex_api/known_issues/hdr2.1'
+            else:
+                self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
             #self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
             self.badamp2 = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
-            #self.elixerh5 = "/data/03261/polonius/hdr2.1.run/detect/elixer.h5"
-            #self.elix_dir = "/data/03261/polonius/hdr2.1.run/detect/image_db"
-            #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
             self.baddetectmask = op.join(self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p")
             self.flim_avg = op.join(self.hdr_dir[survey], "survey", "flux_limits_all.txt")
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, 'masks')
             self.lowtpshots = op.join(self.bad_dir, 'survey_shots_low_response.txt')
+            self.galcatfall = op.join(self.bad_dir, 'rc3.hetdex.fall.v5.csv')
+            self.galcatspring = op.join(self.bad_dir, 'rc3.hetdex.spring.v5.csv')
