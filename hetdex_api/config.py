@@ -119,5 +119,5 @@ class HDRconfig:
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, 'masks')
             self.lowtpshots = op.join(self.bad_dir, 'survey_shots_low_response.txt')
-            self.galcatfall = op.join(self.bad_dir, 'rc3.hetdex.fall.v5.csv')
-            self.galcatspring = op.join(self.bad_dir, 'rc3.hetdex.spring.v5.csv')
+            self.rc3cat = op.join(self.bad_dir, 'rc3.hetdex.both.v6.csv')
+
