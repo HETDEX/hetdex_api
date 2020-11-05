@@ -35,6 +35,9 @@ from regions import CircleSkyRegion, CirclePixelRegion
 from regions import LineSkyRegion, LinePixelRegion
 from regions import PixCoord
 
+from hetdex_api.config import HDRconfig
+
+config = HDRconfig()
 
 # # Usage cases for galmask.py
 # 
@@ -176,11 +179,9 @@ def read_rc3_tables():
                       east, measured in degrees.
     'NEDRedshift'   - The redshift of the galaxy, taken from NED (if available)
     """
-    #tboth = Table.read(config.rc3location, format='ascii.csv')
-    #return tboth
-    pass
-
-
+    tboth = Table.read(config.rc3cat, format='ascii.csv')
+    return tboth
+    
 def read_rc3_tables_old():
     """
     2020.11.04 - Allows user to load in RC3 catalog file in csv format
