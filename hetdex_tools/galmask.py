@@ -188,57 +188,9 @@ def read_rc3_tables():
     return tboth
 
 
-def read_rc3_tables_old():
-    """
-    2020.11.04 - Allows user to load in RC3 catalog file in csv format
-    
-    Read in the RC3 tables created by John Feldmeier for HETDEX.  
-    The key parameters in the table are:
-    'Coords'        - string representation of the galaxy center
-    'SemiMajorAxis' - the semi-major axis of the galaxy, measured in arcminutes
-    'SemiMinorAxis' - the semi-minor axis of the galaxy, measured in arcminutes
-    'PositionAngle' - The angle of the major axis, measured from North through 
-                      east, measured in degrees.
-    'NEDRedshift'   - The redshift of the galaxy, taken from NED (if available)
-    
-    This version is used for testing, with the file in a certain directory.  
-    It can probably be removed, once the RC3 file is in the configuration path.
-    """
-
-    homedir = expanduser("~")  # find home directory, so this works on all of my
-    # computers
-
-    # Replace this with the location of the directory on your setup
-    workpath = "Dropbox/Proj-HETDEX/GalaxyMask/"  # Location of output csv file
-
-    t1 = "rc3.hetdex.both.v6.csv"  # The name for the RC3 csv file, created
-
-    workdir = os.path.join(homedir, workpath)
-    t1Filename = os.path.join(workdir, t1)
-    tboth = Table.read(t1Filename, format="ascii.csv")
-    return tboth
-
-
 def check_gal_table():
     """Check to ensure that the galaxy table is not nonsensical.  Do later."""
     pass
-
-
-def read_detect_old():
-    """Read in the detect tab file for testing purposes.  
-    Can be removed, once the code is installed."""
-
-    homedir = expanduser("~")  # find home directory, so this works on all of my
-    # computers
-
-    # Replace this with the location of the detect file
-    workpath = "Dropbox/Proj-HETDEX/GalaxyMask/"  # Location of detect file
-    workdir = os.path.join(homedir, workpath)
-
-    t3 = "detect_hdr2.1.0.tab"
-    t3Filename = os.path.join(workdir, t3)
-    tdetect = ascii.read(t3Filename)
-    return tdetect
 
 
 def read_detect(version='2.1.2'):
@@ -277,7 +229,9 @@ def create_dummy_wcs(c1):
 
 
 def create_ellreg(t, index, d25scale=1.0):
-    """ Create an elliptical sky region from astropy.regions, with info from RC3 catalog
+    """
+    Creates an elliptical sky region from astropy.regions, with info from RC3 catalog
+
     t - a table of galaxy regions, similar to that found in read_rc3_tables
     index - the value of the table to be used
     scale - a scaling factor.  Leaving at 1.0 means to use the D25 isophote, 
@@ -296,6 +250,43 @@ def create_ellreg(t, index, d25scale=1.0):
 
     return ellipse_reg
 
+def create_gal_region(galaxy_cat, row_index=None, pgcname=None, d25scale=1.):
+    """
+    Similar to ellreg above but can take a galaxy name as input.
+    
+    Create galaxy ellipse region using an input galaxy catalog_table (likely need
+    to change this API as it heavily follows the RC3 catalog format)
+    
+    Parameters
+    ----------
+    galaxy_catalog_table: an astropy table
+        table of nearby galaxy positions and sizes. Must have a central
+        coordinate and the SemiMajorAxis, SemiMinorAxis, Position Angle
+        info as table column names
+    row_index: int
+        a row index in the galaxy catalog to create the ellipse for
+    pgcname: str
+        the PGCNAME in the RC3 cat. This is a string. eg. "PGC 43255" for NGC 4707
+    d25scale: float
+        how many times D25 should to scale the region
+    """
+    if row_index is not None:
+        index = row_index
+    elif pgcname is not None:
+        index = np.where(galaxy_cat['PGC'] == pgcname)[0][0]
+        
+    coords = SkyCoord(galaxy_cat['Coords'][index],frame='icrs')
+
+    # The ellipse region uses the major and minor axes, so we have to multiply by
+    # two first, before applying any user scaling.
+    
+    major = (galaxy_cat['SemiMajorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
+    minor = (galaxy_cat['SemiMinorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
+    pa    = (galaxy_cat['PositionAngle'][index]) * u.deg
+    ellipse_reg = EllipseSkyRegion(center=coords, height=major, width=minor, angle=pa)
+    
+    return ellipse_reg
+                                                                            
 
 def onegal_flag_from_coords(coords, t, index, d25scale=1.0):
     """ Search a specific galaxy ellipse, and see if a single source lies within that region.
@@ -318,25 +309,23 @@ def onegal_flag_from_coords(coords, t, index, d25scale=1.0):
     return (flag, source_name, source_redshift)
 
 
-# In[10]:
-
-
-def gals_flag_from_coords(coords, t, d25scale=1.0, nmatches=1):
+def gals_flag_from_coords(coords, galaxy_cat, d25scale=1.0, nmatches=1):
     """
     Returns a boolean flag value to mask sources near large galaxies
     Parameters
     ----------
     coords
         an astropy.coordinates SkyCoord object
-    t
-        a table that 
+    galaxy_cat
+        an astropy table containing the large galaxy parameters. This
+        is catered for the RC3 catalog stored in config.rc3cat
     d25
         The scaling of ellipses.  1.0 means use the ellipse for D25.
         Experimentation showed a value of 1.75 might be more appropriate
-        
-    nmatches - the closest nmatches are searched for.  nmatches = 1 means search 
-    the closest coordinate only.  nmatches = 3 is recommended
-    
+    nmatches
+        the closest nmatches are searched for.  nmatches = 1 means
+        search the closest coordinate only.  nmatches = 3 is recommended
+
     Returns
     -------
     flag - boolean
