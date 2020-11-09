@@ -30,13 +30,13 @@ class HDRconfig:
             self.hdr_dir = {
                 "hdr1": op.join(self.host_dir, "hdr1"),
                 "hdr2": op.join(self.host_dir, "hdr2"),
-                "hdr2.1": op.join(self.host_dir, "hdr2"),
+                "hdr2.1": op.join(self.host_dir, "hdr2.1"),
                 }
         elif op.exists('/corral-repl/utexas/Hobby-Eberly-Telesco'):
             self.hdr_dir = {
                 "hdr1": op.join(self.host_dir, "hdr1"),
                 "hdr2": op.join(self.host_dir, "hdr2"),
-                "hdr2.1": op.join(self.host_dir, "hdr2"),
+                "hdr2.1": op.join(self.host_dir, "hdr2.1"),
             }
         else:
             self.hdr_dir = {
