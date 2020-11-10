@@ -85,11 +85,11 @@ line_id_dict = {line_id_dict_default:-1.0,
                 "4959 OIII":4959,
                 "5007 OIII":5007,
                 line_id_dict_sep:-1.0,
+                "1035 OVI":1035,
                 "1241 NV":1241,
-                "1260 SiII": 1260,
                 "1549 CIV":1549,
                 "1640 HeII": 1640,
-                "1909 CII":1909,
+                "1909 CIII":1909,
                 "2799 MgII":2799,
                 "4102 H-delta": 4102,
                 "4341 H-gamma": 4341,
@@ -425,8 +425,8 @@ class ElixerWidget():
                                          button_style='danger',
                                          layout=Layout(width='10%'))
 
-        self.other_button = widgets.Button(description=' Other ', button_style='warning')
-        self.lowz_button = widgets.Button(description=' Low-z ', button_style='warning')
+        self.other_button = widgets.Button(description='Star/Meteor', button_style='warning')
+        self.lowz_button = widgets.Button(description='Nearby Galaxy', button_style='warning')
 
         #self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
         self.s1_button = widgets.Button(description='     LAE  1 ', button_style='success')
