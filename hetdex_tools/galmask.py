@@ -338,7 +338,7 @@ def gals_flag_from_coords(coords, galaxy_cat, d25scale=1.0, nmatches=1):
 
     """
 
-    gal_coords = SkyCoord(t["Coords"])
+    gal_coords = SkyCoord( galaxy_cat["Coords"])
 
     # calculate angular distances to all of the sources, and pick out the n closest ones
     d2d = coords.separation(gal_coords)
@@ -353,11 +353,11 @@ def gals_flag_from_coords(coords, galaxy_cat, d25scale=1.0, nmatches=1):
     source_redshift = None
 
     for idnum in id_close:
-        ellipse = create_ellreg(t, idnum, d25scale=d25scale)
+        ellipse = create_ellreg(galaxy_cat, idnum, d25scale=d25scale)
         if ellipse.contains(coords, mywcs):
             flag = True
-            source_name = t["PGC"][idnum]
-            source_redshift = t["NEDRedshift"][idnum]
+            source_name = galaxy_cat["PGC"][idnum]
+            source_redshift = galaxy_cat["NEDRedshift"][idnum]
 
     return (flag, source_name, source_redshift)
 
@@ -454,8 +454,13 @@ def show_ellipse_ring_source(
 
     # Create a region from the source we want to overplot
     sourceCircles = []
-    for coord in coords:
-        tempreg = CircleSkyRegion(center=coord, radius=source_size)
+
+    if np.size(coords) > 1:
+        for coord in coords:
+            tempreg = CircleSkyRegion(center=coord, radius=source_size)
+            sourceCircles.append(tempreg)
+    else:
+        tempreg = CircleSkyRegion(center=coords, radius=source_size)
         sourceCircles.append(tempreg)
 
     try:
@@ -863,10 +868,8 @@ if test5:
         "\nTest 5 - create a random elliptical region from the RC3 galaxy table, and print it out:"
     )
     print(70 * "-")
-
-    if not (test1 or test2):
-        print("Loading RC3 catalog:")
-        tboth = read_rc3_tables_old()
+    print("Loading RC3 catalog:")
+    tboth = read_rc3_tables()
 
     ntot = len(tboth)
     index = np.random.randint(ntot)
@@ -884,13 +887,9 @@ if test6:
     print("\nTest 6 - Search for sources by coordinates only for a single galaxy:")
     print(70 * "-")
 
-    if not (test1 or test2):
-        print("Loading RC3 catalog:")
-        tboth = read_rc3_tables_old()
+    tboth = read_rc3_tables()
 
-    if not (test3):
-        print("Loading HDR catalog")
-        tdetect = read_detect_old()
+    tdetect = read_detect()
 
     # Find 200 objects in the tdetect list that are closest to NGC 4707
     nclose = 200
@@ -940,13 +939,11 @@ if test7:
     print("\nTest 7 - Search for sources by coordinates only for a range of galaxies:")
     print(70 * "-")
 
-    if not (test1 or test2):
-        print("Loading RC3 catalog:")
-        tboth = read_rc3_tables_old()
-
-    if not (test3):
-        print("Loading HDR catalog")
-        tdetect = read_detect_old()
+    print("Loading RC3 catalog:")
+    tboth = read_rc3_tables()
+    
+    print("Loading HDR catalog")
+    tdetect = read_detect()
 
     ntot = len(tboth)
 
@@ -1059,13 +1056,8 @@ if test10:
     print("This test takes a significant amount of time, (5 minutes) per scale factor!")
     print(70 * "-")
 
-    if not (test1 or test2):
-        print("Loading RC3 catalog:")
-        tboth = read_rc3_tables_old()
-
-    if not (test3):
-        print("Loading HDR catalog")
-        tdetect = read_detect_old()
+    tboth = read_rc3_tables()
+    tdetect = read_detect()
 
     d25scales = np.array([1.0, 1.25, 1.5, 1.75, 2.0])  # Different values of d25 scales
     ntot = len(tdetect)
