@@ -17,6 +17,7 @@ import numpy as np
 from astropy.table import Table, join
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy import wcs
 
 from regions import EllipseSkyRegion, EllipsePixelRegion
 
