@@ -264,7 +264,7 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
     return ellipse_reg
 
 
-def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=2.*u.arcmin):
+def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     """
     Create a simple fake WCS in order to use the regions subroutine.
     Adapted from John Feldmeiers galmask.py
