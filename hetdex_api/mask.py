@@ -4,6 +4,7 @@
 API to masking HETDEX data products
 
 Created on 2020/09/08
+Update on 2020/11/10: Updating to create galaxy regions from rc3 catalog
 
 @author: Erin Mentuch Cooper
 
@@ -16,6 +17,8 @@ import numpy as np
 from astropy.table import Table, join
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+
+from regions import EllipseSkyRegion, EllipsePixelRegion
 
 from hetdex_api.config import HDRconfig
 from hetdex_api.survey import FiberIndex
@@ -220,4 +223,121 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=12.*u.arcsec):
         flag = True
 
     return flag
+
+
+def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
+    """
+    Similar to galmask.py/ellreg but can take a galaxy name as input.
+
+    Create galaxy ellipse region using an input galaxy catalog_table (likely need
+    to change this API as it heavily follows the RC3 catalog format)
+
+    Parameters
+    ----------
+    galaxy_catalog_table: an astropy table
+        table of nearby galaxy positions and sizes. Must have a central
+        coordinate and the SemiMajorAxis, SemiMinorAxis, Position Angle
+        info as table column names
+    row_index: int
+        a row index in the galaxy catalog to create the ellipse for
+    pgcname: str
+        the PGCNAME in the RC3 cat. This is a string. eg. "PGC 43255" for NGC 4707
+    d25scale: float
+        how many times D25 should to scale the region
+    """
+    if row_index is not None:
+        index = row_index
+    elif pgcname is not None:
+        index = np.where(galaxy_cat['PGC'] == pgcname)[0][0]
+        
+    coords = SkyCoord(galaxy_cat['Coords'][index],frame='icrs')
     
+    # The ellipse region uses the major and minor axes, so we have to multiply by
+    # two first, before applying any user scaling.
+    
+    major = (galaxy_cat['SemiMajorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
+    minor = (galaxy_cat['SemiMinorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
+    pa    = (galaxy_cat['PositionAngle'][index]) * u.deg
+    ellipse_reg = EllipseSkyRegion(center=coords, height=major, width=minor, angle=pa)
+
+    return ellipse_reg
+
+
+def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=2.*u.arcmin):
+    """
+    Create a simple fake WCS in order to use the regions subroutine.
+    Adapted from John Feldmeiers galmask.py
+    
+    Parameters
+    ----------
+    coords: a SkyCoord object
+        center coordinates of WCS
+    pixscale: astropy quantity
+        pixel scale of WCS in astropy angle quantity units
+    imsize: astropy quantity
+        size of WCS in astropy angle quanity units
+    """
+
+    gridsize = imsize.to_value('arcsec')
+    gridstep = pixscale.to_value('arcsec')
+    
+    # Create coordinate center
+    ra_cen = coords.ra.deg
+    dec_cen = coords.dec.deg
+    
+    ndim = np.int(2 * gridsize / gridstep + 1)
+    center = np.int(ndim / 2)
+    w = wcs.WCS(naxis=2)
+    w.wcs.crval = [ra_cen, dec_cen]
+    w.wcs.crpix = [center, center]
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    w.wcs.cdelt = [-gridstep / gridsize, gridstep / gridsize]
+    return w
+
+
+def gal_flag_from_coords(coords, galaxy_cat, d25scale=3.0, nmatches=1):
+    """
+    Returns a boolean flag value to mask sources near large galaxies
+    
+    Adapted from John Feldmeier's hetdex_tools/galmask.py
+    
+    Parameters
+    ----------
+    coords
+        an astropy.coordinates SkyCoord object
+    galaxy_cat
+        an astropy table containing the large galaxy parameters. This
+        is catered for the RC3 catalog stored in config.rc3cat
+    d25scale
+        The scaling of ellipses.  1.0 means use the ellipse for D25.
+        Experimentation showed a value of 1.75 might be more appropriate
+    nmatches
+        the closest nmatches are searched for.  nmatches = 1 means
+        search the closest coordinate only.  nmatches = 3 is recommended
+
+    Returns
+    -------
+    flag - boolean
+        True if the source lies within the ellipse defined
+        False if the source is not within the scaling
+
+    """
+   
+    gal_coords = SkyCoord(galaxy_cat["Coords"])
+   
+    # calculate angular distances to all of the sources, and pick out the n closest ones
+    d2d = coords.separation(gal_coords)
+    ind1 = np.argsort(d2d)  # sort from closest to farthest away
+    id_close = ind1[0:nmatches]
+
+    # create fake WCS for regions use
+    mywcs = create_dummy_wcs(coords)
+
+    flag = False
+
+    for idnum in id_close:
+        ellipse = create_gal_ellipse(galaxy_cat, row_index=idnum, d25scale=d25scale)
+        if ellipse.contains(coords, mywcs):
+            flag = True
+
+    return flag
