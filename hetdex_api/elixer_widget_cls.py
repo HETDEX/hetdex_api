@@ -423,18 +423,35 @@ class ElixerWidget():
 
         self.sm1_button = widgets.Button(description='Artifact',
                                          button_style='danger',
-                                         layout=Layout(width='10%'))
+                                         tooltip='Bad pixels, wavy lines, streaks, or other problems')
+                                         #layout=Layout(width='10%'))
 
-        self.other_button = widgets.Button(description='Star/Meteor', button_style='warning')
-        self.lowz_button = widgets.Button(description='Nearby Galaxy', button_style='warning')
+        self.other_button = widgets.Button(description='Star/Meteor', button_style='warning',
+                                           tooltip='Star, meteor or other non-galaxy object')
+        self.lowz_button = widgets.Button(description='Nearby Galaxy', button_style='warning',
+                                          tooltip='Nearby galaxy (large and/or has apparent structure')
 
         #self.s0_button = widgets.Button(description='  Not LAE (0) ', button_style='success')
-        self.s1_button = widgets.Button(description='     LAE  1 ', button_style='success')
-        self.s2_button = widgets.Button(description='          2 ', button_style='success')
-        self.s3_button = widgets.Button(description='          3 ', button_style='success')
-        self.s4_button = widgets.Button(description='          4 ', button_style='success')
-        self.s5_button = widgets.Button(description='      LAE 5 ', button_style='success')
-
+        self.s1_button = widgets.Button(description='Noise',
+                                        tooltip='Very sure (90%+ confident) this is just noise (or nothing)',
+                                        button_style='success')
+        self.s1_button.style.button_color = 'blue'
+        self.s2_button = widgets.Button(description='Likely Noise',
+                                        tooltip='Somewhat sure (70%-90% confident) this is just noise (or nothing)',
+                                        button_style='success')
+        self.s2_button.style.button_color = 'DodgerBlue'
+        self.s3_button = widgets.Button(description='Maybe Distant',
+                                        tooltip='Not sure, but more likely a distant galaxy than noise',
+                                        button_style='success')
+        self.s3_button.style.button_color = 'CadetBlue'
+        self.s4_button = widgets.Button(description='Likely Distant',
+                                        tooltip='Somewhat sure (70%-90% confident) this is a distant galaxy',
+                                        button_style='success')
+        self.s4_button.style.button_color = 'MediumSeaGreen'
+        self.s5_button = widgets.Button(description='Distant Galaxy',
+                                        tooltip='Very sure (90%+ confident) this is a distant galaxy',
+                                        button_style='success')
+        self.s5_button.style.button_color = 'green'
 
 
         self.c_none_button = widgets.Button(description='Not visible')#, button_style='success')
