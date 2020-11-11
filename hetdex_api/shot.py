@@ -540,8 +540,8 @@ def get_image2D_cutout(
     )
 
     return im0[imtype][0][
-        x - np.floor(height / 2): x + np.ceil(height / 2),
-        y - np.floor(width / 2): y + np.ceil(width / 2),
+        x - int(np.ceil(height / 2)): x + int(np.ceil(height / 2)),
+        y - int(np.ceil(width / 2)): y + int(np.ceil(width / 2)),
     ]
 
 
