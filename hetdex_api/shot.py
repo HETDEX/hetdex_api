@@ -24,7 +24,7 @@ from hetdex_api.config import HDRconfig
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-
+    
 def open_shot_file(shotid, survey="hdr2.1"):
     """
     Open the H5 file for a shot. This is a global function that allows you
@@ -517,8 +517,10 @@ def get_image2D_cutout(
         'error'.
     width
         pixel width to be cutout (image size is 1032 pix)
+        this is the width X in the wavelength dimension
     height
         pixel height to be cutout (image size is 1032 pix)
+        this is height Y in the fiber dimension
     survey
         string identifying data release
 
@@ -538,8 +540,8 @@ def get_image2D_cutout(
     )
 
     return im0[imtype][0][
-        x - int(width / 2) : x + int(width / 2),
-        y - int(height / 2) : y + int(height / 2),
+        x - int(np.floor(height / 2)): x + int(np.ceil(height / 2)),
+        y - int(np.floor(width / 2)): y + int(np.ceil(width / 2)),
     ]
 
 

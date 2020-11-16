@@ -21,7 +21,8 @@ import copy
 np.warnings.filterwarnings("ignore")
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from astropy.table import vstack, Table, Column, join
@@ -40,16 +41,22 @@ PYTHON_VERSION = sys.version_info
 
 try:
     from hetdex_api.config import HDRconfig
+
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-    
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
 
-    
+
 class Detections:
-    def __init__(self, survey=LATEST_HDR_NAME, catalog_type="lines",
-                 curated_version=None, loadtable=True):
+    def __init__(
+        self,
+        survey=LATEST_HDR_NAME,
+        catalog_type="lines",
+        curated_version=None,
+        loadtable=True,
+    ):
         """
         Initialize the detection catalog class for a given data release
 
@@ -83,7 +90,7 @@ class Detections:
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            self.survey = 'hdr' + curated_version[0:3]
+            self.survey = "hdr" + curated_version[0:3]
         else:
             self.version = None
             self.survey = survey
@@ -101,14 +108,14 @@ class Detections:
                 self.filename = config.detectbroadh5
             except:
                 print("Could not locate broad line catalog")
-                
+
         self.hdfile = tb.open_file(self.filename, mode="r")
 
         # store to class
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            self.survey = 'hdr' + curated_version[0:3]
+            self.survey = "hdr" + curated_version[0:3]
         else:
             self.survey = survey
             self.loadtable = loadtable
@@ -116,21 +123,21 @@ class Detections:
         if self.version is not None:
 
             try:
-                catfile = op.join( config.detect_dir,
-                                   'catalogs',
-                                   "detect_hdr" + self.version + ".fits")
-                det_table = Table.read( catfile )
+                catfile = op.join(
+                    config.detect_dir, "catalogs", "detect_hdr" + self.version + ".fits"
+                )
+                det_table = Table.read(catfile)
 
                 for col in det_table.colnames:
-                    if isinstance( det_table[col][0], str ):
-                        setattr(self, col, np.array( det_table[col] ).astype(str) )
+                    if isinstance(det_table[col][0], str):
+                        setattr(self, col, np.array(det_table[col]).astype(str))
                     else:
-                        setattr(self, col, np.array( det_table[col] ) )
+                        setattr(self, col, np.array(det_table[col]))
 
                 self.vis_class = -1 * np.ones(np.size(self.detectid))
-                        
+
             except:
-                print('Could not open curated catalog version: ' + self.version)
+                print("Could not open curated catalog version: " + self.version)
                 return None
 
         elif self.loadtable:
@@ -150,7 +157,7 @@ class Detections:
                     )
 
             # add in the elixer probabilties and associated info:
-            if self.survey == "hdr1" and catalog_type=='lines':
+            if self.survey == "hdr1" and catalog_type == "lines":
 
                 self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
@@ -189,25 +196,29 @@ class Detections:
                 try:
                     colnames = self.hdfile.root.Elixer.colnames
                     for name in colnames:
-                        if name == 'detectid':
+                        if name == "detectid":
                             continue
                         if isinstance(
-                                getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
+                            getattr(self.hdfile.root.Elixer.cols, name)[0], np.bytes_
                         ):
                             setattr(
                                 self,
                                 name,
-                                getattr(self.hdfile.root.Elixer.cols, name)[:].astype(str),
+                                getattr(self.hdfile.root.Elixer.cols, name)[:].astype(
+                                    str
+                                ),
                             )
                         else:
                             setattr(
-                                self, name, getattr(self.hdfile.root.Elixer.cols, name)[:]
+                                self,
+                                name,
+                                getattr(self.hdfile.root.Elixer.cols, name)[:],
                             )
                     self.gmag = self.mag_sdss_g
                     self.gmag_err = self.mag_sdss_g
                 except:
-                    print('No Elixer table found')
-                    
+                    print("No Elixer table found")
+
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12, unicode=True)
             self.fwhm = np.zeros(np.size(self.detectid))
@@ -215,7 +226,7 @@ class Detections:
                 self.fluxlimit_4550 = np.zeros(np.size(self.detectid))
             else:
                 self.fluxlimit_4540 = np.zeros(np.size(self.detectid))
-                
+
             self.throughput = np.zeros(np.size(self.detectid))
             self.n_ifu = np.zeros(np.size(self.detectid), dtype=int)
 
@@ -225,9 +236,9 @@ class Detections:
                 ix = np.where(self.shotid == shot)
                 self.field[ix] = S.field[index].astype(str)
                 # NOTE: python2 to python3 strings now unicode
-                if self.survey == 'hdr1':
+                if self.survey == "hdr1":
                     self.fwhm[ix] = S.fwhm_moffat[index]
-                    self.fluxlimit_4550[ix] = S.fluxlimit_4550[index] 
+                    self.fluxlimit_4550[ix] = S.fluxlimit_4550[index]
                 else:
                     self.fwhm[ix] = S.fwhm_virus[index]
                 try:
@@ -253,7 +264,7 @@ class Detections:
 
             if self.survey == "hdr1":
                 self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
-            
+
             if self.survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
@@ -275,7 +286,6 @@ class Detections:
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
-            
     def __getitem__(self, indx):
         """ 
         This allows for slicing of the Detections class
@@ -305,21 +315,21 @@ class Detections:
                   brighter, defaults to None
         """
 
-        if self.survey == 'hdr1':
+        if self.survey == "hdr1":
             mask1 = self.remove_bad_amps()
             mask2 = self.remove_bright_stuff(gmagcut)
             mask3 = self.remove_ccd_features()
-            
+
             if removebalmerstars:
                 mask4 = self.remove_balmerdip_stars()
             else:
                 mask4 = np.ones(np.size(self.detectid), dtype=bool)
-                
+
             mask5 = self.remove_bad_detects()
-        
+
             mask6 = self.remove_shots()
             mask7 = self.remove_bad_pix()
-            
+
             mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
 
         else:
@@ -329,9 +339,9 @@ class Detections:
             mask4 = self.remove_bad_pix()
             mask5 = self.remove_shots()
             mask6 = self.remove_meteors()
-            
+
             mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
-            
+
         return self[mask]
 
     def query_by_coords(self, coords, radius):
@@ -352,8 +362,9 @@ class Detections:
             maskcoords = sep.arcmin < radius
         return maskcoords
 
-    def find_match(self, coord, radius=5.*u.arcsec,
-                   wave=None, dwave=5., shotid=None):
+    def find_match(
+        self, coord, radius=5.0 * u.arcsec, wave=None, dwave=5.0, shotid=None
+    ):
         """
         Function to cross match another line detection
 
@@ -382,14 +393,14 @@ class Detections:
 
         if wave is not None:
             selwave = np.abs(self.wave - wave) < dwave
-            selmatch = selwave*selmatch
+            selmatch = selwave * selmatch
 
         if shotid is not None:
             selshot = self.shotid == shotid
-            selmatch = selshot*selmatch
+            selmatch = selshot * selmatch
 
-        return selmatch 
-                         
+        return selmatch
+
     def query_by_dictionary(self, limits):
         """
         Takes a dictionary of query limits
@@ -544,7 +555,7 @@ class Detections:
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        if self.survey == 'hdr1':
+        if self.survey == "hdr1":
             badamps1 = ascii.read(
                 config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
             )
@@ -555,9 +566,9 @@ class Detections:
 
             badamps = vstack([badamps1, badamps2])
 
-            if self.survey == 'hdr2':
-                self.date = (self.shotid/1000).astype(int)
-        
+            if self.survey == "hdr2":
+                self.date = (self.shotid / 1000).astype(int)
+
             for row in np.arange(np.size(badamps)):
                 if badamps["amp"][row] == "AA":
                     maskamp = (
@@ -580,32 +591,35 @@ class Detections:
 
             # first read in amp_flag.fits file
             badamps = Table.read(config.badamp)
-            
-            det_table = self.return_astropy_table()
-            
-            join_tab = join(det_table, badamps, keys=['shotid','multiframe'], join_type='left')
-            # this is needed to match with detection class object sorting
-            join_tab.sort('detectid')
 
-            mask1 = join_tab['flag'] != 0
+            det_table = self.return_astropy_table()
+
+            join_tab = join(
+                det_table, badamps, keys=["shotid", "multiframe"], join_type="left"
+            )
+            # this is needed to match with detection class object sorting
+            join_tab.sort("detectid")
+
+            mask1 = join_tab["flag"] != 0
 
             del det_table, join_tab
-            
+
             # add in any newly found badamps that haven't made it into the
             # amp_flag.fits file yet
-            
-            mask2 = np.zeros( np.size(self.detectid), dtype=bool)
-            
-            badamps2 = Table.read(config.badamp2, format='ascii')
+
+            mask2 = np.zeros(np.size(self.detectid), dtype=bool)
+
+            badamps2 = Table.read(config.badamp2, format="ascii")
 
             for row in badamps2:
-                selmf = self.multiframe == row['multiframe']
-                seldate = (self.date >= row['date_start']) \
-                          * (self.date <= row['date_end'])
-                mask2 = np.logical_or(mask2, selmf*seldate)
-                
-            mask = mask1 * np.logical_not( mask2)
-            
+                selmf = self.multiframe == row["multiframe"]
+                seldate = (self.date >= row["date_start"]) * (
+                    self.date <= row["date_end"]
+                )
+                mask2 = np.logical_or(mask2, selmf * seldate)
+
+            mask = mask1 * np.logical_not(mask2)
+
             return mask
 
     def remove_bad_pix(self):
@@ -648,12 +662,12 @@ class Detections:
                     * (self.y_raw <= row["y2"])
                 )
                 mask = np.logical_or(maskbadpix, mask)
-                
+
             self.vis_class[mask] = 0
 
-        else: #except:
+        else:  # except:
             mask = np.zeros(np.size(self.detectid), dtype=bool)
-            
+
         return np.invert(mask)
 
     def remove_shots(self):
@@ -725,21 +739,20 @@ class Detections:
         Returns boolean mask with detections landing on meteor
         streaks masked. Use np.invert(mask) to find meteors
         """
-        
+
         global config
 
-        met_tab = Table.read(config.meteor, format='ascii')
+        met_tab = Table.read(config.meteor, format="ascii")
 
         mask = np.ones_like(self.detectid, dtype=bool)
-        
+
         for row in met_tab:
-            sel_shot = np.where(self.shotid == row['shotid'])[0]
+            sel_shot = np.where(self.shotid == row["shotid"])[0]
             for idx in sel_shot:
                 coord = self.coords[idx]
-                mask[idx] = meteor_flag_from_coords(coord,
-                                                    row['shotid'])
+                mask[idx] = meteor_flag_from_coords(coord, row["shotid"])
         return mask
-        
+
     def get_spectrum(self, detectid_i):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
@@ -848,7 +861,9 @@ class Detections:
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
 
         if self.survey == "hdr1":
-            table.add_column(Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550")    
+            table.add_column(
+                Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550"
+            )
             table.add_column(Column(self.gmag), index=6, name="gmag")
             table.add_column(
                 Column(self.plae_poii_hetdex_gmag), name="plae_poii_hetdex_gmag"
@@ -863,12 +878,14 @@ class Detections:
                 for name in self.hdfile.root.Elixer.colnames:
                     table[name] = getattr(self, name)
             except:
-                print('Could not add elixer columns')
+                print("Could not add elixer columns")
             try:
-                table.add_column(Column(self.fluxlimit_4540), index=3, name="fluxlimit_4540")
+                table.add_column(
+                    Column(self.fluxlimit_4540), index=3, name="fluxlimit_4540"
+                )
             except:
-                print('Could not add average flux limit')
-                
+                print("Could not add average flux limit")
+
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
