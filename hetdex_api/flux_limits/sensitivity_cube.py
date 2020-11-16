@@ -10,6 +10,10 @@ References
 ----------
 
 - Fleming et al. 1995 
+
+  Fleming D.~E.~B., Harris W.~E., Pritchet C.~J., Hanes D.~A., 1995, 
+  AJ, 109, 1044. doi:10.1086/117340
+
   http://adsabs.harvard.edu/abs/1995AJ....109.1044F
 
 - Donghui Jeong's explanation (internal to HETDEX)
@@ -32,6 +36,7 @@ import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from hetdex_api.flux_limits import flim_models
+from hetdex_api.config import HDRconfig
 
 class WavelengthException(Exception):
     """ Exception to raise when suspicious wavelength is passed"""
@@ -124,8 +129,8 @@ class SensitivityCube(object):
         cubes it's 6 sigma) specify it here
     flim_model : str
         the name of the flux limit model 
-        to use. This can either be 'hdr1' or
-        'hdr2pt1'
+        to use. This can either be 'hdr1',
+        'hdr2pt1', hdr2pt1pt1'
     mask : array (optional)
         a spatial ra, dec mask with the same
         WCS and dimensions as the data (default:
@@ -148,7 +153,7 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1", mask=None): 
+                 nsigma=1.0, flim_model="hdr2pt1pt1", mask=None): 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
@@ -158,6 +163,14 @@ class SensitivityCube(object):
             self.sigmas = maskedarray(sigmas/nsigma, fill_value=999.0)
 
         self.nsigma = nsigma
+
+        # Decide between Fleming function or interpolation
+        if (flim_model == "hdr1") or (flim_model == "hdr2pt1"):
+            self.sinterp = None	
+        else:
+           conf = HDRconfig()
+           fn = conf.flim_sim_completeness 
+           self.sinterp = flim_models.SimulationInterpolator(fn)
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -462,9 +475,13 @@ class SensitivityCube(object):
         
 
         f50s = self.get_f50(ra, dec, lambda_, sncut)
-        alphas = self.get_alpha(ra, dec, lambda_)
 
-        fracdet = fleming_function(flux, f50s, alphas)
+        if self.sinterp:
+            # interpolate over the simulation
+            fracdet = self.sinterp(flux, f50s, lambda_)
+        else:
+            alphas = self.get_alpha(ra, dec, lambda_)
+            fracdet = fleming_function(flux, f50s, alphas)
 
         try:
             fracdet[isnan(fracdet)] = 0.0
@@ -476,7 +493,8 @@ class SensitivityCube(object):
 
 
     def return_wlslice_completeness(self, flux, lambda_low, lambda_high, 
-                                    sncut, noise_cut=2e-16):
+                                    sncut, noise_cut=1e-15, pixlo=9, 
+                                    pixhi=22, return_vals = False):
         """
         Return completeness of a wavelength slice. NaN completeness
         values are replaced with zeroes, noise values greater than
@@ -496,6 +514,9 @@ class SensitivityCube(object):
         noise_cut : float
             remove areas with more noise
             than this. Default: 1e-16 erg/s/cm2
+        return_vals : bool (optional)
+            if true alse return an array
+            of the noise values
  
         Return
         ------
@@ -510,23 +531,60 @@ class SensitivityCube(object):
 
         ix, iy, izlo = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_low)
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
-        noise = self.sigmas.filled()[izlo:(izhigh + 1), :, :]
-        noise = noise[(noise < noise_cut) & isfinite(noise)] 
+
+        if izlo < 0:
+            print("Warning! Lower wavelength below range")
+            izlo = 0        
+
+        if izhigh > self.sigmas.shape[0] - 1:
+            print("Warning! Upper wavelength above range")
+            izhigh = self.sigmas.shape[0] - 1
+
+        izlo = int(izlo)
+        izhigh = int(izhigh)
+
+        # remove pixel border and select wavelength slice
+        noise = self.sigmas.filled()[izlo:(izhigh + 1), pixlo:pixhi, pixlo:pixhi]
+
+        # create a cube of the wavelengths
+        r, d, wl_1d = self.wcs.wcs_pix2world(ones(1 + izhigh - izlo), ones(1 + izhigh - izlo), 
+                                            range(izlo, izhigh + 1), 0)
+        waves = wl_1d.repeat(noise.shape[1]*noise.shape[2])
+ 
+        try:
+            waves = waves.reshape(noise.shape) 
+        except ValueError as e:
+            print(noise.shape)
+            print(len(wl_1d))
+            print(izlo, izhigh)
+
+        # remove masked data and bad data
+        sel = (noise < noise_cut) & isfinite(noise) 
+        noise = noise[sel] 
+        waves = waves[sel]
 
         if len(noise) == 0:
-            return []
+            if return_vals:
+                return [], []
+            else:
+                return []
 
         f50s = self.f50_from_noise(noise, sncut)
 
-        if len(self.alphas.shape) > 1:
-            alphas = self.alphas[izlo:(izhigh + 1), :, :] 
-        else:
-            # rough approximation to lambda varying across window
-            alphas = self.alpha_func(0.5*(lambda_low + lambda_high))
+        if type(self.sinterp) == type(None):
+            if len(self.alphas.shape) > 1:
+                alphas = self.alphas[izlo:(izhigh + 1), :, :] 
+            else:
+                # rough approximation to lambda varying across window
+                alphas = self.alpha_func(0.5*(lambda_low + lambda_high))
 
         compls = []
         for f in flux:
-            compl = fleming_function(f, f50s, alphas)       
+            if self.sinterp:
+                compl = self.sinterp(f, f50s.flatten(), waves.flatten())
+            else:
+                compl = fleming_function(f, f50s, alphas)       
+
             compl[isnan(compl)] = 0.0
 
             # works so long as pixels equal area
@@ -535,8 +593,10 @@ class SensitivityCube(object):
             else:
                 compls.append(0.0)
 
-
-        return array(compls)
+        if return_vals:
+            return array(compls), noise.flatten()
+        else:
+            return array(compls)
 
     def return_wlslice_f50(self, lambda_low, lambda_high, 
                            sncut, noise_cut=1e-16):
@@ -635,7 +695,6 @@ def plot_completeness(args=None):
 
     scube = SensitivityCube.from_file(opts.filename, [3500.0, 5500.0], [opts.alpha, opts.alpha])
     f50 = scube.get_f50([coord.ra.deg], [coord.dec.deg], [opts.lambda_], opts.sncut)
-    print(f50)
 
     fluxes = linspace(0.01*f50, 4*f50, 100)
 

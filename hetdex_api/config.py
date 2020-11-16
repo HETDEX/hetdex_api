@@ -38,6 +38,7 @@ class HDRconfig:
         self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
+        self.flim_sim_completeness = op.join(self.flim_dir, "fcor.use")
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "ergfiles")
         self.detect_dir = op.join(self.hdr_dir[survey], "detect")
         self.path_gpinfo = op.join(self.calib_dir, "DR1FWHM.txt")
@@ -92,8 +93,12 @@ class HDRconfig:
             #self.imaging_dir = "/data/03261/polonius/hdr2/imaging"
 
         if survey == 'hdr2.1':
-            self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
-            #self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
+
+            if op.exists("/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"):
+                self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
+            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
+                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
+
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")

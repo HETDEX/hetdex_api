@@ -13,7 +13,7 @@ from os.path import isfile, join
 from re import compile
 import tables as tb
 from numpy.ma import MaskedArray
-from numpy import linspace, mean, arange, array
+from numpy import linspace, mean, arange, array, histogram, zeros
 from astropy.stats import biweight_location
 from astropy.table import Table
 from hetdex_api.config import HDRconfig
@@ -111,7 +111,7 @@ class SensitivityCubeHDF5Container(object):
 
     """
 
-    def __init__(self, filename, mode="r", flim_model="hdr2pt1", aper_corr=1.0, 
+    def __init__(self, filename, mode="r", flim_model="hdr2pt1pt1", aper_corr=1.0, 
                  mask_filename = None, **kwargs):
 
         if (mode == "w") and isfile(filename):
@@ -321,7 +321,8 @@ class SensitivityCubeHDF5Container(object):
                                nsigma=nsigma, flim_model=self.flim_model,
                                aper_corr=self.aper_corr, mask=mask)
 
-    def return_shot_completeness(self, flux, lambda_low, lambda_high, sncut):
+    def return_shot_completeness(self, flux, lambda_low, lambda_high, sncut,
+                                 bin_edges = None):
         """
         Parameters
         ----------
@@ -332,19 +333,39 @@ class SensitivityCubeHDF5Container(object):
             wavelength range
         sncut : float
             S/N cut to return completness for
+        bin_edges : array (optional)
+            if passed, also return the number of
+            noise pixels in the supplied 
+            bin_edges
         """
+        
+        if type(bin_edges) != type(None):
+            nbinned = zeros(len(bin_edges) - 1)
 
+        vals_all = []
         compl_all = []
         for ifuslot, scube in self.itercubes():
-            compl = scube.return_wlslice_completeness(flux,
-                                                      lambda_low, lambda_high,
-                                                      sncut)
+            if type(bin_edges) != type(None):
+                compl, vals = scube.return_wlslice_completeness(flux,
+                                                                lambda_low, lambda_high,
+                                                                sncut, return_vals=True)
+                nbinned += histogram(vals, bins=bin_edges)[0]
+            else:
+                compl = scube.return_wlslice_completeness(flux,
+                                                          lambda_low, lambda_high,
+                                                          sncut)
+
             if len(compl)>0:
                 compl_all.append(compl)
+                vals_all.extend(vals)
             else:
                 print("Warning! No good data for {:s}, skipping".format(ifuslot))
- 
-        return mean(compl_all, axis=0)
+
+        if type(bin_edges) != type(None):
+            return mean(compl_all, axis=0), nbinned
+        else:
+            return mean(compl_all, axis=0)
+
  
     def flush(self):
         """ Write all alive leaves to disk """
@@ -501,6 +522,47 @@ def extract_sensitivity_cube(args=None):
             scube = hdfcont.extract_ifu_sensitivity_cube("ifuslot_" + opts.ifuslot)
 
     scube.write(opts.outfile)
+
+
+#def return_shot_completeness(fluxes, shots, sncut, pixlo=5, pixhi=25):
+#    """
+#    Return the total completeness over
+#    a series of shots
+#   
+#    Parameters
+#    ----------
+#    shots : list
+#        a list of shots to loop
+#        over
+#    pixlo, pixhi : int (optional)
+#        limits for the 2D ra/dec
+#        pixel array when computing 
+#        the values. Default is 5,25.
+#    """
+#    compl_all = []
+#    for shot in shots:
+#        fn, fnmask = return_sensitivity_hdf_path(shot, 
+#                                                 return_mask_fn = True)
+#
+#        print(fn)
+#        with SensitivityCubeHDF5Container(fn, mask_filename = fnmask) as hdf:
+#
+#            for ifuslot, scube in hdf.itercubes():
+#                 sigmas = scube.sigmas[:, pixlo:pixhi, pixlo:pixhi]
+#                 sigmas = sigmas.flatten()
+#                 f50s  = scube.f50_from_noise(sigmas, sncut)
+#                 frac_dets_all = []
+#                 for f in fluxes: 
+#                     if self.sinterp:
+#                         frac_dec = scube.sinterp(f, f50s)
+#                     else:
+#                        alphas = scube.alpha[0]
+#                        fracdet = fleming_function(flux, f50s, alphas)
+#                     frac_dets_all.append(frac_dec)
+#
+#        compl_all.append(frac_dets_all)
+
+#    return mean(compl_all, axis=0)
 
 
 def return_biweight_one_sigma(shots, pixlo=5, pixhi=25):
