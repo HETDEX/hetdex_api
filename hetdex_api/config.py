@@ -84,8 +84,11 @@ class HDRconfig:
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "image_db")
                
         if survey == "hdr1":
-            # here are files that are changing since HDR1 release
-            self.bad_dir = "/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1"
+            if op.exists('/home/jovyan/software/hetdex_api'):
+                self.bad_dir = '/home/jovyan/software/hetdex_api/known_issues/hdr1'
+            else:
+                self.bad_dir = "/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1"
+                
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
@@ -97,7 +100,10 @@ class HDRconfig:
             )
 
         if survey == 'hdr2':
-            self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2"
+            if op.exists('/home/jovyan/software/hetdex_api'):
+                self.bad_dir = '/home/jovyan/software/hetdex_api/known_issues/hdr2'
+            else:
+                self.bad_dir = "/work/05350/ecooper/wrangler/hetdex_api/known_issues/hdr2"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
@@ -106,9 +112,10 @@ class HDRconfig:
         if survey == 'hdr2.1':
             if op.exists('/home/jovyan/software/hetdex_api'):
                 self.bad_dir = '/home/jovyan/software/hetdex_api/known_issues/hdr2.1'
+            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
+                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues" 
             else:
                 self.bad_dir = "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
-            #self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
