@@ -277,24 +277,23 @@ class ElixerWidget():
                 #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
                 display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
             except Exception as e:
-                self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
                 if elix_dir:
                     fname = op.join(elix_dir, "%d.png" % (detectid))
                     if op.exists(fname):
                         display(Image(fname))
                     else: #try the archive location
-                        pass
+                        self.status_box.value = "Report databases not found and specified img_dir does not exist\n" +\
+                                                str(e) + "\n" + traceback.format_exc()
                         #print("Cannot load ELiXer Report image: ", fname)
                 else:
-                    pass
+                    self.status_box.value = str(e) + "\n" + traceback.format_exc()
                     #print("Cannot load ELiXer Report image: ", str(detectid))
         except Exception as e:
-            self.status_box.value = str(e) + "\n" + traceback.format_exc()
+            self.status_box.value = "Report databases not found and no other img__dir not specified\n" + \
+                                    str(e) + "\n" + traceback.format_exc()
             #pass
             #print("Cannot load ELiXer Report image: ", str(detectid))
-
-        display(self.status_box)
 
         if ELIXER_H5 is None:
             if op.exists(HETDEX_ELIXER_HDF5):
@@ -306,47 +305,49 @@ class ElixerWidget():
             else:
                 pass
                 #print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
-                return
+                #return
 
         #only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
-        detectid_i = detectid
+        if ELIXER_H5:
+            detectid_i = detectid
 
-        try:
-            self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where('detectid == detectid_i')
+            try:
+                self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where('detectid == detectid_i')
 
-            if np.size(self.CatalogMatch) == 1:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button]))
-            elif np.size(self.CatalogMatch) == 2:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button,
-                                      self.e_red_button]))
-            elif np.size(self.CatalogMatch) == 3:
-                display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
-                                      self.e_blue_button,
-                                      self.e_red_button,
-                                      self.e_green_button]))
-            else:
-                pass
-        except Exception as e:
-            self.status_box.value = str(e) + "\n" + traceback.format_exc()
-            self.CatalogMatch = []
+                if np.size(self.CatalogMatch) == 1:
+                    display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                          self.e_blue_button]))
+                elif np.size(self.CatalogMatch) == 2:
+                    display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                          self.e_blue_button,
+                                          self.e_red_button]))
+                elif np.size(self.CatalogMatch) == 3:
+                    display(widgets.HBox([widgets.Label(value="Extract Counterpart:  "),
+                                          self.e_blue_button,
+                                          self.e_red_button,
+                                          self.e_green_button]))
+                else:
+                    pass
+            except Exception as e:
+                self.status_box.value = str(e) + "\n" + traceback.format_exc()
+                self.CatalogMatch = []
 
-#        display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
-#                              self.e_manual_ra,
-#                              self.e_manual_dec,
-#                              self.e_manual_button]))
+    #        display(widgets.HBox([widgets.Label(value="Manual Entry:  "),
+    #                              self.e_manual_ra,
+    #                              self.e_manual_dec,
+    #                              self.e_manual_button]))
 
-        display(self.det_table_button)
-        
-        self.e_blue_button.on_click(self.e_blue_button_click)
-        self.e_red_button.on_click(self.e_red_button_click)
-        self.e_green_button.on_click(self.e_green_button_click)
-        self.e_manual_button.on_click(self.e_manual_button_click)
+            display(self.det_table_button)
 
-        self.det_table_button.on_click(self.det_table_button_click)
+            self.e_blue_button.on_click(self.e_blue_button_click)
+            self.e_red_button.on_click(self.e_red_button_click)
+            self.e_green_button.on_click(self.e_green_button_click)
+            self.e_manual_button.on_click(self.e_manual_button_click)
 
+            self.det_table_button.on_click(self.det_table_button_click)
 
+        #always show the status box
+        display(self.status_box)
 
         
     def setup_widget(self):
@@ -503,7 +504,7 @@ class ElixerWidget():
 
         current_wavelength = -1.0
 
-        if HETDEX_DETECT_HDF5_HANDLE is None:
+        if (HETDEX_DETECT_HDF5_HANDLE is None) and (HETDEX_DETECT_HDF5_FN is not None):
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN,"r")
             except Exception as e:
@@ -520,7 +521,6 @@ class ElixerWidget():
                     current_wavelength = rows[0]
             except Exception as e:
                 self.status_box.value = str(e) +"\n" + traceback.format_exc()
-
 
         return current_wavelength
 
@@ -935,10 +935,8 @@ class ElixerWidget():
             #display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
             display(Image(self.elixer_conn_mgr.fetch_image(detectid,report_type="nei")))
         except Exception as e:
-            self.status_box.value = str(e) + "\n" + traceback.format_exc()
+            #self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
-
-            # temporary ... once HDR1 is decomissioned, remove this block
             if elix_dir:
                 path = op.join(elix_dir, "%d_nei.png" % (detectid))
 
@@ -1020,7 +1018,7 @@ class ElixerWidget():
         
         global HETDEX_DETECT_HDF5_HANDLE
         
-        if HETDEX_DETECT_HDF5_HANDLE is None:
+        if (HETDEX_DETECT_HDF5_HANDLE is None) and (HETDEX_DETECT_HDF5_FN is not None):
             try:
                 HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, 'r')
             except Exception as e:
