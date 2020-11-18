@@ -1,9 +1,7 @@
 from __future__ import print_function
 
-
-
 """
-ELiXer Widget Classify Supriod Detections
+ELiXer Widget to Classify Detections
 
 Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
