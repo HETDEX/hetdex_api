@@ -52,8 +52,8 @@ except Exception as e:
     HETDEX_API_CONFIG = None
     #needed only if detection observered wavelength is not supplied
     try:
-        HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr1/detect/detect_hdr1.h5"
-        HETDEX_ELIXER_HDF5 = "/work/03261/polonius/hdr1_classify/all_pngs_cats/elixer_bias_cat.h5"
+        HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr2.1/detect/detect_hdr2.1.h5"
+        HETDEX_ELIXER_HDF5 = "/work/03946/hetdex/hdr2.1/elixer.h5"
     except:
         HETDEX_DETECT_HDF5_FN = None
         HETDEX_ELIXER_HDF5_HANDLE = None
@@ -489,17 +489,22 @@ class ElixerWidget():
 
         if HETDEX_DETECT_HDF5_HANDLE is None:
             try:
-                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN)
-            except:
+                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN,"r")
+            except Exception as e:
+                # print(e)
                 pass
-                #print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
 
         if HETDEX_DETECT_HDF5_HANDLE:
             dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
             q_detectid = self.detectbox.value
-            rows = dtb.read_where('detectid==q_detectid')
-            if (rows is not None) and (rows.size == 1):
-                current_wavelength = rows[0]['wave']
+            try:
+                rows = dtb.read_where('detectid==q_detectid',field="wave")
+                if (rows is not None) and (rows.size == 1):
+                    current_wavelength = rows[0]
+            except Exception as e:
+                #print(e)
+                pass
+
 
         return current_wavelength
 
