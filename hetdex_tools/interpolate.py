@@ -347,12 +347,11 @@ def make_data_cube(
                 )
 
                 im_cont = np.sum([zarray_blue[0], zarray_red[0]])
-                im_slice = im_src[0] - dwave*(im_cont/100)
+                im_slice = im_src[0] - dwave*im_cont/(2*100)
 
             im_cube[i, :, :] = im_slice
 
         except Exception:
-            print(Exception)
             im_cube[i, :, :] = np.zeros((ndim, ndim))
         wave_i += dwave
         i += 1
