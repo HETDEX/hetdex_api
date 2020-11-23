@@ -297,7 +297,7 @@ def make_data_cube(
     i = 0
 
     while wave_i <= wave_range[1]:
-        try:
+        if True:#try
             im_src = E.make_narrowband_image(
                 ifux_cen,
                 ifuy_cen,
@@ -349,7 +349,7 @@ def make_data_cube(
 
             im_cube[i, :, :] = im_slice
 
-        except Exception:
+        else:#except Exception:
             im_cube[i, :, :] = np.zeros((ndim, ndim))
         wave_i += dwave
         i += 1
