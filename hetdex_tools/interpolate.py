@@ -312,6 +312,7 @@ def make_data_cube(
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
+                subcont=subcont,
             )
 
             im_cube[i, :, :] = im_src[0]
