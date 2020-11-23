@@ -297,7 +297,7 @@ def make_data_cube(
     i = 0
 
     while wave_i <= wave_range[1]:
-        if True:#try:
+        try:
             im_src = E.make_narrowband_image(
                 ifux_cen,
                 ifuy_cen,
@@ -312,12 +312,44 @@ def make_data_cube(
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
-                subcont=subcont,
             )
 
-            im_cube[i, :, :] = im_src[0]
+            im_slice = im_src[0]
 
-        else:# except Exception:
+            if subcont:
+                zarray_blue = E.make_narrowband_image(
+                    ifux_cen,
+                    ifuy_cen,
+                    ifux,
+                    ifuy,
+                    data,
+                    mask,
+                    seeing_fac=fwhm,
+                    scale=pixscale.to(u.arcsec).value,
+                    boxsize=imsize.to(u.arcsec).value,
+                    wrange=[wave_range[0]-50, wave_range[0]],
+                    convolve_image=convolve_image,
+                )
+                zarray_red = E.make_narrowband_image(
+                    ifux_cen,
+                    ifuy_cen,
+                    ifux,
+                    ifuy,
+                    data,
+                    mask,
+                    seeing_fac=fwhm,
+                    scale=pixscale.to(u.arcsec).value,
+                    boxsize=imsize.to(u.arcsec).value,
+                    wrange=[wave_range[1], wave_range[1]+50],
+                    convolve_image=convolve_image,
+                )
+                dwave = wave_range[1]-wave_range[0]
+                im_cont = np.sum([zarray_blue[0], zarray_red[0]])
+                im_slice = im_src[0] - dwave*(im_cont/100)
+
+            im_cube[i, :, :] = im_slice
+
+        except Exception:
             im_cube[i, :, :] = np.zeros((ndim, ndim))
         wave_i += dwave
         i += 1
