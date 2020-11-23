@@ -347,7 +347,7 @@ def make_data_cube(
                 )
 
                 im_cont = (zarray_blue[0] + zarray_red[0])/50.
-                im_slice = im_src[0] - dwave*im_cont
+                im_slice = im_src[0] - im_cont
 
             im_cube[i, :, :] = im_slice
 
