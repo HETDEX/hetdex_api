@@ -346,8 +346,8 @@ def make_data_cube(
                     convolve_image=convolve_image,
                 )
 
-                im_cont = np.median([zarray_blue[0], zarray_red[0]])
-                im_slice = im_src[0] - 2*dwave*im_cont/(25)
+                im_cont = (zarray_blue[0] + zarray_red[0])/50.
+                im_slice = im_src[0] - dwave*im_cont
 
             im_cube[i, :, :] = im_slice
 
