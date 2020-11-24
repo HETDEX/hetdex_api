@@ -30,6 +30,7 @@ from astropy.coordinates import SkyCoord
 from matplotlib import pyplot as plt
 
 plt.style.use("fivethirtyeight")
+plt.ioff()
 
 from ginga.AstroImage import AstroImage
 from astrowidgets import ImageWidget
