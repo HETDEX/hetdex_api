@@ -26,6 +26,7 @@ def make_narrowband_image(
     convolve_image=True,
     ffsky=True,
     subcont=False,
+    dcont=50.,
 ):
 
     """
@@ -55,6 +56,10 @@ def make_narrowband_image(
         option to subtract continuum. Default is False. This
         will measure the continuum 50AA below and above the
         input wave_range
+    dcont
+        width in angstrom to measure the continuum. Default is to
+        measure 50 AA wide regions on either side of the line
+         
     
     Returns
     -------
@@ -147,7 +152,7 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[0]-50, wave_range[0]],
+            wrange=[wave_range[0]-dcont, wave_range[0]],
             convolve_image=convolve_image,
         )
 
@@ -161,15 +166,15 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[1], wave_range[1]+50],
+            wrange=[wave_range[1], wave_range[1]+dcont],
             convolve_image=convolve_image,
         )
         
         dwave = wave_range[1]-wave_range[0]
+        im_cont = (zarray_blue[0] + zarray_red[0])/(2*dcont)
 
-        im_cont = np.sum([zarray_blue[0], zarray_red[0]])
+        imslice = zarray[0] - dwave*im_cont
 
-        imslice = zarray[0] - dwave*(im_cont/100)
 
     w = wcs.WCS(naxis=2)
     imsize = imsize.to(u.arcsec).value
@@ -349,12 +354,9 @@ def make_data_cube(
                     convolve_image=convolve_image,
                 )
 
-# this works
-#                im_cont = (zarray_blue[0] + zarray_red[0])/(50)
-#                im_slice = im_src[0] - im_cont
                 im_cont = (zarray_blue[0] + zarray_red[0])/(2*dcont)
                 im_slice = im_src[0] - dwave*im_cont
-                
+    
             im_cube[i, :, :] = im_slice
 
         except Exception:
