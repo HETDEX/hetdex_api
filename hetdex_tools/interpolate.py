@@ -307,7 +307,6 @@ def make_data_cube(
                 mask,
                 scale=pixscale.to(u.arcsec).value,
                 wrange=[wave_i, wave_i + dwave],
-                interp_kind="linear",
                 nchunks=1,
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
@@ -346,8 +345,8 @@ def make_data_cube(
                     convolve_image=convolve_image,
                 )
 
-                im_cont = (zarray_blue[0] + zarray_red[0])/50
-                im_slice = im_src[0] - dwave*im_cont
+                im_cont = (zarray_blue[0] + zarray_red[0])/(50)
+                im_slice = im_src[0] - im_cont
 
             im_cube[i, :, :] = im_slice
 
