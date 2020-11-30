@@ -224,8 +224,8 @@ class CubeWidget(ImageWidget):
             self.line_plot.set_xlim(self.wave_start, self.wave_end)
 
             if self.show_rainbow:
-                y2 = np.linspace(np.min(spectrum),np.max(spectrum), 100)
-                X,Y = np.meshgrid(wavelengths, y2)
+                y2 = np.linspace(np.min(self.spectrum),np.max(self.spectrum), 100)
+                X,Y = np.meshgrid(self.wavelengths, y2)
             
                 extent=(self.wave_start, self.wave_end, np.min(y2), np.max(y2))
 
