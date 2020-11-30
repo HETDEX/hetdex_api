@@ -46,8 +46,15 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
     Based on code by Dan Bruton
     http://www.physics.sfasu.edu/astro/color/spectra.html
     Additionally alpha value set to 0.5 outside range
+
+    EMC updated for wavelength in Angstrom
+
+    Parameters
+    ----------
+    wavelength
+         wavelength in angstrom
     '''
-    wavelength = float(wavelength)
+    wavelength = float(wavelength)/10
     if wavelength >= 350 and wavelength <= 750:
         A = 1.
     else:
