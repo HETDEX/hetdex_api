@@ -151,7 +151,7 @@ class CubeWidget(ImageWidget):
         self.line_out = widgets.Output()
         self.line_plot = None
         self.plot_xlabel = "Wavelength (A)"
-        self.plot_ylabel = "Spec (ergs/s/cm^2 -per spaxel)"
+        self.plot_ylabel = "Flux Density"
 
         if self.show_rainbow:
             self.set_rainbow()
