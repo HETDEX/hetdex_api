@@ -19,18 +19,10 @@ Examples
 
 
 import numpy as np
-from astropy import units as u
 from astropy.table import Table
-from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.nddata import NDData
-from astropy.visualization import ZScaleInterval
-from astropy.coordinates import SkyCoord
-
-from matplotlib import pyplot as plt
-
-plt.style.use("fivethirtyeight")
-plt.ioff()
+#from astropy.visualization import ZScaleInterval
 
 from ginga.AstroImage import AstroImage
 from astrowidgets import ImageWidget
@@ -38,11 +30,68 @@ import ipywidgets as widgets
 from ipywidgets import interact, Layout, AppLayout
 from IPython.display import display, clear_output
 
-from hetdex_tools.interpolate import make_data_cube
+from matplotlib import pyplot as plt
+import matplotlib.colors
 
+plt.ioff()
+plt.rcParams.update({'font.size': 18})
 
+def wavelength_to_rgb(wavelength, gamma=0.8):
+    ''' taken from http://www.noah.org/wiki/Wavelength_to_RGB_in_Python
+    This converts a given wavelength of light to an
+    approximate RGB color value. The wavelength must be given
+    in nanometers in the range from 380 nm through 750 nm
+    (789 THz through 400 THz).
+    
+    Based on code by Dan Bruton
+    http://www.physics.sfasu.edu/astro/color/spectra.html
+    Additionally alpha value set to 0.5 outside range
+    '''
+    wavelength = float(wavelength)
+    if wavelength >= 350 and wavelength <= 750:
+        A = 1.
+    else:
+        A=0.5
+    if wavelength < 380:
+        wavelength = 380.
+    if wavelength >750:
+        wavelength = 750.
+    if wavelength >= 380 and wavelength <= 440:
+        attenuation = 0.3 + 0.7 * (wavelength - 380) / (440 - 380)
+        R = ((-(wavelength - 440) / (440 - 380)) * attenuation) ** gamma
+        G = 0.0
+        B = (1.0 * attenuation) ** gamma
+    elif wavelength >= 440 and wavelength <= 490:
+        R = 0.0
+        G = ((wavelength - 440) / (490 - 440)) ** gamma
+        B = 1.0
+    elif wavelength >= 490 and wavelength <= 510:
+        R = 0.0
+        G = 1.0
+        B = (-(wavelength - 510) / (510 - 490)) ** gamma
+    elif wavelength >= 510 and wavelength <= 580:
+        R = ((wavelength - 510) / (580 - 510)) ** gamma
+        G = 1.0
+        B = 0.0
+    elif wavelength >= 580 and wavelength <= 645:
+        R = 1.0
+        G = (-(wavelength - 645) / (645 - 580)) ** gamma
+        B = 0.0
+    elif wavelength >= 645 and wavelength <= 750:
+        attenuation = 0.3 + 0.7 * (750 - wavelength) / (750 - 645)
+        R = (1.0 * attenuation) ** gamma
+        G = 0.0
+        B = 0.0
+    else:
+        R = 0.0
+        G = 0.0
+        B = 0.0
+
+    return (R,G,B,A)
+
+    
 class CubeWidget(ImageWidget):
-    def __init__(self, hdu=None, im=None, wcs=None, *args, **kwargs):
+    def __init__(self, hdu=None, im=None, wcs=None, show_rainbow=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # self._4d_idx = 0  # Lock 4th dim to this for now
 
@@ -64,14 +113,12 @@ class CubeWidget(ImageWidget):
         self.wave_start = self.wcs.wcs.crval[2]
         self.nwave = np.shape(self.im)[0]
         self.wave_end = self.wave_start + self.nwave * self.dwave
+        self.show_rainbow = show_rainbow
 
-        # self.set_colormap('Greys')
+        #zscale = ZScaleInterval(contrast=0.3, krej=2.5)
+        #vmin, vmax = zscale.get_limits(values=self.im)
 
-        zscale = ZScaleInterval(contrast=0.3, krej=2.5)
-
-        vmin, vmax = zscale.get_limits(values=self.im)
-
-        self.cuts = (vmin, vmax)
+        self.cuts = 'stddev'
 
         self.wave_widget = widgets.IntSlider(
             min=self.wave_start,
@@ -99,6 +146,9 @@ class CubeWidget(ImageWidget):
         self.plot_xlabel = "Wavelength (A)"
         self.plot_ylabel = "Spec (ergs/s/cm^2 -per spaxel)"
 
+        if self.show_rainbow:
+            self.set_rainbow()
+            
         # If plot shows, rerun cell to hide it.
         ax = plt.gca()
         self.line_plot = ax
@@ -118,7 +168,7 @@ class CubeWidget(ImageWidget):
         left_panel = widgets.VBox([widgets.HBox([self.wave_widget, self.scan]), self])
 
         display(widgets.HBox([left_panel, self.line_out]))
-
+        
     def load_nddata(self, nddata, n=0):  # update this for wavelength later
 
         self.image = AstroImage()
@@ -154,9 +204,11 @@ class CubeWidget(ImageWidget):
             mddata = self.image.get_mddata()
             self.line_plot.clear()
 
+            self.wavelengths = (self.wave_start + self.dwave * np.arange(self.nwave))
+            self.spectrum = mddata[:, self._cur_iy, self._cur_ix]
+            
             self.line_plot.plot(
-                (self.wave_start + self.dwave * np.arange(self.nwave)),
-                mddata[:, self._cur_iy, self._cur_ix],
+                self.wavelengths, self.spectrum,
                 "b-",
                 linewidth=1.2,
             )
@@ -171,9 +223,29 @@ class CubeWidget(ImageWidget):
             self.line_plot.set_ylabel(self.plot_ylabel)
             self.line_plot.set_xlim(self.wave_start, self.wave_end)
 
+            if self.show_rainbow:
+                y2 = np.linspace(np.min(spectrum),np.max(spectrum), 100)
+                X,Y = np.meshgrid(wavelengths, y2)
+            
+                extent=(self.wave_start, self.wave_end, np.min(y2), np.max(y2))
+
+                self.line_plot.imshow(X, clim=self.clim,
+                                      extent=extent,
+                                      cmap=self.spectralmap,
+                                      aspect='auto')
+            
+            self.line_plot.fill_between(self.wavelengths, self.spectrum, np.max(y2), color='w')
+
             clear_output(wait=True)
             display(self.line_plot.figure)
 
+    def set_rainbow(self):
+        self.clim=(self.wave_start, self.wave_end)
+        norm = plt.Normalize(*self.clim)
+        wl = np.arange(self.clim[0],self.clim[1]+1,2)
+        colorlist = list(zip(norm(wl),[wavelength_to_rgb(w) for w in wl]))
+        self.spectralmap = matplotlib.colors.LinearSegmentedColormap.from_list("spectrum", colorlist)
+                                                                            
     def image_show_slice(self, n):
         # image = self._viewer.get_image()
         self.image.set_naxispath([n])
