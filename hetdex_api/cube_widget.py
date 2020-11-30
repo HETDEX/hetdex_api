@@ -216,7 +216,7 @@ class CubeWidget(ImageWidget):
             
             self.line_plot.plot(
                 self.wavelengths, self.spectrum,
-                "b-",
+                "black-",
                 linewidth=1.2,
             )
 
