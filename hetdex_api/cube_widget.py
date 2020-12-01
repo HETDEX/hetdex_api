@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
 """
 
 Widget to view data cubes. This is specifically designed
