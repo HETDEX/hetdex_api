@@ -126,5 +126,4 @@ class HDRconfig:
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, 'masks')
             self.lowtpshots = op.join(self.bad_dir, 'survey_shots_low_response.txt')
-            self.rc3cat = op.join(self.bad_dir, 'rc3.hetdex.both.v6.csv')
-
+            self.rc3cat = op.join(self.bad_dir, 'rc3.ugc.hetdex.both.v7.csv')
