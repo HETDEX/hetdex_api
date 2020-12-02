@@ -239,8 +239,8 @@ class CubeWidget(ImageWidget):
                                       extent=extent,
                                       cmap=self.spectralmap,
                                       aspect='auto')
-            
-            self.line_plot.fill_between(self.wavelengths, self.spectrum, np.max(y2), color='w')
+                
+                self.line_plot.fill_between(self.wavelengths, self.spectrum, np.max(y2), color='w')
 
             clear_output(wait=True)
             display(self.line_plot.figure)
