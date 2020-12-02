@@ -758,9 +758,9 @@ class Detections:
 
         for idx, row in enumerate(galaxy_cat):
             gal_coord = SkyCoord(row["Coords"], frame="icrs")
-            sma = row["SemiMajorAxis"]
+            rlimit = 1.1*d25scale*row["SemiMajorAxis"]*u.arcmin
 
-            if np.sum(self.coords.separation(gal_coord) < 1.1*sma*d25scale) > 0:
+            if np.any(self.coords.separation(gal_coord) < rlimit):
                 galregion = create_gal_ellipse(galaxy_cat, row_index=idx, d25scale=d25scale)
                 dummy_wcs = create_dummy_wcs(gal_coord)
                 galflag = galregion.contains(self.coords, dummy_wcs)
