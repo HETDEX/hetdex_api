@@ -325,9 +325,9 @@ class Detections:
         mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
 
         if remove_large_gal:
-            galmask = self.remove_large_gal( d25scale=d25scale)
+            galmask = self.remove_large_gal(d25scale=d25scale)
             mask = mask * galmask
-            
+
         return self[mask]
 
     def query_by_coords(self, coords, radius):
@@ -739,7 +739,6 @@ class Detections:
                 mask[idx] = meteor_flag_from_coords(coord, row["shotid"])
         return mask
 
-
     def remove_large_gal(self, d25scale=3.0):
         """
         Returns boolean mask with detections landing within
@@ -751,26 +750,24 @@ class Detections:
 
         global config
 
-        galaxy_cat = Table.read(config.rc3cat, format='ascii')
-        
+        galaxy_cat = Table.read(config.rc3cat, format="ascii")
+
         mask = np.ones_like(self.detectid, dtype=bool)
 
         # Loop over each galaxy
 
         for idx, row in enumerate(galaxy_cat):
-            gal_coord = SkyCoord(row['Coords'], frame='icrs')
-            sma = row['SemiMajorAxis']
-            galregion = create_gal_ellipse(galaxy_cat,
-                                           row_index=idx,
-                                           d25scale=d25scale)
-            dummy_wcs = create_dummy_wcs(gal_coord) 
-            galflag = galregion.contains( self.coords, dummy_wcs)
+            gal_coord = SkyCoord(row["Coords"], frame="icrs")
+            sma = row["SemiMajorAxis"]
+            galregion = create_gal_ellipse(galaxy_cat, row_index=idx, d25scale=d25scale)
+            dummy_wcs = create_dummy_wcs(gal_coord)
+
+            galflag = galregion.contains(self.coords, dummy_wcs)
 
             mask = mask * np.invert(galflag)
 
         return mask
 
-        
     def get_spectrum(self, detectid_i):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
