@@ -59,11 +59,11 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
         A = 1.
     else:
         A=0.5
-    if wavelength < 380:
+    if wavelength < 340:
         wavelength = 380.
     if wavelength >750:
         wavelength = 750.
-    if wavelength >= 380 and wavelength <= 440:
+    if wavelength >= 340 and wavelength <= 440:
         attenuation = 0.3 + 0.7 * (wavelength - 380) / (440 - 380)
         R = ((-(wavelength - 440) / (440 - 380)) * attenuation) ** gamma
         G = 0.0
