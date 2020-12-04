@@ -214,8 +214,12 @@ class CubeWidget(ImageWidget):
             self.line_plot.clear()
 
             self.wavelengths = (self.wave_start + self.dwave * np.arange(self.nwave))
-            self.spectrum = mddata[:, self._cur_iy, self._cur_ix]
-            
+
+            try:
+                self.spectrum = mddata[:, self._cur_iy, self._cur_ix]
+            except IndexError:
+                return
+                
             self.line_plot.plot(
                 self.wavelengths, self.spectrum,
                 color="black",
