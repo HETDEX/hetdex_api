@@ -35,13 +35,14 @@ import matplotlib.colors
 plt.ioff()
 plt.rcParams.update({'font.size': 18})
 
+
 def wavelength_to_rgb(wavelength, gamma=0.8):
     ''' taken from http://www.noah.org/wiki/Wavelength_to_RGB_in_Python
     This converts a given wavelength of light to an
     approximate RGB color value. The wavelength must be given
     in nanometers in the range from 380 nm through 750 nm
     (789 THz through 400 THz).
-    
+
     Based on code by Dan Bruton
     http://www.physics.sfasu.edu/astro/color/spectra.html
     Additionally alpha value set to 0.5 outside range
@@ -54,7 +55,7 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
          wavelength in angstrom
     '''
     wavelength = float(wavelength)/10
-    if wavelength >= 350 and wavelength <= 750:
+    if wavelength >= 340 and wavelength <= 750:
         A = 1.
     else:
         A=0.5
@@ -174,6 +175,7 @@ class CubeWidget(ImageWidget):
         left_panel = widgets.VBox([widgets.HBox([self.wave_widget, self.scan]), self])
 
         display(widgets.HBox([left_panel, self.line_out]))
+
         
     def load_nddata(self, nddata, n=0):  # update this for wavelength later
 
@@ -181,6 +183,7 @@ class CubeWidget(ImageWidget):
         self.image.load_nddata(nddata, naxispath=[n])
         self._viewer.set_image(self.image)
 
+        
     def _mouse_click_cb(self, viewer, event, data_x, data_y):
 
         self._cur_ix = int(round(data_x))
