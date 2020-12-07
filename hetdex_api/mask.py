@@ -256,8 +256,8 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
     # The ellipse region uses the major and minor axes, so we have to multiply by
     # two first, before applying any user scaling.
     
-    major = (galaxy_cat['SemiMajorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
-    minor = (galaxy_cat['SemiMinorAxis'][index]) * np.float64(2.) * d25scale * u.arcmin
+    major = (galaxy_cat['SemiMajorAxis'][index]) * d25scale * u.arcmin
+    minor = (galaxy_cat['SemiMinorAxis'][index]) * d25scale * u.arcmin
     pa    = (galaxy_cat['PositionAngle'][index]) * u.deg
     ellipse_reg = EllipseSkyRegion(center=coords, height=major, width=minor, angle=pa)
 
@@ -296,7 +296,7 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     return w
 
 
-def gal_flag_from_coords(coords, galaxy_cat, d25scale=3.0, nmatches=1):
+def gal_flag_from_coords(coords, galaxy_cat, d25scale=3., nmatches=1):
     """
     Returns a boolean flag value to mask sources near large galaxies
     
