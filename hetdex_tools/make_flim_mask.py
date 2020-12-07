@@ -88,6 +88,21 @@ for row in bad_amps_table:
 
 bad_amps_table.add_column(Column(np.array(ifu_list), name="ifuslot"))
 
+# grab galaxy region files if any near shot:
+check_gal = False
+galaxy_cat = Table.read(config.rc3cat, format='ascii')
+gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
+
+survey = Survey()
+shot_coords = survey.coords[survey.shotid == shotid][0]
+sel_reg = np.where(shot_coords.separation(gal_coords) < 1.*u.deg)[0]
+
+if len(sel_reg) > 0:
+    gal_regions = []
+    for idx in sel_reg:
+        gal_regions.append( create_gal_ellipse(galaxy_cat, row_index=idx, d25scale=3.))
+    check_gal = True
+
 for ifu_name, tscube in flimhdf.itercubes():
     print("Working on " + datevshot + "_" + ifu_name)
     ifuslot = int(ifu_name[8:11])
@@ -104,7 +119,7 @@ for ifu_name, tscube in flimhdf.itercubes():
     else:
         check_amp = False
 
-    wcs = tscube.wcs
+    wcs = tscube.wcs.celestial
     wslice = 400
     sncut = 6
     slice_ = tscube.f50_from_noise(tscube.sigmas[wslice, :, :], sncut)
@@ -120,9 +135,9 @@ for ifu_name, tscube in flimhdf.itercubes():
         for i in np.arange(0, 31):
             for j in np.arange(0, 31):
 
-                ra, dec, wave = wcs.wcs_pix2world(i, j, wslice, 0)
+                ra, dec = wcs.wcs_pix2world(i, j, 0)
                 coords = SkyCoord(ra * u.deg, dec * u.deg, frame="icrs")
-
+                
                 if check_amp:
                     flag_amp = amp_flag_from_closest_fiber(
                         coords,
@@ -144,9 +159,23 @@ for ifu_name, tscube in flimhdf.itercubes():
                     if flag_amp is not None:
                         mask[j, i] = flag_amp
 
+    if check_gal:
+        # make galaxy mask
+        NAXIS1, NAXIS2 = np.shape(slice_)
+        
+        x = np.arange(NAXIS1)
+        y = np.arange(NAXIS2)
+        X, Y = np.meshgrid(x, y)
+        gal_mask = np.ones_like(X)
+        ra, dec = wcs.wcs_pix2world(X, Y, 0)
+        
+        for gal_region in gal_regions:
+            gal_mask = gal_mask * np.invert(gal_region.contains(SkyCoord(ra, dec, unit='deg'), wcs))
+
+        mask = mask * gal_mask
+            
     # append array to h5 file
     fileh.create_array(groupMask, ifu_name, mask)
-
 
 flimhdf.close()
 FibIndex.hdfile.close()
