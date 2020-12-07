@@ -254,7 +254,7 @@ class CubeWidget(ImageWidget):
         self.clim=(self.wave_start, self.wave_end)
         norm = plt.Normalize(*self.clim)
         wl = np.arange(self.clim[0],self.clim[1]+1,2)
-        colorlist = list(zip(norm(wl),[wavelength_to_rgb(w) for w in wl]))
+        colorlist = list(zip(norm(wl),[wavelength_to_rgb(w) for w in wl])).astype(int)
         self.spectralmap = matplotlib.colors.LinearSegmentedColormap.from_list("spectrum", colorlist)
                                                                             
     def image_show_slice(self, n):
