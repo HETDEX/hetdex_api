@@ -53,7 +53,7 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
          wavelength in angstrom
     '''
     wavelength = float(wavelength)/10
-    if wavelength >= 340 and wavelength <= 750:
+    if wavelength >= 380 and wavelength <= 750:
         A = 1.
     else:
         A=0.5
