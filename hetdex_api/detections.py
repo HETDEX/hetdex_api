@@ -762,7 +762,7 @@ class Detections:
 
             if np.any(self.coords.separation(gal_coord) < rlimit):
                 galregion = create_gal_ellipse(galaxy_cat, row_index=idx, d25scale=d25scale)
-                dummy_wcs = create_dummy_wcs(gal_coord)
+                dummy_wcs = create_dummy_wcs(gal_region.center, imsize=2*gal_region.height)
                 galflag = galregion.contains(self.coords, dummy_wcs)
                 mask = mask * np.invert(galflag)
 
