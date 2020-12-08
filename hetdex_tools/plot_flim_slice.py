@@ -94,7 +94,7 @@ ax = plt.subplot(111, projection=wcs_out)
 #plt.imshow(mask_array, cmap='Oranges')
 plt.imshow(array, cmap='Greys')#, cmap='BuGn')
 plt.colorbar( label="50% Detection Flux $10^{-17}$ erg/s/cm$^2$")
-plt.clim(2.0, 18)
+plt.clim(2.0, 20)
 plt.xlabel('RA')
 plt.ylabel('DEC')
 

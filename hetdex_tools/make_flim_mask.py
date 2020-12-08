@@ -170,7 +170,11 @@ for ifu_name, tscube in flimhdf.itercubes():
         ra, dec = wcs.wcs_pix2world(X, Y, 0)
         
         for gal_region in gal_regions:
-            gal_mask = gal_mask * np.invert(gal_region.contains(SkyCoord(ra, dec, unit='deg'), wcs))
+            dummy_wcs = create_dummy_wcs(gal_region.center,
+                                         imsize=2*gal_region.height)
+            gal_mask = gal_mask * np.invert(gal_region.contains(
+                SkyCoord(ra, dec, unit='deg'),
+                dummy_wcs))
 
         mask = mask * gal_mask
             
