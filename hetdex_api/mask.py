@@ -287,12 +287,15 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     dec_cen = coords.dec.deg
     
     ndim = np.int(2 * gridsize / gridstep + 1)
-    center = np.int(ndim / 2)
+    center = ndim / 2
     w = wcs.WCS(naxis=2)
     w.wcs.crval = [ra_cen, dec_cen]
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    w.wcs.cunit = ['deg','deg']
     w.wcs.cdelt = [-gridstep / gridsize, gridstep / gridsize]
+    w.array_shape = [ndim, ndim]
+    
     return w
 
 
