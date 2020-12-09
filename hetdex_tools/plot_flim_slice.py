@@ -83,10 +83,19 @@ array, footprint = reproject_and_coadd(hdus,
                                        shape_out=shape_out,
                                        reproject_function=reproject_exact)
 
-mask_array, footprint = reproject_and_coadd(hdus_mask,
-                                            wcs_mask_out,
-                                            shape_out=shape_mask_out,
-                                            reproject_function=reproject_exact)
+#mask_array, footprint = reproject_and_coadd(hdus_mask,
+#                                            wcs_mask_out,
+#                                            shape_out=shape_mask_out,
+#                                            reproject_function=reproject_exact)
+
+config = HDRconfig()
+galaxy_cat = Table.read(config.rc3cat, format='ascii')
+gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
+sel_reg = np.where(shot_coords.separation(gal_coords) < 1.*u.deg)[0]
+
+gal_regions = []
+for idx in sel_reg:
+    gal_regions.append( create_gal_ellipse(galaxy_cat, row_index=idx, d25scale=3))
 
 plt.figure(figsize=(15,12))
 plt.rcParams.update({'font.size': 22})
@@ -98,6 +107,10 @@ plt.clim(2.0, 20)
 plt.xlabel('RA')
 plt.ylabel('DEC')
 
+for gal_region in gal_regions:
+    gal_pix = gal_region.to_pixel(wcs_out)
+    gal_pix.plot(ax=ax, color="blue", linewidth=2)
+    
 plt.scatter(detects_shot.ra*u.deg, detects_shot.dec*u.deg, transform=ax.get_transform('fk5'), s=5,
                       edgecolor='red', facecolor='none')
 #plot up IFUnumber:
