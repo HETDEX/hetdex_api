@@ -11,6 +11,10 @@ Updated: 2020/06/03
 
 Updated to read in Karl's new detection output that is organized by shot + amp
 
+NOTE: 2021/01/13
+
+Detections API is updated to fix flux and continuum values
+for aperture corrections. Be sure to consistent for HDR3
 
 Examples
 --------

@@ -155,6 +155,21 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
+            if self.survey == "hdr2.1":
+                # Fix fluxes and continuum values for aperture corrections  
+                wave = self.hdfile.root.Detections.cols.wave[:]
+                apcor = self.hdfile.root.Spectra.cols.apcor[:]
+                wave_spec = self.hdfile.root.Spectra.cols.wave1d[:]
+
+                apcor_array = np.ones_like(wave)
+                for idx in np.arange(0, np.size(wave)):
+                    sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
+                    apcor_array[idx]=apcor[idx, sel_apcor]
+
+                self.flux /= apcor_array
+                self.flux_err /= apcor_array
+                self.continuum /= apcor_array
+                self.continuum_err /= apcor_array
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
