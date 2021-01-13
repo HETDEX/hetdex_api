@@ -155,7 +155,7 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
-            if self.survey == "hdr2":
+            if self.survey == "hdr2.1":
                 # Fix fluxes and continuum values for aperture corrections  
                 wave = self.hdfile.root.Detections.cols.wave[:]
                 apcor = self.hdfile.root.Spectra.cols.apcor[:]
