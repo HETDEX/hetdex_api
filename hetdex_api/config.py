@@ -138,7 +138,7 @@ class HDRconfig:
             self.lowtpshots = op.join(self.bad_dir, "survey_shots_low_response.txt")
             self.rc3cat = op.join(self.bad_dir, "rc3.ugc.hetdex.both.v7.csv")
             self.agncat = op.join(self.detect_dir, "catalogs", "AGN_v1.dat")
-            self.gaiacat = op.jooin(
+            self.gaiacat = op.join(
                 self.host_dir,
                 "gaia_hetdex_value_added_catalog",
                 "HDR2.1_Gaia_final_table.fits",
