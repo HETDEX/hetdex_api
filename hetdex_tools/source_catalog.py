@@ -296,7 +296,7 @@ def plot_source_group(source_id=None,
         sel = source_table["source_id"] == source_id
         group = source_table[sel]
 
-    if source_id is not None:
+    if source_id is None:
         print("Please provide source_id (an integer)")
 
     ellipse = False
@@ -472,6 +472,7 @@ def plot_source_group(source_id=None,
 
     plt.xlabel("RA")
     plt.ylabel("DEC")
+    plt.legend()
     
     if save:
         plt.savefig("figures/source-%03d.png" % source_id, format="png")
