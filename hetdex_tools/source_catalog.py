@@ -5,14 +5,18 @@ import glob
 from astropy.table import Table, vstack, join, Column, unique
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+
+import matplotlib
+matplotlib.use("agg")
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+
 from regions import LineSkyRegion, PixCoord, LinePixelRegion
 
 from hetdex_api.config import HDRconfig
 from hetdex_api.survey import Survey
 from hetdex_api.detections import Detections
-
 import hetdex_tools.fof_kdtree as fof
 
 from hetdex_api.elixer_widget_cls import ElixerWidget
