@@ -445,37 +445,37 @@ def plot_source_group(source_id=None, k=3.5, vmin=3, vmax=99, label=True, save=F
     patch = reg.as_artist(facecolor="none", edgecolor="blue", lw=4)
     ax.add_patch(patch)
 
-        if label == True:
-            # plot detecid labels
-            for row in group:
-                plt.text(
-                    row["ra"],
-                    row["dec"],
-                    str(row["detectid"]),
-                    transform=ax.get_transform("world"),
-                    fontsize=9,
-                    color="red",
-                )
-        z_guess = guess_source_wavelength(source_id)
-        plt.title(
-            "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%4.3f"
-            % (
-                source_id,
-                group["n_members"][0],
-                group["ra_mean"][0],
-                group["dec_mean"][0],
-                z_guess,
+    if label:
+        # plot detecid labels
+        for row in group:
+            plt.text(
+                row["ra"],
+                row["dec"],
+                str(row["detectid"]),
+                transform=ax.get_transform("world"),
+                fontsize=9,
+                color="red",
             )
+    z_guess = guess_source_wavelength(source_id)
+    plt.title(
+        "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%4.3f"
+        % (
+            source_id,
+            group["n_members"][0],
+            group["ra_mean"][0],
+            group["dec_mean"][0],
+            z_guess,
         )
+    )
 
-        plt.xlabel("RA")
-        plt.ylabel("DEC")
-
-        if save:
-            plt.savefig("figures/source-%03d.png" % source_id, format="png")
-            plt.close()
-        else:
-            plt.show()
+    plt.xlabel("RA")
+    plt.ylabel("DEC")
+    
+    if save:
+        plt.savefig("figures/source-%03d.png" % source_id, format="png")
+        plt.close()
+    else:
+        plt.show()
 
 
 def get_parser():
