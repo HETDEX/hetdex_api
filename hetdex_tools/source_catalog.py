@@ -1,12 +1,14 @@
 import numpy as np
 import time
 import glob
+import argparse as ap
 
 from astropy.table import Table, vstack, join, Column, unique
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 import matplotlib
+
 matplotlib.use("agg")
 
 import matplotlib.pyplot as plt
@@ -27,7 +29,7 @@ catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
 
-def create_source_catalog(version="2.1.2", make_continuum=True):
+def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=5.0):
 
     global config
 
@@ -57,13 +59,19 @@ def create_source_catalog(version="2.1.2", make_continuum=True):
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
     dets_all.close()
+    del dets_all_table
 
-    detect_table = vstack([detects_line_table, detects_broad_table, detects_cont_table])
+    detect_table = vstack([detects_line_table,
+                           detects_broad_table,
+                           detects_cont_table])
+
+    del detects_cont_table_orig, detects_cont_table, detects_broad_table
+    
     kdtree, r = fof.mktree(
         detect_table["ra"],
         detect_table["dec"],
         np.zeros_like(detect_table["ra"]),
-        dsky=5.0,
+        dsky=dsky,
     )
     t0 = time.time()
     print("starting fof ...")
@@ -101,6 +109,23 @@ def create_source_catalog(version="2.1.2", make_continuum=True):
     detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
     detfriend_tab.add_column(Column(memberlist, name="detectid"))
 
+    detfriend_all = join(detfriend_tab, friend_table, keys="id")
+
+    del detfriend_tab
+    
+    expand_table = join(detfriend_all, detect_table, keys="detectid")
+
+    del detfriend_all, detect_table, friend_table
+
+    if version == '2.1.2':#will want to improve this logic
+        starting_id = int(2.12 * 10 ** 12)
+
+    expand_table.add_column(
+        Column(expand_table["id"] + starting_id, name="source_id"), index=0
+    )
+
+    expand_table.remove_column("id")
+
     gaia_stars = Table.read(config.gaiacat)
 
     gaia_coords = SkyCoord(ra=gaia_stars["ra"] * u.deg, dec=gaia_stars["dec"] * u.deg)
@@ -122,38 +147,134 @@ def create_source_catalog(version="2.1.2", make_continuum=True):
 
     expand_table.sort("source_id")
 
-    expand_table.write("source_catalog_" + version + ".fits", overwrite=True)
+    source_table = add_z_guess(expand_table)
 
-    return expand_table
+    del expand_table, gaia_stars, c
+
+    if save:
+        source_table.write("source_catalog_" + version + ".fits", overwrite=True)
+
+    return source_table
+
+
+def z_guess_3727(group, cont=False):
+    sel_good_lines = None
+    if np.any((group["sn"] > 15) * (group["wave"] > 3727)):
+        sel_good_lines = (group["sn"] > 15) * (group["wave"] > 3727)
+    elif np.any((group["sn"] > 10) * (group["wave"] > 3727)):
+        sel_good_lines = (group["sn"] > 8) * (group["wave"] > 3727)
+    elif np.any((group["sn"] > 8) * (group["wave"] > 3727)):
+        sel_good_lines = (group["sn"] > 8) * (group["wave"] > 3727)
+    elif np.any((group["sn"] > 6) * (group["wave"] > 3727)):
+        sel_good_lines = (group["sn"] > 6) * (group["wave"] > 3727)
+    elif np.any((group["sn"] > 5.5) * (group["wave"] > 3727)):
+        if cont:
+            pass
+        else:
+            sel_good_lines = (group["sn"] > 5.5) * (group["wave"] > 3727)
+    else:
+        if cont:
+            pass
+        else:
+            sel_good_lines = group["wave"] > 3727
+
+    if sel_good_lines is not None:
+        try:
+            wave_guess = np.min(group["wave"][sel_good_lines])
+            z_guess = wave_guess / 3727.0 - 1
+        except:
+            z_guess = -2.0
+        else:
+            z_guess = 0.0
+
+    return z_guess
+
+
+def guess_source_wavelength(source_id):
+    global source_table
+    sel_group = source_table["source_id"] == source_id
+    group = source_table[sel_group]
+    z_guess = -1.0
+
+    # for now assign a plae_classification for -1 values
+    if np.any(group["det_type"] == "agn"):
+        # get proper z's from Chenxu's catalog
+        agn_tab = Table.read(config.agncat, format="ascii")
+        agn_dets = group["detectid"][group["det_type"] == "agn"]
+        sel_det = chenxu_tab["detectid"] == agn_dets[0]
+        z_guess = chenxu_tab["z"][sel_det][0]
+
+    elif np.any(group["gaia_match_id"] > 0):
+        z_guess = z_guess_3727(group, cont=True)
+
+    elif np.any(group["det_type"] == "cont"):
+        z_guess = z_guess_3727(group, cont=True)
+
+    elif np.any(group["plae_classification"]) < 0.3:
+        z_guess = z_guess_3727(group)
+
+    elif np.nanmedian(group["plae_classification"] < 0.5):
+        z_guess = z_guess_3727(group)
+
+    elif np.nanmedian(group["plae_classification"] > 0.5):
+        if np.any(group["sn"] > 15):
+            sel_good_lines = group["sn"] > 15
+            wave_guess = np.min(group["wave"][sel_good_lines])
+        elif np.any(group["sn"] > 10):
+            sel_good_lines = group["sn"] > 10
+            wave_guess = np.min(group["wave"][sel_good_lines])
+        elif np.any(group["sn"] > 8):
+            sel_good_lines = group["sn"] > 8
+            wave_guess = np.min(group["wave"][sel_good_lines])
+        elif np.any(group["sn"] > 6.5):
+            sel_good_lines = group["sn"] > 6.5
+            wave_guess = np.min(group["wave"][sel_good_lines])
+        elif np.any(group["sn"] > 5.5):
+            sel_good_lines = group["sn"] > 5.5
+            wave_guess = np.min(group["wave"][sel_good_lines])
+        else:
+            argmaxsn = np.argmax(group["sn"])
+            wave_guess = group["wave"][argmaxsn]
+            z_guess = wave_guess / 1216.0 - 1
+    else:
+        argmaxsn = np.argmax(group["sn"])
+        wave_guess = group["wave"][argmaxsn]
+        z_guess = wave_guess / 1216.0 - 1
+
+    return z_guess
 
 
 def add_z_guess(source_table):
 
     try:
         # remove z_guess column if it exists
-        print('Removing existing z_guess column')
-        source_table.remove_column('z_guess')
+        print("Removing existing z_guess column")
+        source_table.remove_column("z_guess")
     except Exception:
         pass
-        
+
+    print("Assigning a best guess redshift")
+
     from multiprocessing import Pool
 
-    src_list = np.unique(source_table['source_id'])
-    #p.close()
+    src_list = np.unique(source_table["source_id"])
+
     t0 = time.time()
     p = Pool()
     src_z = p.map(guess_source_wavelength, src_list)
-    t1=time.time()
+    t1 = time.time()
     p.close()
-    print('Finished in {:3.2f} minutes'.format((t1-t0)/60))
+
+    print("Finished in {:3.2f} minutes".format((t1 - t0) / 60))
 
     z_guess = np.array(src_z)
-    z_table = Table([src_list, z_guess], names=['source_id','z_guess'])
+    z_table = Table([src_list, z_guess], names=["source_id", "z_guess"])
 
-    all_table = join(source_table, z_table, join_type='left')
-    
+    all_table = join(source_table, z_table, join_type="left")
+
     return all_table
-    
+
+
 def plot_source_group(source_id=None, k=3.5, vmin=3, vmax=99, label=True, save=False):
     """
     Plot a unique source group from the HETDEX
@@ -321,3 +442,38 @@ def plot_source_group(source_id=None, k=3.5, vmin=3, vmax=99, label=True, save=F
             plt.close()
         else:
             plt.show()
+
+
+def get_parser():
+    """ function that returns a parser from argparse """
+
+    parser = ap.ArgumentParser(
+        description="""Extracts 1D spectrum at specified RA/DEC""", add_help=True
+    )
+
+    parser.add_argument(
+        "-v",
+        "--version",
+        help="""source catalog version you want to create""",
+        type=str,
+        default=None,
+    )
+
+    parser.add_argument(
+        "-dsky", "--dsky", help="""Spatial linking length in arcsec""", default=5.0,
+    )
+
+    return parser
+
+
+def main(argv=None):
+    """ Main Function """
+
+    parser = get_parser()
+    args = parser.parse_args(argv)
+#    args.log = setup_logging()# set up later
+
+    create_source_catalog(version=args.version, dsky=args.dsky)
+
+if __name__ == "__main__":
+    main()
