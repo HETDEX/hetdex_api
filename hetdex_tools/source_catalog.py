@@ -190,8 +190,8 @@ def z_guess_3727(group, cont=False):
     return z_guess
 
 
-def guess_source_wavelength(source_id):
-    global source_table
+def guess_source_wavelength(source_id, source_table):
+
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
     z_guess = -1.0
@@ -289,8 +289,6 @@ def plot_source_group(source_id=None,
     source_id: int
     
     """
-
-    global source_table
 
     if source_table is None:
         print("Please provide source catalog (an astropy table)")
