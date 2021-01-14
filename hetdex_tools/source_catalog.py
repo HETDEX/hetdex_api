@@ -458,7 +458,7 @@ def plot_source_group(source_id=None,
                 fontsize=9,
                 color="red",
             )
-    z_guess = guess_source_wavelength(source_id)
+    z_guess = guess_source_wavelength(source_id, source_table)
     plt.title(
         "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%4.3f"
         % (
