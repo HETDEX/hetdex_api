@@ -327,89 +327,123 @@ def plot_source_group(source_id=None, k=3.5, vmin=3, vmax=99, label=True, save=F
     else:
         imsize = 10.0 / 3600.0
 
-        coords = SkyCoord(
-            ra=group["ra_mean"][0] * u.deg, dec=group["dec_mean"][0] * u.deg
-        )
+    coords = SkyCoord(
+        ra=group["ra_mean"][0] * u.deg, dec=group["dec_mean"][0] * u.deg
+    )
 
-        cutout = catlib.get_cutouts(
-            position=coords,
-            side=imsize,
-            filter=["f606W", "r", "g"],
-            first=True,
-            allow_bad_image=False,
-            allow_web=True,
-        )[0]
+    cutout = catlib.get_cutouts(
+        position=coords,
+        side=imsize,
+        filter=["f606W", "r", "g"],
+        first=True,
+        allow_bad_image=False,
+        allow_web=True,
+    )[0]
+    
+    im = cutout["cutout"].data
+    wcs = cutout["cutout"].wcs
+    plt.figure(figsize=(8, 8))
 
-        im = cutout["cutout"].data
-        wcs = cutout["cutout"].wcs
-        plt.figure(figsize=(8, 8))
+    plt.subplot(projection=wcs)
+    ax = plt.gca()
+    ax.coords[0].set_major_formatter("d.dddd")
+    # ax.coords[0].set_ticks(spacing=1. * u.arcsec)
+    ax.coords[1].set_major_formatter("d.dddd")
+    # ax.coords[0].set_ticks(spacing=1. * u.arcsec)
 
-        plt.subplot(projection=wcs)
-        ax = plt.gca()
-        ax.coords[0].set_major_formatter("d.dddd")
-        # ax.coords[0].set_ticks(spacing=1. * u.arcsec)
-        ax.coords[1].set_major_formatter("d.dddd")
-        # ax.coords[0].set_ticks(spacing=1. * u.arcsec)
+    impix = im.shape[0]
+    pixscale = imsize / impix  # in degrees/pix
+    m = np.percentile(im, (vmin, vmax))
+    plt.imshow(im, vmin=m[0], vmax=m[1], origin="lower", cmap="gray_r")
+    plt.text(
+        0.95,
+        0.05,
+        cutout["instrument"] + cutout["filter"],
+        transform=ax.transAxes,
+        fontsize=20,
+        color="red",
+        horizontalalignment="right",
+    )
 
-        impix = im.shape[0]
-        pixscale = imsize / impix  # in degrees/pix
-        m = np.percentile(im, (vmin, vmax))
-        plt.imshow(im, vmin=m[0], vmax=m[1], origin="lower", cmap="gray_r")
-        plt.text(
-            0.8,
-            0.9,
-            cutout["instrument"] + cutout["filter"],
-            transform=ax.transAxes,
-            fontsize=20,
-            color="red",
-            horizontalalignment="right",
-        )
 
-        # plot the group members
+    # plot the group members
+    sel_line = group['det_type'] == 'line'
+    if np.sum(sel_line) >= 1:
         plt.scatter(
-            group["ra"],
-            group["dec"],
+            group['ra'][sel_line],
+            group['dec'][sel_line],
             transform=ax.get_transform("world"),
-            marker="x",
+            marker="o",
             color="orange",
-            linewidth=2,
-            s=4,
+            linewidth=4,
+            s=group['sn'][sel_line],
             zorder=100,
+            label='line emission'
         )
+        
+        
+    sel_cont = group['det_type'] == 'cont'
+    if np.sum(sel_cont)>= 1:
+        plt.scatter(
+            group['ra'][sel_cont],
+            group['dec'][sel_cont],
+            transform=ax.get_transform("world"),
+            marker="o",
+            color="green",
+            linewidth=4,
+            s=10,
+            label='continuum'
+        )
+        
+    sel_agn = group['det_type'] == 'agn'
+    if np.sum(sel_agn)>= 1:
+        plt.scatter(
+            group['ra'][sel_agn],
+            group['dec'][sel_agn],
+            transform=ax.get_transform("world"),
+            marker="o",
+            color="red",
+            linewidth=4,
+            s=10,
+            label='agn')
+        
+    # plot and elliptical kron-like aperture representing the group. Ellipse
+    # in world coords does not work, so plot in pixelcoordinates...
+    # East is to the right in these plots, so pa needs transform
 
-        # plot and elliptical kron-like aperture representing the group. Ellipse in world coords does not work,
-        # so plot in pixel coordinates... East is to the right in these plots, so pa needs transform
-        if ellipse:
-            ellipse = Ellipse(
-                xy=(impix // 2, impix // 2),
-                width=k * a2 / pixscale,
-                height=k * b2 / pixscale,
-                angle=180 - pa2,
-                edgecolor="r",
-                fc="None",
-                lw=1,
-            )
-            ax.add_patch(ellipse)
-            ellipse = Ellipse(
-                xy=(impix // 2, impix // 2),
-                width=a / pixscale,
-                height=b / pixscale,
-                angle=180 - pa,
-                edgecolor="b",
-                fc="None",
-                lw=1,
-            )
-            ax.add_patch(ellipse)
+    if ellipse:
+        ellipse = Ellipse(
+            xy=(impix // 2, impix // 2),
+            width=k * a2 / pixscale,
+            height=k * b2 / pixscale,
+            angle=180 - pa2,
+            edgecolor="r",
+            fc="None",
+            lw=1,
+        )
+        ax.add_patch(ellipse)
 
-        x1 = 0.05 * impix
-        y1 = 0.05 * impix
-        y2 = y1 + (10.0 / 3600) / pixscale
-        start = PixCoord(x=x1, y=y1)
-        end = PixCoord(x=x1, y=y2)
-        reg = LinePixelRegion(start=start, end=end)
-        plt.text(x1, 0.025 * impix, "10 arcsec", color="blue")
-        patch = reg.as_artist(facecolor="none", edgecolor="blue", lw=4)
-        ax.add_patch(patch)
+        ellipse = Ellipse(
+            xy=(impix // 2, impix // 2),
+            width=a / pixscale,
+            height=b / pixscale,
+            angle=180 - pa,
+            edgecolor="b",
+            fc="None",
+            lw=1,
+        )
+        ax.add_patch(ellipse)
+
+    # add 5 arcsec scale bar
+    x1 = 0.05 * impix
+    y1 = 0.05 * impix
+    y2 = y1 + (5.0 / 3600) / pixscale
+    start = PixCoord(x=x1, y=y1)
+    end = PixCoord(x=x1, y=y2)
+    reg = LinePixelRegion(start=start, end=end)
+    plt.text(x1, 0.025 * impix, "5 arcsec", color="blue")
+    patch = reg.as_artist(facecolor="none", edgecolor="blue", lw=4)
+    ax.add_patch(patch)
 
         if label == True:
             # plot detecid labels
