@@ -147,14 +147,14 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
 
     expand_table.sort("source_id")
 
-    source_table = add_z_guess(expand_table)
-
-    del expand_table, gaia_stars, c
+#    source_table = add_z_guess(expand_table)
+#
+#    del expand_table, gaia_stars, c
 
     if save:
-        source_table.write("source_catalog_" + version + ".fits", overwrite=True)
+        expand_table.write("source_catalog_" + version + ".fits", overwrite=True)
 
-    return source_table
+    return expand_table
 
 
 def z_guess_3727(group, cont=False):
@@ -275,7 +275,11 @@ def add_z_guess(source_table):
     return all_table
 
 
-def plot_source_group(source_id=None, k=3.5, vmin=3, vmax=99, label=True, save=False):
+def plot_source_group(source_id=None,
+                      source_table=None,
+                      k=3.5, vmin=3, vmax=99,
+                      label=True,
+                      save=False):
     """
     Plot a unique source group from the HETDEX
     unique source catalog
