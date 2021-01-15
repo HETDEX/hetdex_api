@@ -318,15 +318,15 @@ def plot_source_group(source_id=None,
         )
 
         cosd = np.cos(np.deg2rad(group["dec_mean"][0]))
-        imsize = (
+        imsize = np.max([
             np.max(
                 [
                     (np.max(group["ra"]) - np.min(group["ra"])) * cosd,
                     (np.max(group["dec"]) - np.min(group["dec"])),
                 ]
             )
-            * 1.7
-        )
+            * 1.7,
+            10.0 / 3600.0])
 
     else:
         imsize = 10.0 / 3600.0
