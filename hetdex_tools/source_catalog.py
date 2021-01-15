@@ -55,9 +55,11 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
     # add in continuum sources to match to Chenxu's combined catalog
     detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
     dets_all_table = vstack([dets_all_table, detects_cont_table_orig])
+
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
+    detects_broad_table.add_column( Column('agn', name='det_type', dtype=str))
     dets_all.close()
     del dets_all_table
 
