@@ -149,12 +149,8 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
 
     expand_table.sort("source_id")
 
-#    source_table = add_z_guess(expand_table)
-#
-#    del expand_table, gaia_stars, c
-
-    if save:
-        expand_table.write("source_catalog_" + version + ".fits", overwrite=True)
+#    if save:
+#        expand_table.write("source_catalog_" + version + ".fits", overwrite=True)
 
     return expand_table
 
@@ -506,15 +502,34 @@ def get_parser():
 
     return parser
 
+def get_source_name(ra, dec):
+    """
+    convert ra,dec coordinates to a IAU-style object name.
+    """
+    coord = SkyCoord(ra*u.deg, dec*u.deg)
+   
+    return "HETDEX J{0}{1}".format(
+        coord.ra.to_string(unit=u.hourangle, sep="", precision=2, pad=True),
+        coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True))
+
 
 def main(argv=None):
     """ Main Function """
 
     parser = get_parser()
     args = parser.parse_args(argv)
-#    args.log = setup_logging()# set up later
 
-    create_source_catalog(version=args.version, dsky=args.dsky)
+    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
+
+    # add source name
+    source_name = []
+    for row in source_table:
+        source_name.append( get_source_name(row['ra_mean'], row['dec_mean']))
+    source_table.add_column( source_name, name='source_name', index=1)
+
+    source_table = add_z_guess(source_table)
+
+    source_table.write('test.fits')
 
 if __name__ == "__main__":
     main()
