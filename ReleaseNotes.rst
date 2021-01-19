@@ -1,6 +1,18 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.8.3
+-------------
+
+- Release for 2.1.2 catalogs
+- updates to make_curated_catalog
+- created hetdex_tools/source_catalog.py to make a unique source catalog
+- hetdex_tools/interpolate.py developed for data cube and collapsed image
+- developed hetdex_api/cube_widget.py to scan a HETDEX cube
+- developed hetdex_api/amp_widget.py to interactively explore individual amp observations
+- masking tools: hetdex_tools/galmask.py, hetdex_api/mask.py
+- organized and made lots of new notebooks
+
 Release 0.7
 -----------
 

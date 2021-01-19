@@ -225,10 +225,14 @@ class AmpWidget():
         # add in bad amp check
         self.shotid = self.shotid_widget.value
         self.multiframe = self.multiframe_widget.value
-        
-        sel = (AMPFLAG_TABLE['shotid'] == self.shotid) *             (AMPFLAG_TABLE['multiframe'] == self.multiframe)
-        flag = AMPFLAG_TABLE['flag'][sel][0]
-        
+
+        try:
+            sel = (AMPFLAG_TABLE['shotid'] == self.shotid) * (AMPFLAG_TABLE['multiframe'] == self.multiframe)
+            flag = AMPFLAG_TABLE['flag'][sel][0]
+        except:
+            print('Could not find amp in amp flag table')
+            flag = True
+            
         if flag:
             box_layout = Layout()
             self.midbox.layout = box_layout

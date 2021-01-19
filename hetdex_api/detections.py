@@ -155,6 +155,21 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
+            if self.survey == "hdr2.1":
+                # Fix fluxes and continuum values for aperture corrections  
+                wave = self.hdfile.root.Detections.cols.wave[:]
+                apcor = self.hdfile.root.Spectra.cols.apcor[:]
+                wave_spec = self.hdfile.root.Spectra.cols.wave1d[:]
+
+                apcor_array = np.ones_like(wave)
+                for idx in np.arange(0, np.size(wave)):
+                    sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
+                    apcor_array[idx]=apcor[idx, sel_apcor]
+
+                self.flux /= apcor_array
+                self.flux_err /= apcor_array
+                self.continuum /= apcor_array
+                self.continuum_err /= apcor_array
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
@@ -305,7 +320,7 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=None, removebalmerstars=False):
+    def refine(self, gmagcut=None, remove_large_gal=True, d25scale=3.0):
         """
         Masks out bad and bright detections 
         and returns a refined Detections class
@@ -315,32 +330,18 @@ class Detections:
                   brighter, defaults to None
         """
 
-        if self.survey == "hdr1":
-            mask1 = self.remove_bad_amps()
-            mask2 = self.remove_bright_stuff(gmagcut)
-            mask3 = self.remove_ccd_features()
+        mask1 = self.remove_bad_amps()
+        mask2 = self.remove_bad_detects()
+        mask3 = self.remove_bright_stuff(gmagcut)
+        mask4 = self.remove_bad_pix()
+        mask5 = self.remove_shots()
+        mask6 = self.remove_meteors()
 
-            if removebalmerstars:
-                mask4 = self.remove_balmerdip_stars()
-            else:
-                mask4 = np.ones(np.size(self.detectid), dtype=bool)
+        mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
 
-            mask5 = self.remove_bad_detects()
-
-            mask6 = self.remove_shots()
-            mask7 = self.remove_bad_pix()
-
-            mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6 * mask7
-
-        else:
-            mask1 = self.remove_bad_amps()
-            mask2 = self.remove_bad_detects()
-            mask3 = self.remove_bright_stuff(gmagcut)
-            mask4 = self.remove_bad_pix()
-            mask5 = self.remove_shots()
-            mask6 = self.remove_meteors()
-
-            mask = mask1 * mask2 * mask3 * mask4 * mask5 * mask6
+        if remove_large_gal:
+            galmask = self.remove_large_gal(d25scale=d25scale)
+            mask = mask * galmask
 
         return self[mask]
 
@@ -751,6 +752,38 @@ class Detections:
             for idx in sel_shot:
                 coord = self.coords[idx]
                 mask[idx] = meteor_flag_from_coords(coord, row["shotid"])
+        return mask
+
+    def remove_large_gal(self, d25scale=3.0):
+        """
+        Returns boolean mask with detections landing within
+        galaxy defined by d25scale flagged as False.
+
+        Based on check_all_large_gal from hetdex_tools/galmask.py
+        written by John Feldmeier
+        """
+
+        global config
+
+        galaxy_cat = Table.read(config.rc3cat, format="ascii")
+
+        mask = np.ones_like(self.detectid, dtype=bool)
+
+        # Loop over each galaxy
+
+        for idx, row in enumerate(galaxy_cat):
+            gal_coord = SkyCoord(row["Coords"], frame="icrs")
+            rlimit = 1.1*d25scale*row["SemiMajorAxis"]*u.arcmin
+
+            if np.any(self.coords.separation(gal_coord) < rlimit):
+                galregion = create_gal_ellipse(galaxy_cat,
+                                               row_index=idx,
+                                               d25scale=d25scale)
+                dummy_wcs = create_dummy_wcs(galregion.center,
+                                             imsize=2*galregion.height)
+                galflag = galregion.contains(self.coords, dummy_wcs)
+                mask = mask * np.invert(galflag)
+
         return mask
 
     def get_spectrum(self, detectid_i):
