@@ -188,9 +188,8 @@ def hdr2pt1pt1_f50_from_noise(noise, sncut):
     S/N cut. This uses an empirical
     model calibrated on simulated
     LAE detections inserted into
-    ~200 different shots (see
-    Figures in data release 
-    document)
+    the calibration fields. The
+    simulations were run by Karl Gebhardt.
 
     Parameters
     ----------
@@ -207,13 +206,17 @@ def hdr2pt1pt1_f50_from_noise(noise, sncut):
        the fluxes at 50%
        completeness
     """
+    try:
+        if sncut < 4.8 or sncut > 7.0:
+            print("WARNING: model not calibrated for this S/N range")
+    except ValueError:
+        if any(sncut < 4.5) or any(ncut > 7.5):
+            print("WARNING: model not calibrated for this S/N range")
 
-    if abs(sncut - 5.0) > 0.01:
-        raise Exception("ERROR: model only calibrated for S/N=5")
+    params = [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00]
+    snmult = polyval(params, sncut)
 
-    f50s = 3.96*noise     
-   
-    return f50s
+    return noise*snmult
 
 
 def hdr2pt1_f50_from_noise(noise, sncut):
@@ -243,9 +246,13 @@ def hdr2pt1_f50_from_noise(noise, sncut):
        completeness
     """
 
-    if sncut < 4.5 or sncut > 7.5:
-        print("WARNING: model not calibrated for this S/N range")
-
+    try:
+        if sncut < 4.5 or sncut > 7.5:
+            print("WARNING: model not calibrated for this S/N range")
+    except ValueError:
+        if any(sncut < 4.5) or any(ncut > 7.5):
+            print("WARNING: model not calibrated for this S/N range")
+ 
     snslope=1.0
     intercept_poly=[0.11268546,  -1.75103671,
                     9.00946424, -15.71204789]
