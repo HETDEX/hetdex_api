@@ -1,6 +1,10 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.8.4
+-------------
+- Updates to hetdex_tools/source_catalog.py
+
 Release 0.8.3
 -------------
 
