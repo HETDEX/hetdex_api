@@ -130,7 +130,8 @@ class QueryWidget():
         if np.size(det_row) > 0:
             self.coords = SkyCoord(det_row['ra'][0] * u.deg, det_row['dec'][0] * u.deg)
         else:
-            print('{} is not in the {} detect database'.format(detectid_i, self.survey))
+            with self.bottombox:
+                print('{} is not in the {} detect database'.format(detectid_i, self.survey))
             
     def pan_to_coords_click(self, b):
         self.update_coords()
@@ -219,7 +220,7 @@ class QueryWidget():
     def extract_on_click(self, b):
         self.bottombox.clear_output()
 
-        with self.bottombox:            
+        with self.bottombox:
             self.spec_table = get_spectra(self.marker_tab['coord'], survey=self.survey)
 
         # set up tabs for plotting
