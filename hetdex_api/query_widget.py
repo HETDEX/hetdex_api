@@ -118,6 +118,7 @@ class QueryWidget():
         self.coords = SkyCoord(self.im_ra.value * u.deg, self.im_dec.value * u.deg, frame='icrs')
         
     def on_det_change(self, b):
+        self.bottombox.clear_output()
         self.detectid = self.detectbox.value
         self.update_det_coords()
         self.im_ra.value = self.coords.ra.value
@@ -134,6 +135,7 @@ class QueryWidget():
                 print('{} is not in the {} detect database'.format(detectid_i, self.survey))
             
     def pan_to_coords_click(self, b):
+        self.bottombox.clear_output()
         self.update_coords()
         
         x,y = skycoord_to_pixel(self.coords, self.cutout['cutout'].wcs)
