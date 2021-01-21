@@ -318,7 +318,7 @@ class QueryWidget:
     def plot_spec(self, obj):
 
         selobj = self.spec_table["ID"] == obj
-        fig = go.Figure()
+        fig = go.FigureWidget()
         for row in self.spec_table[selobj]:
             x = row["wavelength"]
             y = row["spec"]
@@ -328,12 +328,12 @@ class QueryWidget:
 
         fig.update_traces(hoverinfo="text+name", mode="lines")
         fig.update_layout(
-            title="Object {}".format(row["ID"]),
+#            title="Object {}".format(row["ID"]),
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
-        fig.update_layout(legend=dict(x=0.01, y=0.99, xanchor="left", yanchor="top"),
-                          margin=dict(l=5, r=5, t=25, b=5), font=dict(size=14))
+        fig.update_layout(legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
+                                  margin=dict(l=5, r=5, t=30, b=5))
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
