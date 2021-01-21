@@ -146,7 +146,7 @@ class QueryWidget:
                 self.marker_table_output,
                 self.spec_output,
             ],
-            layout=Layout(width="800px", height="800px"),
+            layout=Layout(width="800px", height="600px"),
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
@@ -333,7 +333,7 @@ class QueryWidget:
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
         fig.update_layout(legend=dict(x=0.01, y=0.99, xanchor="left", yanchor="top"),
-                          margin=dict(l=20, r=20, t=20, b=20))
+                          margin=dict(l=5, r=5, t=25, b=5), font=dict(size=14)
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
