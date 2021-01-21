@@ -72,7 +72,7 @@ class QueryWidget:
             self.detectid = 2101848640
 
         # initialize the image widget from astrowidgets
-        self.imw = ImageWidget(image_width=400, image_height=400)
+        self.imw = ImageWidget(image_width=600, image_height=600)
 
         self.survey_widget = widgets.Dropdown(
             options=["HDR1", "HDR2", "HDR2.1"],
