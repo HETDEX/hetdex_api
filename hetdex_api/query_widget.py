@@ -337,7 +337,7 @@ class QueryWidget:
                           autosize=True,
                           height=300,
                           width=500,
-                          fontsize=12)
+                          font_size=10)
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
