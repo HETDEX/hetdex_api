@@ -125,8 +125,12 @@ class QueryWidget():
 
     def update_det_coords(self):
         detectid_i = self.detectid
+
         det_row = self.fileh5dets.root.Detections.read_where('detectid == detectid_i')
-        self.coords = SkyCoord(det_row['ra'][0] * u.deg, det_row['dec'][0] * u.deg)
+        if np.size(det_row) > 0:
+            self.coords = SkyCoord(det_row['ra'][0] * u.deg, det_row['dec'][0] * u.deg)
+        else:
+            print('{} is not in the {} detect database'.format(detectid_i, self.survey))
             
     def pan_to_coords_click(self, b):
         self.update_coords()
