@@ -331,9 +331,13 @@ class QueryWidget:
 #            title="Object {}".format(row["ID"]),
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
+            a
         )
         fig.update_layout(legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
-                                  margin=dict(l=5, r=5, t=30, b=5))
+                          margin=dict(l=5, r=5, t=30, b=5),
+                          autosize=True,
+                          height=400,
+                          width=600)
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
