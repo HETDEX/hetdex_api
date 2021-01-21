@@ -92,16 +92,17 @@ class QueryWidget():
     
 
         self.topbox = widgets.HBox([self.survey_widget, self.detectbox, self.im_ra, self.im_dec, self.pan_to_coords])
-        self.leftbox = widgets.VBox([self.imw, self.textimpath], layout=Layout(width='600px'))
+        self.leftbox = widgets.VBox([self.imw, self.textimpath])#, layout=Layout(width='800px'))
         self.rightbox = widgets.VBox([widgets.HBox([self.marking_button, self.reset_marking_button, self.extract_button]), 
-                                      self.marker_table_output, self.spec_output], layout=Layout(width='600px'))
-
+                                      self.marker_table_output])#, layout=Layout(width='400px'))
+        
         self.bottombox = widgets.Output(layout={'border': '1px solid black'})
 
         self.load_image()
 
         display(self.topbox)
         display(widgets.HBox([self.leftbox, self.rightbox]))
+        display(self.spec_output)
         display(self.bottombox)
 
         self.detectbox.observe(self.on_det_change)
