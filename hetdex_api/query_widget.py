@@ -132,7 +132,7 @@ class QueryWidget:
             ]
         )
         self.leftbox = widgets.VBox(
-            [self.imw, self.textimpath], layout=Layout(width="800px", height="800px")
+            [self.imw, self.textimpath], layout=Layout(width="800px")
         )
         self.rightbox = widgets.VBox(
             [
@@ -146,7 +146,7 @@ class QueryWidget:
                 self.marker_table_output,
                 self.spec_output,
             ],
-            layout=Layout(width="800px", height="600px"),
+            layout=Layout(width="800px"),
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
