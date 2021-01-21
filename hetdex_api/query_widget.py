@@ -335,8 +335,8 @@ class QueryWidget:
         fig.update_layout(legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
                           margin=dict(l=5, r=5, t=30, b=5),
                           autosize=True,
-                          height=400,
-                          width=600)
+                          height=300,
+                          width=300)
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
