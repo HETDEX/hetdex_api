@@ -253,10 +253,11 @@ class QueryWidget():
                                                          line_shape='linear'))
         fig.update_traces(hoverinfo='text+name', mode='lines')
         fig.update_layout(
-        title="Object {}".format(row['ID']),
+            title="Object {}".format(row['ID']),
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
+        fig.show()
             #fig, ax = plt.subplots(figsize=(8,2))
             #ax.plot(row['wavelength'], row['spec'])
             #ax.set_title('Object ' + str(row['ID']) + '       SHOTID = ' + str(row['shotid']))
