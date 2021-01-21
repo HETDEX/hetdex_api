@@ -28,6 +28,8 @@ from astrowidgets import ImageWidget
 import ipywidgets as widgets
 from ipywidgets import interact, Layout, AppLayout 
 
+import plotly.graph_objects as go
+
 from hetdex_api.shot import *
 from hetdex_api.config import HDRconfig
 from hetdex_tools.get_spec import get_spectra
@@ -243,11 +245,21 @@ class QueryWidget():
     def plot_spec(self, obj):
         
         selobj =  self.spec_table['ID'] == obj
-
+        fig = go.Figure()
         for row in self.spec_table[selobj]:
-            fig, ax = plt.subplots(figsize=(8,2))
-            ax.plot(row['wavelength'], row['spec'])
-            ax.set_title('Object ' + str(row['ID']) + '       SHOTID = ' + str(row['shotid']))
-            ax.set_xlabel('wavelength (A)')
-            ax.set_ylabel('spec (1e-17 ergs/s/cm^2/A)')                
-            plt.show(fig)
+            x=row['wavelength']
+            y=row['spec']
+            fig.add_trace(go.Scatter(x=x, y=y, name=str(row['shotid']),
+                                                         line_shape='linear'))
+        fig.update_traces(hoverinfo='text+name', mode='lines')
+        fig.update_layout(
+        title="Object {}".format(row['ID']),
+            xaxis_title="wavelength (A)",
+            yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
+        )
+            #fig, ax = plt.subplots(figsize=(8,2))
+            #ax.plot(row['wavelength'], row['spec'])
+            #ax.set_title('Object ' + str(row['ID']) + '       SHOTID = ' + str(row['shotid']))
+            #ax.set_xlabel('wavelength (A)')
+            #ax.set_ylabel('spec (1e-17 ergs/s/cm^2/A)')                
+            #plt.show(fig)
