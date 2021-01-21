@@ -146,7 +146,7 @@ class QueryWidget:
                 self.marker_table_output,
                 self.spec_output,
             ],
-            layout=Layout(width="600px"),
+            layout=Layout(width="800px"),
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
