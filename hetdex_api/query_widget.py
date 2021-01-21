@@ -336,7 +336,8 @@ class QueryWidget:
                           margin=dict(l=5, r=5, t=30, b=5),
                           autosize=True,
                           height=300,
-                          width=300)
+                          width=500,
+                          font=12)
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
