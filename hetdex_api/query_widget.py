@@ -145,17 +145,17 @@ class QueryWidget:
                 ),
                 self.marker_table_output,
             ],
-            layout=Layout(width="400px"),
+            layout=Layout(width="600px"),
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
 
         self.load_image()
 
-        display(self.topbox)
-        display(widgets.HBox([self.leftbox, self.rightbox]))
-        display(self.spec_output)
-        display(self.bottombox)
+        self.all_box = widgets.VBox([self.topbox,
+                                     widgets.HBox([self.leftbox, self.rightbox]),
+                                     self.spec_output,
+                                     self.bottombox])
 
         self.detectbox.observe(self.on_det_change)
         self.pan_to_coords.on_click(self.pan_to_coords_click)
