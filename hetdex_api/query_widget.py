@@ -144,6 +144,7 @@ class QueryWidget:
                     ]
                 ),
                 self.marker_table_output,
+                self.spec_output,
             ],
             layout=Layout(width="600px"),
         )
@@ -154,7 +155,7 @@ class QueryWidget:
 
         self.all_box = widgets.VBox([self.topbox,
                                      widgets.HBox([self.leftbox, self.rightbox]),
-                                     self.spec_output,
+                                     #self.spec_output,
                                      self.bottombox])
         display(self.all_box)
         self.detectbox.observe(self.on_det_change)
