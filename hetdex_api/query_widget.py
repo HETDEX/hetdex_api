@@ -156,7 +156,7 @@ class QueryWidget:
                                      widgets.HBox([self.leftbox, self.rightbox]),
                                      self.spec_output,
                                      self.bottombox])
-
+        display(self.all_box)
         self.detectbox.observe(self.on_det_change)
         self.pan_to_coords.on_click(self.pan_to_coords_click)
         self.marking_button.on_click(self.marking_on_click)
