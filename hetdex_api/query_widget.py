@@ -257,6 +257,13 @@ class QueryWidget():
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
+        fig.update_layout(
+            legend=dict(
+                x=0.8,
+                y=0.93,
+                traceorder="normal"
+            )
+        )
         fig.show()
             #fig, ax = plt.subplots(figsize=(8,2))
             #ax.plot(row['wavelength'], row['spec'])
