@@ -943,5 +943,8 @@ class Detections:
                 plt.ylim(ylim)
         plt.show()
 
+    def __len__(self):
+        return len(self.ra)
+  
     def close(self):
         self.hdfile.close()

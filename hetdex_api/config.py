@@ -53,6 +53,7 @@ class HDRconfig:
         self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
+        self.flim_sim_completeness = op.join(self.flim_dir, "snfiles")
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "ergfiles")
         self.detect_dir = op.join(self.hdr_dir[survey], "detect")
         self.path_gpinfo = op.join(self.calib_dir, "DR1FWHM.txt")
@@ -122,6 +123,7 @@ class HDRconfig:
                 self.bad_dir = (
                     "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
                 )
+
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")

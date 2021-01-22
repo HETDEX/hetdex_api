@@ -36,8 +36,10 @@ def test_aper_corr(datadir, aper_corr):
                                                     ("hdr1", 2e-16, 6.0, 0.20411406725738124),
                                                     ("hdr1", 2e-16, 5.0, 0.47937941516439253),
                                                     ("hdr2pt1", 4e-16, 6.0, 0.2115161903693431),
-                                                    ("hdr2pt1", 4e-16, 5.0, 0.4961144900645637)
-                                                   ])
+                                                    ("hdr2pt1", 4e-16, 5.0, 0.4961144900645637),
+                                                    ("hdr2pt1pt1", 4e-16, 6.0, 0.52132582),
+                                                    ("hdr2pt1pt1", 4e-16, 5.0, 0.64842545)
+                                                    ])
 def test_completeness_func(datadir, flux, model, sncut, expected):
     """
     Test that a value is returned
