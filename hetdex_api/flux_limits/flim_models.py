@@ -261,6 +261,10 @@ class SingleSNSimulationInterpolator(object):
             wavelengths (in A)
 
         """
+        flux = array(flux)
+        f50 = array(f50)
+        wave = array(wave)
+
         if self._wl_collapse:
             return self.completeness_model(flux/f50)
         else:
