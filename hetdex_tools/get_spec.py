@@ -136,7 +136,7 @@ def get_source_spectra(shotid, args):
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
-            if np.size(args.coords) > 1:
+            if len(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind], radius=args.rad, ffsky=args.ffsky
                 )
@@ -145,7 +145,7 @@ def get_source_spectra(shotid, args):
                     args.coords, radius=args.rad, ffsky=args.ffsky
                 )
             if info_result is not None:
-                if np.size(args.ID) > 1:
+                if len(args.ID) > 1:
                     args.log.info("Extracting %s" % args.ID[ind])
                 else:
                     args.log.info("Extracting %s" % args.ID)
@@ -165,7 +165,7 @@ def get_source_spectra(shotid, args):
                 else:
                     fiber_weights = []
 
-                if np.size(args.ID) > 1:
+                if len(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
                             spectrum_aper,
@@ -226,7 +226,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
-            if np.size(args.coords) > 1:
+            if len(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind], radius=args.rad, ffsky=args.ffsky
                 )
@@ -827,7 +827,7 @@ def get_spectra(
 
     args.log.setLevel(logging.INFO)
 
-    nobj = np.size(args.coords)
+    nobj = len(args.coords)
 
     if ID is None:
         if nobj > 1:
