@@ -13,7 +13,7 @@ from os.path import isfile, join
 from re import compile
 import tables as tb
 from numpy.ma import MaskedArray
-from numpy import linspace, mean, arange, array, histogram, zeros
+from numpy import linspace, mean, arange, array, histogram, zeros, std, array, sum
 from astropy.stats import biweight_location
 from astropy.table import Table
 from hetdex_api.config import HDRconfig
@@ -322,7 +322,7 @@ class SensitivityCubeHDF5Container(object):
                                aper_corr=self.aper_corr, mask=mask)
 
     def return_shot_completeness(self, flux, lambda_low, lambda_high, sncut,
-                                 bin_edges = None):
+                                 bin_edges = None, sigma_clip = False):
         """
         Parameters
         ----------
@@ -339,17 +339,21 @@ class SensitivityCubeHDF5Container(object):
             bin_edges
         """
         
-        if type(bin_edges) != type(None):
-            nbinned = zeros(len(bin_edges) - 1)
-
+        means = []
         vals_all = []
         compl_all = []
+        noise_hists = []
+
         for ifuslot, scube in self.itercubes():
             if type(bin_edges) != type(None):
                 compl, vals = scube.return_wlslice_completeness(flux,
                                                                 lambda_low, lambda_high,
                                                                 sncut, return_vals=True)
-                nbinned += histogram(vals, bins=bin_edges)[0]
+
+                if len(compl) > 0:
+                    vals_all.extend(vals)
+                    means.append(mean(vals))               
+                    noise_hists.append(histogram(vals, bins=bin_edges)[0])
             else:
                 compl = scube.return_wlslice_completeness(flux,
                                                           lambda_low, lambda_high,
@@ -357,9 +361,22 @@ class SensitivityCubeHDF5Container(object):
 
             if len(compl)>0:
                 compl_all.append(compl)
-                vals_all.extend(vals)
             else:
                 print("Warning! No good data for {:s}, skipping".format(ifuslot))
+
+        # Remove bad IFUs
+        supermean = mean(means)
+        superstd = std(means)
+        means = array(means)
+        compl_all = array(compl_all)
+        noise_hists = array(noise_hists)
+        print(superstd)
+       
+        if sigma_clip: 
+            compl_all = compl_all[means < supermean + 2.*superstd]
+            nbinned = sum(noise_hists[means < supermean + 2.*superstd], axis=0)
+        else:
+            nbinned = sum(noise_hists, axis=0)
 
         if type(bin_edges) != type(None):
             return mean(compl_all, axis=0), nbinned

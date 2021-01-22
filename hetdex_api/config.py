@@ -53,7 +53,7 @@ class HDRconfig:
         self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
-        self.flim_sim_completeness = op.join(self.flim_dir, "fcor.use")
+        self.flim_sim_completeness = op.join(self.flim_dir, "snfiles")
         self.elix_dir = op.join(self.hdr_dir[survey], "detect", "ergfiles")
         self.detect_dir = op.join(self.hdr_dir[survey], "detect")
         self.path_gpinfo = op.join(self.calib_dir, "DR1FWHM.txt")

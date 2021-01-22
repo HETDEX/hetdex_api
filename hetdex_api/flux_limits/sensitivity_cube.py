@@ -30,12 +30,13 @@ from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinit
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
                    repeat, newaxis, logical_not)
 from numpy.ma import array as maskedarray
+from numpy.random import normal
 from numpy import any as nany
 from scipy.interpolate import interp1d
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-from hetdex_api.flux_limits import flim_models
+from hetdex_api.flux_limits import flim_models, flim_model_cache
 from hetdex_api.config import HDRconfig
 
 class WavelengthException(Exception):
@@ -136,6 +137,13 @@ class SensitivityCube(object):
         WCS and dimensions as the data (default:
         None)
 
+    cache_sim_interp : bool (optional)
+        cache the SimulationInterpolator,
+        so if you use another SensitivityCube
+        it will use the same model from before
+        (hdr2pt1pt1 or later only, only works
+         if you don't change flim_model)
+
     Attributes
     ----------
     sigmas : array
@@ -153,7 +161,8 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1pt1", mask=None): 
+                 nsigma=1.0, flim_model="hdr2pt1pt1", mask=None, 
+                 cache_sim_interp = True): 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
@@ -167,10 +176,17 @@ class SensitivityCube(object):
         # Decide between Fleming function or interpolation
         if (flim_model == "hdr1") or (flim_model == "hdr2pt1"):
             self.sinterp = None	
+        elif flim_model_cache.cached_model == flim_model and cache_sim_interp:
+            self.sinterp = flim_model_cache.cached_sim_interp
         else:
-           conf = HDRconfig()
-           fn = conf.flim_sim_completeness 
-           self.sinterp = flim_models.SimulationInterpolator(fn)
+            conf = HDRconfig()
+            fdir = conf.flim_sim_completeness 
+            self.sinterp = flim_models.SimulationInterpolator(fdir)
+
+        # cache the model to save reinitialising the object
+        if cache_sim_interp: 
+            flim_model_cache.cached_sim_interp = self.sinterp
+            flim_model_cache.cached_model = flim_model 
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -478,7 +494,7 @@ class SensitivityCube(object):
 
         if self.sinterp:
             # interpolate over the simulation
-            fracdet = self.sinterp(flux, f50s, lambda_)
+            fracdet = self.sinterp(flux, f50s, lambda_, sncut)
         else:
             alphas = self.get_alpha(ra, dec, lambda_)
             fracdet = fleming_function(flux, f50s, alphas)
@@ -545,6 +561,10 @@ class SensitivityCube(object):
 
         # remove pixel border and select wavelength slice
         noise = self.sigmas.filled()[izlo:(izhigh + 1), pixlo:pixhi, pixlo:pixhi]
+ 
+        # Test what happens with fixed noise
+        #noise = noise*0 + normal(loc=1e-17, scale=2e-18, 
+        #                         size=noise.shape[0]*noise.shape[1]).reshape(noise.shape[0], noise.shape[1])
 
         # create a cube of the wavelengths
         r, d, wl_1d = self.wcs.wcs_pix2world(ones(1 + izhigh - izlo), ones(1 + izhigh - izlo), 
@@ -562,6 +582,9 @@ class SensitivityCube(object):
         sel = (noise < noise_cut) & isfinite(noise) 
         noise = noise[sel] 
         waves = waves[sel]
+
+        # Test for fixed lambda
+        # waves = waves*0 + lambda_low
 
         if len(noise) == 0:
             if return_vals:
@@ -581,7 +604,7 @@ class SensitivityCube(object):
         compls = []
         for f in flux:
             if self.sinterp:
-                compl = self.sinterp(f, f50s.flatten(), waves.flatten())
+                compl = self.sinterp(f, f50s.flatten(), waves.flatten(), sncut)
             else:
                 compl = fleming_function(f, f50s, alphas)       
 
