@@ -11,11 +11,14 @@ simulation results.
 
 """
 
-import matplotlib.pyplot as plt
 from glob import glob
 from scipy.interpolate import interp1d, interp2d, splrep, griddata, RectBivariateSpline
 from numpy import (polyval, mean, median, loadtxt, meshgrid, 
                    array, linspace, tile, ones, array, argmin)
+
+class NoSNFilesException(Exception):
+    pass
+
 
 def read_karl_file(fn):
     """ 
@@ -81,6 +84,9 @@ class SimulationInterpolator(object):
         for snfile in snfiles:
             self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, **kwargs))
             sns.append(float(snfile[-7:-4]))
+
+        if len(sns) == 0:
+            raise NoSNFilesException("Could not find any simulation files! ")
 
         print("Read S/N files for the following cuts: {:s}".format(str(sns)))
         self.sns = array(sns)        
