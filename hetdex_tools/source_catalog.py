@@ -203,7 +203,7 @@ def guess_source_wavelength(source_id, source_table):
         z_guess = chenxu_tab["z"][sel_det][0]
 
     elif np.any(group["gaia_match_id"] > 0):
-        z_guess = z_guess_3727(group, cont=True)
+        z_guess = 0.0 #z_guess_3727(group, cont=True)
 
     elif np.any(group["det_type"] == "cont"):
         z_guess = z_guess_3727(group, cont=True)
