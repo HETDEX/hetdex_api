@@ -1,6 +1,10 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.8.6
+-------------
+- Updates to SourceCatalog.ipynb
+
 Release 0.8.5
 -------------
 - Updates to QueryWidget
