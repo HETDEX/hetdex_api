@@ -199,8 +199,8 @@ def guess_source_wavelength(source_id, source_table):
         # get proper z's from Chenxu's catalog
         agn_tab = Table.read(config.agncat, format="ascii")
         agn_dets = group["detectid"][group["det_type"] == "agn"]
-        sel_det = chenxu_tab["detectid"] == agn_dets[0]
-        z_guess = chenxu_tab["z"][sel_det][0]
+        sel_det = agn_tab["detectid"] == agn_dets[0]
+        z_guess = agn_tab["z"][sel_det][0]
 
     elif np.any(group["gaia_match_id"] > 0):
         z_guess = 0.0 #z_guess_3727(group, cont=True)
@@ -208,7 +208,7 @@ def guess_source_wavelength(source_id, source_table):
     elif np.any(group["det_type"] == "cont"):
         z_guess = z_guess_3727(group, cont=True)
 
-    elif np.any(group["plae_classification"]) < 0.3:
+    elif np.any(group["plae_classification"] < 0.3):
         z_guess = z_guess_3727(group)
 
     elif np.nanmedian(group["plae_classification"] < 0.5):
@@ -380,8 +380,7 @@ def plot_source_group(source_id=None,
             zorder=100,
             label='line emission'
         )
-        
-        
+
     sel_cont = group['det_type'] == 'cont'
     if np.sum(sel_cont)>= 1:
         plt.scatter(
