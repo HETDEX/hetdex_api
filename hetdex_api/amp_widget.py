@@ -335,15 +335,16 @@ class AmpWidget:
             if CONT_H5_HANDLE is None:
                 try:
                     CONT_H5_HANDLE = tb.open_file(CONT_H5_FN, "r")
-                except:
+                except Exception:
                     print("Could not open continuum database")
             det_handle = CONT_H5_HANDLE
 
         elif self.detectid >= 2100000000:
             if HETDEX_DETECT_HDF5_HANDLE is None:
                 try:
-                    HETDEX_DETECT_HDF5_HANDLE = tb.open_file(HETDEX_DETECT_HDF5_FN, "r")
-                except:
+                    HETDEX_DETECT_HDF5_HANDLE = tb.open_file(
+                        HETDEX_DETECT_HDF5_FN, "r")
+                except Exception:
                     print("Could not open detections database")
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
@@ -377,7 +378,7 @@ class AmpWidget:
         y = det_row["y_raw"]
 
         self.imw.marker = {"color": "red", "radius": 5, "type": "circle"}
-        self.imw.add_markers(Table([x - 1, y - 1], names=["x", "y"]))
+        self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def coord_change(b):
         self.shotid = None
@@ -408,4 +409,4 @@ class AmpWidget:
         x, y = fibers.get_image_xy(idx, self.wave)
 
         self.imw.marker = {"color": "green", "radius": 5, "type": "circle"}
-        self.imw.add_markers(Table([x - 1, y - 1], names=["x", "y"]))
+        self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
