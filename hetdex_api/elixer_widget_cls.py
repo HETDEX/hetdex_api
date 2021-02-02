@@ -1181,7 +1181,7 @@ class ElixerWidget:
         if detid >= 2190000000:
             if CONT_H5_HANDLE is None:
                 try:
-                    CONT_H5_HANDLE = tb.open_file(CONT_H5_FN, "r")
+                    CONT_H5_HANDLE = tables.open_file(CONT_H5_FN, "r")
                 except:
                     print("Could not open continuum database")
             det_handle = CONT_H5_HANDLE
