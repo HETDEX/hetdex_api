@@ -348,7 +348,7 @@ class AmpWidget:
         detectid_obj = self.detectid
         det_row = det_handle.root.Detections.read_where(
             "detectid == detectid_obj"
-        )
+        )[0]
         self.im_ra.value = det_row['ra']
         self.im_dec.value = det_row['dec']
         self.wave = det_row['wave']
