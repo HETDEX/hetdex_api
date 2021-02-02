@@ -90,7 +90,6 @@ class AmpWidget:
             # highest weight fiber
             self.get_amp_info_from_det()
 
-    
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
@@ -168,7 +167,7 @@ class AmpWidget:
 
         self.wave_widget = widgets.FloatText(
             value=wave0,
-            description="Wavelength (A)",
+            description="Wave (A)",
             min=3500.0,
             max=5500.0,
             step=1.0)
@@ -201,11 +200,17 @@ class AmpWidget:
         )
         box_layout = Layout()
 
+        label1 = widgets.Label(value='Enter a coordinate to down-select shots')
+        label2 = widgets.Label(value='Find a coordinate/wavelength region')
+        
         self.boxside = widgets.VBox(
-            [   self.im_ra,
-                self.im_dec, 
+            [   label1,
+                self.im_ra,
+                self.im_dec,
+                self.select_coords,
+                label2,
                 self.wave_widget,
-                widgets.HBox([self.select_coords, self.show_button]),
+                self.show_button,
                 self.shotid_widget,
                 self.multiframe_widget,
                 self.expnum_widget,
@@ -223,7 +228,7 @@ class AmpWidget:
         self.shotid_widget.observe(self.shotid_widget_change)
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
-        self.det_button.on_click(self.get_amp_info_from_det)
+        self.det_button.on_click(self.det_go)
         
     def im_widget_change(self, b):
         self.update_amp_image()
@@ -331,9 +336,15 @@ class AmpWidget:
                         detectid_i, self.survey
                     )
                 )
-                
-    def get_amp_info_from_det():
-            
+
+    def det_go(self, b):
+        self.get_amp_info_from_det()
+    
+    def get_amp_info_from_det(self):
+
+        global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
+        global CONT_H5_FN, HETDEX_DETECT_HDF5_FN
+        
         if self.detectid >= 2190000000:
             if CONT_H5_HANDLE is None:
                 try:
