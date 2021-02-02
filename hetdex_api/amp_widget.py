@@ -205,7 +205,7 @@ class AmpWidget:
             [   self.im_ra,
                 self.im_dec, 
                 self.wave_widget,
-                widgets.HBox([self.select_coords, self.show_button])
+                widgets.HBox([self.select_coords, self.show_button]),
                 self.show_button,
                 self.shotid_widget,
                 self.multiframe_widget,
