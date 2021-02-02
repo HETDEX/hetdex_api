@@ -13,7 +13,7 @@ import ipywidgets as widgets
 from ipywidgets import Layout
 
 from hetdex_api.config import HDRconfig
-from hetdex_api.shot import get_image2D_amp, open_shot_file
+from hetdex_api.shot import Fibers, get_image2D_amp, open_shot_file
 from hetdex_api.survey import Survey, FiberIndex
 
 
@@ -27,6 +27,7 @@ try:  # using HDRconfig
     CONT_H5_HANDLE = None
     FIBINDEX = FiberIndex(LATEST_HDR_NAME)
     AMPFLAG_TABLE = Table.read(HETDEX_API_CONFIG.badamp)
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -37,7 +38,7 @@ class AmpWidget:
         self,
         survey=LATEST_HDR_NAME,
         coords=None,
-        radius=None,
+        radius=3.0,
         detectid=None,
         wave=None,
         shotid=20200422015,
@@ -157,7 +158,8 @@ class AmpWidget:
             )
 
         self.select_coords = widgets.Button(
-            description="Select coords", disabled=False, button_style="success"
+            description="Query coords", disabled=False, button_style="success",
+            toolkit="This will narrow down amps to those within the defined region",
         )
 
         if self.wave is None:
@@ -171,7 +173,13 @@ class AmpWidget:
             min=3500.0,
             max=5500.0,
             step=1.0)
-            
+
+        self.show_button = widgets.Button(
+            description="Show Region",
+            toolkit="This will highlight the RA/DEC/WAVE input",
+            button_style='success',
+            disabled=False)
+
         self.im = get_image2D_amp(
             self.shotid_widget.value,
             multiframe=self.multiframe,
@@ -185,16 +193,20 @@ class AmpWidget:
             [
                 self.survey_widget,
                 self.detectbox,
-                self.im_ra,
-                self.im_dec,
-                self.select_coords,
-                self.wave_widget,
+#                self.im_ra,
+#                self.im_dec,
+#                self.select_coords,
+#                self.wave_widget,
             ]
         )
         box_layout = Layout()
 
         self.boxside = widgets.VBox(
-            [  # self.month_widget,
+            [   self.im_ra,
+                self.im_dec, 
+                self.wave_widget,
+                widgets.HBox([self.select_coords, self.show_button])
+                self.show_button,
                 self.shotid_widget,
                 self.multiframe_widget,
                 self.expnum_widget,
@@ -210,7 +222,9 @@ class AmpWidget:
         self.expnum_widget.observe(self.im_widget_change)
         self.imtype_widget.observe(self.im_widget_change)
         self.shotid_widget.observe(self.shotid_widget_change)
-
+        self.select_coords.on_click(self.coord_change)
+        self.show_button.on_click(self.show_region)
+        
     def im_widget_change(self, b):
         self.update_amp_image()
 
@@ -360,3 +374,37 @@ class AmpWidget:
 
         self.imw.marker = {'color': 'red', 'radius': 5, 'type': 'circle'}
         self.imw_add_markers(Table([x-1,y-1], names=['x','y']))
+
+    def coord_change(b):
+        self.shotid = None
+        
+        fiber_table_region = FIBINDEX.query_region(
+            self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
+        )
+        shotlist = np.unique(fiber_table_region["shotid"])
+        
+        self.shotid_widget = widgets.Dropdown(
+            options=shotlist, value=shotlist[0]
+        )
+
+    def show_region(b):
+        # get closest fiber:
+        
+        self.wave = self.wave_widget.value
+
+        fibers = Fibers(self.shotid_widget.value)
+
+        self.coords = SkyCoord(ra=self.im_ra.value*u.deg,
+                               dec=self.im_dec.value*u.deg)
+        idx = fibers.get_closest_fiber(self.coords)
+        multiframe_obj = fibers.table.cols.multiframe[idx].astype(str)
+        self.multiframe = multiframe_obj
+        self.multiframe_widget.value = self.multiframe
+
+        expnum_obj = fibers.table.cols.expnum[idx]
+        x, y = fibers.get_image_xy(idx, self.wave)
+
+        self.imw.marker = {'color': 'green', 'radius': 5, 'type': 'circle'}
+        self.imw_add_markers(Table([x-1,y-1], names=['x','y']))
+
+    
