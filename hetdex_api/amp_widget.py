@@ -368,7 +368,7 @@ class AmpWidget:
         self.multiframe = det_row["multiframe"].decode()
         self.multiframe_widget.value = self.multiframe
         self.expnum = det_row["expnum"]
-        self.expnum_widget.value = self.shotid
+        self.expnum_widget.value = self.expnum
 
         # update amp image
         self.update_amp_image()
