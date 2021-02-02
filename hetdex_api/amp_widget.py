@@ -9,6 +9,7 @@ import numpy as np
 
 import tables as tb
 
+import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astrowidgets import ImageWidget
@@ -352,7 +353,7 @@ class AmpWidget:
         self.im_dec.value = det_row['dec']
         self.wave = det_row['wave']
         self.wave_widget.value = self.wave
-        self.coords = SkyCoord(det_row["ra"], det_row["dec"], frame="icrs")
+        self.coords = SkyCoord(det_row["ra"]*u.deg, det_row["dec"]*u.deg, frame="icrs")
         self.multiframe = det_row["multiframe"].decode()
         self.multiframe_widget.value = self.multiframe
         self.shotid = det_row["shotid"]
