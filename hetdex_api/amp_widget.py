@@ -349,37 +349,40 @@ class AmpWidget:
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
         detectid_obj = self.detectid
-        det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
-        self.im_ra.value = det_row["ra"]
-        self.im_dec.value = det_row["dec"]
-        self.wave = det_row["wave"]
-        self.wave_widget.value = self.wave
-        self.coords = SkyCoord(
-            det_row["ra"] * u.deg, det_row["dec"] * u.deg, frame="icrs"
-        )
-        self.shotid = det_row["shotid"]
-        self.shotid_widget.value = self.shotid
+        try:
+            det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
+            self.im_ra.value = det_row["ra"]
+            self.im_dec.value = det_row["dec"]
+            self.wave = det_row["wave"]
+            self.wave_widget.value = self.wave
+            self.coords = SkyCoord(
+                det_row["ra"] * u.deg, det_row["dec"] * u.deg, frame="icrs"
+            )
+            self.shotid = det_row["shotid"]
+            self.shotid_widget.value = self.shotid
 
-        # get MF array for shot
-        self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
-        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+            # get MF array for shot
+            self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
+            sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
+            mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
 
-        self.multiframe_widget.options = mflist
-        self.multiframe = det_row["multiframe"].decode()
-        self.multiframe_widget.value = self.multiframe
-        self.expnum = det_row["expnum"]
-        self.expnum_widget.value = self.expnum
-
-        # update amp image
-        self.update_amp_image()
-
-        x = det_row["x_raw"]
-        y = det_row["y_raw"]
-
-        self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
-        self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
-
+            self.multiframe_widget.options = mflist
+            self.multiframe = det_row["multiframe"].decode()
+            self.multiframe_widget.value = self.multiframe
+            self.expnum = det_row["expnum"]
+            self.expnum_widget.value = self.expnum
+            
+            # update amp image
+            self.update_amp_image()
+            
+            x = det_row["x_raw"]
+            y = det_row["y_raw"]
+            
+            self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
+            self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
+        except IndexError:
+            print('Detectid:{} is not found in database'.format(detectid_obj)
+                
     def coord_change(b):
         self.shotid = None
 
