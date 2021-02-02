@@ -7,6 +7,8 @@
 
 import numpy as np
 
+import tables as tb
+
 from astropy.table import Table
 from astrowidgets import ImageWidget
 import ipywidgets as widgets
@@ -341,7 +343,7 @@ class AmpWidget:
                     print("Could not open detections database")
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
-        detectid_obj = self.detecitd
+        detectid_obj = self.detectid
         det_row = det_handle.root.Detections.read_where(
             "detectid == detectid_obj"
         )
