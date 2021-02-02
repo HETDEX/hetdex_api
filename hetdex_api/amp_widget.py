@@ -148,21 +148,13 @@ class AmpWidget:
         if self.coords is not None:
             self.im_ra = widgets.FloatText(
                 value=self.coords.ra.value,
-                description="RA (deg):",
-#                layout=Layout(width="20%"),
-            )
+                description="RA (deg):")
             self.im_dec = widgets.FloatText(
                 value=self.coords.dec.value,
-                description="DEC (deg):",
-#                layout=Layout(width="20%"),
-            )
+                description="DEC (deg):")
         else:
-            self.im_ra = widgets.FloatText(
-                value=0.0, description="RA (deg):", layout=Layout(width="20%")
-            )
-            self.im_dec = widgets.FloatText(
-                value=0.0, description="DEC (deg):", layout=Layout(width="20%")
-            )
+            self.im_ra = widgets.FloatText( value=0.0, description="RA (deg):")
+            self.im_dec = widgets.FloatText( value=0.0, description="DEC (deg):")
 
         self.select_coords = widgets.Button(
             description="Query coords", disabled=False, button_style="success",
@@ -200,6 +192,7 @@ class AmpWidget:
             [
                 self.survey_widget,
                 self.detectbox,
+                self.det_button,
 #                self.im_ra,
 #                self.im_dec,
 #                self.select_coords,
