@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+A#!/usr/bin/env python
 # coding: utf-8
 #
 # AmpWidget Widget Object
@@ -170,9 +170,8 @@ class AmpWidget:
             description="Wavelength (A)",
             min=3500.0,
             max=5500.0,
-            step=1.0
+            step=1.0)
             
-
         self.im = get_image2D_amp(
             self.shotid_widget.value,
             multiframe=self.multiframe,
@@ -189,6 +188,7 @@ class AmpWidget:
                 self.im_ra,
                 self.im_dec,
                 self.select_coords,
+                self.wave_widget,
             ]
         )
         box_layout = Layout()
