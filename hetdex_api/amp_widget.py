@@ -9,6 +9,7 @@ import numpy as np
 
 import tables as tb
 
+from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astrowidgets import ImageWidget
 import ipywidgets as widgets
