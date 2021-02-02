@@ -381,7 +381,7 @@ class AmpWidget:
             self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
             self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
         except IndexError:
-            print('Detectid:{} is not found in database'.format(detectid_obj)
+            print('Detectid:{} is not found in database'.format(detectid_obj))
                 
     def coord_change(b):
         self.shotid = None
