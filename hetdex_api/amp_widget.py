@@ -377,7 +377,7 @@ class AmpWidget:
         x = det_row["x_raw"]
         y = det_row["y_raw"]
 
-        self.imw.marker = {"color": "red", "radius": 5, "type": "circle"}
+        self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def coord_change(b):
@@ -408,5 +408,5 @@ class AmpWidget:
         expnum_obj = fibers.table.cols.expnum[idx]
         x, y = fibers.get_image_xy(idx, self.wave)
 
-        self.imw.marker = {"color": "green", "radius": 5, "type": "circle"}
+        self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
