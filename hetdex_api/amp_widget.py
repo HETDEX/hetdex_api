@@ -373,8 +373,8 @@ class AmpWidget:
         # update amp image
         self.update_amp_image()
 
-        x = det_row["x_row"]
-        y = det_row["y_row"]
+        x = det_row["x_raw"]
+        y = det_row["y_raw"]
 
         self.imw.marker = {"color": "red", "radius": 5, "type": "circle"}
         self.imw_add_markers(Table([x - 1, y - 1], names=["x", "y"]))
