@@ -63,7 +63,7 @@ class AmpWidget:
         self.coords = coords
         self.radius = radius
         self.wave = wave
-    
+
         s = Survey(self.survey)
         gs = s.remove_shots()
 
@@ -105,11 +105,12 @@ class AmpWidget:
         )
 
         self.det_button = widgets.Button(
-                        description="Go",
-                        toolkit="This will bring up the amp for the highest weight fiber",
-                        button_style='success',
-                        disabled=False)
-        
+            description="Go",
+            toolkit="This will bring up the amp for the highest weight fiber",
+            button_style="success",
+            disabled=False,
+        )
+
         if self.coords is not None:
             if self.detectid is not None:
 
@@ -150,17 +151,19 @@ class AmpWidget:
 
         if self.coords is not None:
             self.im_ra = widgets.FloatText(
-                value=self.coords.ra.value,
-                description="RA (deg):")
+                value=self.coords.ra.value, description="RA (deg):"
+            )
             self.im_dec = widgets.FloatText(
-                value=self.coords.dec.value,
-                description="DEC (deg):")
+                value=self.coords.dec.value, description="DEC (deg):"
+            )
         else:
-            self.im_ra = widgets.FloatText( value=0.0, description="RA (deg):")
-            self.im_dec = widgets.FloatText( value=0.0, description="DEC (deg):")
+            self.im_ra = widgets.FloatText(value=0.0, description="RA (deg):")
+            self.im_dec = widgets.FloatText(value=0.0, description="DEC (deg):")
 
         self.select_coords = widgets.Button(
-            description="Query coords", disabled=False, button_style="success",
+            description="Query coords",
+            disabled=False,
+            button_style="success",
             toolkit="This will narrow down amps to those within the defined region",
         )
 
@@ -170,17 +173,15 @@ class AmpWidget:
             wave0 = self.wave
 
         self.wave_widget = widgets.FloatText(
-            value=wave0,
-            description="Wave (A)",
-            min=3500.0,
-            max=5500.0,
-            step=1.0)
+            value=wave0, description="Wave (A)", min=3500.0, max=5500.0, step=1.0
+        )
 
         self.show_button = widgets.Button(
             description="Show Region",
             toolkit="This will highlight the RA/DEC/WAVE input",
-            button_style='success',
-            disabled=False)
+            button_style="success",
+            disabled=False,
+        )
 
         self.im = get_image2D_amp(
             self.shotid_widget.value,
@@ -196,19 +197,20 @@ class AmpWidget:
                 self.survey_widget,
                 self.detectbox,
                 self.det_button,
-#                self.im_ra,
-#                self.im_dec,
-#                self.select_coords,
-#                self.wave_widget,
+                #                self.im_ra,
+                #                self.im_dec,
+                #                self.select_coords,
+                #                self.wave_widget,
             ]
         )
         box_layout = Layout()
 
-        label1 = widgets.Label(value='Enter a coordinate to down-select shots')
-        label2 = widgets.Label(value='Find a coordinate/wavelength region')
-        
+        label1 = widgets.Label(value="Enter a coordinate to down-select shots")
+        label2 = widgets.Label(value="Find a coordinate/wavelength region")
+
         self.boxside = widgets.VBox(
-            [   label1,
+            [
+                label1,
                 self.im_ra,
                 self.im_dec,
                 self.select_coords,
@@ -233,7 +235,7 @@ class AmpWidget:
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
         self.det_button.on_click(self.on_det_go)
-        
+
     def im_widget_change(self, b):
         self.update_amp_image()
 
@@ -318,17 +320,17 @@ class AmpWidget:
         if self.coords is not None:
             self.imw.center_on(self.coords)
             self.imw.zoom_level = 4
-            
-    def on_det_go(self, b):            
+
+    def on_det_go(self, b):
         self.bottombox.clear_output()
         self.detectid = self.detectbox.value
         self.get_amp_info_from_det()
-        
+
     def get_amp_info_from_det(self):
 
         global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
         global CONT_H5_FN, HETDEX_DETECT_HDF5_FN
-        
+
         if self.detectid >= 2190000000:
             if CONT_H5_HANDLE is None:
                 try:
@@ -336,7 +338,7 @@ class AmpWidget:
                 except:
                     print("Could not open continuum database")
             det_handle = CONT_H5_HANDLE
-                    
+
         elif self.detectid >= 2100000000:
             if HETDEX_DETECT_HDF5_HANDLE is None:
                 try:
@@ -346,51 +348,57 @@ class AmpWidget:
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
         detectid_obj = self.detectid
-        det_row = det_handle.root.Detections.read_where(
-            "detectid == detectid_obj"
-        )[0]
-        self.im_ra.value = det_row['ra']
-        self.im_dec.value = det_row['dec']
-        self.wave = det_row['wave']
+        det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
+        self.im_ra.value = det_row["ra"]
+        self.im_dec.value = det_row["dec"]
+        self.wave = det_row["wave"]
         self.wave_widget.value = self.wave
-        self.coords = SkyCoord(det_row["ra"]*u.deg, det_row["dec"]*u.deg, frame="icrs")
-        self.multiframe = det_row["multiframe"].decode()
-        self.multiframe_widget.value = self.multiframe
+        self.coords = SkyCoord(
+            det_row["ra"] * u.deg, det_row["dec"] * u.deg, frame="icrs"
+        )
         self.shotid = det_row["shotid"]
         self.shotid_widget.value = self.shotid
-        self.expnum = det_row['expnum']
+
+        # get MF array for shot
+        self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
+        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
+        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+
+        self.multiframe_widget.options = mflist
+        self.multiframe = det_row["multiframe"].decode()
+        self.multiframe_widget.value = self.multiframe
+        self.expnum = det_row["expnum"]
         self.expnum_widget.value = self.shotid
 
-        #update amp image
+        # update amp image
         self.update_amp_image()
 
-        x = det_row['x_row']
-        y = det_row['y_row']
+        x = det_row["x_row"]
+        y = det_row["y_row"]
 
-        self.imw.marker = {'color': 'red', 'radius': 5, 'type': 'circle'}
-        self.imw_add_markers(Table([x-1,y-1], names=['x','y']))
+        self.imw.marker = {"color": "red", "radius": 5, "type": "circle"}
+        self.imw_add_markers(Table([x - 1, y - 1], names=["x", "y"]))
 
     def coord_change(b):
         self.shotid = None
-        
+
         fiber_table_region = FIBINDEX.query_region(
             self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
         )
         shotlist = np.unique(fiber_table_region["shotid"])
-        
-        self.shotid_widget = widgets.Dropdown(
-            options=shotlist, value=shotlist[0]
-        )
+
+        self.shotid_widget = widgets.Dropdown(options=shotlist, value=shotlist[0])
 
     def show_region(b):
         # get closest fiber:
-        
+
         self.wave = self.wave_widget.value
 
         fibers = Fibers(self.shotid_widget.value)
 
-        self.coords = SkyCoord(ra=self.im_ra.value*u.deg,
-                               dec=self.im_dec.value*u.deg)
+        self.coords = SkyCoord(
+            ra=self.im_ra.value * u.deg, dec=self.im_dec.value * u.deg
+        )
         idx = fibers.get_closest_fiber(self.coords)
         multiframe_obj = fibers.table.cols.multiframe[idx].astype(str)
         self.multiframe = multiframe_obj
@@ -399,7 +407,5 @@ class AmpWidget:
         expnum_obj = fibers.table.cols.expnum[idx]
         x, y = fibers.get_image_xy(idx, self.wave)
 
-        self.imw.marker = {'color': 'green', 'radius': 5, 'type': 'circle'}
-        self.imw_add_markers(Table([x-1,y-1], names=['x','y']))
-
-    
+        self.imw.marker = {"color": "green", "radius": 5, "type": "circle"}
+        self.imw_add_markers(Table([x - 1, y - 1], names=["x", "y"]))
