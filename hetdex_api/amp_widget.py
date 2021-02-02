@@ -228,7 +228,7 @@ class AmpWidget:
         self.shotid_widget.observe(self.shotid_widget_change)
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
-        self.det_button.on_click(self.det_go)
+        self.det_button.on_click(self.on_det_go)
         
     def im_widget_change(self, b):
         self.update_amp_image()
@@ -315,7 +315,7 @@ class AmpWidget:
             self.imw.center_on(self.coords)
             self.imw.zoom_level = 4
             
-    def on_det_change(self, b):            
+    def on_det_go(self, b):            
         self.bottombox.clear_output()
         self.detectid = self.detectbox.value
         self.update_det_coords()
@@ -323,7 +323,8 @@ class AmpWidget:
         
         self.im_ra.value = self.coords.ra.value
         self.im_dec.value = self.coords.dec.value
-
+        self.get_amp_info_from_det()
+        
     def update_det_coords(self):
         detectid_i = self.detectid
         det_row = self.fileh5dets.root.Detections.read_where("detectid == detectid_i")
@@ -336,9 +337,6 @@ class AmpWidget:
                         detectid_i, self.survey
                     )
                 )
-
-    def det_go(self, b):
-        self.get_amp_info_from_det()
     
     def get_amp_info_from_det(self):
 
