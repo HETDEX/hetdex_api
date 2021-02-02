@@ -318,26 +318,8 @@ class AmpWidget:
     def on_det_go(self, b):            
         self.bottombox.clear_output()
         self.detectid = self.detectbox.value
-        self.update_det_coords()
-        # get info from highest weight fiber
-        
-        self.im_ra.value = self.coords.ra.value
-        self.im_dec.value = self.coords.dec.value
         self.get_amp_info_from_det()
         
-    def update_det_coords(self):
-        detectid_i = self.detectid
-        det_row = self.fileh5dets.root.Detections.read_where("detectid == detectid_i")
-        if np.size(det_row) > 0:
-            self.coords = SkyCoord(det_row["ra"][0] * u.deg, det_row["dec"][0] * u.deg)
-        else:
-            with self.bottombox:
-                print(
-                    "{} is not in the {} detect database".format(
-                        detectid_i, self.survey
-                    )
-                )
-    
     def get_amp_info_from_det(self):
 
         global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
