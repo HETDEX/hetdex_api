@@ -100,6 +100,13 @@ class AmpWidget:
             disabled=False,
             # layout=Layout(width='15%')
         )
+
+        self.det_button = widgets.Button(
+                        description="Go",
+                        toolkit="This will bring up the amp for the highest weight fiber",
+                        button_style='success',
+                        disabled=False)
+        
         if self.coords is not None:
             if self.detectid is not None:
 
@@ -142,12 +149,12 @@ class AmpWidget:
             self.im_ra = widgets.FloatText(
                 value=self.coords.ra.value,
                 description="RA (deg):",
-                layout=Layout(width="20%"),
+#                layout=Layout(width="20%"),
             )
             self.im_dec = widgets.FloatText(
                 value=self.coords.dec.value,
                 description="DEC (deg):",
-                layout=Layout(width="20%"),
+#                layout=Layout(width="20%"),
             )
         else:
             self.im_ra = widgets.FloatText(
@@ -206,7 +213,6 @@ class AmpWidget:
                 self.im_dec, 
                 self.wave_widget,
                 widgets.HBox([self.select_coords, self.show_button]),
-                self.show_button,
                 self.shotid_widget,
                 self.multiframe_widget,
                 self.expnum_widget,
@@ -224,6 +230,7 @@ class AmpWidget:
         self.shotid_widget.observe(self.shotid_widget_change)
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
+        self.det_button.on_click(self.get_amp_info_from_det)
         
     def im_widget_change(self, b):
         self.update_amp_image()
