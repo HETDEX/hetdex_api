@@ -353,7 +353,7 @@ class AmpWidget:
 
         global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
         global CONT_H5_FN, HETDEX_DETECT_HDF5_FN
-
+        
         if self.detectid >= 2190000000:
             if CONT_H5_HANDLE is None:
                 try:
@@ -371,6 +371,8 @@ class AmpWidget:
                     print("Could not open detections database")
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
+        print(det_handle)
+        
         detectid_obj = self.detectid
 
         if True:
