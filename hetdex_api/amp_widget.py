@@ -43,7 +43,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=None,
+        detectid=2101697656,
         wave=None,
         shotid=None,
         multiframe=None,
@@ -168,6 +168,8 @@ class AmpWidget:
             value=self.imtype,
         )
 
+        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
+        
         if self.coords is not None:
             if self.detectid is not None:
                 
@@ -230,7 +232,7 @@ class AmpWidget:
             ]
         )
         self.midbox = widgets.HBox([self.imw, self.boxside], layout=box_layout)
-        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
+        
         display(widgets.VBox([self.topbox, self.midbox, self.bottombox]))
 
         # plot region for detection
