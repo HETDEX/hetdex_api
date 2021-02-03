@@ -169,28 +169,7 @@ class AmpWidget:
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
-        
-        if self.coords is not None:
-            if self.detectid is not None:
-                
-                self.shotid = None
-                
-                fiber_table_region = FIBINDEX.query_region(
-                    self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
-                )
-                shotlist = np.unique(fiber_table_region["shotid"])
-                
-                self.shotid_widget = widgets.Dropdown(
-                    options=shotlist, value=shotlist[0]
-                )
-            else:
-                pass
-        elif self.detectid is not None:
-            # open up detections h5 file to get info for
-            # highest weight fiber
-            self.get_amp_info_from_det()
-
-            
+                    
         self.im = get_image2D_amp(
             self.shotid_widget.value,
             multiframe=self.multiframe,
@@ -232,7 +211,36 @@ class AmpWidget:
             ]
         )
         self.midbox = widgets.HBox([self.imw, self.boxside], layout=box_layout)
+
+        if self.coords is not None:
+            if self.detectid is not None:
+                
+                self.shotid = None
+                
+                fiber_table_region = FIBINDEX.query_region(
+                    self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
+                )
+                shotlist = np.unique(fiber_table_region["shotid"])
+                
+                self.shotid_widget = widgets.Dropdown(
+                    options=shotlist, value=shotlist[0]
+                )
+            else:
+                pass
+        elif self.detectid is not None:
+            # open up detections h5 file to get info for
+            # highest weight fiber
+            self.get_amp_info_from_det()
+
+        self.im = get_image2D_amp(
+            self.shotid_widget.value,
+            multiframe=self.multiframe,
+            imtype=self.imtype,
+            expnum=self.expnum,
+        )
         
+        self.imw.load_array(self.im)
+
         display(widgets.VBox([self.topbox, self.midbox, self.bottombox]))
 
         # plot region for detection
