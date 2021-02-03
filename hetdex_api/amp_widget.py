@@ -43,7 +43,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=
+        detectid=2101697656,
         wave=None,
         shotid=None,
         multiframe=None,
