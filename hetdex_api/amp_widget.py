@@ -89,11 +89,6 @@ class AmpWidget:
         #            layout=Layout(width='20%'),
         #        )
 
-        if self.detectid is not None:
-            # open up detections h5 file to get info for
-            # highest weight fiber
-            self.get_amp_info_from_det()
-
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
@@ -126,28 +121,11 @@ class AmpWidget:
                 )
             else:
                 pass
+        elif self.detectid is not None:
+            # open up detections h5 file to get info for
+            # highest weight fiber
+            self.get_amp_info_from_det()
 
-        self.shotid_widget = widgets.Dropdown(
-            description="ShotID", options=shotlist, value=self.shotid,
-        )
-
-        self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
-        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
-
-        self.multiframe_widget = widgets.Dropdown(
-            description="MultiframeID", options=mflist, value=mflist[0]
-        )
-
-        self.expnum_widget = widgets.Dropdown(
-            description="ExpNum", options=[1, 2, 3], value=1,
-        )
-
-        self.imtype_widget = widgets.Dropdown(
-            description="ImType",
-            options=["clean_image", "image", "error"],
-            value=self.imtype,
-        )
 
         if self.coords is not None:
             self.im_ra = widgets.FloatText(
@@ -183,6 +161,28 @@ class AmpWidget:
             disabled=False,
         )
 
+        self.shotid_widget = widgets.Dropdown(
+            description="ShotID", options=shotlist, value=self.shotid,
+        )
+        
+        self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
+        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
+        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+        
+        self.multiframe_widget = widgets.Dropdown(
+            description="MultiframeID", options=mflist, value=mflist[0]
+        )
+        
+        self.expnum_widget = widgets.Dropdown(
+            description="ExpNum", options=[1, 2, 3], value=1,
+        )
+        
+        self.imtype_widget = widgets.Dropdown(
+            description="ImType",
+            options=["clean_image", "image", "error"],
+            value=self.imtype,
+        )
+                                                                
         self.im = get_image2D_amp(
             self.shotid_widget.value,
             multiframe=self.multiframe,
@@ -353,6 +353,7 @@ class AmpWidget:
             det_handle = HETDEX_DETECT_HDF5_HANDLE
 
         detectid_obj = self.detectid
+
         try:
             det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
