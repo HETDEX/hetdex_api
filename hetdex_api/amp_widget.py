@@ -43,10 +43,10 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=None,
+        detectid=2101848640,
         wave=None,
-        shotid=20200422015,
-        multiframe="multi_406_071_081_LU",
+        shotid=None,
+        multiframe=None,
         imtype="clean_image",
         expnum=1,
     ):
@@ -240,10 +240,13 @@ class AmpWidget:
         self.update_amp_image()
 
     def shotid_widget_change(self, b):
+        self.bottombox.clear_output()
         self.shoth5.close()
         self.coords = None
         self.detectid = None
-
+        self.im_ra.value = 0.0
+        self.im_dec.value = 0.0
+        
         self.shotid = self.shotid_widget.value
 
         self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
@@ -279,6 +282,7 @@ class AmpWidget:
         self.update_amp_image()
 
     def update_amp_image(self):
+        self.bottombox.clear_output()
         # add in bad amp check
         try:
             self.imw.remove_markers()
@@ -383,9 +387,13 @@ class AmpWidget:
         except IndexError:
             print('Detectid:{} is not found in database'.format(detectid_obj))
                 
-    def coord_change(b):
+    def coord_change(self, b):
         self.shotid = None
 
+        self.coords = SkyCoord(
+            ra=self.im_ra.value * u.deg, dec=self.im_dec.value * u.deg
+        )
+        
         fiber_table_region = FIBINDEX.query_region(
             self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
         )
@@ -393,7 +401,7 @@ class AmpWidget:
 
         self.shotid_widget = widgets.Dropdown(options=shotlist, value=shotlist[0])
 
-    def show_region(b):
+    def show_region(self, b):
         # get closest fiber:
 
         self.wave = self.wave_widget.value
