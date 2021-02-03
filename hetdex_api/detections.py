@@ -170,6 +170,7 @@ class Detections:
                 self.flux_err /= apcor_array
                 self.continuum /= apcor_array
                 self.continuum_err /= apcor_array
+                self.apcor = apcor_array
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
