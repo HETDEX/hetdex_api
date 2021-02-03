@@ -30,7 +30,8 @@ if version == '2.1.1':
 
     sel_cat = sel_field * sel_chi2 * sel_wave * sel_lw * sel_cont * sel_sn * sel_chi2fib
 
-elif version == '2.1.2':
+elif version in ['2.1.2','2.1.3']:
+    
     sel_cut1 = (detects.sn>=7) * (detects.chi2<=2.5)
     sel_cut2 = (detects.sn>=4.8) *  (detects.sn<7) * (detects.chi2<=1.2)
 
