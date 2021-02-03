@@ -43,7 +43,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=2101697656,
+        detectid=
         wave=None,
         shotid=None,
         multiframe=None,
@@ -148,7 +148,6 @@ class AmpWidget:
             self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
             sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
             mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
-        
             self.multiframe_widget = widgets.Dropdown(
                 description="MultiframeID", options=mflist, value=mflist[0]
             )
@@ -157,19 +156,20 @@ class AmpWidget:
             self.multiframe_widget = widgets.Dropdown(
                 description="MultiframeID", options=mflist, value=mflist[0]
             )
+
+        if self.multiframe is not None:
+            self.multiframe_widget.value = self.multiframe
         
         self.expnum_widget = widgets.Dropdown(
-            description="ExpNum", options=[1, 2, 3], value=1,
+            description="ExpNum", options=[1, 2, 3], value=self.expnum,
         )
-        
+
         self.imtype_widget = widgets.Dropdown(
             description="ImType",
             options=["clean_image", "image", "error"],
             value=self.imtype,
         )
 
-        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
-                    
         self.topbox = widgets.HBox(
             [
                 self.survey_widget,
@@ -203,6 +203,8 @@ class AmpWidget:
         )
         self.midbox = widgets.HBox([self.imw, self.boxside], layout=box_layout)
 
+        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
+        
         if self.coords is not None:
             if self.detectid is not None:
                 
@@ -304,7 +306,7 @@ class AmpWidget:
                 AMPFLAG_TABLE["multiframe"] == self.multiframe
             )
             flag = AMPFLAG_TABLE["flag"][sel][0]
-        except:
+        except Exception:
             print("Could not find amp in amp flag table")
             flag = True
 
@@ -336,7 +338,7 @@ class AmpWidget:
         self.bottombox.clear_output()
         self.detectid = self.detectbox.value
         self.get_amp_info_from_det()
-
+        
     def get_amp_info_from_det(self):
 
         global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
@@ -370,9 +372,13 @@ class AmpWidget:
             self.coords = SkyCoord(
                 det_row["ra"] * u.deg, det_row["dec"] * u.deg, frame="icrs"
             )
-            self.shotid = det_row["shotid"]
+            
+            if self.shotid != det_row["shotid"]:
+                self.shoth5.close()
+                self.shotid = det_row['shotid']
+                
             self.shotid_widget.value = self.shotid
-
+            
             # get MF array for shot
             self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
             sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
