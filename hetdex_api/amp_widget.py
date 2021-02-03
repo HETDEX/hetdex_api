@@ -43,7 +43,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=2101697656,
+        detectid=2100000000,
         wave=None,
         shotid=None,
         multiframe=None,
@@ -386,7 +386,6 @@ class AmpWidget:
             self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
             sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
             mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
-
             self.multiframe_widget.options = mflist
             self.multiframe = det_row["multiframe"].decode()
             self.multiframe_widget.value = self.multiframe
