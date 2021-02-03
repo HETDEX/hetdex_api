@@ -893,7 +893,8 @@ class Detections:
         table.add_column(Column(self.throughput), index=2, name="throughput")
         table.add_column(Column(self.field), index=4, name="field")
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
-
+        table.add_column(Column(self.apcor), name="apcor")
+        
         if self.survey == "hdr1":
             table.add_column(
                 Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550"
