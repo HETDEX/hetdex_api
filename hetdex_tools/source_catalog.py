@@ -1,9 +1,8 @@
 import numpy as np
 import time
-import glob
 import argparse as ap
 
-from astropy.table import Table, vstack, join, Column, unique
+from astropy.table import Table, vstack, join, Column
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
@@ -29,7 +28,11 @@ catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
 
-def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=5.0):
+def create_source_catalog(
+        version="2.1.2",
+        make_continuum=True,
+        save=True,
+        dsky=5.0):
 
     global config
 
@@ -59,16 +62,14 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
-    detects_broad_table.add_column( Column('agn', name='det_type', dtype=str))
+    detects_broad_table.add_column(Column("agn", name="det_type", dtype=str))
     dets_all.close()
     del dets_all_table
 
-    detect_table = vstack([detects_line_table,
-                           detects_broad_table,
-                           detects_cont_table])
+    detect_table = vstack([detects_line_table, detects_broad_table, detects_cont_table])
 
     del detects_cont_table_orig, detects_cont_table, detects_broad_table
-    
+
     kdtree, r = fof.mktree(
         detect_table["ra"],
         detect_table["dec"],
@@ -114,13 +115,12 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
     detfriend_all = join(detfriend_tab, friend_table, keys="id")
 
     del detfriend_tab
-    
+
     expand_table = join(detfriend_all, detect_table, keys="detectid")
 
     del detfriend_all, detect_table, friend_table
 
-    if version == '2.1.2':#will want to improve this logic
-        starting_id = int(2.12 * 10 ** 12)
+    starting_id = int(version.replace('.', '', 2))*10**10
 
     expand_table.add_column(
         Column(expand_table["id"] + starting_id, name="source_id"), index=0
@@ -148,9 +148,6 @@ def create_source_catalog(version="2.1.2", make_continuum=True, save=True, dsky=
     expand_table.rename_column("icy", "dec_mean")
 
     expand_table.sort("source_id")
-
-#    if save:
-#        expand_table.write("source_catalog_" + version + ".fits", overwrite=True)
 
     return expand_table
 
@@ -180,19 +177,22 @@ def z_guess_3727(group, cont=False):
         try:
             wave_guess = np.min(group["wave"][sel_good_lines])
             z_guess = wave_guess / 3727.0 - 1
-        except:
+        except Exception:
             z_guess = -2.0
-        else:
-            z_guess = 0.0
+    else:
+        z_guess = 0.0
 
     return z_guess
 
 
-def guess_source_wavelength(source_id, source_table):
+def guess_source_wavelength(source_id):
 
+    global source_table
+    
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
     z_guess = -1.0
+    s_type = "none"
 
     # for now assign a plae_classification for -1 values
     if np.any(group["det_type"] == "agn"):
@@ -201,18 +201,23 @@ def guess_source_wavelength(source_id, source_table):
         agn_dets = group["detectid"][group["det_type"] == "agn"]
         sel_det = agn_tab["detectid"] == agn_dets[0]
         z_guess = agn_tab["z"][sel_det][0]
+        s_type = "agn"
 
     elif np.any(group["gaia_match_id"] > 0):
-        z_guess = 0.0 #z_guess_3727(group, cont=True)
+        z_guess = 0.0  # z_guess_3727(group, cont=True)
+        s_type = "star"
 
     elif np.any(group["det_type"] == "cont"):
         z_guess = z_guess_3727(group, cont=True)
+        s_type = "low-z"
 
     elif np.any(group["plae_classification"] < 0.3):
         z_guess = z_guess_3727(group)
+        s_type = "low-z"
 
     elif np.nanmedian(group["plae_classification"] < 0.5):
         z_guess = z_guess_3727(group)
+        s_type = "low-z"
 
     elif np.nanmedian(group["plae_classification"] > 0.5):
         if np.any(group["sn"] > 15):
@@ -234,12 +239,14 @@ def guess_source_wavelength(source_id, source_table):
             argmaxsn = np.argmax(group["sn"])
             wave_guess = group["wave"][argmaxsn]
             z_guess = wave_guess / 1216.0 - 1
+        s_type = "high-z"
     else:
         argmaxsn = np.argmax(group["sn"])
         wave_guess = group["wave"][argmaxsn]
         z_guess = wave_guess / 1216.0 - 1
+        s_type = "unsure"
 
-    return z_guess
+    return z_guess, s_type
 
 
 def add_z_guess(source_table):
@@ -251,6 +258,12 @@ def add_z_guess(source_table):
     except Exception:
         pass
 
+    try:
+        # remove z_guess column if it exists
+        print("Removing existing z_guess column")
+        source_table.remove_column("source_type")
+    except Exception:
+        pass
     print("Assigning a best guess redshift")
 
     from multiprocessing import Pool
@@ -258,26 +271,32 @@ def add_z_guess(source_table):
     src_list = np.unique(source_table["source_id"])
 
     t0 = time.time()
-    p = Pool()
-    src_z = p.map(guess_source_wavelength, src_list)
+    p = Pool(24)
+    res = p.map(guess_source_wavelength, src_list)
     t1 = time.time()
+    z_guess = []
+    s_type = []
+    for r in res:
+        z_guess.append(r[0])
+        s_type.append(r[1])
     p.close()
 
     print("Finished in {:3.2f} minutes".format((t1 - t0) / 60))
 
-    z_guess = np.array(src_z)
-    z_table = Table([src_list, z_guess], names=["source_id", "z_guess"])
+    z_table = Table(
+        [src_list, z_guess, s_type],
+        names=["source_id", "z_guess", "source_type"]
+    )
 
     all_table = join(source_table, z_table, join_type="left")
-
+    del source_table, z_table
+    
     return all_table
 
 
-def plot_source_group(source_id=None,
-                      source_table=None,
-                      k=3.5, vmin=3, vmax=99,
-                      label=True,
-                      save=False):
+def plot_source_group(
+    source_id=None, source_table=None, k=3.5, vmin=3, vmax=99, label=True, save=False
+):
     """
     Plot a unique source group from the HETDEX
     unique source catalog
@@ -314,22 +333,23 @@ def plot_source_group(source_id=None,
         )
 
         cosd = np.cos(np.deg2rad(group["dec_mean"][0]))
-        imsize = np.max([
-            np.max(
-                [
-                    (np.max(group["ra"]) - np.min(group["ra"])) * cosd,
-                    (np.max(group["dec"]) - np.min(group["dec"])),
-                ]
-            )
-            * 1.7,
-            10.0 / 3600.0])
+        imsize = np.max(
+            [
+                np.max(
+                    [
+                        (np.max(group["ra"]) - np.min(group["ra"])) * cosd,
+                        (np.max(group["dec"]) - np.min(group["dec"])),
+                    ]
+                )
+                * 1.7,
+                10.0 / 3600.0,
+            ]
+        )
 
     else:
         imsize = 10.0 / 3600.0
 
-    coords = SkyCoord(
-        ra=group["ra_mean"][0] * u.deg, dec=group["dec_mean"][0] * u.deg
-    )
+    coords = SkyCoord(ra=group["ra_mean"][0] * u.deg, dec=group["dec_mean"][0] * u.deg)
 
     cutout = catlib.get_cutouts(
         position=coords,
@@ -339,7 +359,7 @@ def plot_source_group(source_id=None,
         allow_bad_image=False,
         allow_web=True,
     )[0]
-    
+
     im = cutout["cutout"].data
     wcs = cutout["cutout"].wcs
     plt.figure(figsize=(8, 8))
@@ -365,47 +385,47 @@ def plot_source_group(source_id=None,
         horizontalalignment="right",
     )
 
-
     # plot the group members
-    sel_line = group['det_type'] == 'line'
+    sel_line = group["det_type"] == "line"
     if np.sum(sel_line) >= 1:
         plt.scatter(
-            group['ra'][sel_line],
-            group['dec'][sel_line],
+            group["ra"][sel_line],
+            group["dec"][sel_line],
             transform=ax.get_transform("world"),
             marker="o",
             color="orange",
             linewidth=4,
-            s=group['sn'][sel_line],
+            s=group["sn"][sel_line],
             zorder=100,
-            label='line emission'
+            label="line emission",
         )
 
-    sel_cont = group['det_type'] == 'cont'
-    if np.sum(sel_cont)>= 1:
+    sel_cont = group["det_type"] == "cont"
+    if np.sum(sel_cont) >= 1:
         plt.scatter(
-            group['ra'][sel_cont],
-            group['dec'][sel_cont],
+            group["ra"][sel_cont],
+            group["dec"][sel_cont],
             transform=ax.get_transform("world"),
             marker="o",
             color="green",
             linewidth=4,
             s=10,
-            label='continuum'
+            label="continuum",
         )
-        
-    sel_agn = group['det_type'] == 'agn'
-    if np.sum(sel_agn)>= 1:
+
+    sel_agn = group["det_type"] == "agn"
+    if np.sum(sel_agn) >= 1:
         plt.scatter(
-            group['ra'][sel_agn],
-            group['dec'][sel_agn],
+            group["ra"][sel_agn],
+            group["dec"][sel_agn],
             transform=ax.get_transform("world"),
             marker="o",
             color="red",
             linewidth=4,
             s=10,
-            label='agn')
-        
+            label="agn",
+        )
+
     # plot and elliptical kron-like aperture representing the group. Ellipse
     # in world coords does not work, so plot in pixelcoordinates...
     # East is to the right in these plots, so pa needs transform
@@ -455,8 +475,8 @@ def plot_source_group(source_id=None,
                 fontsize=9,
                 color="red",
             )
-#    z_guess = guess_source_wavelength(source_id, source_table)
-    z_guess = group['z_guess'][0]
+    #    z_guess = guess_source_wavelength(source_id, source_table)
+    z_guess = group["z_guess"][0]
 
     plt.title(
         "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%4.3f"
@@ -472,7 +492,7 @@ def plot_source_group(source_id=None,
     plt.xlabel("RA")
     plt.ylabel("DEC")
     plt.legend()
-    
+
     if save:
         plt.savefig("figures/source-%03d.png" % source_id, format="png")
         plt.close()
@@ -496,20 +516,25 @@ def get_parser():
     )
 
     parser.add_argument(
-        "-dsky", "--dsky", help="""Spatial linking length in arcsec""", default=5.0,
+        "-dsky",
+        "--dsky",
+        type=float,
+        help="""Spatial linking length in arcsec""",
+        default=5.0,
     )
 
     return parser
+
 
 def get_source_name(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
     """
-    coord = SkyCoord(ra*u.deg, dec*u.deg)
-   
+    coord = SkyCoord(ra * u.deg, dec * u.deg)
     return "HETDEX J{0}{1}".format(
         coord.ra.to_string(unit=u.hourangle, sep="", precision=2, pad=True),
-        coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True))
+        coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True),
+    )
 
 
 def main(argv=None):
@@ -518,17 +543,38 @@ def main(argv=None):
     parser = get_parser()
     args = parser.parse_args(argv)
 
+    print('Combining catalogs')
+    global source_table
+    print(args.dsky)
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-
+    #source_table = Table.read("source_catalog_2.1.2.fits")
     # add source name
     source_name = []
     for row in source_table:
-        source_name.append( get_source_name(row['ra_mean'], row['dec_mean']))
-    source_table.add_column( source_name, name='source_name', index=1)
+        source_name.append(get_source_name(row["ra_mean"], row["dec_mean"]))
+    source_table.add_column(source_name, name="source_name", index=1)
 
-    source_table = add_z_guess(source_table)
+    # Clear up memory
 
-    source_table.write('test.fits')
+    for name in dir():
+        if source_table:
+            continue
+        elif not name.startswith('_'):
+            del globals()[name]
+
+    for name in dir():
+        if not name.startswith('_'):
+            del locals()[name]
+
+    import gc
+    gc.collect()
+
+    # add a guess on redshift and source type
+    out_table = add_z_guess(source_table)
+
+    out_table.write("source_catalog_{}.fits".format(args.version),
+                    overwrite=True)
+
 
 if __name__ == "__main__":
     main()
