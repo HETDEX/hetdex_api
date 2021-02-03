@@ -186,6 +186,14 @@ class AmpWidget:
         label1 = widgets.Label(value="Enter a coordinate to down-select shots")
         label2 = widgets.Label(value="Find a coordinate/wavelength region")
 
+        self.get_cursor_button = = widgets.Button(
+                        description="Get RA/DEC/WAVE",
+                        toolkit="This will map XY coordinate to RA/DEC/WAVE above",
+                        button_style="success",
+                        disabled=False,
+                    )
+        
+        
         self.boxside = widgets.VBox(
             [
                 label1,
@@ -199,6 +207,7 @@ class AmpWidget:
                 self.multiframe_widget,
                 self.expnum_widget,
                 self.imtype_widget,
+                self.get_cursor_button,
             ]
         )
         self.midbox = widgets.HBox([self.imw, self.boxside], layout=box_layout)
@@ -244,7 +253,7 @@ class AmpWidget:
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
         self.det_button.on_click(self.on_det_go)
-        self.imw.on_click(self.on_im_click)
+        self.get_cursor_button.on_click(self.get_ra_dec_wave)
         
     def im_widget_change(self, b):
         self.update_amp_image()
@@ -443,6 +452,5 @@ class AmpWidget:
         self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
-    def on_im_click(self, b):
-        print('clicked')
-        
+    def get_ra_dec_wave(self, b):
+        print('getting radec')
