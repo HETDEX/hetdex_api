@@ -374,7 +374,10 @@ class AmpWidget:
             )
             
             if self.shotid != det_row["shotid"]:
-                self.shoth5.close()
+                try:
+                    self.shoth5.close()
+                except:
+                    pass
                 self.shotid = det_row['shotid']
                 
             self.shotid_widget.value = self.shotid
