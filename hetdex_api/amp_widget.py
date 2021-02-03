@@ -452,11 +452,13 @@ class AmpWidget:
         self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
-    def get_ra_dec_wave(self, b):
-        self.reset_markers()
-        self.imw.start_marking(marker={'color': 'red',
-                                       'radius': 5,
-                                       'type': 'cross'},
-                               marker_name='clicked markers',
-        )
-        self.imw.stop_marking()
+#    def get_ra_dec_wave(self, b):
+#        self.reset_markers()
+#        self.imw.start_marking(marker={'color': 'red',
+#                                       'radius': 5,
+#                                       'type': 'cross'},
+#                               marker_name='clicked markers',
+#        )
+#        while is_marking:
+#            
+#        self.imw.stop_marking()
