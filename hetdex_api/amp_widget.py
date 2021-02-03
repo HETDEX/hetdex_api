@@ -170,15 +170,6 @@ class AmpWidget:
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
                     
-        self.im = get_image2D_amp(
-            self.shotid_widget.value,
-            multiframe=self.multiframe,
-            imtype=self.imtype,
-            expnum=self.expnum,
-        )
-
-        self.imw.load_array(self.im)
-
         self.topbox = widgets.HBox(
             [
                 self.survey_widget,
