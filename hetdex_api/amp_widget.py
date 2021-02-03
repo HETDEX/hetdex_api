@@ -244,7 +244,8 @@ class AmpWidget:
         self.select_coords.on_click(self.coord_change)
         self.show_button.on_click(self.show_region)
         self.det_button.on_click(self.on_det_go)
-
+        self.imw.on_click(self.on_im_click)
+        
     def im_widget_change(self, b):
         self.update_amp_image()
 
@@ -363,7 +364,7 @@ class AmpWidget:
 
         detectid_obj = self.detectid
 
-        if True:
+        try:
             det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
             self.im_dec.value = det_row["dec"]
@@ -400,8 +401,9 @@ class AmpWidget:
             
             self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
             self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
-        else:#except IndexError:
-            print('Detectid:{} is not found in database'.format(detectid_obj))
+        except IndexError:
+            with self.bottombox:
+                print('Detectid:{} is not found in database'.format(detectid_obj))
                 
     def coord_change(self, b):
         self.shotid = None
@@ -414,9 +416,12 @@ class AmpWidget:
             self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
         )
         shotlist = np.unique(fiber_table_region["shotid"])
-
-        self.shotid_widget = widgets.Dropdown(options=shotlist, value=shotlist[0])
-
+        if np.size(shotlist) > 0:
+            self.shotid_widget = widgets.Dropdown(options=shotlist, value=shotlist[0])
+        else:
+            with self.bottombox:
+                print('No observations near {}'.format(self.coords))
+            
     def show_region(self, b):
         # get closest fiber:
 
@@ -437,3 +442,7 @@ class AmpWidget:
 
         self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
+
+    def on_im_click(self, b):
+        print('clicked')
+        
