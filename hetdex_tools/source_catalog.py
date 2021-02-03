@@ -574,6 +574,8 @@ def main(argv=None):
 
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
+    out_table.write("source_catalog_{}.tab".format(args.version),
+                    format='ascii', overwrite=True)
 
 
 if __name__ == "__main__":
