@@ -43,7 +43,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=2101848640,
+        detectid=None,
         wave=None,
         shotid=None,
         multiframe=None,
@@ -143,14 +143,20 @@ class AmpWidget:
         self.shotid_widget = widgets.Dropdown(
             description="ShotID", options=shotlist, value=self.shotid,
         )
+
+        if self.shotid is not None:
+            self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
+            sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
+            mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
         
-        self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
-        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
-        
-        self.multiframe_widget = widgets.Dropdown(
-            description="MultiframeID", options=mflist, value=mflist[0]
-        )
+            self.multiframe_widget = widgets.Dropdown(
+                description="MultiframeID", options=mflist, value=mflist[0]
+            )
+        else:
+            mflist = np.unique(AMPFLAG_TABLE["multiframe"])
+            self.multiframe_widget = widgets.Dropdown(
+                description="MultiframeID", options=mflist, value=mflist[0]
+            )
         
         self.expnum_widget = widgets.Dropdown(
             description="ExpNum", options=[1, 2, 3], value=1,
