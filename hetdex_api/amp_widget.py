@@ -186,7 +186,7 @@ class AmpWidget:
         label1 = widgets.Label(value="Enter a coordinate to down-select shots")
         label2 = widgets.Label(value="Find a coordinate/wavelength region")
 
-        self.get_cursor_button = = widgets.Button(
+        self.get_cursor_button = widgets.Button(
                         description="Get RA/DEC/WAVE",
                         toolkit="This will map XY coordinate to RA/DEC/WAVE above",
                         button_style="success",
