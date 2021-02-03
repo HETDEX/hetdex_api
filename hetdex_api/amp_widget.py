@@ -330,9 +330,9 @@ class AmpWidget:
         )
         self.imw.load_array(self.im)
 
-        if self.coords is not None:
-            self.imw.center_on(self.coords)
-            self.imw.zoom_level = 4
+        #if self.coords is not None:
+            #self.imw.center_on(self.coords)
+            #self.imw.zoom_level = 4
 
     def on_det_go(self, b):
         self.bottombox.clear_output()
