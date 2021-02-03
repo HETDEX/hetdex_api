@@ -373,7 +373,7 @@ class AmpWidget:
 
         detectid_obj = self.detectid
 
-        try:
+        if True:
             det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
             self.im_dec.value = det_row["dec"]
@@ -410,7 +410,7 @@ class AmpWidget:
             
             self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
             self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
-        except IndexError:
+        else:#except IndexError:
             with self.bottombox:
                 print('Detectid:{} is not found in database'.format(detectid_obj))
                 
@@ -453,4 +453,10 @@ class AmpWidget:
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def get_ra_dec_wave(self, b):
-        print('getting radec')
+        self.reset_markers()
+        self.imw.start_marking(marker={'color': 'red',
+                                       'radius': 5,
+                                       'type': 'cross'},
+                               marker_name='clicked markers',
+        )
+        self.imw.stop_marking()
