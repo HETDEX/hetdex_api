@@ -1196,7 +1196,7 @@ class ElixerWidget:
                     # pass
                     # print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
                 det_handle = HETDEX_DETECT_HDF5_HANDLE
-                    
+        print(det_handle)            
         if det_handle is not None:
             detid = self.detectbox.value
             try:
@@ -1208,3 +1208,5 @@ class ElixerWidget:
                 display(self.det_row.show_in_notebook())
             except Exception as e:
                 self.status_box.value = str(e) + "\n" + traceback.format_exc()
+        
+        
