@@ -9,6 +9,15 @@ import numpy as np
 from hetdex_api.detections import Detections
 from hetdex_api.config import HDRconfig
 
+from multiprocessing import Pool
+
+
+def return_fiber_ratio(det):
+    fiber_row = fiber_table.read_where('detectid == det')
+    weights = np.sort(fiber_row['weight'])
+    fiber_ratio = weights[-1]/weights[-2]
+    return fiber_ratio
+
 version = str(sys.argv[1])
 
 config = HDRconfig()
@@ -86,6 +95,13 @@ elif version in ['2.1.2','2.1.3']:
 else:
     print("Provide a version : eg. 2.1.2")
     sys.exit()
+
+
+p = Pool()
+fiber_ratio = p.map(return_fiber_ratio, det_table['detectid'])
+p.close()
+
+det_table.add_column(fiber_ratio, name='fiber_ratio')
 
 det_table.write('detect_hdr{}.tab'.format(version),
                          format='ascii',
