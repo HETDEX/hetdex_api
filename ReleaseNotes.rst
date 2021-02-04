@@ -1,6 +1,13 @@
 ``hetdex_api`` release notes
 ==========================
 
+Release 0.8.7
+-------------
+- updates for 2.1.3 catalogs
+- including apcor as column in catalogs and detections.py
+- finalized source_catalog.py command line functionality
+- incorporated continuum h5 file into amp_widget.py and elixer_widget_cls.py
+
 Release 0.8.6
 -------------
 - Updates to SourceCatalog.ipynb
