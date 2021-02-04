@@ -370,8 +370,6 @@ class AmpWidget:
                 except Exception:
                     print("Could not open detections database")
             det_handle = HETDEX_DETECT_HDF5_HANDLE
-
-        print(det_handle)
         
         detectid_obj = self.detectid
 
