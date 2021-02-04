@@ -52,6 +52,7 @@ try:  # using HDRconfig
     HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
     ELIXER_H5 = None
     elix_dir = None
+    
 except Exception as e:
     HETDEX_API_CONFIG = None
     # needed only if detection observered wavelength is not supplied
@@ -64,7 +65,8 @@ except Exception as e:
 
     HETDEX_DETECT_HDF5_HANDLE = None
     ELIXER_H5 = None
-    elix_dir = None
+elix_dir = None
+det_handle = None    
 
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
@@ -1176,9 +1178,8 @@ class ElixerWidget:
 
         global HETDEX_DETECT_HDF5_HANDLE
         global CONT_H5_HANDLE
+        global det_handle
 
-        det_handle = None
-        
         detid = self.detectbox.value
         if detid >= 2190000000:
             if CONT_H5_HANDLE is None:
@@ -1195,7 +1196,8 @@ class ElixerWidget:
                     self.status_box.value = str(e) + "\n" + traceback.format_exc()
                     # pass
                     # print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
-                det_handle = HETDEX_DETECT_HDF5_HANDLE
+            det_handle = HETDEX_DETECT_HDF5_HANDLE
+
         print(det_handle)            
         if det_handle is not None:
             detid = self.detectbox.value
