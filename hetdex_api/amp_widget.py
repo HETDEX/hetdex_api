@@ -380,6 +380,7 @@ class AmpWidget:
             det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
             self.im_dec.value = det_row["dec"]
+            
             self.wave = det_row["wave"]
             self.wave_widget.value = self.wave
             self.coords = SkyCoord(
@@ -456,7 +457,8 @@ class AmpWidget:
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def get_ra_dec_wave(self, b):
-        print('This is not functioning yet')
+        with self.bottombox:
+            print('This is not functioning yet')
 #        self.reset_markers()
 #        self.imw.start_marking(marker={'color': 'red',
 #                                       'radius': 5,
