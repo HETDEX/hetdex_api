@@ -1177,6 +1177,8 @@ class ElixerWidget:
         global HETDEX_DETECT_HDF5_HANDLE
         global CONT_H5_HANDLE
 
+        det_handle = None
+        
         detid = self.detectbox.value
         if detid >= 2190000000:
             if CONT_H5_HANDLE is None:
