@@ -273,7 +273,6 @@ class AmpWidget:
         mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
 
         self.multiframe_widget.options = mflist
-        self.multiframe_widget.value = self.multiframe
 
         try:
             sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
@@ -282,6 +281,7 @@ class AmpWidget:
             flag = AMPFLAG_TABLE["flag"][sel][0]
         except:
             self.multiframe = mflist[0]
+            self.multiframe_widget.value = mflist[0]
             sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
                 AMPFLAG_TABLE["multiframe"] == self.multiframe
             )
