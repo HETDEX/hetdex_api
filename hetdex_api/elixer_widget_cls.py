@@ -1193,7 +1193,7 @@ class ElixerWidget:
                     self.status_box.value = str(e) + "\n" + traceback.format_exc()
                     # pass
                     # print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
-                det_handle = HETDEX_HDF5_HANDLE
+                det_handle = HETDEX_DETECT_HDF5_HANDLE
                     
         if det_handle is not None:
             detid = self.detectbox.value
