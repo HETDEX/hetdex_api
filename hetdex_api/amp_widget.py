@@ -243,7 +243,7 @@ class AmpWidget:
         
         self.imw.load_array(self.im)
 
-        display(widgets.VBox([self.topbox, self.midbox, self.bottombox]))
+        display( widgets.VBox([self.topbox, self.midbox, self.bottombox]))
 
         # plot region for detection
         self.multiframe_widget.observe(self.im_widget_change)
@@ -317,7 +317,8 @@ class AmpWidget:
             )
             flag = AMPFLAG_TABLE["flag"][sel][0]
         except Exception:
-            print("Could not find amp in amp flag table")
+            with self.bottombox:
+                print("Could not find amp in amp flag table")
             flag = True
 
         if flag:
@@ -359,7 +360,8 @@ class AmpWidget:
                 try:
                     CONT_H5_HANDLE = tb.open_file(CONT_H5_FN, "r")
                 except Exception:
-                    print("Could not open continuum database")
+                    with self.bottombox:
+                        print("Could not open continuum database")
             det_handle = CONT_H5_HANDLE
 
         elif self.detectid >= 2100000000:
@@ -368,12 +370,13 @@ class AmpWidget:
                     HETDEX_DETECT_HDF5_HANDLE = tb.open_file(
                         HETDEX_DETECT_HDF5_FN, "r")
                 except Exception:
-                    print("Could not open detections database")
+                    with self.bottombox:
+                        print("Could not open detections database")
             det_handle = HETDEX_DETECT_HDF5_HANDLE
         
         detectid_obj = self.detectid
 
-        if True:
+        try:
             det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
             self.im_dec.value = det_row["dec"]
@@ -410,7 +413,7 @@ class AmpWidget:
             
             self.imw.marker = {"color": "red", "radius": 10, "type": "circle"}
             self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
-        else:#except IndexError:
+        except IndexError:
             with self.bottombox:
                 print('Detectid:{} is not found in database'.format(detectid_obj))
                 
