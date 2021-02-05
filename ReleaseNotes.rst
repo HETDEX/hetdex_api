@@ -4,8 +4,9 @@
 Release 0.8.7
 -------------
 - updates for 2.1.3 catalogs
-- including apcor as column in catalogs and detections.py
+- including apcor,fiber_ratio as column in catalogs and detections.py
 - finalized source_catalog.py command line functionality
+- add source_type column in source_catalog
 - incorporated continuum h5 file into amp_widget.py and elixer_widget_cls.py
 
 Release 0.8.6
