@@ -210,11 +210,11 @@ def guess_source_wavelength(source_id):
 
     elif np.any(group["det_type"] == "cont"):
         z_guess = z_guess_3727(group, cont=True)
-        s_type = "low-z"
+        s_type = "oii"
 
     elif np.any(group["plae_classification"] < 0.3):
         z_guess = z_guess_3727(group)
-        s_type = "low-z"
+        s_type = "oii"
 
     elif np.nanmedian(group["plae_classification"] < 0.5):
         z_guess = z_guess_3727(group)
