@@ -96,10 +96,18 @@ else:
     print("Provide a version : eg. 2.1.2")
     sys.exit()
 
+fiber_table = detects.hdfile.root.Fibers
 
-p = Pool()
-fiber_ratio = p.map(return_fiber_ratio, det_table['detectid'])
-p.close()
+#p = Pool(24)
+
+fiber_ratio = []
+for det in det_table['detectid']:
+    fiber_row = fiber_table.read_where('detectid == det')
+    weights = np.sort(fiber_row['weight'])
+    fiber_ratio.append( weights[-1]/weights[-2])
+
+#fiber_ratio = p.map(return_fiber_ratio, det_table['detectid'])
+#p.close()
 
 det_table.add_column(fiber_ratio, name='fiber_ratio')
 
