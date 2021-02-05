@@ -130,6 +130,7 @@ class HDRconfig:
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
             self.badamp2 = op.join(self.bad_dir, "badamps.list")
+            self.badamp_single = op.join(self.bad_dir, "badamps_single.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
             self.baddetectmask = op.join(
                 self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p"
