@@ -41,6 +41,10 @@ shotid = int(str(date) + str(obs).zfill(3))
 survey = Survey()
 
 shot_coords = survey.coords[survey.shotid == shotid][0]
+
+seeing = survey.fwhm_virus[survey.shotid == shotid][0]
+tp = survey.response_4540[survey.shotid == shotid][0]
+
 hdf_filename_hdr2pt1, mask_fn = return_sensitivity_hdf_path(datevobs, release="hdr2.1", return_mask_fn=True)
 
 hdfcont_hdr2 = SensitivityCubeHDF5Container(filename=hdf_filename_hdr2pt1, aper_corr=1.0,
@@ -118,5 +122,6 @@ for i_ifu in np.arange( 0, np.size(ifu_name_list)):
     plt.text( ifu_ra[i_ifu]-0.012, ifu_dec[i_ifu]+0.008, ifu_name_list[i_ifu][9:],
               transform=ax.get_transform('fk5'), fontsize=12)
 
-plt.title( "Flim" + str(datevobs) + ' at ' + str(int(wave[sel_slice])))
+plt.title( str(datevobs) + ' at ' + str(int(wave[sel_slice]))
+           + ' FWHM={:3.2f}\" TP={:3.2f}'.format(seeing, tp))
 plt.savefig("FlimSlice" + str(datevobs)  + 'w' + str(int(wave[sel_slice])) + '.png')
