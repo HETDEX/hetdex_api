@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
+import os.path as op
 from astropy.wcs import WCS
 from astropy.visualization import ZScaleInterval
 from astropy.visualization.wcsaxes import WCSAxes
@@ -51,9 +52,18 @@ hdfcont_hdr2 = SensitivityCubeHDF5Container(filename=hdf_filename_hdr2pt1, aper_
                                             flim_model="hdr2pt1",  mask_filename=mask_fn)
 
 #overplot detections
-detects = Detections(curated_version='2.1.2')
-sel_shot = detects.shotid == shotid
-detects_shot = detects[sel_shot]
+#detects = Detections(curated_version='2.1.3')
+#sel_shot = detects.shotid == shotid
+#detects_shot = detects[sel_shot]
+
+version = '2.1.3'
+
+config = HDRconfig()
+catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
+source_table = Table.read(catfile)
+source_table_shot = source_table[source_table['shotid'] == shotid]
+
+del source_table
 
 # sel slice to plot.. can update this later as a variable
 wave = 3470 + np.arange(0 , 1036)*2.
@@ -115,13 +125,26 @@ for gal_region in gal_regions:
     gal_pix = gal_region.to_pixel(wcs_out)
     gal_pix.plot(ax=ax, color="blue", linewidth=2)
     
-plt.scatter(detects_shot.ra*u.deg, detects_shot.dec*u.deg, transform=ax.get_transform('fk5'), s=5,
-                      edgecolor='red', facecolor='none')
+#plt.scatter(detects_shot.ra*u.deg, detects_shot.dec*u.deg, transform=ax.get_transform('fk5'), s=5,
+#                      edgecolor='red', facecolor='none')
+
+src_dict = {'oii': 'blue',
+            'lae': 'red',
+            'star': 'green',
+            'agn':'orange'}
+
+for src in np.unique(source_table_shot['source_type']):
+    sel_src = source_table_shot['source_type'] == src
+    plt.scatter(source_table_shot['ra'][sel_src],
+                source_table_shot['dec'][sel_src],
+                transform=ax.get_transform('fk5'), s=5,
+                label=src, color=src_dict[src])
+    
 #plot up IFUnumber:
 for i_ifu in np.arange( 0, np.size(ifu_name_list)):
     plt.text( ifu_ra[i_ifu]-0.012, ifu_dec[i_ifu]+0.008, ifu_name_list[i_ifu][9:],
               transform=ax.get_transform('fk5'), fontsize=12)
-
+plt.legend()
 plt.title( str(datevobs) + ' at ' + str(int(wave[sel_slice]))
            + ' FWHM={:3.2f}\" TP={:3.2f}'.format(seeing, tp))
 plt.savefig("FlimSlice" + str(datevobs)  + 'w' + str(int(wave[sel_slice])) + '.png')
