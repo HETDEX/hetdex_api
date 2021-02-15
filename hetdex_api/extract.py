@@ -136,7 +136,11 @@ class Extract:
         xc = dy + ifux[0]
         return xc, yc
 
-    def get_fiberinfo_for_coord(self, coord, radius=8.0, ffsky=False):
+    def get_fiberinfo_for_coord(self,
+                                coord,
+                                radius=8.0,
+                                ffsky=False,
+                                return_fibtable=False):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -149,6 +153,9 @@ class Extract:
         ffsky: bool
             Flag to choose local (ffsky=False) or full frame (ffsky=True)
             sky subtraction
+        fibtable: bool
+            Return full fibers table. This is needed to get additional
+            masking and to debug fiberid weights
         
         Returns
         -------
@@ -231,7 +238,15 @@ class Extract:
         xc, yc = self.convert_radec_to_ifux_ifuy(
             ifux, ifuy, ra, dec, coord.ra.deg, coord.dec.deg
         )
-        return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
+        if return_fibtable:
+            if self.Fibers is None:
+                self.log.warning(
+                    "No fiber table returned when full Fibers array is loaded")
+                return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
+            else:
+                return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask, fib_table
+        else:
+            return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
 
     def get_starcatalog_params(self):
         """
