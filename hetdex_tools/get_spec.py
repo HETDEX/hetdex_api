@@ -95,9 +95,12 @@ from collections.abc import Mapping
 from multiprocessing import Process, Manager
 import time
 
+from hetdex_api.config import HDRconfig
+
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
+LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
@@ -150,7 +153,7 @@ def get_source_spectra(shotid, args):
                 else:
                     args.log.info("Extracting %s" % args.ID)
 
-                ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
+                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fib_table = info_result
 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
@@ -240,7 +243,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 else:
                     args.log.info("Extracting %s" % args.ID)
 
-                ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
+                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fib_table = info_result
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
 
                 result = E.get_spectrum(data, error, mask, weights)
@@ -471,7 +474,7 @@ def get_parser():
         "--rad",
         help="""radius, e.g., aperture radius in arcsec""",
         type=float,
-        default=3.0,
+        default=3.5,
     )
 
     parser.add_argument("-id", "--ID", help="""source name""", type=str, default=None)
@@ -532,7 +535,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr2.1",
+        default=LATEST_HDR_NAME,
     )
 
     parser.add_argument("-tpmin", "--tpmin", type=float, default=None)
@@ -554,7 +557,15 @@ def get_parser():
         required=False,
         action="store_true",
     )
-
+    parser.add_argument(
+        "--fiberids",
+        "-fid",
+        help="""Set to retrieve fibers ids and corresponding weights.""",
+        default=False,
+        required=False,
+        action="store_true",
+            )
+    
         
     return parser
 
@@ -725,13 +736,14 @@ if __name__ == "__main__":
 def get_spectra(
     coords,
     ID=None,
-    rad=3.0,
+    rad=3.5,
     multiprocess=True,
     shotid=None,
-    survey="hdr2.1",
+    survey=LATEST_HDR_NAME,
     tpmin=None,
     ffsky=False,
-    fiberweights=False
+    fiberweights=False,
+    fiberids=False,
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -749,30 +761,33 @@ def get_spectra(
         generate a running index if no ID is given
     rad
         radius of circular aperture to be extracted in arcsec.
-        Default is 3.0
-    multiprocess
+        Default is 3.5
+    multiprocess: bool
         boolean flag to use multiprocessing. This will greatly
         speed up its operation as it will extract on 32 shots at
         time. But only use this when on a compute node. Use
         idev, a jupyter notebook, or submit the job as a single
-        python slurm job.
-    shotid
+        python slurm job. Default is True
+    shotid: int
         list of integer shotids to do extractions on. By default
         it will search the whole survey except for shots located
         in the bad.shotlist file
-    survey
+    survey: str
         Survey you want to access. User note that HDR1 extractions
         are much slower compared to HDR2.
-    tpmin
-        Include only shots above tpmin. Default is None.
-    ffsky
+    tpmin: float
+        Include only shots above tpmin. Default is 0.08
+    ffsky: bool
         Use the full frame 2D sky subtraction model. Default is
         to use the local sky subtracted, flux calibrated fibers.
-    fiberweights
+    fiberweights: bool
         Boolean flag to include fiber_weights tuple in source
         dictionary. This is used in Elixer, but is slow
         when used on large source lists.
-    
+    fiberids: bool
+        returns the fiberids and weights of the fibers used
+        in the extraction
+
     Returns
     -------
     sources
@@ -790,7 +805,8 @@ def get_spectra(
 
     args.ffsky = ffsky
     args.fiberweights = fiberweights
-
+    args.fiberids = fiberids
+    
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
 
