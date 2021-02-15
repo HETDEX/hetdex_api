@@ -45,8 +45,9 @@ def create_source_catalog(
     sel2 = detects_cont.remove_meteors()
     sel3 = detects_cont.remove_shots()
     sel4 = detects_cont.remove_bad_detects()
+    sel5 = detects_cont.remove_large_gal()
 
-    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4].return_astropy_table()
+    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5].return_astropy_table()
     detects_cont_table.add_column(Column("cont", name="det_type", dtype=str))
 
     if make_continuum:
