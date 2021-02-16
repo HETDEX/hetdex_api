@@ -54,7 +54,7 @@ def activate_file(filename, save_to_shared=True):
         )
         if not exists(your_classify_dir):
             os.mkdir(your_classify_dir)
-            subprocess.call(["chmod", "g+rw", your_classify_dir])
+            subprocess.call(["chmod", "a+rw", your_classify_dir])
     elif (env["system"] == "tacc-work") and save_to_shared:
         your_classify_dir = join(env["team_classify_dir"], "classified", env["USER"])
     else:
