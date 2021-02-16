@@ -138,9 +138,9 @@ class Extract:
 
     def get_fiberinfo_for_coord(self,
                                 coord,
-                                radius=8.0,
+                                radius=3.5,
                                 ffsky=False,
-                                return_fibtable=False):
+                                return_fiber_info=False):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -153,7 +153,7 @@ class Extract:
         ffsky: bool
             Flag to choose local (ffsky=False) or full frame (ffsky=True)
             sky subtraction
-        fibtable: bool
+        return_fiber_info: bool
             Return full fibers table. This is needed to get additional
             masking and to debug fiberid weights
         
@@ -173,6 +173,12 @@ class Extract:
             Error for calibrated spectra
         mask: numpy 2d array (number of fibers by wavelength dimension)
             Mask of good values for each fiber and wavelength
+        fiberid: numpy array (length of number of fibers)
+            array of fiberids for fibers used in the extraction.
+            Returned only if return_fiber_info is True
+        multiframe_array: numpy array (length of number of fibers
+            array of amp IDs/multiframe values for each fiber.
+            Return only if return_fiber_info is True
         """
 
         fiber_lower_limit = 7
@@ -205,6 +211,10 @@ class Extract:
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
+            mf_array = self.fibers.table.read_coordinates(
+                idx, "multiframe").astype(str)
+            fiber_id_array = self.fibers.table.read_coordinates(
+                idx, "fiberid").astype(str)
         else:
 
             fib_table = get_fibers_table(
@@ -232,19 +242,19 @@ class Extract:
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
 
             expn = np.array(fib_table["expnum"], dtype=int)
+            mf_array = fib_table['multiframe']
+            try:
+                fiber_id_array = fib_table['fiber_id']
+            except:
+                fiber_id_array = []
 
         ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn - 1, 1]
         xc, yc = self.convert_radec_to_ifux_ifuy(
             ifux, ifuy, ra, dec, coord.ra.deg, coord.dec.deg
         )
-        if return_fibtable:
-            if self.fibers is None:
-                self.log.warning(
-                    "No fiber table returned when full Fibers array is loaded")
-                return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
-            else:
-                return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask, fib_table
+        if return_fiber_info:
+            return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask, fiber_id_array, mf_array
         else:
             return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
 
