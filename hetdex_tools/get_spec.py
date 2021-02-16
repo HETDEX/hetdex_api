@@ -413,14 +413,17 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
                             amp_flag = False
                             
                         coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
-                    print(coords)
-                    meteor_flag = meteor_flag_from_coords(
-                        coords,
-                        shotid=shotid
-                    )
-
-                    gal_flag = gal_flag_from_coords(coords, galaxy_cat)
-
+                    try:
+                        meteor_flag = meteor_flag_from_coords(
+                            coords,
+                            shotid=shotid
+                        )
+                    except:
+                        pass
+                    try:
+                        gal_flag = gal_flag_from_coords(coords, galaxy_cat)
+                    except:
+                        pass
                     flag = meteor_flag * gal_flag * amp_flag
 
                 id_arr.append(ID)
