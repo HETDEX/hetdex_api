@@ -160,14 +160,14 @@ def get_source_spectra(shotid, args):
                     args.coords[ind],
                     radius=args.rad,
                     ffsky=args.ffsky,
-                    return_fibtable=True,
+                    return_fiber_info=True,
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
                     radius=args.rad,
                     ffsky=args.ffsky,
-                    return_fibtable=True,
+                    return_fiber_info=True,
                 )
             if info_result is not None:
                 if len(args.ID) > 1:
@@ -175,7 +175,8 @@ def get_source_spectra(shotid, args):
                 else:
                     args.log.info("Extracting %s" % args.ID)
 
-                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fib_table = info_result
+                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
+                    multiframe = info_result
 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 result = E.get_spectrum(data, error, mask, weights)
@@ -192,8 +193,12 @@ def get_source_spectra(shotid, args):
 
                 if args.fiber_info:
                     try:
-                        fiber_info = np.array( [x for x in zip(fib_table['fiberid'], fib_table['multiframe'], ra, dec, np.sum(weights*mask, axis=1))])
-                        print('fiber check: {}'.format(np.sum(fib_table['ra'] - ra)))
+                        fiber_info = np.array( [
+                            x for x in zip(fiberid,
+                                           multiframe,
+                                           ra,
+                                           dec,
+                                           np.sum(weights*mask, axis=1))])
                     except:
                         fiber_info = []
                 else:
@@ -283,8 +288,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID[ind])
                 else:
                     args.log.info("Extracting %s" % args.ID)
-
-                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fib_table = info_result
+                ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
+                    multiframe = info_result
+ 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
 
                 result = E.get_spectrum(data, error, mask, weights)
@@ -304,8 +310,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
                 if args.fiber_info:
                     try:
-                        fiber_info = np.array( [x for x in zip(fib_table['fiberid'], fib_table['multiframe'], ra, dec, np.sum(weights*mask, axis=1))])
-                        print('fiber check: {}'.format(np.sum(fib_table['ra'] - ra)))
+                        fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1))])
                     except:
                         fiber_info = []
                 else:
