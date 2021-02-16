@@ -39,6 +39,22 @@ merge
     will combine all .pkl files in a directory, for use in slurm job cleanup
 mergepath
     use if you want to combine pickle files in another directory
+survey: str  
+   Survey you want to access. User note that HDR1 extractions
+   are much slower compared to HDR2.
+tpmin: float
+   Include only shots above tpmin. Default is None, we recommend
+   0.08
+ffsky: bool
+   Use the full frame 2D sky subtraction model. Default is
+   to use the local sky subtracted, flux calibrated fibers.
+fiberweights: bool
+   Boolean flag to include fiber_weights tuple in source
+   dictionary. This is used in Elixer, but is slow
+   when used on large source lists.
+fiber_info: bool
+   returns the fiber_info and weights of the fibers used
+   in the extraction
 
 Examples
 --------
@@ -168,6 +184,15 @@ def get_source_spectra(shotid, args):
                 else:
                     fiber_weights = []
 
+                if args.fiber_info:
+                    try:
+                        fiber_info = np.array( [x for x in zip(fib_table['fiberid'], fib_table['multiframe'], ra, dec, np.sum(weights*mask, axis=1))])
+                        print('fiber check: {}'.format(np.sum(fib_table['ra'] - ra)))
+                    except:
+                        fiber_info = []
+                else:
+                    fiber_info = []
+                            
                 if len(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -175,6 +200,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                     else:
                         source_dict[args.ID[ind]] = dict()
@@ -183,6 +209,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -191,6 +218,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                     else:
                         source_dict[args.ID] = dict()
@@ -199,6 +227,7 @@ def get_source_spectra(shotid, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
 
         E.shoth5.close()
@@ -261,6 +290,15 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 else:
                     fiber_weights = []
 
+                if args.fiber_info:
+                    try:
+                        fiber_info = np.array( [x for x in zip(fib_table['fiberid'], fib_table['multiframe'], ra, dec, np.sum(weights*mask, axis=1))])
+                        print('fiber check: {}'.format(np.sum(fib_table['ra'] - ra)))
+                    except:
+                        fiber_info = []
+                else:
+                    fiber_info = []
+
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -268,6 +306,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                     else:
                         source_dict[args.ID[ind]] = manager.dict()
@@ -276,6 +315,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -284,6 +324,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
                     else:
                         source_dict[args.ID] = manager.dict()
@@ -292,6 +333,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             spectrum_aper_error,
                             weights.sum(axis=0),
                             fiber_weights,
+                            fiber_info,
                         ]
 
         E.shoth5.close()
@@ -299,7 +341,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
     return source_dict
         
 
-def return_astropy_table(Source_dict, fiberweights=False):
+def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
     """Returns an astropy table fom a source dictionary"""
 
     id_arr = []
@@ -321,7 +363,9 @@ def return_astropy_table(Source_dict, fiberweights=False):
             weights = Source_dict[ID][shotid][2]
             if fiberweights:
                 fiber_weights = Source_dict[ID][shotid][3]
-            
+            if fiber_info:
+                fiber_ids = Source_dict[ID][shotid][4]
+                
             sel = np.isfinite(spec)
 
             if np.sum(sel) > 0:
@@ -333,6 +377,8 @@ def return_astropy_table(Source_dict, fiberweights=False):
                 weights_arr.append(weights)
                 if fiberweights:
                     fiber_weights_arr.append(fiber_weights)
+                if fiber_info:
+                    fiber_ids_arr.append(fiber_ids)
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -345,6 +391,8 @@ def return_astropy_table(Source_dict, fiberweights=False):
     output.add_column(Column(weights_arr), name="weights")
     if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
+    if fiber_info:
+        output.add_column(Column(fiber_ids_arr_, name="fiber_info")
 
     return output
 
@@ -558,14 +606,14 @@ def get_parser():
         action="store_true",
     )
     parser.add_argument(
-        "--fiberids",
+        "--fiber_info",
         "-fid",
         help="""Set to retrieve fibers ids and corresponding weights.""",
         default=False,
         required=False,
         action="store_true",
-            )
-    
+    )
+                        
         
     return parser
 
@@ -743,7 +791,7 @@ def get_spectra(
     tpmin=None,
     ffsky=False,
     fiberweights=False,
-    fiberids=False,
+    fiber_info=False,
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -784,8 +832,8 @@ def get_spectra(
         Boolean flag to include fiber_weights tuple in source
         dictionary. This is used in Elixer, but is slow
         when used on large source lists.
-    fiberids: bool
-        returns the fiberids and weights of the fibers used
+    fiber_info: bool
+        returns the fiber_info and weights of the fibers used
         in the extraction
 
     Returns
@@ -805,7 +853,7 @@ def get_spectra(
 
     args.ffsky = ffsky
     args.fiberweights = fiberweights
-    args.fiberids = fiberids
+    args.fiber_info = fiber_info
     
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
