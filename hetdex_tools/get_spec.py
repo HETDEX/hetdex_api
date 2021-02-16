@@ -451,10 +451,10 @@ def return_astropy_table(Source_dict,
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
-    output.add_column(Column(flag_arr), name='flag')
-    output.add_column(Column(gal_flag_arr), name='gal_flag')
-    output.add_column(Column(amp_flag_arr), name='amp_flag')
-    output.add_column(Column(meteor_flag_arr), name='meteor_flag')
+    output.add_column(Column(flag_arr), name='flag', dtype=int)
+    output.add_column(Column(gal_flag_arr), name='gal_flag', dtype=int)
+    output.add_column(Column(amp_flag_arr), name='amp_flag', dtype=int)
+    output.add_column(Column(meteor_flag_arr), name='meteor_flag', dtype=int)
 
     if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
