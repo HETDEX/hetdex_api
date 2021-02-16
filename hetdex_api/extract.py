@@ -239,7 +239,7 @@ class Extract:
             ifux, ifuy, ra, dec, coord.ra.deg, coord.dec.deg
         )
         if return_fibtable:
-            if self.Fibers is None:
+            if self.fibers is None:
                 self.log.warning(
                     "No fiber table returned when full Fibers array is loaded")
                 return ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
