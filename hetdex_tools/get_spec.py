@@ -274,14 +274,14 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.coords[ind],
                     radius=args.rad,
                     ffsky=args.ffsky,
-                    return_fibtable=True,
+                    return_fiber_info=True,
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
                     radius=args.rad,
                     ffsky=args.ffsky,
-                    return_fibtable=True,
+                    return_fiber_info=True,
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
