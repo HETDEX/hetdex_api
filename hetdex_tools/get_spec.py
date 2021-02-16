@@ -351,6 +351,7 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
     spec_err_arr = []
     weights_arr = []
     fiber_weights_arr = []
+    fiber_ids_arr = []
 
     # loop over every ID/observation combo:
 
@@ -392,7 +393,7 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
     if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
     if fiber_info:
-        output.add_column(Column(fiber_ids_arr_, name="fiber_info")
+        output.add_column(Column(fiber_ids_arr, name="fiber_info"))
 
     return output
 
