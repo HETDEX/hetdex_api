@@ -214,7 +214,7 @@ class Extract:
             mf_array = self.fibers.table.read_coordinates(
                 idx, "multiframe").astype(str)
             fiber_id_array = self.fibers.table.read_coordinates(
-                idx, "fiberid").astype(str)
+                idx, "fiber_id").astype(str)
         else:
 
             fib_table = get_fibers_table(
