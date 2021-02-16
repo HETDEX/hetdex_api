@@ -104,14 +104,14 @@ import astropy.units as u
 
 from hetdex_api.extract import Extract
 from hetdex_api.survey import Survey
+from hetdex_api.mask import *
+from hetdex_api.config import HDRconfig
 
 from copy import deepcopy
 from collections.abc import Mapping
 
 from multiprocessing import Process, Manager
 import time
-
-from hetdex_api.config import HDRconfig
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -307,13 +307,12 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         fiber_weights = []
                 else:
                     fiber_weights = []
-
-                if args.fiber_info:
-                    try:
-                        fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1))])
-                    except:
-                        fiber_info = []
-                else:
+                    
+                # get fiber info no matter what so we can flag
+                try:
+                    fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1))])
+                except:
+                    args.log.warning('Could not get fiber info, no flagging created')
                     fiber_info = []
 
                 if np.size(args.ID) > 1:
@@ -368,8 +367,16 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
     spec_err_arr = []
     weights_arr = []
     fiber_weights_arr = []
-    fiber_ids_arr = []
+    fiber_info_arr = []
+    gal_flag_arr = []
+    meteor_flag_arr = []
+    amp_flag_arr = []
+    flag_arr = []
 
+    config = HDRconfig()
+    bad_amps_table = Table.read(config.badamp)
+    galaxy_cat = Table.read(config.rc3cat, format="ascii")
+    
     # loop over every ID/observation combo:
 
     for ID in Source_dict.keys():
@@ -381,12 +388,41 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
             weights = Source_dict[ID][shotid][2]
             if fiberweights:
                 fiber_weights = Source_dict[ID][shotid][3]
-            if fiber_info:
-                fiber_ids = Source_dict[ID][shotid][4]
-                
-            sel = np.isfinite(spec)
+            # get fiber info to make masks
+            try:
+                fiber_info = Source_dict[ID][shotid][4]
+            except:
+                fiber_info = None
+            amp_flag = True
+            gal_flag = True
+            meteor_flag = True
+            flag = True
 
+            sel = np.isfinite(spec)
+            
             if np.sum(sel) > 0:
+                if fiber_info is not None:
+                    # get flags
+                    coords = []
+                    
+                    for x in fiber_info:
+                        fiberid, multiframe, ra, dec, weights = x
+                        if amp_flag_from_fiberid(fiberid, bad_amps_table):
+                            continue
+                        else:
+                            amp_flag = False
+                            
+                        coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
+                            
+                    meteor_flag = meteor_flag_from_coords(
+                        coords,
+                        shotid=shotid
+                    )
+
+                    gal_flag = gal_flag_from_coords(coords, galaxy_cat)
+
+                    flag = meteor_flag * gal_flag * amp_flag
+
                 id_arr.append(ID)
                 shotid_arr.append(shotid)
                 wave_arr.append(wave_rect)
@@ -395,8 +431,11 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
                 weights_arr.append(weights)
                 if fiberweights:
                     fiber_weights_arr.append(fiber_weights)
-                if fiber_info:
-                    fiber_ids_arr.append(fiber_ids)
+                fiber_info_arr.append(fiber_info)
+                flag_arr.append(flag)
+                amp_flag_arr.append(amp_flag)
+                meteor_flag_arr.append(meteor_flag)
+                gal_flag_arr.append(gal_flag)
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -407,10 +446,15 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="weights")
+    output.add_column(Column(flag_arr), name='flag')
+    output.add_column(Column(gal_flag_arr), name='gal_flag')
+    output.add_column(Column(amp_flag_arr), name='amp_flag')
+    output.add_column(Column(meteor_flag_arr), name='meteor_flag')
+
     if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
     if fiber_info:
-        output.add_column(Column(fiber_ids_arr, name="fiber_info"))
+        output.add_column(Column(fiber_info_arr, name="fiber_info"))
 
     return output
 
