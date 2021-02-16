@@ -653,7 +653,7 @@ def get_parser():
         default=LATEST_HDR_NAME,
     )
 
-    parser.add_argument("-tpmin", "--tpmin", type=float, default=None)
+    parser.add_argument("-tpmin", "--tpmin", type=float, default=0.08)
 
     parser.add_argument(
         "--ffsky",
@@ -855,7 +855,7 @@ def get_spectra(
     multiprocess=True,
     shotid=None,
     survey=LATEST_HDR_NAME,
-    tpmin=None,
+    tpmin=0.08,
     ffsky=False,
     fiberweights=False,
     return_fiber_info=False,
