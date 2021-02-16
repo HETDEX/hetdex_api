@@ -157,11 +157,17 @@ def get_source_spectra(shotid, args):
         for ind in args.matched_sources[shotid]:
             if len(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords[ind], radius=args.rad, ffsky=args.ffsky
+                    args.coords[ind],
+                    radius=args.rad,
+                    ffsky=args.ffsky,
+                    return_fibtable=True,
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords, radius=args.rad, ffsky=args.ffsky
+                    args.coords,
+                    radius=args.rad,
+                    ffsky=args.ffsky,
+                    return_fibtable=True,
                 )
             if info_result is not None:
                 if len(args.ID) > 1:
@@ -260,11 +266,17 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         for ind in args.matched_sources[shotid]:
             if len(args.coords) > 1:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords[ind], radius=args.rad, ffsky=args.ffsky
+                    args.coords[ind],
+                    radius=args.rad,
+                    ffsky=args.ffsky,
+                    return_fibtable=True,
                 )
             else:
                 info_result = E.get_fiberinfo_for_coord(
-                    args.coords, radius=args.rad, ffsky=args.ffsky
+                    args.coords,
+                    radius=args.rad,
+                    ffsky=args.ffsky,
+                    return_fibtable=True,
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
