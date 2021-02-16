@@ -413,7 +413,7 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
                             amp_flag = False
                             
                         coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
-                            
+                    print(coords)
                     meteor_flag = meteor_flag_from_coords(
                         coords,
                         shotid=shotid
