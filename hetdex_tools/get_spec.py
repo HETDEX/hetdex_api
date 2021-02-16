@@ -357,7 +357,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
     return source_dict
         
 
-def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
+def return_astropy_table(Source_dict,
+                         fiberweights=False,
+                         return_fiber_info=False):
     """Returns an astropy table fom a source dictionary"""
 
     id_arr = []
@@ -456,7 +458,7 @@ def return_astropy_table(Source_dict, fiberweights=False, fiber_info=False):
 
     if fiberweights:
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
-    if fiber_info:
+    if return_fiber_info:
         output.add_column(Column(fiber_info_arr, name="fiber_info"))
 
     return output
@@ -856,7 +858,7 @@ def get_spectra(
     tpmin=None,
     ffsky=False,
     fiberweights=False,
-    fiber_info=False,
+    return_fiber_info=False,
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -918,7 +920,7 @@ def get_spectra(
 
     args.ffsky = ffsky
     args.fiberweights = fiberweights
-    args.fiber_info = fiber_info
+    args.return_fiber_info = return_fiber_info
     
     S = Survey(survey)
     ind_good_shots = S.remove_shots()
@@ -972,7 +974,7 @@ def get_spectra(
 
     output = return_astropy_table(Source_dict,
                                   fiberweights=args.fiberweights,
-                                  fiber_info=args.fiber_info)
+                                  return_fiber_info=args.return_fiber_info)
 
     args.log.info("Retrieved " + str(np.size(output)) + " spectra.")
 
