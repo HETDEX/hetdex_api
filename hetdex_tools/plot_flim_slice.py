@@ -131,7 +131,8 @@ for gal_region in gal_regions:
 src_dict = {'oii': 'blue',
             'lae': 'red',
             'star': 'green',
-            'agn':'orange'}
+            'agn':'orange',
+            'unsure': 'black'}
 
 for src in np.unique(source_table_shot['source_type']):
     sel_src = source_table_shot['source_type'] == src
