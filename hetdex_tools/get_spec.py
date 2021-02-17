@@ -117,7 +117,10 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-
+config = HDRconfig()
+bad_amps_table = Table.read(config.badamp)
+galaxy_cat = Table.read(config.rc3cat, format="ascii")
+             
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
     result = deepcopy(dict1)
@@ -131,6 +134,44 @@ def merge(dict1, dict2):
     return result
 
 
+def get_flags(fiber_info):
+    """ Get flags from fiber_info """
+
+    global bad_amps_table, galaxy_cat
+    meteor_flag = True
+    gal_flag = True
+    amp_flag = True
+    flag = True
+
+    
+    coords = []
+    
+    for x in fiber_info:
+        fiberid, multiframe, ra, dec, weights = x
+        if amp_flag_from_fiberid(fiberid, bad_amps_table):
+            continue
+        else:
+            amp_flag = False
+            
+        coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
+
+    try:
+        shotid = int(fiberid[0:12])
+        meteor_flag = meteor_flag_from_coords(
+            coords,
+            shotid=shotid
+        )
+    except:
+        pass
+    try:
+        gal_flag = gal_flag_from_coords(coords, galaxy_cat)
+    except:
+        pass
+
+    flag = meteor_flag * gal_flag * amp_flag
+
+    return meteor_flag, gal_flag, amp_flag, flag
+            
 def get_source_spectra(shotid, args):
     E = Extract()
     source_dict = {}
