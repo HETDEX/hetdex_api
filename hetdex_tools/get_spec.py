@@ -142,7 +142,6 @@ def get_flags(fiber_info):
     gal_flag = True
     amp_flag = True
     flag = True
-
     
     coords = []
     
@@ -156,7 +155,7 @@ def get_flags(fiber_info):
         coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
 
     try:
-        shotid = int(fiberid[0:12])
+        shotid = int(fiberid[0:11])
         meteor_flag = meteor_flag_from_coords(
             coords,
             shotid=shotid
@@ -171,7 +170,8 @@ def get_flags(fiber_info):
     flag = meteor_flag * gal_flag * amp_flag
 
     return meteor_flag, gal_flag, amp_flag, flag
-            
+
+    
 def get_source_spectra(shotid, args):
     E = Extract()
     source_dict = {}
@@ -356,6 +356,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.warning('Could not get fiber info, no flagging created')
                     fiber_info = []
 
+                if len(fiber_info) > 0:
+                    flags = get_flags(fiber_info)
+                else:
+                    flags = None
+                    
                 if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
@@ -364,6 +369,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                     else:
                         source_dict[args.ID[ind]] = manager.dict()
@@ -373,6 +379,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -382,6 +389,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                     else:
                         source_dict[args.ID] = manager.dict()
@@ -391,6 +399,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
 
         E.shoth5.close()
@@ -436,39 +445,18 @@ def return_astropy_table(Source_dict,
                 fiber_info = Source_dict[ID][shotid][4]
             except:
                 fiber_info = None
-            amp_flag = True
-            gal_flag = True
-            meteor_flag = True
-            flag = True
+
+            if Source_dict[ID][shotid][5] is None:
+                amp_flag = True
+                gal_flag = True
+                meteor_flag = True
+                flag = True
+            else:
+                meteor_flag, gal_flag, amp_flag, flag = Source_dict[ID][shotid][5]
 
             sel = np.isfinite(spec)
             
             if np.sum(sel) > 0:
-                if fiber_info is not None:
-                    # get flags
-                    coords = []
-                    
-                    for x in fiber_info:
-                        fiberid, multiframe, ra, dec, weights = x
-                        if amp_flag_from_fiberid(fiberid, bad_amps_table):
-                            continue
-                        else:
-                            amp_flag = False
-                            
-                        coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
-                    try:
-                        meteor_flag = meteor_flag_from_coords(
-                            coords,
-                            shotid=shotid
-                        )
-                    except:
-                        pass
-                    try:
-                        gal_flag = gal_flag_from_coords(coords, galaxy_cat)
-                    except:
-                        pass
-                    flag = meteor_flag * gal_flag * amp_flag
-
                 id_arr.append(ID)
                 shotid_arr.append(shotid)
                 wave_arr.append(wave_rect)
