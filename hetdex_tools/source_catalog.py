@@ -29,7 +29,7 @@ config = HDRconfig()
 
 
 def create_source_catalog(
-        version="2.1.2",
+        version="2.1.3",
         make_continuum=True,
         save=True,
         dsky=5.0):
@@ -38,7 +38,7 @@ def create_source_catalog(
 
     detects = Detections(curated_version=version)
     detects_line_table = detects.return_astropy_table()
-    detects_line_table.add_column(Column("line", name="det_type", dtype=str))
+    detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
     detects_cont = Detections(catalog_type="continuum")
 
     sel1 = detects_cont.remove_bad_amps()
@@ -48,7 +48,7 @@ def create_source_catalog(
     sel5 = detects_cont.remove_large_gal()
 
     detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5].return_astropy_table()
-    detects_cont_table.add_column(Column("cont", name="det_type", dtype=str))
+    detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
 
     if make_continuum:
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
@@ -64,7 +64,7 @@ def create_source_catalog(
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
-    detects_broad_table.add_column(Column("agn", name="det_type", dtype=str))
+    detects_broad_table.add_column(Column(str("agn"), name="det_type", dtype=str))
     dets_all.close()
     del dets_all_table
 
@@ -246,9 +246,12 @@ def guess_source_wavelength(source_id):
         argmaxsn = np.argmax(group["sn"])
         wave_guess = group["wave"][argmaxsn]
         z_guess = wave_guess / 1216.0 - 1
-        s_type = "unsure"
+        s_type = "lae"
 
-    return z_guess, s_type
+    if z_guess < 0:
+        s_type = "unsure"
+        
+    return z_guess, str(s_type)
 
 
 def add_z_guess(source_table):
@@ -261,8 +264,6 @@ def add_z_guess(source_table):
         pass
 
     try:
-        # remove z_guess column if it exists
-        print("Removing existing z_guess column")
         source_table.remove_column("source_type")
     except Exception:
         pass
@@ -549,13 +550,18 @@ def main(argv=None):
     global source_table
     print(args.dsky)
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-    #source_table = Table.read("source_catalog_2.1.2.fits")
+    source_table.write('source_cat_tmp.fits', overwrite=True)
     # add source name
     source_name = []
     for row in source_table:
         source_name.append(get_source_name(row["ra_mean"], row["dec_mean"]))
-    source_table.add_column(source_name, name="source_name", index=1)
-
+    try:
+        source_table.add_column(source_name,
+                                name="source_name",
+                                index=1)
+    except:
+        print('messed up source name again')
+        
     # Clear up memory
 
     for name in dir():
