@@ -140,7 +140,7 @@ class ElixerWidget:
                 HETDEX_ELIXER_HDF5 = elixer_h5
 
         if detectfile:
-            self.detectid = np.loadtxt(detectfile, dtype=np.int64, ndmin=1)
+            self.detectid = np.unique(np.loadtxt(detectfile, dtype=np.int64, ndmin=1))
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
@@ -225,7 +225,7 @@ class ElixerWidget:
             else:
                 self.detectid = []
         else:
-            self.detectid = np.array(detectlist).flatten()
+            self.detectid = np.unique(np.array(detectlist).flatten())
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)
