@@ -213,11 +213,11 @@ def guess_source_wavelength(source_id):
         z_guess = z_guess_3727(group, cont=True)
         s_type = "oii"
 
-    elif np.any(group["plae_classification"] < 0.3):
+    elif np.any(group["plae_classification"] < 0.25):
         z_guess = z_guess_3727(group)
         s_type = "oii"
 
-    elif np.nanmedian(group["plae_classification"] < 0.5):
+    elif np.nanmedian(group["plae_classification"] <= 0.5):
         z_guess = z_guess_3727(group)
         s_type = "oii"
 
@@ -240,7 +240,7 @@ def guess_source_wavelength(source_id):
         else:
             argmaxsn = np.argmax(group["sn"])
             wave_guess = group["wave"][argmaxsn]
-            z_guess = wave_guess / 1216.0 - 1
+        z_guess = wave_guess / 1216.0 - 1
         s_type = "lae"
     else:
         argmaxsn = np.argmax(group["sn"])
