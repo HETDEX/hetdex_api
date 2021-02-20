@@ -888,6 +888,7 @@ def get_spectra(
     ffsky=False,
     fiberweights=False,
     return_fiber_info=False,
+    loglevel='WARNING',
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -931,6 +932,9 @@ def get_spectra(
     fiber_info: bool
         returns the fiber_info and weights of the fibers used
         in the extraction
+    loglevel: str
+        Level to set logging. Options are ERROR, WARNING, INFO,
+        DEBUG
 
     Returns
     -------
@@ -946,7 +950,7 @@ def get_spectra(
     args.coords = coords
     args.rad = rad * u.arcsec
     args.survey = survey
-
+    
     args.ffsky = ffsky
     args.fiberweights = fiberweights
     args.return_fiber_info = return_fiber_info
@@ -985,7 +989,17 @@ def get_spectra(
 
     args.log = setup_logging()
 
-    args.log.setLevel(logging.INFO)
+    if loglevel == 'INFO':
+        args.log.setLevel(logging.INFO)
+    elif loglevel == 'ERROR':
+        args.log.setLevel(logging.ERROR)
+    elif loglevel == 'WARNING':
+        args.log.setLevel(logging.WARNING)
+    elif loglevel == 'DEBUG':
+        args.log.setLevel(logging.DEBUG)
+    else:
+        args.log.WARNING('No loglevel set, using INFO')
+        args.log.setLevel(logging.INFO)
 
     nobj = len(args.coords)
 
