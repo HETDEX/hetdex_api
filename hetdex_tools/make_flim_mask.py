@@ -143,7 +143,7 @@ for ifu_name, tscube in flimhdf.itercubes():
                         coords,
                         FibIndex,
                         bad_amps_table,
-                        maxdistance=11.0 * u.arcsec,
+                        maxdistance=12.0 * u.arcsec,
                         shotid=shotid,
                     )
                 else:
