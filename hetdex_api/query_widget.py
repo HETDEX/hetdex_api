@@ -322,11 +322,19 @@ class QueryWidget:
         for row in self.spec_table[selobj]:
             x = row["wavelength"]
             y = row["spec"]
-            fig.add_trace(
-                go.Scatter(x=x, y=y, name=str(row["shotid"]), line_shape="linear")
-            )
+            if row['flag'] == 1:
+                fig.add_trace(
+                    go.Scatter(x=x, y=y, name=str(row["shotid"]), line_shape="linear")
+                )
+            else:
+                fig.add_trace(
+                    go.Scatter(x=x, y=y,
+                               line={'dash': 'dash'},
+                               name=str(row["shotid"]) + ' (poor data)',
+                               line_shape="linear",)
+                )
 
-        fig.update_traces(hoverinfo="text+name", mode="lines")
+        fig.update_traces(hoverinfo="text+name", mode="lines+markers")
         fig.update_layout(
 #            title="Object {}".format(row["ID"]),
             xaxis_title="wavelength (A)",
