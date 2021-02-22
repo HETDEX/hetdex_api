@@ -329,7 +329,8 @@ class QueryWidget:
             else:
                 fig.add_trace(
                     go.Scatter(x=x, y=y,
-                               line={'dash': 'dash'},
+                               opacity=0.25,
+                               line={'dash': 'dotted'},
                                name=str(row["shotid"]) + ' (poor data)',
                                line_shape="linear",)
                 )
