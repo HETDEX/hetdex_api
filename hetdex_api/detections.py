@@ -22,7 +22,7 @@ np.warnings.filterwarnings("ignore")
 
 import matplotlib
 
-matplotlib.use("Agg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 from astropy.table import vstack, Table, Column, join
