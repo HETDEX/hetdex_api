@@ -154,27 +154,31 @@ elif version == '2.1.3':
 
         # append nearest source extracted neighbour match
         try:
-            elix_row = elixer_cat.root.ExtractedObjects.read_where(('detectid == detectid_obj') & ('selected == True'))
+
+            elix_row = elixer_cat.root.ExtractedObjects.read_where('(detectid == detectid_obj) & (selected == True)')
+
+            if np.size(elix_row) == 0:
+                elix_row = elixer_cat.root.ExtractedObjects.read_where('detectid == detectid_obj')
             if np.size(elix_row) > 1:
                 sel_r = elix_row['filter_name'] == b'r'
-                if np.any(sel_r):
-                    counterpart_mag.append(elix_row['mag'][sel_r])
-                    counterpart_mag_err.append(elix_row['mag_err'][sel_r])
-                    counterpart_dist.append(elix_row['dist_baryctr'][sel_r])
-                    counterpart_catalog_name.append(elix_row['catalog_name'][sel_r])
-                    counterpart_filter_name.append(elix_row['filter_name'][sel_r])
+                if np.sum(sel_r) == 1:
+                    counterpart_mag.append(elix_row['mag'][sel_r][0])
+                    counterpart_mag_err.append(elix_row['mag_err'][sel_r][0])
+                    counterpart_dist.append(elix_row['dist_baryctr'][sel_r][0])
+                    counterpart_catalog_name.append(elix_row['catalog_name'][sel_r][0].decode())
+                    counterpart_filter_name.append(elix_row['filter_name'][sel_r][0].decode())
                 else:
                     counterpart_mag.append(elix_row['mag'][0])
                     counterpart_mag_err.append(elix_row['mag_err'][0])
                     counterpart_dist.append(elix_row['dist_baryctr'][0])
-                    counterpart_catalog_name.append(elix_row['catalog_name'][0])
-                    counterpart_filter_name.append(elix_row['filter_name'][0])
+                    counterpart_catalog_name.append(elix_row['catalog_name'][0].decode())
+                    counterpart_filter_name.append(elix_row['filter_name'][0].decode())
             elif np.size(elix_row) == 1:
-                counterpart_mag.append(elix_row['mag'])
-                counterpart_mag_err.append(elix_row['mag_err'])
-                counterpart_dist.append(elix_row['dist_baryctr'])
-                counterpart_catalog_name.append(elix_row['catalog_name'])
-                counterpart_filter_name.append(elix_row['filter_name'])
+                counterpart_mag.append(elix_row['mag'][0])
+                counterpart_mag_err.append(elix_row['mag_err'][0])
+                counterpart_dist.append(elix_row['dist_baryctr'][0])
+                counterpart_catalog_name.append(elix_row['catalog_name'][0].decode())
+                counterpart_filter_name.append(elix_row['filter_name'][0].decode())
             else:
                 counterpart_mag.append(np.nan)
                 counterpart_mag_err.append(np.nan)
@@ -198,23 +202,23 @@ elif version == '2.1.3':
                 elix_r = elix_tab[sel_r]
                 fixed_mag.append(elix_r['mag'][-1])
                 fixed_mag_err.append(elix_r['mag_err'][-1])
-                fixed_catalog_name.append(elix_r['catalog_name'][-1])
-                fixed_filter_name.append(elix_r['filter_name'][-1])
+                fixed_catalog_name.append(elix_r['catalog_name'][-1].decode())
+                fixed_filter_name.append(elix_r['filter_name'][-1].decode())
                 fixed_radius.append(elix_r['radius'][-1])
             elif np.any(sel_g): 
                 elix_g = elix_tab[sel_g]
                 fixed_mag.append(elix_g['mag'][-1])
                 fixed_mag_err.append(elix_g['mag_err'][-1])
-                fixed_catalog_name.append(elix_g['catalog_name'][-1])
-                fixed_filter_name.append(elix_g['filter_name'][-1])
+                fixed_catalog_name.append(elix_g['catalog_name'][-1].decode())
+                fixed_filter_name.append(elix_g['filter_name'][-1].decode())
                 fixed_radius.append(elix_g['radius'][-1])
             else:
                 sel = elix_tab['radius'] < 3
-                elix_sel = elix_tab[elix_sel]
+                elix_sel = elix_tab[sel]
                 fixed_mag.append(elix_sel['mag'][-1])
                 fixed_mag_err.append(elix_sel['mag_err'][-1])
-                fixed_catalog_name.append(elix_sel['catalog_name'][-1])
-                fixed_filter_name.append(elix_sel['filter_name'][-1])
+                fixed_catalog_name.append(elix_sel['catalog_name'][-1].decode())
+                fixed_filter_name.append(elix_sel['filter_name'][-1].decode())
                 fixed_radius.append(elix_sel['radius'][-1])
         except:
             fixed_mag.append(np.nan)
@@ -241,20 +245,15 @@ else:
 
 fiber_table = detects.hdfile.root.Fibers
 
-#p = Pool(24)
-
 fiber_ratio = []
 for det in det_table['detectid']:
     fiber_row = fiber_table.read_where('detectid == det')
     weights = np.sort(fiber_row['weight'])
     fiber_ratio.append( weights[-1]/weights[-2])
 
-#fiber_ratio = p.map(return_fiber_ratio, det_table['detectid'])
-#p.close()
-
 det_table.add_column(fiber_ratio, name='fiber_ratio')
 
-det_table.write('detect_hdr{}.tab'.format(version),
-                         format='ascii',
-                         overwrite=True)
 det_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
+det_table.write('detect_hdr{}.tab'.format(version),
+                format='ascii',
+                overwrite=True)
