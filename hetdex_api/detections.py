@@ -926,8 +926,8 @@ class Detections:
 
         # add new elixer info and fiber_ratio column
         if True:
-#            table.add_column(self.multiline_name), name='multiline_name')
-#            table.add_column(self.classification_labels, name='classification_labels')
+            table.add_column(self.multiline_name), name='multiline_name')
+            table.add_column(self.classification_labels, name='classification_labels')
             table.add_column(self.counterpart_mag, name='counterpart_mag')
             table.add_column(self.counterpart_mag_err, name='counterpart_mag_err')
             table.add_column(self.counterpart_dist, name='counterpart_dist')
