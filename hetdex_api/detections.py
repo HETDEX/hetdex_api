@@ -924,8 +924,13 @@ class Detections:
             except:
                 print("Could not add average flux limit")
 
+        try:
+            table.add_column(self.fiber_ratio, name='fiber_ratio')
+        except:
+            pass
+            
         # add new elixer info and fiber_ratio column
-        if True:
+        try:
             table.add_column(self.multiline_name, name='multiline_name')
             table.add_column(self.classification_labels, name='classification_labels')
             table.add_column(self.counterpart_mag, name='counterpart_mag')
@@ -938,9 +943,9 @@ class Detections:
             table.add_column(self.forced_catalog_name, name='forced_catalog_name')
             table.add_column(self.forced_filter_name, name='forced_filter_name')
             table.add_column(self.forced_radius, name='forced_radius')
-            table.add_column(self.fiber_ratio, name='fiber_ratio')
-#        except:
-#            print('Could not add new elixer info. Something went wrong')
+        
+        except:
+            pass
             
         return table
 
