@@ -27,17 +27,22 @@ from elixer import catalogs
 catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
+agn_tab = Table.read(config.agncat, format="ascii")
+cont_gals = np.loadtxt('/work/05350/ecooper/stampede2/ben-cont-labels/galaxies.txt', dtype=int)
+cont_stars = np.loadtxt('/work/05350/ecooper/stampede2/ben-cont-labels/stars.txt', dtype=int)
 
 def create_source_catalog(
         version="2.1.3",
         make_continuum=True,
         save=True,
-        dsky=5.0):
+        dsky=4.0):
 
     global config
-
+    
     detects = Detections(curated_version=version)
     detects_line_table = detects.return_astropy_table()
+    
+    detects_line_table.write('test.tab', format='ascii')
     detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
     detects_cont = Detections(catalog_type="continuum")
 
@@ -144,7 +149,12 @@ def create_source_catalog(
     gaia_match_name = np.zeros_like(expand_table["source_id"], dtype=int)
     gaia_match_name[sel] = gaia_stars["source_id"][idx][sel]
 
+    gaia_match_dist = np.zeros_like(expand_table["source_id"], dtype=float)
+    gaia_match_dist[sel] = d2d[sel]
+    
     expand_table["gaia_match_id"] = gaia_match_name
+    expand_table["gaia_match_dist"] = gaia_match_dist
+    
     expand_table.rename_column("size", "n_members")
     expand_table.rename_column("icx", "ra_mean")
     expand_table.rename_column("icy", "dec_mean")
@@ -180,17 +190,17 @@ def z_guess_3727(group, cont=False):
             wave_guess = np.min(group["wave"][sel_good_lines])
             z_guess = wave_guess / 3727.0 - 1
         except Exception:
-            z_guess = -2.0
+            z_guess = -3.0
     else:
-        z_guess = 0.0
+        z_guess = -2.0
 
     return z_guess
 
 
 def guess_source_wavelength(source_id):
 
-    global source_table
-    
+    global source_table, agn_cat, cont_gals, cont_stars
+
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
     z_guess = -1.0
@@ -199,21 +209,35 @@ def guess_source_wavelength(source_id):
     # for now assign a plae_classification for -1 values
     if np.any(group["det_type"] == "agn"):
         # get proper z's from Chenxu's catalog
-        agn_tab = Table.read(config.agncat, format="ascii")
         agn_dets = group["detectid"][group["det_type"] == "agn"]
         sel_det = agn_tab["detectid"] == agn_dets[0]
         z_guess = agn_tab["z"][sel_det][0]
         s_type = "agn"
 
-    elif np.any(group["gaia_match_id"] > 0):
-        z_guess = 0.0  # z_guess_3727(group, cont=True)
-        s_type = "star"
+#    elif np.any(group["gaia_match_id"] > 0):
+#        z_guess = 0.0  # z_guess_3727(group, cont=True)
+#        s_type = "star"
 
     elif np.any(group["det_type"] == "cont"):
-        z_guess = z_guess_3727(group, cont=True)
-        s_type = "oii"
+        # check Ben's classifications
+        sel_cont = group['det_type'] == "cont"
+        det = group['detectid'][sel_cont]
 
-    elif np.any(group["plae_classification"] < 0.25):
+        if det in cont_gals:
+            if np.any(group['det_type']=="line"):
+                z_guess = z_guess_3727(group, cont=True)
+                if z_guess > 0:
+                    s_type = "oii"
+                else:
+                    s_type = 'lzg'
+        elif det in cont_stars:
+            z_guess = 0.0
+            s_type = "star"
+        else:
+            z_guess = -5.0
+            s_type = "unsure-cont"
+            
+    elif np.any(group["plae_classification"] < 0.1):
         z_guess = z_guess_3727(group)
         s_type = "oii"
 
@@ -523,7 +547,7 @@ def get_parser():
         "--dsky",
         type=float,
         help="""Spatial linking length in arcsec""",
-        default=5.0,
+        default=4.0,
     )
 
     return parser
@@ -548,9 +572,11 @@ def main(argv=None):
 
     print('Combining catalogs')
     global source_table
-    print(args.dsky)
+    print(args.dsky, args.version)
+
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
     source_table.write('source_cat_tmp.fits', overwrite=True)
+#    source_table = Table.read('source_cat_tmp.fits')
     # add source name
     source_name = []
     for row in source_table:
@@ -570,16 +596,30 @@ def main(argv=None):
         elif not name.startswith('_'):
             del globals()[name]
 
-    for name in dir():
-        if not name.startswith('_'):
-            del locals()[name]
-
     import gc
     gc.collect()
 
     # add a guess on redshift and source type
     out_table = add_z_guess(source_table)
 
+    sel_star = out_table['source_type'] == 'star'
+    sel_oii = out_table['source_type'] == 'oii'
+    sel_lae = out_table['source_type'] == 'lae'
+
+    print('There are {} stars, {} OII emitters and {} LAEs'.format(np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
+
+    # sort table by source position and wavelength so unique will produce the closest match    
+    src_coord = SkyCoord(ra=out_table['ra_mean'], dec=out_table['dec_mean'], unit='deg')
+    det_coord = SkyCoord(ra=out_table['ra'], dec=out_table['dec'], unit='deg')
+
+    src_wave = np.zeros_like(out_table['z_guess'])
+    src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * 3727
+    src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * 1216
+
+    out_table['src_separation'] = det_coord.separation(src_coord)
+    out_table['dwave'] = np.abs(src_wave - source_table['wave'])
+    
+    out_table.sort(['dwave', 'src_separation'])
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
     out_table.write("source_catalog_{}.tab".format(args.version),
