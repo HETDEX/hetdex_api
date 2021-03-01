@@ -229,14 +229,18 @@ def guess_source_wavelength(source_id):
                 if z_guess > 0:
                     s_type = "oii"
                 else:
-                    s_type = 'lzg'
+                    s_type = "unsure-cont-line"
+            else:
+                s_type = 'lzg'
+                z_guess = -6.0
+
         elif det in cont_stars:
             z_guess = 0.0
             s_type = "star"
         else:
             z_guess = -5.0
             s_type = "unsure-cont"
-            
+                    
     elif np.any(group["plae_classification"] < 0.1):
         z_guess = z_guess_3727(group)
         s_type = "oii"
@@ -271,9 +275,6 @@ def guess_source_wavelength(source_id):
         wave_guess = group["wave"][argmaxsn]
         z_guess = wave_guess / 1216.0 - 1
         s_type = "lae"
-
-    if z_guess < 0:
-        s_type = "unsure"
         
     return z_guess, str(s_type)
 
@@ -587,7 +588,30 @@ def main(argv=None):
                                 index=1)
     except:
         print('messed up source name again')
-        
+
+    # match band-merged WISE catalog
+
+    wise_catalog = Table.read('wise-hetdexoverlap.fits')
+    source_table_coords = SkyCoord(source_table['ra_mean'],
+                                   source_table['dec_mean'],
+                                   unit='deg')
+    idx, d2d, d3d = wise_coords.match_to_catalog_sky(source_table_coords)
+
+    sep_constraint = d2d < 3.*u.arcsec
+
+    keep_wise = wise_catalog['ra','dec','primary','unwise_objid','flux']
+    keep_wise.rename_column('flux','wise_fluxes')
+    w1 = []
+    w2 = []
+    for row in matched_catalog:
+            w1.append(row['wise_fluxes'][0])
+            w2.append(row['wise_fluxes'][1])
+
+    matched_catalog['flux_w1'] = w1
+    matched_catalog['flux_w2'] = w2
+
+#    matched_catalog['wise_dist'] =
+    
     # Clear up memory
 
     for name in dir():
@@ -598,7 +622,7 @@ def main(argv=None):
 
     import gc
     gc.collect()
-
+    
     # add a guess on redshift and source type
     out_table = add_z_guess(source_table)
 
