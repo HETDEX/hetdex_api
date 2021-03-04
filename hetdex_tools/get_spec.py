@@ -206,7 +206,7 @@ def get_source_spectra(shotid, args):
                     )
                 else:
                     info_result = E.get_fiberinfo_for_coord(
-                        args.coords,
+                        args.coords[0],
                         radius=args.rad,
                         ffsky=args.ffsky,
                         return_fiber_info=True,
@@ -529,7 +529,16 @@ def return_astropy_table(Source_dict,
     return output
 
 
-def get_spectra_dictionary(args):
+def get_spectra_dictionary(args,target_coord=None):
+    #needs args.coords to be a single SkyCoord object, but it might be a list in the caller
+    if target_coord is None:
+        try:
+            #this is a list
+            target_coord = args.coords[0]
+            #todo: what to do if there is more than one? really this should never be the case?
+            # there should be exactly one coord here
+        except:
+            target_coord = args.coords #assumes a single object
 
     args.matched_sources = {}
     shots_of_interest = []
@@ -543,7 +552,7 @@ def get_spectra_dictionary(args):
     args.log.info("Finding shots of interest")
 
     for i, coord in enumerate(args.survey_class.coords):
-        dist = args.coords.separation(coord)
+        dist = target_coord.separation(coord)
         sep_constraint = dist < max_sep
         shotid = args.survey_class.shotid[i]
         idx = np.where(sep_constraint)[0]
@@ -1047,7 +1056,7 @@ def get_spectra(
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
-            args.ID = 1
+            args.ID = [1]
     else:
         args.ID = ID
 
