@@ -232,20 +232,23 @@ def get_source_spectra(shotid, args):
                 else:
                     fiber_weights = []
 
-                if args.return_fiber_info:
-                    try:
-                        fiber_info = np.array( [
-                            x for x in zip(fiberid,
-                                           multiframe,
-                                           ra,
-                                           dec,
-                                           np.sum(weights*mask, axis=1))])
-                    except:
-                        fiber_info = []
-                else:
+                # get fiber info no matter what so we can flag
+                try:
+                    fiber_info = np.array( [
+                        x for x in zip(fiberid,
+                                       multiframe,
+                                       ra,
+                                       dec,
+                                       np.sum(weights*mask, axis=1))])
+                except:
                     fiber_info = []
-                            
-                if len(args.ID) > 1:
+
+                if len(fiber_info) > 0:
+                    flags = get_flags(fiber_info)
+                else:
+                    flags = None
+                    
+                if np.size(args.ID) > 1:
                     if args.ID[ind] in source_dict:
                         source_dict[args.ID[ind]][shotid] = [
                             spectrum_aper,
@@ -337,8 +340,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 result = E.get_spectrum(data, error, mask, weights)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
-                sel = np.isfinite(spectrum_aper)
-
+                
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     
