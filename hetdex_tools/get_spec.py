@@ -232,7 +232,7 @@ def get_source_spectra(shotid, args):
                 else:
                     fiber_weights = []
 
-                if args.fiber_info:
+                if args.return_fiber_info:
                     try:
                         fiber_info = np.array( [
                             x for x in zip(fiberid,
