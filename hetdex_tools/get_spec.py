@@ -211,9 +211,9 @@ def get_source_spectra(shotid, args):
                     return_fiber_info=True,
                 )
             if info_result is not None:
-                if len(args.ID) > 1:
+                try:
                     args.log.info("Extracting %s" % args.ID[ind])
-                else:
+                except:
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
