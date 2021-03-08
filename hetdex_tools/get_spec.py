@@ -256,6 +256,7 @@ def get_source_spectra(shotid, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                     else:
                         source_dict[args.ID[ind]] = dict()
@@ -265,6 +266,7 @@ def get_source_spectra(shotid, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -274,6 +276,7 @@ def get_source_spectra(shotid, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
                     else:
                         source_dict[args.ID] = dict()
@@ -283,6 +286,7 @@ def get_source_spectra(shotid, args):
                             weights.sum(axis=0),
                             fiber_weights,
                             fiber_info,
+                            flags,
                         ]
 
         E.shoth5.close()
