@@ -1007,12 +1007,12 @@ def get_spectra(
         args.log.WARNING('No loglevel set, using INFO')
         args.log.setLevel(logging.INFO)
 
-    nobj = len(args.coords)
-
     if ID is None:
-        if nobj > 1:
-            args.ID = np.arange(1, nobj + 1)
-        else:
+        try:
+            nobj = len(args.coords)
+            if nobj > 1:
+                args.ID = np.arange(1, nobj + 1)
+        except TypeError:
             args.ID = 1
     else:
         args.ID = ID
