@@ -2,7 +2,7 @@ import numpy as np
 import time
 import argparse as ap
 
-from astropy.table import Table, vstack, join, Column
+from astropy.table import Table, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
@@ -232,22 +232,35 @@ def guess_source_wavelength(source_id):
                     s_type = "unsure-cont-line"
             else:
                 s_type = 'lzg'
-                z_guess = -6.0
+                z_guess = -4.0
 
         elif det in cont_stars:
             z_guess = 0.0
             s_type = "star"
         else:
-            z_guess = -5.0
-            s_type = "unsure-cont"
-                    
+            if np.any(group['det_type'] == 'line'):
+                z_guess = z_guess_3727(group, cont=True)
+                if z_guess > 0:
+                    s_type = "oii"
+                else:
+                    s_type = "unsure-cont-line"
+            else:
+                s_type = "unsure-cont"
+                z_guess = -5.0
+                
     elif np.any(group["plae_classification"] < 0.1):
         z_guess = z_guess_3727(group)
-        s_type = "oii"
+        if z_guess > 0:
+            s_type = "oii"
+        else:
+            s_type = "unsure-line"
 
     elif np.nanmedian(group["plae_classification"] <= 0.5):
         z_guess = z_guess_3727(group)
-        s_type = "oii"
+        if z_guess > 0:
+            s_type = "oii"
+        else:
+            s_type = "unsure-line"
 
     elif np.nanmedian(group["plae_classification"] > 0.5):
         if np.any(group["sn"] > 15):
@@ -299,7 +312,7 @@ def add_z_guess(source_table):
     src_list = np.unique(source_table["source_id"])
 
     t0 = time.time()
-    p = Pool(24)
+    p = Pool(6)
     res = p.map(guess_source_wavelength, src_list)
     t1 = time.time()
     z_guess = []
@@ -575,9 +588,9 @@ def main(argv=None):
     global source_table
     print(args.dsky, args.version)
 
-    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-    source_table.write('source_cat_tmp.fits', overwrite=True)
-#    source_table = Table.read('source_cat_tmp.fits')
+#    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
+#    source_table.write('source_cat_tmp.fits', overwrite=True)
+    source_table = Table.read('source_cat_tmp.fits')
     # add source name
     source_name = []
     for row in source_table:
@@ -591,16 +604,25 @@ def main(argv=None):
 
     # match band-merged WISE catalog
 
-    wise_catalog = Table.read('wise-hetdexoverlap.fits')
+    wise_catalog = Table.read('../wise/wise-hetdexoverlap.fits')
     source_table_coords = SkyCoord(source_table['ra_mean'],
                                    source_table['dec_mean'],
                                    unit='deg')
-    idx, d2d, d3d = wise_coords.match_to_catalog_sky(source_table_coords)
+    wise_coords = SkyCoord(ra=wise_catalog['ra'], dec=wise_catalog['dec'], unit='deg')
+    idx, d2d, d3d = source_table_coords.match_to_catalog_sky(wise_coords)
 
-    sep_constraint = d2d < 3.*u.arcsec
-
-    keep_wise = wise_catalog['ra','dec','primary','unwise_objid','flux']
+    catalog_matches = wise_catalog[idx]
+    catalog_matches['wise_dist'] = d2d
+    
+    keep_wise = catalog_matches['ra','dec','primary','unwise_objid','flux', 'wise_dist']
     keep_wise.rename_column('flux','wise_fluxes')
+    keep_wise.rename_column('ra','ra_wise')
+    keep_wise.rename_column('dec','dec_wise')
+
+    matched_catalog = hstack([source_table, keep_wise])
+
+    print('There are {} matches between the input catalog and HETDEX sources'.format(np.size(np.unique(matched_catalog['source_id']))))
+    
     w1 = []
     w2 = []
     for row in matched_catalog:
@@ -609,7 +631,23 @@ def main(argv=None):
 
     matched_catalog['flux_w1'] = w1
     matched_catalog['flux_w2'] = w2
+    matched_catalog.remove_column('wise_fluxes')
+    sel_close = matched_catalog['wise_dist'] < 5*u.arcsec   
+    
+    print('There are {} matches between the input catalog and HETDEX sources'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
+    # remove column info for WISE matches more than 5 arcsec away
 
+    sel_remove = matched_catalog['wise_dist'] < 5*u.arcsec
+
+    matched_catalog['ra_wise'][sel_remove] = np.nan
+    matched_catalog['dec_wise'][sel_remove] = np.nan
+    matched_catalog['wise_dist'][sel_remove] = np.nan
+    matched_catalog['primary'][sel_remove] = -1
+    matched_catalog['unwise_objid'][sel_remove] = np.nan
+    matched_catalog['flux_w1'][sel_remove] = np.nan
+    matched_catalog['flux_w2'][sel_remove] = np.nan
+    
+    source_table = matched_catalog
 #    matched_catalog['wise_dist'] =
     
     # Clear up memory
