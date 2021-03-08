@@ -196,22 +196,14 @@ def get_source_spectra(shotid, args):
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
-            try:
-                if len(args.coords) > 1: #args.coords may be iterable or may be a single SkyCoord
-                    info_result = E.get_fiberinfo_for_coord(
-                        args.coords[ind],
-                        radius=args.rad,
-                        ffsky=args.ffsky,
-                        return_fiber_info=True,
-                    )
-                else:
-                    info_result = E.get_fiberinfo_for_coord(
-                        args.coords[0],
-                        radius=args.rad,
-                        ffsky=args.ffsky,
-                        return_fiber_info=True,
-                    )
-            except:
+            if len(args.coords) > 1:
+                info_result = E.get_fiberinfo_for_coord(
+                    args.coords[ind],
+                    radius=args.rad,
+                    ffsky=args.ffsky,
+                    return_fiber_info=True,
+                )
+            else:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
                     radius=args.rad,
@@ -219,12 +211,9 @@ def get_source_spectra(shotid, args):
                     return_fiber_info=True,
                 )
             if info_result is not None:
-                try: #args.ID may be iterable or single object
-                    if len(args.ID) > 1:
-                        args.log.info("Extracting %s" % args.ID[ind])
-                    else:
-                        args.log.info("Extracting %s" % args.ID)
-                except:
+                if len(args.ID) > 1:
+                    args.log.info("Extracting %s" % args.ID[ind])
+                else:
                     args.log.info("Extracting %s" % args.ID)
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
@@ -243,7 +232,7 @@ def get_source_spectra(shotid, args):
                 else:
                     fiber_weights = []
 
-                if hasattr(args,"fiber_info") and args.fiber_info:
+                if args.fiber_info:
                     try:
                         fiber_info = np.array( [
                             x for x in zip(fiberid,
@@ -255,45 +244,26 @@ def get_source_spectra(shotid, args):
                         fiber_info = []
                 else:
                     fiber_info = []
-
-                try:
-                    if len(args.ID) > 1:
-                        if args.ID[ind] in source_dict:
-                            source_dict[args.ID[ind]][shotid] = [
-                                spectrum_aper,
-                                spectrum_aper_error,
-                                weights.sum(axis=0),
-                                fiber_weights,
-                                fiber_info,
-                            ]
-                        else:
-                            source_dict[args.ID[ind]] = dict()
-                            source_dict[args.ID[ind]][shotid] = [
-                                spectrum_aper,
-                                spectrum_aper_error,
-                                weights.sum(axis=0),
-                                fiber_weights,
-                                fiber_info,
-                            ]
+                            
+                if len(args.ID) > 1:
+                    if args.ID[ind] in source_dict:
+                        source_dict[args.ID[ind]][shotid] = [
+                            spectrum_aper,
+                            spectrum_aper_error,
+                            weights.sum(axis=0),
+                            fiber_weights,
+                            fiber_info,
+                        ]
                     else:
-                        if args.ID[0] in source_dict:
-                            source_dict[args.ID[0]][shotid] = [
-                                spectrum_aper,
-                                spectrum_aper_error,
-                                weights.sum(axis=0),
-                                fiber_weights,
-                                fiber_info,
-                            ]
-                        else:
-                            source_dict[args.ID[0]] = dict()
-                            source_dict[args.ID[0]][shotid] = [
-                                spectrum_aper,
-                                spectrum_aper_error,
-                                weights.sum(axis=0),
-                                fiber_weights,
-                                fiber_info,
-                            ]
-                except: #args.ID is a single value
+                        source_dict[args.ID[ind]] = dict()
+                        source_dict[args.ID[ind]][shotid] = [
+                            spectrum_aper,
+                            spectrum_aper_error,
+                            weights.sum(axis=0),
+                            fiber_weights,
+                            fiber_info,
+                        ]
+                else:
                     if args.ID in source_dict:
                         source_dict[args.ID][shotid] = [
                             spectrum_aper,
@@ -476,19 +446,13 @@ def return_astropy_table(Source_dict,
             except:
                 fiber_info = None
 
-            try:
-                if Source_dict[ID][shotid][5] is None: #may not have 6 elements
-                    amp_flag = True
-                    gal_flag = True
-                    meteor_flag = True
-                    flag = True
-                else:
-                    meteor_flag, gal_flag, amp_flag, flag = Source_dict[ID][shotid][5]
-            except: #element index 5 does not exist, so treat as if None
+            if Source_dict[ID][shotid][5] is None:
                 amp_flag = True
                 gal_flag = True
                 meteor_flag = True
                 flag = True
+            else:
+                meteor_flag, gal_flag, amp_flag, flag = Source_dict[ID][shotid][5]
 
             sel = np.isfinite(spec)
             
@@ -529,16 +493,7 @@ def return_astropy_table(Source_dict,
     return output
 
 
-def get_spectra_dictionary(args,target_coord=None):
-    #needs args.coords to be a single SkyCoord object, but it might be a list in the caller
-    if target_coord is None:
-        try:
-            #this is a list
-            target_coord = args.coords[0]
-            #todo: what to do if there is more than one? really this should never be the case?
-            # there should be exactly one coord here
-        except:
-            target_coord = args.coords #assumes a single object
+def get_spectra_dictionary(args):
 
     args.matched_sources = {}
     shots_of_interest = []
@@ -552,7 +507,7 @@ def get_spectra_dictionary(args,target_coord=None):
     args.log.info("Finding shots of interest")
 
     for i, coord in enumerate(args.survey_class.coords):
-        dist = target_coord.separation(coord)
+        dist = args.coords.separation(coord)
         sep_constraint = dist < max_sep
         shotid = args.survey_class.shotid[i]
         idx = np.where(sep_constraint)[0]
@@ -1046,17 +1001,13 @@ def get_spectra(
         args.log.WARNING('No loglevel set, using INFO')
         args.log.setLevel(logging.INFO)
 
-    #coords may not be a list
-    try:
-        nobj = len(args.coords)
-    except:
-        nobj = 1
+    nobj = len(args.coords)
 
     if ID is None:
         if nobj > 1:
             args.ID = np.arange(1, nobj + 1)
         else:
-            args.ID = [1]
+            args.ID = 1
     else:
         args.ID = ID
 
