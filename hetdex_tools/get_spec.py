@@ -196,14 +196,14 @@ def get_source_spectra(shotid, args):
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
-            if len(args.coords) > 1:
+            try:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind],
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
                 )
-            else:
+            except TypeError:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
                     radius=args.rad,
@@ -317,14 +317,14 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
             E.load_shot(shotid, fibers=False, survey=args.survey)
 
         for ind in args.matched_sources[shotid]:
-            if len(args.coords) > 1:
+            try:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords[ind],
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
                 )
-            else:
+            except TypeError:
                 info_result = E.get_fiberinfo_for_coord(
                     args.coords,
                     radius=args.rad,
