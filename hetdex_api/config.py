@@ -148,3 +148,6 @@ class HDRconfig:
                 "gaia_hetdex_value_added_catalog",
                 "HDR2.1_Gaia_final_table.fits",
             )
+            self.galaxylabels = op.join(self.bad_dir, 'galaxies.txt')
+            self.starlabels = op.join(self.bad_dir, 'star.txt')
+            
