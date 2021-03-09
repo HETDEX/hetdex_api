@@ -214,10 +214,6 @@ def guess_source_wavelength(source_id):
         z_guess = agn_tab["z"][sel_det][0]
         s_type = "agn"
 
-#    elif np.any(group["gaia_match_id"] > 0):
-#        z_guess = 0.0  # z_guess_3727(group, cont=True)
-#        s_type = "star"
-
     elif np.any(group["det_type"] == "cont"):
         # check Ben's classifications
         sel_cont = group['det_type'] == "cont"
@@ -235,6 +231,11 @@ def guess_source_wavelength(source_id):
                 z_guess = -4.0
 
         elif det in cont_stars:
+            z_guess = 0.0
+            s_type = "star"
+            
+        # if it has a gaia_match_id, we'll call it a star
+        elif np.any(group["gaia_match_id"] > 0):
             z_guess = 0.0
             s_type = "star"
         else:
