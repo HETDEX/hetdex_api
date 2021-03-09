@@ -28,8 +28,8 @@ catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
 agn_tab = Table.read(config.agncat, format="ascii")
-cont_gals = np.loadtxt('/work/05350/ecooper/stampede2/ben-cont-labels/galaxies.txt', dtype=int)
-cont_stars = np.loadtxt('/work/05350/ecooper/stampede2/ben-cont-labels/stars.txt', dtype=int)
+cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
+cont_stars = np.loadtxt(config.starlabels, dtype=int)
 
 def create_source_catalog(
         version="2.1.3",
@@ -42,7 +42,7 @@ def create_source_catalog(
     detects = Detections(curated_version=version)
     detects_line_table = detects.return_astropy_table()
     
-    detects_line_table.write('test.tab', format='ascii')
+#    detects_line_table.write('test.tab', format='ascii')
     detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
     detects_cont = Detections(catalog_type="continuum")
 
