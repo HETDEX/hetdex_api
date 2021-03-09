@@ -255,14 +255,14 @@ def guess_source_wavelength(source_id):
         else:
             s_type = "unsure-line"
 
-    elif np.nanmedian(group["plae_classification"] <= 0.5):
+    elif (np.nanmedian(group["plae_classification"]) <= 0.5):
         z_guess = z_guess_3727(group)
         if z_guess > 0:
             s_type = "oii"
         else:
             s_type = "unsure-line"
 
-    elif np.nanmedian(group["plae_classification"] > 0.5):
+    elif (np.nanmedian(group["plae_classification"]) > 0.5):
         if np.any(group["sn"] > 15):
             sel_good_lines = group["sn"] > 15
             wave_guess = np.min(group["wave"][sel_good_lines])
