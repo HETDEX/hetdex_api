@@ -151,9 +151,10 @@ def get_flags(fiber_info):
             continue
         else:
             amp_flag = False
-            
-        coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
-
+        try:
+            coords.append(SkyCoord(ra=ra, dec=dec, unit='deg'))
+        except:
+            pass
     try:
         shotid = int(fiberid[0:11])
         meteor_flag = meteor_flag_from_coords(
