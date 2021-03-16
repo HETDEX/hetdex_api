@@ -132,15 +132,21 @@ src_dict = {'oii': 'blue',
             'lae': 'red',
             'star': 'green',
             'agn':'orange',
+            'lzg':'cyan',
             'unsure': 'black'}
 
 for src in np.unique(source_table_shot['source_type']):
     sel_src = source_table_shot['source_type'] == src
-    plt.scatter(source_table_shot['ra'][sel_src],
-                source_table_shot['dec'][sel_src],
-                transform=ax.get_transform('fk5'), s=5,
-                label=src, color=src_dict[src])
-    
+    try:
+        plt.scatter(source_table_shot['ra'][sel_src],
+                    source_table_shot['dec'][sel_src],
+                    transform=ax.get_transform('fk5'), s=5,
+                    label=src, color=src_dict[src])
+    except:
+        plt.scatter(source_table_shot['ra'][sel_src],
+                    source_table_shot['dec'][sel_src],
+                    transform=ax.get_transform('fk5'), s=5,
+                    label=src, color='black')
 #plot up IFUnumber:
 for i_ifu in np.arange( 0, np.size(ifu_name_list)):
     plt.text( ifu_ra[i_ifu]-0.012, ifu_dec[i_ifu]+0.008, ifu_name_list[i_ifu][9:],
