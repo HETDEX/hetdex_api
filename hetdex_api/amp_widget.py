@@ -268,7 +268,8 @@ class AmpWidget:
         
         self.shotid = self.shotid_widget.value
 
-        self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
+        self.shoth5 = open_shot_file(self.shotid_widget.value,
+                                     survey=self.survey)
         sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
         mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
 
@@ -333,14 +334,19 @@ class AmpWidget:
             )
             self.midbox.layout = box_layout
 
-        self.im = get_image2D_amp(
-            self.shotid_widget.value,
-            multiframe=self.multiframe_widget.value,
-            imtype=self.imtype_widget.value,
-            expnum=self.expnum_widget.value,
-        )
-        self.imw.load_array(self.im)
-
+        try:
+            self.im = get_image2D_amp(
+                self.shotid_widget.value,
+                multiframe=self.multiframe_widget.value,
+                imtype=self.imtype_widget.value,
+                expnum=self.expnum_widget.value,
+            )
+        
+            self.imw.load_array(self.im)
+        except:
+            with self.bottombox:
+                print('Could not open amp image')
+            
         #if self.coords is not None:
             #self.imw.center_on(self.coords)
             #self.imw.zoom_level = 4
