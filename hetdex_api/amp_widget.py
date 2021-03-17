@@ -267,14 +267,16 @@ class AmpWidget:
         self.im_dec.value = 0.0
         
         self.shotid = self.shotid_widget.value
-
+        self.multiframe = self.multiframe_widget.value
+        
         self.shoth5 = open_shot_file(self.shotid_widget.value,
                                      survey=self.survey)
+        
         sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
         mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
 
         self.multiframe_widget.options = mflist
-
+        
         try:
             sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
                 AMPFLAG_TABLE["multiframe"] == self.multiframe
@@ -311,7 +313,7 @@ class AmpWidget:
 
         self.shotid = self.shotid_widget.value
         self.multiframe = self.multiframe_widget.value
-
+        self.expnum = self.expnum_widget.value
         try:
             sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
                 AMPFLAG_TABLE["multiframe"] == self.multiframe
