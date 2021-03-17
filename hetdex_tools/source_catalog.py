@@ -38,10 +38,11 @@ def create_source_catalog(
         dsky=4.0):
 
     global config
-    
-    detects = Detections(curated_version=version)
-    detects_line_table = detects.return_astropy_table()
-    
+
+    detects = Table.read('detects_hdr{}.fits'.format(version))
+#    detects = Detections(curated_version=version)
+#    detects_line_table = detects.return_astropy_table()
+
 #    detects_line_table.write('test.tab', format='ascii')
     detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
     detects_cont = Detections(catalog_type="continuum")
@@ -231,8 +232,15 @@ def guess_source_wavelength(source_id):
                 z_guess = -4.0
 
         elif det in cont_stars:
-            z_guess = 0.0
-            s_type = "star"
+            if np.any(group['det_type']=="line"):
+                z_guess = z_guess_3727(group, cont=True)
+                if z_guess > 0:
+                    s_type = "oii"
+                else:
+                    s_type = "unsure-cont-line"
+            else:
+                z_guess = 0.0
+                s_type = "star"
             
         # if it has a gaia_match_id, we'll call it a star
         elif np.any(group["gaia_match_id"] > 0):
