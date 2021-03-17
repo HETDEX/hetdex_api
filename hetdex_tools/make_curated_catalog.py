@@ -96,7 +96,7 @@ elif version == '2.1.3':
     sel_cut2 = (detects.sn>=4.8) *  (detects.sn<7) * (detects.chi2<=1.2)
     
     sel_cont = detects.continuum > -3
-    sel_chi2fib = (detects.chi2fib < 4.5)
+    sel_chi2fib = (detects.chi2fib < 4)
     sel_tp = detects.throughput >= 0.08
     
     sel = sel_field * sel_cont * sel_chi2fib * sel_tp * (sel_cut1 | sel_cut2)
