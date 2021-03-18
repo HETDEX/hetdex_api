@@ -27,12 +27,6 @@ from elixer import catalogs
 catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
-#agn_tab = Table.read(config.agncat, format="ascii")
-agn_tab = Table.read('AGN_v4.1.dat2', format='ascii')
-
-cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
-cont_stars = np.loadtxt(config.starlabels, dtype=int)
-
 def create_source_catalog(
         version="2.1.3",
         make_continuum=True,
@@ -41,7 +35,7 @@ def create_source_catalog(
 
     global config
 
-    detects = Table.read('detects_hdr{}.fits'.format(version))
+    detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
 #    detects = Detections(curated_version=version)
 #    detects_line_table = detects.return_astropy_table()
 
@@ -202,8 +196,12 @@ def z_guess_3727(group, cont=False):
 
 def guess_source_wavelength(source_id):
 
-    global source_table, agn_cat, cont_gals, cont_stars
+    global source_table
 
+    agn_tab = Table.read(config.agncat, format="ascii")
+    cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
+    cont_stars = np.loadtxt(config.starlabels, dtype=int)
+    
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
     z_guess = -1.0
@@ -599,9 +597,9 @@ def main(argv=None):
     global source_table
     print(args.dsky, args.version)
 
-#    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-#    source_table.write('source_cat_tmp.fits', overwrite=True)
-    source_table = Table.read('source_cat_tmp.fits')
+    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
+    source_table.write('source_cat_tmp.fits', overwrite=True)
+#    source_table = Table.read('source_cat_tmp.fits')
     # add source name
     source_name = []
     for row in source_table:
