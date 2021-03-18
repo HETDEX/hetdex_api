@@ -27,7 +27,9 @@ from elixer import catalogs
 catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
-agn_tab = Table.read(config.agncat, format="ascii")
+#agn_tab = Table.read(config.agncat, format="ascii")
+agn_tab = Table.read('AGN_v4.1.dat2', format='ascii')
+
 cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
 cont_stars = np.loadtxt(config.starlabels, dtype=int)
 
