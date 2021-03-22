@@ -150,4 +150,4 @@ class HDRconfig:
             )
             self.galaxylabels = op.join(self.bad_dir, 'galaxies.txt')
             self.starlabels = op.join(self.bad_dir, 'stars.txt')
-            
+            self.sdsscat = op.join(self.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
