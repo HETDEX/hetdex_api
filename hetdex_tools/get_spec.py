@@ -941,7 +941,7 @@ def get_spectra(
         in the extraction
     loglevel: str
         Level to set logging. Options are ERROR, WARNING, INFO,
-        DEBUG
+        DEBUG. Defaults to WARNING
 
     Returns
     -------
@@ -1013,7 +1013,7 @@ def get_spectra(
             nobj = len(args.coords)
             if nobj > 1:
                 args.ID = np.arange(1, nobj + 1)
-        except TypeError:
+        except Exception:
             args.ID = 1
     else:
         args.ID = ID
