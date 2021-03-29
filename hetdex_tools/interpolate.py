@@ -108,6 +108,7 @@ def make_narrowband_image(
         print("Provide a detectid or both a coords and shotid")
 
     fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
+    pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     E = Extract()
     E.load_shot(shotid_obj)
@@ -182,6 +183,11 @@ def make_narrowband_image(
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
+
+    # get rotation:
+    sys_rot = 1.55
+    rot = 360. - (90. + pa + sys_rot)
+    w.wcs.pc = [[cos(rrot), sin(rrot)], [-1.0*sin(rrot), cos(rrot)]]
 
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
@@ -282,6 +288,7 @@ def make_data_cube(
     w.wcs.crpix = [center, center, 1]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
+w.
     
     rad = imsize
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
@@ -292,14 +299,20 @@ def make_data_cube(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
+    # get FWHM and PA
+
+    surveyh5 = tb.open_file(config.surveyh5, "r")
+    shotid_obj = shotid
+   
+    pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
+
     if convolve_image:
-        surveyh5 = tb.open_file(config.surveyh5, "r")
-        shotid_obj = shotid
         fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
-        surveyh5.close()
     else:
         fwhm = 1.8  # just a dummy variable as convolve_image=False
 
+    surveyh5.close()
+        
     im_cube = np.zeros((nwave, ndim, ndim))
 
     wave_i = wave_range[0]
