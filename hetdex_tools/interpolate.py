@@ -187,7 +187,12 @@ def make_narrowband_image(
     # get rotation:
     sys_rot = 1.55
     rot = 360. - (90. + pa + sys_rot)
-    w.wcs.pc = [[cos(rrot), sin(rrot)], [-1.0*sin(rrot), cos(rrot)]]
+    rrot = np.deg2rad(rot)
+    
+    w.wcs.pc = [[np.cos(rrot),
+                 np.sin(rrot)],
+                [-1.0*np.sin(rrot),
+                 np.cos(rrot)]]
 
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
@@ -288,7 +293,6 @@ def make_data_cube(
     w.wcs.crpix = [center, center, 1]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
-w.
     
     rad = imsize
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
@@ -312,7 +316,17 @@ w.
         fwhm = 1.8  # just a dummy variable as convolve_image=False
 
     surveyh5.close()
-        
+
+    # add in rotation
+    sys_rot = 1.55
+    rot = 360. - (90. + pa + sys_rot)
+    rrot = np.deg2rad(rot)
+    
+    w.wcs.pc = [[np.cos(rrot),
+                 np.sin(rrot)],
+                [-1.0*np.sin(rrot),
+                 np.cos(rrot)]]
+    
     im_cube = np.zeros((nwave, ndim, ndim))
 
     wave_i = wave_range[0]
