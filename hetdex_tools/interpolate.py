@@ -323,9 +323,9 @@ def make_data_cube(
     rrot = np.deg2rad(rot)
 
     w.wcs.pc = [[np.cos(rrot),
-                 np.sin(rrot)],
+                 np.sin(rrot),0],
                 [-1.0*np.sin(rrot),
-                 np.cos(rrot)]]
+                 np.cos(rrot),0], [0,0,0]]
     
     im_cube = np.zeros((nwave, ndim, ndim))
 
