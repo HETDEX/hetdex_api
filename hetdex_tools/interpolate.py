@@ -188,12 +188,15 @@ def make_narrowband_image(
     sys_rot = 1.55
     rot = 360. - (90. + pa + sys_rot)
     rrot = np.deg2rad(rot)
-    
-    w.wcs.pc = [[np.cos(rrot),
-                 np.sin(rrot)],
-                [-1.0*np.sin(rrot),
-                 np.cos(rrot)]]
 
+    w.wcs.crota = [0,rrot]
+    
+#    w.wcs.pc = [[np.cos(rrot),
+#                 np.sin(rrot)],
+#                [-1.0*np.sin(rrot),
+#                 np.cos(rrot)]]
+
+  
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
     return hdu
@@ -317,15 +320,15 @@ def make_data_cube(
 
     surveyh5.close()
 
-    # add in rotation
+    # add in rotation (Not working yet)
     sys_rot = 1.55
     rot = 360. - (90. + pa + sys_rot)
     rrot = np.deg2rad(rot)
 
-    w.wcs.pc = [[np.cos(rrot),
-                 np.sin(rrot),0],
-                [-1.0*np.sin(rrot),
-                 np.cos(rrot),0], [0,0,0]]
+#    w.wcs.pc = [[np.cos(rrot),
+#                 np.sin(rrot),0],
+#                [-1.0*np.sin(rrot),
+#                 np.cos(rrot),0], [0,0,0]]
     
     im_cube = np.zeros((nwave, ndim, ndim))
 
