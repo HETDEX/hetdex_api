@@ -323,7 +323,7 @@ def make_data_cube(
     # add in rotation
     sys_rot = 1.55
     rot = 360. - (90. + pa + sys_rot)
-    w.wcs.crota = [ 0, rot]
+    w.wcs.crota = [0, rot, 0]
 #    rrot = np.deg2rad(rot)
 #    w.wcs.pc = [[np.cos(rrot),
 #                 np.sin(rrot),0],
