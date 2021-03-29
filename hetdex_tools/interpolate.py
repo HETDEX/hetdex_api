@@ -189,7 +189,7 @@ def make_narrowband_image(
     rot = 360. - (90. + pa + sys_rot)
     rrot = np.deg2rad(rot)
 
-    w.wcs.crota = [0,rrot]
+    w.wcs.crota = [ 0, rot]
     
 #    w.wcs.pc = [[np.cos(rrot),
 #                 np.sin(rrot)],
