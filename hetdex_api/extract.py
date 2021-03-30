@@ -626,6 +626,7 @@ class Extract:
         yloc,
         data,
         mask,
+        error=None,
         scale=0.25,
         seeing_fac=1.8,
         boxsize=4.0,
@@ -650,6 +651,8 @@ class Extract:
             The ifu y-coordinate for each fiber
         data: numpy 2d array
             The calibrated spectra for each fiber
+        error: numpy 2d array
+            Optional 2D array with fiber errors 
         mask: numpy 2d array
             The good fiber wavelengths to be used in collapsed frame
         scale: float
@@ -669,10 +672,10 @@ class Extract:
         Returns
         -------
         zarray: numpy 3d array
-        An array with length 3 for the first axis: wavelength summed image
-        across wrange in units of 10^-17/ergs/cm^2
+            An array with length 3 for the first axis: wavelength summed image
+            across wrange in units of 10^-17/ergs/cm^2
         xgrid, ygrid in relative arcsec from center coordinates
-       
+        
         """
         a, b = data.shape
         N = int(boxsize / scale)
@@ -698,6 +701,11 @@ class Extract:
         marray = np.ma.array(data[:, sel], mask=mask[:, sel] < 1e-8)
         image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
 
+        if error is not None:
+            marray = np.ma.array(error[:, sel], mask=mask[:, sel] < 1e-8)
+            error_image = np.sqrt(2.*np.ma.sum(marray**2, axis=1))
+            # multiply for 2AA bins. Add error in quadrature
+
         S[:, 0] = xloc - np.mean(self.ADRx[sel])
         S[:, 1] = yloc - np.mean(self.ADRy[sel])
 
@@ -712,13 +720,36 @@ class Extract:
             / area
         )
 
+        if error is not None:
+            grid_z_error = (
+                griddata(
+                    S[~error_image.mask],
+                    image.data[~error_image.mask],
+                    (xgrid, ygrid),
+                    method=interp_kind,
+                )
+                * scale ** 2
+                / area
+            )
+
+                
         if convolve_image:
             grid_z = convolve(grid_z, G)
+            if error is not None:
+                grid_z_error = convolve(grid_z_error, G)
 
-        image = grid_z
-        image[np.isnan(image)] = 0.0
-
-        zarray = np.array([image, xgrid - xc, ygrid - yc])
+        if error is None:
+            image = grid_z
+            image[np.isnan(image)] = 0.0
+            zarray = np.array([image, xgrid - xc, ygrid - yc])
+        else:
+            
+            image = grid_z
+            image[np.isnan(image)] = 0.0
+            image_error = grid_z_error
+            image_error[np.isnan(image)] = 0.0
+                                    
+            zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
 
         return zarray
 
