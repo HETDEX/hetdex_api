@@ -134,7 +134,7 @@ def make_narrowband_image(
             ifuy_cen,
             ifux,
             ifuy,
-            error=error,
+            error,
             mask,
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
