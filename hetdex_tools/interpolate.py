@@ -27,6 +27,7 @@ def make_narrowband_image(
     ffsky=True,
     subcont=False,
     dcont=50.,
+    include_error=False,
 ):
 
     """
@@ -59,14 +60,15 @@ def make_narrowband_image(
     dcont
         width in angstrom to measure the continuum. Default is to
         measure 50 AA wide regions on either side of the line
-         
-    
+    include_error bool
+        option to include error array
+
     Returns
     -------
     hdu: PrimaryHDU object
         the 2D summed data array and associated 2d header
         Units are '10^-17 erg cm-2 s-1'
-    
+        If include_error=True will include addiional hdu
     Examples
     --------
 
@@ -140,6 +142,21 @@ def make_narrowband_image(
         convolve_image=convolve_image,
     )
 
+    if include_error:
+        zarray_error = E.make_narrowband_image(
+            ifux_cen,
+            ifuy_cen,
+            ifux,
+            ifuy,
+            error,
+            mask,
+            seeing_fac=fwhm,
+            scale=pixscale.to(u.arcsec).value,
+            boxsize=imsize.to(u.arcsec).value,
+            wrange=wave_range,
+            convolve_image=convolve_image,
+        )
+
     imslice = zarray[0]
 
     if subcont:
@@ -196,10 +213,13 @@ def make_narrowband_image(
                 [-1.0*np.sin(rrot),
                  np.cos(rrot)]]
 
-  
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
-    return hdu
+    if include_error:
+        hdu_error = fits.ImageHDU(zarray_error[0], header=w.to_header())
+        return fits.HDUList([hdu, hdu_error])
+    else:
+        return hdu
 
 
 def make_data_cube(
