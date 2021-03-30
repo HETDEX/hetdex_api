@@ -128,27 +128,13 @@ def make_narrowband_image(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
-    zarray = E.make_narrowband_image(
-        ifux_cen,
-        ifuy_cen,
-        ifux,
-        ifuy,
-        data,
-        mask,
-        seeing_fac=fwhm,
-        scale=pixscale.to(u.arcsec).value,
-        boxsize=imsize.to(u.arcsec).value,
-        wrange=wave_range,
-        convolve_image=convolve_image,
-    )
-
     if include_error:
-        zarray_error = E.make_narrowband_image(
+        zarray = E.make_narrowband_image(
             ifux_cen,
             ifuy_cen,
             ifux,
             ifuy,
-            error,
+            error=error,
             mask,
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
@@ -156,8 +142,24 @@ def make_narrowband_image(
             wrange=wave_range,
             convolve_image=convolve_image,
         )
-
-    imslice = zarray[0]
+        imslice = zarray[0]
+        imerror = zarray[1]
+    else:
+        zarray = E.make_narrowband_image(
+            ifux_cen,
+            ifuy_cen,
+            ifux,
+            ifuy,
+            data,
+            mask,
+            seeing_fac=fwhm,
+            scale=pixscale.to(u.arcsec).value,
+            boxsize=imsize.to(u.arcsec).value,
+            wrange=wave_range,
+            convolve_image=convolve_image,
+        )
+    
+        imslice = zarray[0]
 
     if subcont:
         zarray_blue = E.make_narrowband_image(
@@ -216,7 +218,7 @@ def make_narrowband_image(
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
     if include_error:
-        hdu_error = fits.ImageHDU(zarray_error[0], header=w.to_header())
+        hdu_error = fits.ImageHDU(imerror, header=w.to_header())
         return fits.HDUList([hdu, hdu_error])
     else:
         return hdu
