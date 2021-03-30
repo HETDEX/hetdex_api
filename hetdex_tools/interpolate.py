@@ -5,6 +5,7 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy import wcs
 from astropy.io import fits
+from astropy.table import Table
 
 from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
@@ -14,7 +15,9 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 config = HDRconfig()
 surveyh5 = tb.open_file(config.surveyh5, "r")
 detecth5 = tb.open_file(config.detecth5, "r")
-
+version='2.1.3'
+catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
+source_table = Table.read(catfile)
 
 def make_narrowband_image(
     detectid=None,
@@ -84,12 +87,14 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, detecth5, surveyh5
+    global config, source_table
 
     if detectid is not None:
         
         detectid_obj = detectid
-        det_info = detecth5.root.Detections.read_where("detectid == detectid_obj")[0]
+        sel_det = source_table['detectid'] == detectid
+        det_info=source_table[sel_det][0]
+        
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
         linewidth = det_info["linewidth"]
