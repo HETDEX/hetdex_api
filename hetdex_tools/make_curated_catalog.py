@@ -131,11 +131,28 @@ elif version == "2.1.2":
 
 elif version == "2.1.3":
 
+    # get updated chi2fib values (see work in stampede2/notebooks/fiber_chi2_check.ipynb:
+    chi2table = Table.read('chi2fib_all.tab', format='ascii.no_header', names=['detectid', 'chi2fib'])
+
+    det = Table([detects.detectid],names=['detectid'])
+    det_join = join(det, chi2table)
+
+    detectid2 = np.array(det_join['detectid'])
+    detects.chi2fib = np.array(det_join['chi2fib'])
+    detects.chi2fib = chi2fib_update
+
+    if np.sum(detects.detectid - detectid2) != 0:
+        print('Something went wrong with appending updated chi2fib')
+
     sel_cut1 = (detects.sn >= 7) * (detects.chi2 <= 2.5)
     sel_cut2 = (detects.sn >= 4.8) * (detects.sn < 7) * (detects.chi2 <= 1.2)
 
     sel_cont = detects.continuum > -3
-    sel_chi2fib = detects.chi2fib < 4
+
+    selchi2fib1 = detects.chi2fib < 4.5
+    selchi2fib2 = np.invert((detects.chi2fib > 3) * (detects.continuum < 0.5))
+    sel_chi2fib = selchi2fib1 * selchi2fib2
+
     sel_tp = detects.throughput >= 0.08
 
     sel = sel_field * sel_cont * sel_chi2fib * sel_tp * (sel_cut1 | sel_cut2)
