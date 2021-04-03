@@ -139,7 +139,6 @@ elif version == "2.1.3":
 
     detectid2 = np.array(det_join['detectid'])
     detects.chi2fib = np.array(det_join['chi2fib'])
-    detects.chi2fib = chi2fib_update
 
     if np.sum(detects.detectid - detectid2) != 0:
         print('Something went wrong with appending updated chi2fib')
