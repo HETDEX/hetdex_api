@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import argparse as ap
+import os.path as op
 
 from astropy.table import Table, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
@@ -26,6 +27,10 @@ from elixer import catalogs
 
 catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
+
+agn_tab = None
+cont_gals = None
+cont_stars = None
 
 def create_source_catalog(
         version="2.1.3",
@@ -57,7 +62,7 @@ def create_source_catalog(
 
     dets_all = Detections().refine()
     dets_all_table = dets_all.return_astropy_table()
-    agn_tab = Table.read(config.agncat, format="ascii", include_names=["detectid"])
+    agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
 
     # add in continuum sources to match to Chenxu's combined catalog
     detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
@@ -71,7 +76,7 @@ def create_source_catalog(
     del dets_all_table
 
     detect_table = vstack([detects_line_table, detects_broad_table, detects_cont_table])
-
+    detect_table.write('test.fits', overwrite=True)
     del detects_cont_table_orig, detects_cont_table, detects_broad_table
 
     kdtree, r = fof.mktree(
@@ -147,7 +152,7 @@ def create_source_catalog(
     gaia_match_name[sel] = gaia_stars["source_id"][idx][sel]
 
     gaia_match_dist = np.zeros_like(expand_table["source_id"], dtype=float)
-    gaia_match_dist[sel] = d2d[sel]
+    gaia_match_dist[sel] = d2d[sel].to_value(u.arcsec)
     
     expand_table["gaia_match_id"] = gaia_match_name
     expand_table["gaia_match_dist"] = gaia_match_dist
@@ -196,11 +201,14 @@ def z_guess_3727(group, cont=False):
 
 def guess_source_wavelength(source_id):
 
-    global source_table
+    global source_table, agn_tab, cont_gals, cont_stars, config
 
-    agn_tab = Table.read(config.agncat, format="ascii")
-    cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
-    cont_stars = np.loadtxt(config.starlabels, dtype=int)
+    if agn_tab is None:
+        agn_tab = Table.read(config.agncat, format="ascii")
+    if cont_gals is None:
+        cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
+    if cont_stars is None:
+        cont_stars = np.loadtxt(config.starlabels, dtype=int)
     
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
@@ -237,15 +245,23 @@ def guess_source_wavelength(source_id):
                 if z_guess > 0:
                     s_type = "oii"
                 else:
-                    s_type = "unsure-cont-line"
+                    s_type = "star"
+                    z_guess = 0.0
             else:
                 z_guess = 0.0
                 s_type = "star"
-            
-        # if it has a gaia_match_id, we'll call it a star
+
         elif np.any(group["gaia_match_id"] > 0):
-            z_guess = 0.0
-            s_type = "star"
+            if np.any(group['det_type']=="line"):
+                z_guess = z_guess_3727(group, cont=True)
+                if z_guess > 0:
+                    s_type = "oii"
+                else:
+                    z_guess = 0.0
+                    s_type = "star"
+            else:
+                z_guess = 0.0
+                s_type = "star"
         else:
             if np.any(group['det_type'] == 'line'):
                 z_guess = z_guess_3727(group, cont=True)
@@ -611,6 +627,38 @@ def main(argv=None):
     except:
         print('messed up source name again')
 
+    # match to SDSS
+    source_table_coords = SkyCoord(source_table['ra_mean'],
+                                   source_table['dec_mean'],
+                                   unit='deg')
+    sdssfile = op.join( config.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
+    sdsstab = Table.read(sdssfile)
+    sdsstab = Table.read( sdssfile)
+    sdss_coords = SkyCoord(ra=sdsstab['PLUG_RA'], dec=sdsstab['PLUG_DEC'], unit='deg')
+    idx, d2d, d3d = source_table_coords.match_to_catalog_sky(sdss_coords)
+    
+    catalog_matches = sdsstab[idx]
+    catalog_matches['sdss_dist'] = d2d.to_value(u.arcsec)
+
+    catalog_matches.rename_column('PLUG_RA', 'ra_sdss')
+    catalog_matches.rename_column('PLUG_DEC', 'dec_sdss')
+    catalog_matches.rename_column('CLASS', 'sdss_class')
+    catalog_matches.rename_column('Z', 'z_sdss')
+    catalog_matches.rename_column('Z_ERR', 'z_sdss_err')
+    
+    matched_catalog = hstack([source_table, catalog_matches])
+
+    sel_remove = matched_catalog['sdss_dist'] > 5
+
+    matched_catalog['ra_sdss'][sel_remove] = np.nan
+    matched_catalog['dec_sdss'][sel_remove] = np.nan
+    matched_catalog['sdss_dist'][sel_remove] = np.nan
+    matched_catalog['sdss_class'][sel_remove] = ''
+    matched_catalog['z_sdss'][sel_remove] = np.nan
+    matched_catalog['z_sdss_err'][sel_remove] = np.nan
+
+    source_table = matched_catalog
+                             
     # match band-merged WISE catalog
 
     wise_catalog = Table.read('../wise/wise-hetdexoverlap.fits')
@@ -621,7 +669,7 @@ def main(argv=None):
     idx, d2d, d3d = source_table_coords.match_to_catalog_sky(wise_coords)
 
     catalog_matches = wise_catalog[idx]
-    catalog_matches['wise_dist'] = d2d
+    catalog_matches['wise_dist'] = d2d.to_value(u.arcsec)
     
     keep_wise = catalog_matches['ra','dec','primary','unwise_objid','flux', 'wise_dist']
     keep_wise.rename_column('flux','wise_fluxes')
@@ -630,8 +678,6 @@ def main(argv=None):
 
     matched_catalog = hstack([source_table, keep_wise])
 
-    print('There are {} matches between the input catalog and HETDEX sources'.format(np.size(np.unique(matched_catalog['source_id']))))
-    
     w1 = []
     w2 = []
     for row in matched_catalog:
@@ -641,12 +687,12 @@ def main(argv=None):
     matched_catalog['flux_w1'] = w1
     matched_catalog['flux_w2'] = w2
     matched_catalog.remove_column('wise_fluxes')
-    sel_close = matched_catalog['wise_dist'] < 5*u.arcsec   
+    sel_close = matched_catalog['wise_dist'] < 5 #arcsec
     
-    print('There are {} matches between the input catalog and HETDEX sources'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
+    print('There are {} wise matches'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
     # remove column info for WISE matches more than 5 arcsec away
 
-    sel_remove = matched_catalog['wise_dist'] < 5*u.arcsec
+    sel_remove = matched_catalog['wise_dist'] > 5 #arcsec
 
     matched_catalog['ra_wise'][sel_remove] = np.nan
     matched_catalog['dec_wise'][sel_remove] = np.nan
@@ -657,7 +703,93 @@ def main(argv=None):
     matched_catalog['flux_w2'][sel_remove] = np.nan
     
     source_table = matched_catalog
-#    matched_catalog['wise_dist'] =
+
+    # add z_spec from other catlogs if it exists:
+    goods_z = Table.read('catalogs/goods_n_specz_1018_no_header.txt',
+                         names=['ra_zspec','dec_zspec','zspec',
+                                'z_quality','zspec_catalog','Symbol'],
+                         format='ascii.no_header')
+
+    #DEIMOS 10k (Hasinger et al. 2018) z_spec up to ~6
+    #https://cosmos.astro.caltech.edu/news/65
+    deimos = Table.read('catalogs/deimos_redshifts.tbl', format='ascii')
+    deimos.rename_column('Ra', 'ra_zspec')
+    deimos.rename_column('Dec', 'dec_zspec')
+    deimos['zspec_catalog'] = 'CosmosDeimos'
+
+    #Kriek et al. (2015)
+    #http://mosdef.astro.berkeley.edu/for-scientists/data-releases/
+    mosdef = Table.read('catalogs/mosdef_zcat.final_slitap.fits')
+    mosdef.rename_column('RA','ra_zspec')
+    mosdef.rename_column('DEC','dec_zspec')
+    mosdef.rename_column('Z_MOSFIRE', 'zspec')
+    mosdef['zspec_catalog'] = 'MOSFIRE'
+
+    #VUDS (Tasca et al. 2017), z_spec up to ~6
+    #http://cesam.lam.fr/vuds/DR1/
+    zcosbright = Table.read('catalogs/cesam_zcosbrightspec20k_dr3_catalog_1616073679.txt', format='ascii')
+    zcosbright.rename_column('zpec','zspec')
+    zcosbright.rename_column('ra','ra_zspec')
+    zcosbright.rename_column('dec','dec_zspec')
+    zcosbright['zspec_catalog'] = 'zCosmosBright'
+
+    deep_specz = Table.read('catalogs/DEEP_zcosmos_spectroscopy_one_v2.6_data.cat',
+                            format='ascii', data_start=100)
+    deep_specz.rename_column('col1','zCOSMOS-deepID')
+    deep_specz.rename_column('col2','zspec')
+    deep_specz.rename_column('col3','flag')
+    deep_specz.rename_column('col4','zphot')
+    deep_specz.rename_column('col5','ra_zspec')
+    deep_specz.rename_column('col6','dec_zspec')
+    deep_specz['zspec_catalog'] = 'DEEP_zcosmos'
+
+    sdssfile = op.join( config.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
+
+    sdss_specz = Table.read(sdssfile)
+    sdss_specz.rename_column('PLUG_RA', 'ra_zspec')
+    sdss_specz.rename_column('PLUG_DEC', 'dec_zspec')
+    sdss_specz.rename_column('CLASS', 'sdss_class')
+    sdss_specz.rename_column('Z', 'zspec')
+    sdss_specz.rename_column('Z_ERR', 'z_sdss_err')
+    sdss_specz['zspec_catalog'] = 'sdss-dr16'
+
+    specz_catalogs = vstack([goods_z['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             deimos['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             mosdef['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             zcosbright['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             deep_specz['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             sdss_specz['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             ])
+    sel=specz_catalogs['zspec'] >= 0
+    specz_catalogs = specz_catalogs[sel]
+    
+    specz_coords = SkyCoord(ra=specz_catalogs['ra_zspec'],
+                            dec=specz_catalogs['dec_zspec'],
+                            unit='deg')
+    source_coords = SkyCoord(ra=source_table['ra'],
+                             dec=source_table['dec'],
+                             unit='deg')
+            
+    idx, d2d, d3d = source_coords.match_to_catalog_sky(specz_coords)
+    
+    catalog_matches = specz_catalogs[idx]
+    catalog_matches['zspec_dist'] = d2d.to_value(u.arcsec)
+
+    matched_catalog = hstack([source_table, catalog_matches])
+
+    sel_close = matched_catalog['zspec_dist'] < 5 #u.arcsec
+
+    print('There are {} zspec matches within 5 arcsec'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
+
+    sel_remove = matched_catalog['zspec_dist'] > 5 #u.arcsec
+
+    matched_catalog['zspec'][sel_remove] = np.nan
+    matched_catalog['ra_zspec'][sel_remove] = np.nan
+    matched_catalog['dec_zspec'][sel_remove] = np.nan
+    matched_catalog['zspec_dist'][sel_remove] = np.nan
+    matched_catalog['zspec_catalog'][sel_remove] = ''
+
+    source_table = matched_catalog
     
     # Clear up memory
 
@@ -665,21 +797,24 @@ def main(argv=None):
         if source_table:
             continue
         elif not name.startswith('_'):
-            del globals()[name]
-
+            del name
+            
     import gc
     gc.collect()
     
     # add a guess on redshift and source type
     out_table = add_z_guess(source_table)
 
+    #names=['zCOSMOS-deepID','zspec','flag','zphot','ra','dec'],
+    
     sel_star = out_table['source_type'] == 'star'
     sel_oii = out_table['source_type'] == 'oii'
     sel_lae = out_table['source_type'] == 'lae'
 
     print('There are {} stars, {} OII emitters and {} LAEs'.format(np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
 
-    # sort table by source position and wavelength so unique will produce the closest match    
+    # sort table by source wavelength closest to z_guess and position
+    # so unique will produce the closest match    
     src_coord = SkyCoord(ra=out_table['ra_mean'], dec=out_table['dec_mean'], unit='deg')
     det_coord = SkyCoord(ra=out_table['ra'], dec=out_table['dec'], unit='deg')
 
@@ -689,7 +824,7 @@ def main(argv=None):
 
     out_table['src_separation'] = det_coord.separation(src_coord)
     out_table['dwave'] = np.abs(src_wave - source_table['wave'])
-    
+
     out_table.sort(['dwave', 'src_separation'])
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
