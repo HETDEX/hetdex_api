@@ -27,6 +27,13 @@ obs = sys.argv[2]
 datevshot = str(date) + "v" + str(obs).zfill(3)
 shotid = int(str(date) + str(obs).zfill(3))
 
+hdf_outfilename = datevshot + "_mask.h5"
+
+# this is if you don't want to overwrite previous masks
+if op.exists(hdf_outfilename):
+    print('{} exists. Skipping'.format(hdf_outfilename))
+    sys.exit()
+    
 # open the config class and FiberIndex class so they don't get repeatedly initiated
 config = HDRconfig()
 
