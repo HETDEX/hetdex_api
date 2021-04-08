@@ -114,7 +114,7 @@ def frinds_of_friends(kdtree, r, Nmin=3):
 
         i = 0
         # while there are more friends (of friends)
-        while i <= len(friends_lst):
+        while i < len(friends_lst):
             # find all friends of current particle
             friends = kdtree.query_ball_point(kdtree.data[friends_lst[i]], r)
             if len(friends) > 1:
