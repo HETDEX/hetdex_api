@@ -179,7 +179,7 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[0]-dcont, wave_range[0]],
+            wrange=[wave_range[0]-dcont-10, wave_range[0]-10],
             convolve_image=convolve_image,
         )
 
@@ -193,7 +193,7 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[1], wave_range[1]+dcont],
+            wrange=[wave_range[1]+10, wave_range[1]+dcont+10],
             convolve_image=convolve_image,
         )
         
