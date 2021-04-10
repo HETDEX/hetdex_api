@@ -223,7 +223,7 @@ def make_narrowband_image(
                  np.cos(rrot)]]
 
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
-
+    E.close()
     if include_error:
         hdu_error = fits.ImageHDU(imerror, header=w.to_header())
         return fits.HDUList([hdu, hdu_error])
