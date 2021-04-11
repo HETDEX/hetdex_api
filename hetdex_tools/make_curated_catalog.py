@@ -143,8 +143,8 @@ elif version == "2.1.3":
     if np.sum(detects.detectid - detectid2) != 0:
         print('Something went wrong with appending updated chi2fib')
 
-    sel_cut1 = (detects.sn >= 7) * (detects.chi2 <= 2.5)
-    sel_cut2 = (detects.sn >= 4.8) * (detects.sn < 7) * (detects.chi2 <= 1.2)
+    sel_cut1 = np.logical_not(detects.gmag < 19) * (detects.sn >= 7) * (detects.chi2 <= 2.5) *  (detects.chi2 > 1.2) * (detects.continuum < 7.5)
+    sel_cut2 = (detects.sn >= 4.8) * (detects.chi2 <= 1.2)
 
     sel_cont = detects.continuum > -3
 
