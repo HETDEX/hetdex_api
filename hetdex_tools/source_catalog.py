@@ -54,7 +54,9 @@ def create_source_catalog(
     sel4 = detects_cont.remove_bad_detects()
     sel5 = detects_cont.remove_large_gal()
 
-    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5].return_astropy_table()
+    sel6 = detects_cont.response_4540 > 0.08
+
+    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6].return_astropy_table()
     detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
 
     if make_continuum:
@@ -65,8 +67,8 @@ def create_source_catalog(
     agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
 
     # add in continuum sources to match to Chenxu's combined catalog
-    detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
-    dets_all_table = vstack([dets_all_table, detects_cont_table_orig])
+    #detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
+    dets_all_table = vstack([dets_all_table, detects_cont_table])
 
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
@@ -336,6 +338,13 @@ def add_z_guess(source_table):
 
     src_list = np.unique(source_table["source_id"])
 
+    #z_guess = []
+    #s_type = []
+    #for src in src_list:
+    #    z_g, s_t = guess_source_wavelength(src)
+    #    z_guess.append(z_g)
+    #    s_type.append(s_t)
+        
     t0 = time.time()
     p = Pool(6)
     res = p.map(guess_source_wavelength, src_list)
