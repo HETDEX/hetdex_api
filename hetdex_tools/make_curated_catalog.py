@@ -294,13 +294,6 @@ elif version == "2.1.3":
             fixed_filter_name.append("")
             fixed_radius.append(np.nan)
 
-    # get f50 values from Donghui:
-    fileh = tb.open_file("hdr213_fullfield_source_info_210323.h5", "r")
-
-    detectid = fileh.root.hdr213_fullfield.detectid[:]
-    f50 = fileh.root.hdr213_fullfield.f50[:]
-    f50_tab = Table([detectid, f50[0], f50[1], f50[2], f50[3], f50[4], f50[5]])
-
     det_table.add_column(mlname, name="multiline_name")
     det_table.add_column(cls, name="classification_labels")
     det_table.add_column(counterpart_mag, name="counterpart_mag")
@@ -336,6 +329,7 @@ f50_tab = Table(
     [detectid, f50[0], f50[1], f50[2], f50[3], f50[4], f50[5]],
     names=["detectid", "f50_4pt8", "f50_5", "f50_5pt5", "f50_6", "f50_6pt5", "f50_7"],
 )
+fileh.close()
 
 # add 1sigma flim value for each detection from HDR1 flux limit model
 print('Adding f50_1sigma from flux limits')
