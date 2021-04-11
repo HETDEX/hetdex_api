@@ -165,11 +165,11 @@ class Detections:
                 for idx in np.arange(0, np.size(wave)):
                     sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
                     apcor_array[idx]=apcor[idx, sel_apcor]
-
-                self.flux /= apcor_array
-                self.flux_err /= apcor_array
-                self.continuum /= apcor_array
-                self.continuum_err /= apcor_array
+# This was actually done in error for 2.1.2, removing for 2.1.3
+#                self.flux /= apcor_array
+#                self.flux_err /= apcor_array
+#                self.continuum /= apcor_array
+#                self.continuum_err /= apcor_array
                 self.apcor = apcor_array
 
             # add in the elixer probabilties and associated info:
