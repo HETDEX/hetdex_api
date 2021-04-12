@@ -661,7 +661,7 @@ class ElixerWidget:
         )
 
         self.get_mini_button = widgets.Button(
-            description="Get the zooniverse mini Image")
+            description="Get the zooniverse mini Image", layout=Layout(width="30%")
 
         # self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         # self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -1101,7 +1101,7 @@ class ElixerWidget:
             else:
                 print("neighborhood not found")
 
-    def get_mini_button_click(self):
+    def get_mini_button_click(self, b):
         detectid = self.detectbox.value
         try:
             display(
