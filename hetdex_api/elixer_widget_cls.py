@@ -439,7 +439,7 @@ class ElixerWidget:
             #                              self.e_manual_dec,
             #                              self.e_manual_button]))
 
-            display(self.det_table_button)
+            display(self.det_table_button, self.get_mini_button )
 
             self.e_blue_button.on_click(self.e_blue_button_click)
             self.e_red_button.on_click(self.e_red_button_click)
@@ -447,7 +447,7 @@ class ElixerWidget:
             self.e_manual_button.on_click(self.e_manual_button_click)
 
             self.det_table_button.on_click(self.det_table_button_click)
-
+            self.get_mini_button.on_click(self.get_mini_button_click)
         # always show the status box
         display(self.status_box)
 
@@ -659,6 +659,9 @@ class ElixerWidget:
         self.det_table_button = widgets.Button(
             description="Get Detection Table Info", layout=Layout(width="30%")
         )
+
+        self.get_mini_button = widgets.Button(
+            description="Get the zooniverse mini Image")
 
         # self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         # self.savebutton = widgets.Button(description="Save Progress", button_style='success')
@@ -1097,6 +1100,17 @@ class ElixerWidget:
                     display(Image(path))
             else:
                 print("neighborhood not found")
+
+    def get_mini_button_click(self):
+        detectid = self.detectbox.value
+        try:
+            display(
+                Image(self.elixer_conn_mgr.fetch_image(
+                    detectid, report_type="mini"))
+            )
+        except Exception as e:
+            self.status_box.value = str(e) + "\n" + traceback.format_exc()
+            print("mini not found")
 
     def get_hdr_name_for_detectid(self):
         hdr_name = LATEST_HDR_NAME
