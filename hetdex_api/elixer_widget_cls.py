@@ -661,7 +661,7 @@ class ElixerWidget:
         )
 
         self.get_mini_button = widgets.Button(
-            description="Get the zooniverse mini Image", layout=Layout(width="30%")
+            description="Get the zooniverse mini Image", layout=Layout(width="30%"))
 
         # self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         # self.savebutton = widgets.Button(description="Save Progress", button_style='success')
