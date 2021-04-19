@@ -145,6 +145,8 @@ class SensitivityCube(object):
         (hdr2pt1pt1 or later only, only works
          if you don't change flim_model)
 
+
+
     Attributes
     ----------
     sigmas : array
@@ -165,6 +167,7 @@ class SensitivityCube(object):
                  nsigma=1.0, flim_model="hdr2pt1pt3", mask=None, 
                  cache_sim_interp = True): 
 
+        # Note: flux limit model is also passed here by the HDF5 container class
         print("Flux limit model: ", flim_model) 
 
         if type(mask) != type(None):

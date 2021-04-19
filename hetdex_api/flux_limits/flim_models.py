@@ -230,6 +230,7 @@ class SingleSNSimulationInterpolator(object):
 
         # Optionally normalize all curves to cmax
         if cmax:
+            print("Normalizing to {:f}".format(cmax))
             for i in range(len(self.waves)):
                  self.compl_curves[i, :] /= max(self.compl_curves[i, :]) 
                  self.compl_curves[i, :] *= cmax
@@ -253,7 +254,7 @@ class SingleSNSimulationInterpolator(object):
         # bins to interpolate all completeness curves to,
         # in these coordinates 50% completeness always 
         # at 1.0 
-        fluxes_f50_units = linspace(0, 10, 2000)
+        fluxes_f50_units = linspace(0, 50, 5000)
 
         c_all = []
 
@@ -285,7 +286,7 @@ class SingleSNSimulationInterpolator(object):
                 vals_to_plot = completeness_model(fluxes_f50_units)
 
         else:
-            # waves have to be uniformly spaced for this to work
+            # waves have to be uniformly spaced for this to work (? don't think so?)
             interp = RectBivariateSpline(self.waves, fluxes_f50_units, c_all, 
                                          kx=3, ky=3)
 

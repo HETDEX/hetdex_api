@@ -22,5 +22,6 @@ def test_simulation_interpolator(release, sncut):
 
     for wl, f50, compl_curve in zip(waves, f50s, compl_curves):
         model = sinterp(fluxes, f50, wl, sncut)
+        print(wl, f50, (model == pytest.approx(compl_curve, rel=1e-2, abs=1e-2)))
         assert model == pytest.approx(compl_curve, rel=1e-2, abs=1e-2)
 
