@@ -333,7 +333,7 @@ fileh.close()
 
 # add 1sigma flim value for each detection from HDR1 flux limit model
 print('Adding f50_1sigma from flux limits')
-p = Pool()
+p = Pool(24)
 flim = p.map(get_f50_1sigma, det_table['detectid'])
 p.close()
 
