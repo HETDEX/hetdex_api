@@ -226,7 +226,7 @@ def make_narrowband_image(
     E.close()
     if include_error:
         hdu_error = fits.ImageHDU(imerror, header=w.to_header())
-        return fits.HDUList([hdu, hdu_error])
+        return fits.HDUList([hdu, hdu_error, zarray[2], zarray[3])
     else:
         return hdu
 
