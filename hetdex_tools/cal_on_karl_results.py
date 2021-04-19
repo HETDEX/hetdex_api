@@ -256,7 +256,7 @@ def plot_sn_scaling(snlist, scaling):
 
     plt.plot(snlist, scaling, "k*", markersize=12.0,  label="Simulations")
     plt.plot(snplot, model, "r-", label="Polynomial fit")
-    plt.plot(snplot, model_hdr211, "k--", label="HDR 2.1.1 Model")
+    plt.plot(snplot, model_hdr213, "k--", label="HDR 2.1.3 Model")
 
     print(params)
 
@@ -341,7 +341,7 @@ if __name__ == "__main__":
     
     shots = [x.strip() for x in rshots]
 
-    snlist = [4.8, 5.0, 5.5, 6.0, 6.5] #, 7.0]
+    snlist = [4.8, 5.0, 5.5, 6.0, 6.5, 7.0]
 
     remeasure = False 
     if remeasure: 

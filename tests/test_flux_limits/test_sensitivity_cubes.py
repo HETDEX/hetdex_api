@@ -37,8 +37,8 @@ def test_aper_corr(datadir, aper_corr):
                                                     ("hdr1", 2e-16, 5.0, 0.47937941516439253),
                                                     ("hdr2pt1", 4e-16, 6.0, 0.2115161903693431),
                                                     ("hdr2pt1", 4e-16, 5.0, 0.4961144900645637),
-                                                    ("hdr2pt1pt1", 4e-16, 6.0, 0.52132582),
-                                                    ("hdr2pt1pt1", 4e-16, 5.0, 0.64842545)
+                                                    ("hdr2pt1pt1", 4e-16, 6.0, 0.46204076),
+                                                    ("hdr2pt1pt1", 4e-16, 5.0, 0.56837322)
                                                     ])
 def test_completeness_func(datadir, flux, model, sncut, expected):
     """
@@ -56,7 +56,7 @@ def test_completeness_func(datadir, flux, model, sncut, expected):
                                           flim_model=model)
  
     c = scube.return_completeness(flux, 161.4201, 50.8822, 3478, sncut)
-    assert c == pytest.approx(expected)
+    assert c == pytest.approx(expected, rel=1e-4)
 
 
 def test_flux_calib_corr(datadir, plot=False):
