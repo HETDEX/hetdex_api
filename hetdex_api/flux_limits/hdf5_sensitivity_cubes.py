@@ -111,7 +111,7 @@ class SensitivityCubeHDF5Container(object):
 
     """
 
-    def __init__(self, filename, mode="r", flim_model="hdr2pt1pt1", aper_corr=1.0, 
+    def __init__(self, filename, mode="r", flim_model="hdr2pt1pt3", aper_corr=1.0, 
                  mask_filename = None, **kwargs):
 
         if (mode == "w") and isfile(filename):

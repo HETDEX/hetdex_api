@@ -28,7 +28,8 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
-                   repeat, newaxis, logical_not)
+                   repeat, newaxis, logical_not, arange, tile)
+from numpy.ma import filled
 from numpy.ma import array as maskedarray
 from numpy.random import normal
 from numpy import any as nany
@@ -144,6 +145,8 @@ class SensitivityCube(object):
         (hdr2pt1pt1 or later only, only works
          if you don't change flim_model)
 
+
+
     Attributes
     ----------
     sigmas : array
@@ -161,8 +164,11 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1pt1", mask=None, 
+                 nsigma=1.0, flim_model="hdr2pt1pt3", mask=None, 
                  cache_sim_interp = True): 
+
+        # Note: flux limit model is also passed here by the HDF5 container class
+        print("Flux limit model: ", flim_model) 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
@@ -170,6 +176,9 @@ class SensitivityCube(object):
             self.sigmas = maskedarray(sigmas/nsigma, mask=mask3d, fill_value=999.0)
         else:
             self.sigmas = maskedarray(sigmas/nsigma, fill_value=999.0)
+
+        # collapse the data to create a continuum mask
+        self.collapsed_data = filled(self.sigmas, 0).sum(axis=0)
 
         self.nsigma = nsigma
 
@@ -181,7 +190,11 @@ class SensitivityCube(object):
         else:
             conf = HDRconfig()
             fdir = conf.flim_sim_completeness 
-            self.sinterp = flim_models.SimulationInterpolator(fdir)
+            if "snbased" in flim_model:
+                print("Using S/N based model!") 
+                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=True)
+            else:
+                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=False)
 
         # cache the model to save reinitialising the object
         if cache_sim_interp: 
@@ -356,6 +369,174 @@ class SensitivityCube(object):
 
         return array(around(ix), dtype=int), array(around(iy), dtype=int), \
             array(around(iz), dtype=int)
+
+    def get_average_f50(self, ra, dec, lambda_, sncut, npix=1):
+        """
+        Get the maximum 50% completeness flux from the cube in
+        an npix box around and ra, dec, lambda
+
+        Parameters
+        ----------
+        ra, dec : array
+            right ascension and dec in degrees
+        lambda_ : array
+            wavelength in Angstroms
+        sncut : float
+            cut in detection significance 
+            that defines this catalogue
+        npix : int
+            the box will be 2*npix + 1 on
+            a side, i.e. number of pixels
+            around the position to 
+            consider.
+ 
+        Returns
+        -------
+        f50s : array
+            max flux limits in cubes. If outside
+            of cube return 999
+        """
+
+        ixc, iyc, izc = self.radecwltoxyz(ra, dec, lambda_)
+  
+        na = int(2*npix + 1)
+ 
+        # [x1-1, x1, x1+1, x2-1, x2, x2+1, .....]
+        offsets = arange(-1.0*npix, npix + 1, 1, dtype=int)
+        ix = ixc.repeat(na) + tile(offsets, len(ixc))
+
+        # same x for all x, y in loop
+        ix = ix.repeat(na*na)
+
+        iy = iyc.repeat(na) + tile(offsets, len(iyc))
+
+        # same y for all z values in loop
+        iy = iy.repeat(na)
+
+        # tile full y-loop for each x-value
+        iy = tile(iy.reshape(len(iyc), na*na), na)
+        iy = iy.flatten()
+
+        # [z1-1, z1, z1+1, z2-1, z2, z2+1, .....]
+        iz = izc.repeat(len(offsets)) + tile(offsets, len(izc))
+
+        # z axis fastest repeating, tile z loop for every x and y value
+        iz = tile(iz.reshape(len(izc), na), na*na)
+        iz = iz.flatten()
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.sigmas.shape[0]) | (iz < 0) 
+ 
+        ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
+
+        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
+
+        # Support arrays and floats
+        f50s[bad_vals] = 999.0
+
+        #print(ix)
+        #print(iy)
+        #print(iz)
+
+        # return the average flim in the area
+        f50s = f50s*f50s
+        return sqrt(f50s.reshape(len(ra), na*na*na).mean(axis=1))
+
+    def get_collapsed_value(self, ra, dec):
+
+        ix, iy, iz = self.radecwltoxyz(ra, dec, 4500.)
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
+ 
+        ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
+
+        noise = self.collapsed_data[iy, ix]
+        noise[bad_vals] = 999.0
+
+        return noise
+   
+
+    def get_local_max_f50(self, ra, dec, lambda_, sncut, npix=1):
+        """
+        Get the maximum 50% completeness flux from the cube in
+        an npix box around and ra, dec, lambda
+
+        Parameters
+        ----------
+        ra, dec : array
+            right ascension and dec in degrees
+        lambda_ : array
+            wavelength in Angstroms
+        sncut : float
+            cut in detection significance 
+            that defines this catalogue
+        npix : int
+            the box will be 2*npix + 1 on
+            a side, i.e. number of pixels
+            around the position to 
+            consider.
+ 
+        Returns
+        -------
+        f50s : array
+            max flux limits in cubes. If outside
+            of cube return 999
+        """
+
+        ixc, iyc, izc = self.radecwltoxyz(ra, dec, lambda_)
+  
+        na = int(2*npix + 1)
+ 
+        # [x1-1, x1, x1+1, x2-1, x2, x2+1, .....]
+        offsets = arange(-1.0*npix, npix + 1, 1, dtype=int)
+        ix = ixc.repeat(na) + tile(offsets, len(ixc))
+
+        # same x for all x, y in loop
+        ix = ix.repeat(na*na)
+
+        iy = iyc.repeat(na) + tile(offsets, len(iyc))
+
+        # same y for all z values in loop
+        iy = iy.repeat(na)
+
+        # tile full y-loop for each x-value
+        iy = tile(iy.reshape(len(iyc), na*na), na)
+        iy = iy.flatten()
+
+        # [z1-1, z1, z1+1, z2-1, z2, z2+1, .....]
+        iz = izc.repeat(len(offsets)) + tile(offsets, len(izc))
+
+        # z axis fastest repeating, tile z loop for every x and y value
+        iz = tile(iz.reshape(len(izc), na), na*na)
+        iz = iz.flatten()
+
+        # Check for stuff outside of cube
+        bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
+        bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
+        bad_vals = bad_vals | (iz >= self.sigmas.shape[0]) | (iz < 0) 
+ 
+        ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
+        iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
+        iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
+
+        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
+
+        # Support arrays and floats
+        f50s[bad_vals] = 999.0
+
+        #print(ix)
+        #print(iy)
+        #print(iz)
+
+        # return the max value in area
+        return f50s.reshape(len(ra), na*na*na).max(axis=1) 
 
     def get_f50(self, ra, dec, lambda_, sncut):
         """
