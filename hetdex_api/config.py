@@ -17,12 +17,8 @@ class HDRconfig:
             self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
         elif op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
-        #elif op.exists("/data/05350/ecooper"):
-        #    self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
-        elif op.exists("/work/03946/hetdex"):
-            self.host_dir = "/work/03946/hetdex"
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
