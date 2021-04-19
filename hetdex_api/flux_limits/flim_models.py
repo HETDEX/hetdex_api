@@ -13,11 +13,54 @@ simulation results.
 
 from glob import glob
 from scipy.interpolate import interp1d, interp2d, splrep, griddata, RectBivariateSpline
-from numpy import (polyval, mean, median, loadtxt, meshgrid, 
-                   array, linspace, tile, ones, array, argmin)
+from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
+                   array, linspace, tile, ones, array, argmin, zeros)
 
 class NoSNFilesException(Exception):
     pass
+
+
+def write_karl_file(fn, f50s, fcens, wlcens, 
+                    completeness_2d):
+
+    with open(fn, 'w') as fp:
+        fp.write("0          ")
+        for wl in wlcens:
+            fp.write("{:5.1f}     ".format(wl))
+        fp.write("\n")
+
+        fp.write("0.500      ")
+        for f50 in f50s:
+            fp.write("{:5.3f}     ".format(f50))
+        fp.write("\n")
+ 
+        out_arr = zeros((completeness_2d.shape[0] + 1, completeness_2d.shape[1]))
+        out_arr[0, :] = fcens
+        out_arr[1:, :] = completeness_2d
+        savetxt(fp, out_arr.T, fmt="%.4f    ")
+
+
+def write_sn_file(fn, sns, wlcens, completeness_2d):
+
+    out_arr = zeros((completeness_2d.shape[0] + 1, completeness_2d.shape[1] + 1))
+
+    out_arr[0, 0] = 0
+    out_arr[1:, 0] = wlcens
+    out_arr[0, 1:] = sns
+    out_arr[1:, 1:] = completeness_2d
+
+    savetxt(fn, out_arr.T, fmt="%.4f    ")
+
+
+def read_sn_file(fn):
+
+    compl_file = loadtxt(fn)
+    waves = compl_file[0,1:]
+    compl_curves = compl_file[1:, 1:].T
+    sns = compl_file[1:, 0]
+
+    return waves, sns, compl_curves
+
 
 
 def read_karl_file(fn):
@@ -75,14 +118,18 @@ class SimulationInterpolator(object):
         passed to SingleSNSimulationInterpolator
     """
 
-    def __init__(self, fdir, **kwargs):
+    def __init__(self, fdir, snmode=False, **kwargs):
 
-        snfiles = glob(fdir + "/sn?.?.use")
+        if snmode:
+            snfiles = glob(fdir + "/sn_based_?.?.dat")
+        else: 
+            snfiles = glob(fdir + "/sn?.?.use")
 
         sns = []
         self.sninterpolators = []
         for snfile in snfiles:
-            self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, **kwargs))
+            print(snfile)
+            self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, snmode=snmode, **kwargs))
             sns.append(float(snfile[-7:-4]))
 
         if len(sns) == 0:
@@ -166,11 +213,18 @@ class SingleSNSimulationInterpolator(object):
         simulation files
 
     """
-    def __init__(self, filename, wl_collapse = False, cmax = 1.0):
+    def __init__(self, filename, wl_collapse = False, cmax = 1.0, snmode=False):
 
-        self.waves, self.f50, self.compl_curves, self.fluxes =\
-            read_karl_file(filename)
+        if not snmode:
+            self.waves, self.f50, self.compl_curves, self.fluxes =\
+                read_karl_file(filename)
+        else:  
+            self.waves, self.fluxes, self.compl_curves = \
+                read_sn_file(filename)
+            # set 50% to one as already in S/N units
+            self.f50 = ones(len(self.waves))
 
+        self._snmode = snmode
         self._wl_collapse = wl_collapse
         self.cmax = cmax 
 
@@ -308,11 +362,11 @@ def hdr2pt1pt1_f50_from_noise(noise, sncut):
         if any(sncut < 4.5) or any(ncut > 7.5):
             print("WARNING: model not calibrated for this S/N range")
 
+    # Karls
     params = [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00]
     snmult = polyval(params, sncut)
 
     return noise*snmult
-
 
 def hdr2pt1_f50_from_noise(noise, sncut):
     """
@@ -356,6 +410,44 @@ def hdr2pt1_f50_from_noise(noise, sncut):
     f50s = snslope*sncut*noise + intercept
         
     return f50s
+
+def hdr2pt1pt3_f50_from_noise(noise, sncut):
+    """
+    Return the 50% completeness
+    flux given noise and 
+    S/N cut. This uses an empirical
+    model calibrated on simulated
+    LAE detections inserted into
+    ~200 different shots (see
+    Figures in data release 
+    document)
+
+    Parameters
+    ----------
+    noise : float
+        the noise from the
+        sensitivity cubes
+    sncut : float
+        the signal to noise
+        cut to assume
+
+    Returns
+    -------
+    f50s : array
+       the fluxes at 50%
+       completeness
+    """
+    try:
+        if sncut < 4.8 or sncut > 7.0:
+            print("WARNING: model not calibrated for this S/N range")
+    except ValueError:
+        if any(sncut < 4.8) or any(ncut > 7.0):
+            print("WARNING: model not calibrated for this S/N range")
+
+    params = [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00]
+    snmult = polyval(params, sncut)
+
+    return noise*snmult
 
 def hdr1_f50_from_noise(noise, sncut):
     """
