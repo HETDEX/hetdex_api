@@ -54,7 +54,7 @@ def create_source_catalog(
     sel4 = detects_cont.remove_bad_detects()
     sel5 = detects_cont.remove_large_gal()
 
-    sel6 = detects_cont.response_4540 > 0.08
+    sel6 = detects_cont.throughput > 0.08
 
     detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6].return_astropy_table()
     detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
@@ -63,23 +63,26 @@ def create_source_catalog(
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
 
     dets_all = Detections().refine()
-    dets_all_table = dets_all.return_astropy_table()
+    sel_tp = dets_all.throughput > 0.08
+    dets_all_table = dets_all[sel_tp].return_astropy_table()
     agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
 
     # add in continuum sources to match to Chenxu's combined catalog
     #detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
+    
     dets_all_table = vstack([dets_all_table, detects_cont_table])
 
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
+    detects_broad_table.remove_column('det_type')
     detects_broad_table.add_column(Column(str("agn"), name="det_type", dtype=str))
     dets_all.close()
     del dets_all_table
 
     detect_table = vstack([detects_line_table, detects_broad_table, detects_cont_table])
     detect_table.write('test.fits', overwrite=True)
-    del detects_cont_table_orig, detects_cont_table, detects_broad_table
+    del detects_cont_table, detects_broad_table
 
     kdtree, r = fof.mktree(
         detect_table["ra"],
@@ -606,7 +609,7 @@ def get_source_name(ra, dec):
     convert ra,dec coordinates to a IAU-style object name.
     """
     coord = SkyCoord(ra * u.deg, dec * u.deg)
-    return "HETDEX J{0}{1}".format(
+    return "HETDEX_J{0}{1}".format(
         coord.ra.to_string(unit=u.hourangle, sep="", precision=2, pad=True),
         coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True),
     )
@@ -670,7 +673,7 @@ def main(argv=None):
                              
     # match band-merged WISE catalog
 
-    wise_catalog = Table.read('../wise/wise-hetdexoverlap.fits')
+    wise_catalog = Table.read('wise-hetdexoverlap.fits')
     source_table_coords = SkyCoord(source_table['ra_mean'],
                                    source_table['dec_mean'],
                                    unit='deg')
