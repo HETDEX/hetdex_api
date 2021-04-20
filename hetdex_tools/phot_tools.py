@@ -1130,14 +1130,14 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
                                                               r_2sigma,
                                                               r_snmax)
         (
-            flux_2sigma,
-            flux_err_2sigma,
-            bkg_stddev_2sigma,
-            apcor_2sigma,
+            flux_snmax,
+            flux_err_snmax,
+            bkg_stddev_snmax,
+            apcor_snmax,
         ) = FitCircularAperture(
             hdu=hdu,
             coords=coords_center,
-            radius=r_2sigma * u.arcsec,
+            radius=r_snmax * u.arcsec,
             annulus=[r_snmax * 2, r_snmax * 3] * u.arcsec,
             plot=True,
             plottitle=plottitle,
@@ -1233,6 +1233,6 @@ def make_im_catalog(detlist, filename="imflux.tab",
 
     print("Done in {:4.2f} s".format(time.time() - t0))
 
-    imflux.write(filename, format="ascii")
+    imflux.write(filename, format="ascii", overwrite=True)
 
     return imflux
