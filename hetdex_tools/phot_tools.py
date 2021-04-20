@@ -1109,7 +1109,7 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
                 size=18,
                 color="w",
             )
-            plt.savefig(op.join(img_dir,"{}.png".format(detectid))
+            plt.savefig(op.join(img_dir,"{}.png".format(detectid)))
         else:
             (
                 flux_2sigma,
