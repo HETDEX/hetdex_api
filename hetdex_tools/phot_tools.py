@@ -1086,9 +1086,9 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
     if np.isfinite(r_2sigma):
         if plot:
             plt.figure()
-            plottitle = " {}  r_2sig={:3.2} r_snmax={:3.2}".format(detectid,
-                                                                   r_2sigma,
-                                                                   r_snmax)
+            plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
+                                                                  r_2sigma,
+                                                                  r_snmax)
             (
                 flux_2sigma,
                 flux_err_2sigma,
@@ -1124,6 +1124,33 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
                 plot=False
             )
     else:
+        #plot SNmax if r_2sigma is not defined
+        plt.figure()
+        plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
+                                                              r_2sigma,
+                                                              r_snmax)
+        (
+            flux_2sigma,
+            flux_err_2sigma,
+            bkg_stddev_2sigma,
+            apcor_2sigma,
+        ) = FitCircularAperture(
+            hdu=hdu,
+            coords=coords_center,
+            radius=r_2sigma * u.arcsec,
+            annulus=[r_snmax * 2, r_snmax * 3] * u.arcsec,
+            plot=True,
+            plottitle=plottitle,
+        )
+        plt.text(
+            2,
+            2,
+            "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
+            size=18,
+            color="w",
+        )
+        plt.savefig(op.join( img_dir, "{}.png".format(detectid)))
+                                                                    
         flux_2sigma = np.nan
         flux_err_2sigma = np.nan
         bkg_stddev_2sigma = np.nan
