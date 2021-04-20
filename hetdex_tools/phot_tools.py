@@ -2,6 +2,7 @@
 
 import numpy as np
 import tables as tb
+import os
 import os.path as op
 import time
 
@@ -1020,8 +1021,14 @@ def get_sn_for_aperture_range(
     return r_list, sn, coords_center
 
 
-def fit_growing_aperture(detectid):
+def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
 
+    if plot:
+        if op.exists(img_dir):
+            pass
+        else:
+            os.makedirs(img_dir)
+                                                             
     hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
 
     r_list, sn, coords_center = get_sn_for_aperture_range(hdu)
@@ -1043,7 +1050,9 @@ def fit_growing_aperture(detectid):
 
     if sn[-1] > 2:
         # increase image cutout and aperture search to larger radii
-        hdu, coords = get_line_image(detectid=detectid, imsize=40, return_coords=True)
+        hdu, coords = get_line_image(detectid=detectid,
+                                     imsize=40,
+                                     return_coords=True)
 
         r_list, sn, coords_center = get_sn_for_aperture_range(
             hdu, r_list=np.arange(1.5, 8.2, 0.2, dtype=float)
@@ -1075,31 +1084,45 @@ def fit_growing_aperture(detectid):
             )
     
     if np.isfinite(r_2sigma):
-        plt.figure()
-        plottitle = " {}  r_2sig={:3.2} r_snmax={:3.2}".format(detectid,
-                                                               r_2sigma,
-                                                               r_snmax)
-        (
-            flux_2sigma,
-            flux_err_2sigma,
-            bkg_stddev_2sigma,
-            apcor_2sigma,
-        ) = FitCircularAperture(
-            hdu=hdu,
-            coords=coords_center,
-            radius=r_2sigma * u.arcsec,
-            annulus=[r_2sigma * 2, r_2sigma * 3] * u.arcsec,
-            plot=True,
-            plottitle=plottitle,
-        )
-        plt.text(
-            2,
-            2,
-            "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
-            size=18,
-            color="w",
-        )
-        plt.savefig("shela_laes/{}.png".format(detectid))
+        if plot:
+            plt.figure()
+            plottitle = " {}  r_2sig={:3.2} r_snmax={:3.2}".format(detectid,
+                                                                   r_2sigma,
+                                                                   r_snmax)
+            (
+                flux_2sigma,
+                flux_err_2sigma,
+                bkg_stddev_2sigma,
+                apcor_2sigma,
+            ) = FitCircularAperture(
+                hdu=hdu,
+                coords=coords_center,
+                radius=r_2sigma * u.arcsec,
+                annulus=[r_2sigma * 2, r_2sigma * 3] * u.arcsec,
+                plot=True,
+                plottitle=plottitle,
+            )
+            plt.text(
+                2,
+                2,
+                "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
+                size=18,
+                color="w",
+            )
+            plt.savefig(op.join(img_dir,"{}.png".format(detectid))
+        else:
+            (
+                flux_2sigma,
+                flux_err_2sigma,
+                bkg_stddev_2sigma,
+                apcor_2sigma,
+            ) = FitCircularAperture(
+                hdu=hdu,
+                coords=coords_center,
+                radius=r_2sigma * u.arcsec,
+                annulus=[r_2sigma * 2, r_2sigma * 3] * u.arcsec,
+                plot=False
+            )
     else:
         flux_2sigma = np.nan
         flux_err_2sigma = np.nan
@@ -1122,7 +1145,10 @@ def fit_growing_aperture(detectid):
     )
 
 
-def make_im_catalog(detlist, filename="imflux.tab", save=True):
+def make_im_catalog(detlist, filename="imflux.tab",
+                    save=True,
+                    plot=True,
+                    img_dir='line_images'):
 
     t0 = time.time()
     imflux = Table(
@@ -1157,7 +1183,9 @@ def make_im_catalog(detlist, filename="imflux.tab", save=True):
             flux_err_snmax,
             bkg_stddev_snmax,
             apcor_snmax,
-        ) = fit_growing_aperture(det)
+        ) = fit_growing_aperture(det,
+                                 plot=plot,
+                                 img_dir=img_dir)
         imflux.add_row(
             [
                 det,
@@ -1176,7 +1204,7 @@ def make_im_catalog(detlist, filename="imflux.tab", save=True):
             ]
         )
 
-    print("Done in {:3.2} s".format(time.time() - t0))
+    print("Done in {:4.2f} s".format(time.time() - t0))
 
     imflux.write(filename, format="ascii")
 
