@@ -28,6 +28,9 @@ from astropy.convolution import Gaussian1DKernel
 from astropy.visualization import ZScaleInterval
 from astropy.stats import sigma_clipped_stats
 
+import matplotlib
+matplotlib.use("agg")
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
