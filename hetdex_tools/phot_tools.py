@@ -6,6 +6,12 @@ import os
 import os.path as op
 import time
 
+import matplotlib
+matplotlib.use("agg")
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+
 from photutils.isophote import EllipseGeometry, Ellipse, IsophoteList
 from photutils import EllipticalAperture, SkyEllipticalAperture
 from photutils import SkyCircularAperture, SkyCircularAnnulus
@@ -28,17 +34,9 @@ from astropy.convolution import Gaussian1DKernel
 from astropy.visualization import ZScaleInterval
 from astropy.stats import sigma_clipped_stats
 
-import matplotlib
-matplotlib.use("agg")
-
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-
 from hetdex_api.config import HDRconfig
-from hetdex_api.detections import Detections
 from hetdex_tools.interpolate import make_narrowband_image
 from hetdex_api.extract import Extract
-from hetdex_api.elixer_widget_cls import ElixerWidget
 
 from elixer import catalogs
 
