@@ -1215,19 +1215,19 @@ def make_im_catalog(detlist, filename="imflux.tab",
                                  img_dir=img_dir)
         imflux.add_row(
             [
-                det,
-                r_2sigma,
-                sn_2sigma,
-                r_snmax,
-                sn_max,
-                flux_2sigma,
-                flux_err_2sigma,
-                bkg_stddev_2sigma,
-                apcor_2sigma,
-                flux_snmax,
-                flux_err_snmax,
-                bkg_stddev_snmax,
-                apcor_snmax,
+                int(det),
+                np.float32(r_2sigma),
+                np.float32(sn_2sigma),
+                np.float32(r_snmax),
+                np.float32(sn_max),
+                np.float32(flux_2sigma),
+                np.float32(flux_err_2sigma),
+                np.float32(bkg_stddev_2sigma),
+                np.float32(apcor_2sigma),
+                np.float32(flux_snmax),
+                np.float32(flux_err_snmax),
+                np.float32(bkg_stddev_snmax),
+                np.float32(apcor_snmax),
             ]
         )
 
