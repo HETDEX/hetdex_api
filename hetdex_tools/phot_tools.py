@@ -1178,6 +1178,12 @@ def make_im_catalog(detlist, filename="imflux.tab",
                     plot=True,
                     img_dir='line_images'):
 
+    if plot:
+        if op.exists(img_dir):
+            pass
+        else:
+            os.makedirs(img_dir)
+                                                            
     t0 = time.time()
     imflux = Table(
         names=[
