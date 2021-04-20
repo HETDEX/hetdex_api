@@ -1066,6 +1066,14 @@ def fit_growing_aperture(detectid):
     # stop growing at 8 arcsec for now
     # get flux info at sn_max and sn2sigma
 
+    flux_snmax, flux_err_snmax, bkg_stddev_snmax, apcor_snmax = FitCircularAperture(
+                hdu=hdu,
+                coords=coords_center,
+                plot=False,
+                radius=r_snmax * u.arcsec,
+                annulus=[r_snmax, r_snmax * 3] * u.arcsec,
+            )
+    
     if np.isfinite(r_2sigma):
         plt.figure()
         plottitle = " {}  r_2sig={:3.2} r_snmax={:3.2}".format(detectid,
@@ -1097,14 +1105,6 @@ def fit_growing_aperture(detectid):
         flux_err_2sigma = np.nan
         bkg_stddev_2sigma = np.nan
         apcor_2sigma = np.nan
-
-    flux_snmax, flux_err_snmax, bkg_stddev_snmax, apcor_snmax = FitCircularAperture(
-        hdu=hdu,
-        coords=coords_center,
-        plot=False,
-        radius=r_snmax * u.arcsec,
-        annulus=[r_snmax, r_snmax * 3] * u.arcsec,
-    )
 
     return (
         r_2sigma,
