@@ -1032,7 +1032,7 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
     try:
         if shotid is None:
             hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
-        except:
+        else:
             hdu, coords = get_line_image(detectid=detectid,
                                          shotid=shotid,
                                          imsize=20,
@@ -1250,6 +1250,7 @@ def make_im_catalog(detlist,
                 ) = fit_growing_aperture(det,
                                          plot=plot,
                                          img_dir=img_dir)
+
             imflux.add_row(
                 [
                     int(det),
