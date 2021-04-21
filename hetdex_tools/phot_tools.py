@@ -1287,6 +1287,9 @@ def make_im_catalog(detlist,
 
     print("Done in {:4.2f} s".format(time.time() - t0))
 
+    if shotlist is not None:
+        imflux['shotid_obs'] = shotlist
+        
     imflux.write(filename, format="ascii", overwrite=True)
 
     return imflux
