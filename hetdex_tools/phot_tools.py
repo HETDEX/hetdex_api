@@ -1031,7 +1031,9 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
             os.makedirs(img_dir)
     try:
         if shotid is None:
-            hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
+            hdu, coords = get_line_image(detectid=detectid,
+                                         imsize=20,
+                                         return_coords=True)
         else:
             hdu, coords = get_line_image(detectid=detectid,
                                          shotid=shotid,
@@ -1059,9 +1061,16 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
 
     if sn[-1] > 2:
         # increase image cutout and aperture search to larger radii
-        hdu, coords = get_line_image(detectid=detectid,
-                                     imsize=40,
-                                     return_coords=True)
+        if shotid is None:
+            hdu, coords = get_line_image(detectid=detectid,
+                                         imsize=20,
+                                         shotid=shotid,
+                                         return_coords=True)
+        else:
+            hdu, coords = get_line_image(detectid=detectid,
+                                         shotid=shotid,
+                                         imsize=20,
+                                         return_coords=True)
 
         r_list, sn, coords_center = get_sn_for_aperture_range(
             hdu, r_list=np.arange(1.5, 8.2, 0.2, dtype=float)
@@ -1095,9 +1104,14 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
     if np.isfinite(r_2sigma):
         if plot:
             plt.figure()
-            plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
-                                                                  r_2sigma,
-                                                                  r_snmax)
+            if shotid is not None:
+                plottitle = "{} {} r_eff={:3.2}".format(detectid,
+                                                        shotid,
+                                                        r_2sigma)
+            else:
+                plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
+                                                                      r_2sigma,
+                                                                      r_snmax)
             (
                 flux_2sigma,
                 flux_err_2sigma,
@@ -1118,7 +1132,10 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
                 size=18,
                 color="w",
             )
-            plt.savefig(op.join(img_dir,"{}.png".format(detectid)))
+            if shotid is not None:
+                plt.savefig(op.join(img_dir,"{}_{}.png".format(detectid, shotid)))
+            else:
+                plt.savefig(op.join(img_dir,"{}.png".format(detectid)))
         else:
             (
                 flux_2sigma,
@@ -1135,9 +1152,14 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
     else:
         #plot SNmax if r_2sigma is not defined
         plt.figure()
-        plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
-                                                              r_2sigma,
-                                                              r_snmax)
+        if shotid is not None:
+            plottitle = "{} {} r_eff={:3.2}".format(detectid,
+                                                    shotid,
+                                                    r_2sigma)
+        else:
+            plottitle = " {}  r_eff={:3.2} r_snmax={:3.2}".format(detectid,
+                                                                  r_2sigma,
+                                                                  r_snmax)
         (
             flux_snmax,
             flux_err_snmax,
@@ -1158,7 +1180,11 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
             size=18,
             color="w",
         )
-        plt.savefig(op.join( img_dir, "{}.png".format(detectid)))
+
+        if shotid is not None:
+            plt.savefig(op.join(img_dir,"{}_{}.png".format(detectid, shotid)))
+        else:
+            plt.savefig(op.join(img_dir,"{}.png".format(detectid)))
                                                                     
         flux_2sigma = np.nan
         flux_err_2sigma = np.nan
