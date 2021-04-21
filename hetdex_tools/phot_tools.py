@@ -1348,4 +1348,7 @@ def make_im_catalog(detlist,
 
     imflux.write(filename, format="ascii", overwrite=True)
 
-    return imflux, detcheck, detlist
+    if np.sum(np.array(detcheck)-np.array(detlist)) >0:
+        print('detlist failed detcheck')
+        
+    return imflux
