@@ -1022,7 +1022,10 @@ def get_sn_for_aperture_range(
     return r_list, sn, coords_center
 
 
-def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'):
+def fit_growing_aperture(detectid,
+                         shotid=None,
+                         plot=True,
+                         img_dir='line_images'):
 
     if plot:
         if op.exists(img_dir):
@@ -1063,13 +1066,13 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
         # increase image cutout and aperture search to larger radii
         if shotid is None:
             hdu, coords = get_line_image(detectid=detectid,
-                                         imsize=20,
+                                         imsize=40,
                                          shotid=shotid,
                                          return_coords=True)
         else:
             hdu, coords = get_line_image(detectid=detectid,
                                          shotid=shotid,
-                                         imsize=20,
+                                         imsize=40,
                                          return_coords=True)
 
         r_list, sn, coords_center = get_sn_for_aperture_range(
@@ -1135,12 +1138,13 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
             plt.text(
                 7,
                 2,
-                "S/Nsig={:3.2f}".format(flux_2igma.value / bkg_stddev_2sigma.value),
+                "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
                 size=18,
                 color="w",
             )
             if shotid is not None:
-                plt.savefig(op.join(img_dir,"{}_{}.png".format(detectid, shotid)))
+                plt.savefig(op.join(img_dir,"{}_{}.png".format(detectid,
+                                                               shotid)))
             else:
                 plt.savefig(op.join(img_dir,"{}.png".format(detectid)))
         else:
@@ -1190,7 +1194,7 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
         plt.text(
             7,
             2,
-            "S/Nsig={:3.2f}".format(flux_2igma.value / bkg_stddev_2sigma.value),
+            "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
             size=18,
             color="w",
         )
@@ -1329,6 +1333,7 @@ def make_im_catalog(detlist,
 
     print("Done in {:4.2f} s".format(time.time() - t0))
 
+    
     if shotlist is not None:
         imflux['shotid_obs'] = shotlist
         
