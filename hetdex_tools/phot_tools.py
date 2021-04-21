@@ -1275,6 +1275,7 @@ def make_im_catalog(detlist,
                     apcor_snmax,
                 ) = fit_growing_aperture(det,
                                          plot=plot,
+                                         shotid=shotid,
                                          img_dir=img_dir)
 
             imflux.add_row(
