@@ -1128,7 +1128,14 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
             plt.text(
                 2,
                 2,
-                "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
+                "S/Nmax={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
+                size=18,
+                color="w",
+            )
+            plt.text(
+                7,
+                2,
+                "S/Nsig={:3.2f}".format(flux_2igma.value / bkg_stddev_2sigma.value),
                 size=18,
                 color="w",
             )
@@ -1177,6 +1184,13 @@ def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'
             2,
             2,
             "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
+            size=18,
+            color="w",
+        )
+        plt.text(
+            7,
+            2,
+            "S/Nsig={:3.2f}".format(flux_2igma.value / bkg_stddev_2sigma.value),
             size=18,
             color="w",
         )
