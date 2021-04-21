@@ -462,7 +462,7 @@ def get_line_image(
         )
     else:
         print("You must provide a detectid, friendid or coords/wave_range/shotid")
-        return np.nan, np.nan
+        return None
     if return_coords:
         return hdu, coords_obj
     else:
@@ -635,7 +635,7 @@ def fit_ellipse_for_source(
             )
         except:
             print("Could not make narrowband image for {}".format(friendid))
-            return np.nan, np.nan
+            return None
 
     elif coords is not None:
         coords_obj = coords
@@ -1029,8 +1029,10 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
             pass
         else:
             os.makedirs(img_dir)
-                                                             
-    hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
+    try:                                                         
+        hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
+    except:
+        print('Could not get image for {}'.format(detectid))
 
     r_list, sn, coords_center = get_sn_for_aperture_range(hdu)
 
@@ -1204,39 +1206,57 @@ def make_im_catalog(detlist, filename="imflux.tab",
     )
 
     for det in detlist:
-        (
-            r_2sigma,
-            sn_2sigma,
-            r_snmax,
-            sn_max,
-            flux_2sigma,
-            flux_err_2sigma,
-            bkg_stddev_2sigma,
-            apcor_2sigma,
-            flux_snmax,
-            flux_err_snmax,
-            bkg_stddev_snmax,
-            apcor_snmax,
-        ) = fit_growing_aperture(det,
-                                 plot=plot,
-                                 img_dir=img_dir)
-        imflux.add_row(
-            [
-                int(det),
-                np.float32(r_2sigma),
-                np.float32(sn_2sigma),
-                np.float32(r_snmax),
-                np.float32(sn_max),
-                np.float32(flux_2sigma),
-                np.float32(flux_err_2sigma),
-                np.float32(bkg_stddev_2sigma),
-                np.float32(apcor_2sigma),
-                np.float32(flux_snmax),
-                np.float32(flux_err_snmax),
-                np.float32(bkg_stddev_snmax),
-                np.float32(apcor_snmax),
-            ]
-        )
+        try:
+            (
+                r_2sigma,
+                sn_2sigma,
+                r_snmax,
+                sn_max,
+                flux_2sigma,
+                flux_err_2sigma,
+                bkg_stddev_2sigma,
+                apcor_2sigma,
+                flux_snmax,
+                flux_err_snmax,
+                bkg_stddev_snmax,
+                apcor_snmax,
+            ) = fit_growing_aperture(det,
+                                     plot=plot,
+                                     img_dir=img_dir)
+            imflux.add_row(
+                [
+                    int(det),
+                    np.float32(r_2sigma),
+                    np.float32(sn_2sigma),
+                    np.float32(r_snmax),
+                    np.float32(sn_max),
+                    np.float32(flux_2sigma),
+                    np.float32(flux_err_2sigma),
+                    np.float32(bkg_stddev_2sigma),
+                    np.float32(apcor_2sigma),
+                    np.float32(flux_snmax),
+                    np.float32(flux_err_snmax),
+                    np.float32(bkg_stddev_snmax),
+                    np.float32(apcor_snmax),
+                ]
+            )
+        except:
+            imflux.add_row(
+                [int(det),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+                 np.float32(np.nan),
+             ]
+            )
 
     print("Done in {:4.2f} s".format(time.time() - t0))
 
