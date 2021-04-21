@@ -1142,7 +1142,7 @@ def fit_growing_aperture(detectid,
                 color="w",
             )
             plt.text(
-                0.7*pixsize,
+                0.55*pixsize,
                 2,
                 "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
                 size=18,
@@ -1198,7 +1198,7 @@ def fit_growing_aperture(detectid,
             color="w",
         )
         plt.text(
-            0.7*pixsize,
+            0.55*pixsize,
             2,
             "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
             size=18,
