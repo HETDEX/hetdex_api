@@ -1262,7 +1262,11 @@ def make_im_catalog(detlist,
         ]
     )
 
+    detcheck = []
     for i, det in enumerate( detlist):
+
+        detcheck.append(det)
+        
         try:
             if shotlist is None:
                 (
@@ -1336,12 +1340,12 @@ def make_im_catalog(detlist,
             )
 
     print("Done in {:4.2f} s".format(time.time() - t0))
-
-    imflux.add_column(detlist, name='detectid', index=0)
+    
+    imflux.add_column(detcheck, name='detectid', index=0)
 
     if shotlist is not None:
         imflux.add_column(shotlist, name="shotid_obs", index=1)
 
     imflux.write(filename, format="ascii", overwrite=True)
 
-    return imflux
+    return imflux, detcheck, detlist
