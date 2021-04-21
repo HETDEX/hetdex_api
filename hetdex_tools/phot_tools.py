@@ -1022,15 +1022,21 @@ def get_sn_for_aperture_range(
     return r_list, sn, coords_center
 
 
-def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
+def fit_growing_aperture(detectid, shotid=None, plot=True, img_dir='line_images'):
 
     if plot:
         if op.exists(img_dir):
             pass
         else:
             os.makedirs(img_dir)
-    try:                                                         
-        hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
+    try:
+        if shotid is None:
+            hdu, coords = get_line_image(detectid=detectid, imsize=20, return_coords=True)
+        except:
+            hdu, coords = get_line_image(detectid=detectid,
+                                         shotid=shotid,
+                                         imsize=20,
+                                         return_coords=True)
     except:
         print('Could not get image for {}'.format(detectid))
 
@@ -1175,7 +1181,9 @@ def fit_growing_aperture(detectid, plot=True, img_dir='line_images'):
     )
 
 
-def make_im_catalog(detlist, filename="imflux.tab",
+def make_im_catalog(detlist,
+                    shotlist=None,
+                    filename="imflux.tab",
                     save=True,
                     plot=True,
                     img_dir='line_images'):
@@ -1205,24 +1213,43 @@ def make_im_catalog(detlist, filename="imflux.tab",
         ]
     )
 
-    for det in detlist:
+    for i, det in enumerate( detlist):
         try:
-            (
-                r_2sigma,
-                sn_2sigma,
-                r_snmax,
-                sn_max,
-                flux_2sigma,
-                flux_err_2sigma,
-                bkg_stddev_2sigma,
-                apcor_2sigma,
-                flux_snmax,
-                flux_err_snmax,
-                bkg_stddev_snmax,
-                apcor_snmax,
-            ) = fit_growing_aperture(det,
-                                     plot=plot,
-                                     img_dir=img_dir)
+            if shotlist is None:
+                (
+                    r_2sigma,
+                    sn_2sigma,
+                    r_snmax,
+                    sn_max,
+                    flux_2sigma,
+                    flux_err_2sigma,
+                    bkg_stddev_2sigma,
+                    apcor_2sigma,
+                    flux_snmax,
+                    flux_err_snmax,
+                    bkg_stddev_snmax,
+                    apcor_snmax,
+                ) = fit_growing_aperture(det,
+                                         plot=plot,
+                                         img_dir=img_dir)
+            else:
+                shotid = shotlist[i]
+                (
+                    r_2sigma,
+                    sn_2sigma,
+                    r_snmax,
+                    sn_max,
+                    flux_2sigma,
+                    flux_err_2sigma,
+                    bkg_stddev_2sigma,
+                    apcor_2sigma,
+                    flux_snmax,
+                    flux_err_snmax,
+                    bkg_stddev_snmax,
+                    apcor_snmax,
+                ) = fit_growing_aperture(det,
+                                         plot=plot,
+                                         img_dir=img_dir)
             imflux.add_row(
                 [
                     int(det),
