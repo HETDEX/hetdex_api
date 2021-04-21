@@ -1247,7 +1247,6 @@ def make_im_catalog(detlist,
     t0 = time.time()
     imflux = Table(
         names=[
-            "detectid",
             "r_2sigma",
             "sn_2sigma",
             "r_snmax",
@@ -1304,7 +1303,6 @@ def make_im_catalog(detlist,
 
             imflux.add_row(
                 [
-                    int(det),
                     np.float32(r_2sigma),
                     np.float32(sn_2sigma),
                     np.float32(r_snmax),
@@ -1321,7 +1319,7 @@ def make_im_catalog(detlist,
             )
         except:
             imflux.add_row(
-                [int(det),
+                [
                  np.float32(np.nan),
                  np.float32(np.nan),
                  np.float32(np.nan),
@@ -1339,10 +1337,11 @@ def make_im_catalog(detlist,
 
     print("Done in {:4.2f} s".format(time.time() - t0))
 
-    
+    imflux.add_column(detlist, name='detectid', index=0)
+
     if shotlist is not None:
-        imflux['shotid_obs'] = shotlist
-        
+        imflux.add_column(shotlist, name="shotid_obs", index=1)
+
     imflux.write(filename, format="ascii", overwrite=True)
 
     return imflux
