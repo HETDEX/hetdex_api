@@ -376,7 +376,7 @@ def get_line_image(
                 "fwhm_virus"
             ][0]
 
-        if True:
+        try:
             hdu = make_narrowband_image(
                 coords=coords_obj,
                 shotid=shotid_obj,
@@ -388,7 +388,7 @@ def get_line_image(
                 include_error=True,
             )
 
-        else:  # except:
+        except Exception:
             print("Could not make narrowband image for {}".format(detectid))
             return None
 
