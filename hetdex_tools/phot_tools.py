@@ -1027,6 +1027,7 @@ def fit_growing_aperture(detectid,
                          plot=True,
                          img_dir='line_images'):
 
+    global imsize
     if plot:
         if op.exists(img_dir):
             pass
@@ -1035,13 +1036,15 @@ def fit_growing_aperture(detectid,
     try:
         if shotid is None:
             hdu, coords = get_line_image(detectid=detectid,
-                                         imsize=20,
+                                         imsize=imsize/2,
                                          return_coords=True)
         else:
             hdu, coords = get_line_image(detectid=detectid,
                                          shotid=shotid,
-                                         imsize=20,
+                                         imsize=imsize/2,
                                          return_coords=True)
+        pixsize=imsize/2/pixscale
+        
     except:
         print('Could not get image for {}'.format(detectid))
 
@@ -1066,18 +1069,21 @@ def fit_growing_aperture(detectid,
         # increase image cutout and aperture search to larger radii
         if shotid is None:
             hdu, coords = get_line_image(detectid=detectid,
-                                         imsize=40,
+                                         imsize=imsize,
                                          shotid=shotid,
                                          return_coords=True)
         else:
             hdu, coords = get_line_image(detectid=detectid,
                                          shotid=shotid,
-                                         imsize=40,
+                                         imsize=imsize,
                                          return_coords=True)
 
         r_list, sn, coords_center = get_sn_for_aperture_range(
             hdu, r_list=np.arange(1.5, 8.2, 0.2, dtype=float)
         )
+        
+        pixsize=imsize/pixscale
+        
         try:
             index_2sigma = np.max(
                 np.where((sn > 2) & (sn < sn_upper_limit) & np.isfinite(sn))
@@ -1103,7 +1109,7 @@ def fit_growing_aperture(detectid,
                 radius=r_snmax * u.arcsec,
                 annulus=[r_snmax, r_snmax * 3] * u.arcsec,
             )
-    
+
     if np.isfinite(r_2sigma):
         if plot:
             plt.figure()
@@ -1136,7 +1142,7 @@ def fit_growing_aperture(detectid,
                 color="w",
             )
             plt.text(
-                7,
+                0.7*pixsize,
                 2,
                 "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
                 size=18,
@@ -1192,7 +1198,7 @@ def fit_growing_aperture(detectid,
             color="w",
         )
         plt.text(
-            7,
+            0.7*pixsize,
             2,
             "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
             size=18,
