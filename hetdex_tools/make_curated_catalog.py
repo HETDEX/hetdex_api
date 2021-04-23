@@ -20,9 +20,15 @@ def return_fiber_ratio(det):
     return fiber_ratio
 
 
-def get_f50_1sigma(detid):
+def get_flux_noise_1sigma(detid, mask=False):
 
-    """ For a detid get the the f50_1sigma value"""
+    """ For a detid get the the f50_1sigma value
+
+    No need to mask the flux limits if you are using the
+    curated catalog which is already masked. This avoid a
+    few good sources on the edges of masks that get flagged
+    with a high flux limit value.
+    """
 
     global config, det_table
 
@@ -37,9 +43,11 @@ def get_f50_1sigma(detid):
     datevobs = str(shotid)[0:8] + "v" + str(shotid)[8:11]
 
     fn = op.join(config.flim_dir, datevobs + "_sensitivity_cube.h5")
-    mask_fn = op.join(config.flimmask, datevobs + "_mask.h5")
-
-    sscube = SensitivityCubeHDF5Container(fn, mask_filename=mask_fn, flim_model="hdr1")
+    if mask:
+        mask_fn = op.join(config.flimmask, datevobs + "_mask.h5")
+        sscube = SensitivityCubeHDF5Container(fn, mask_filename=mask_fn, flim_model="hdr1")
+    else:
+        sscube = SensitivityCubeHDF5Container(fn, flim_model="hdr1")
     scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
     flim = scube.get_f50(
         det_table_here["ra"], det_table_here["dec"], det_table_here["wave"], sncut
@@ -321,23 +329,23 @@ for det in det_table["detectid"]:
 det_table.add_column(fiber_ratio, name="fiber_ratio")
 
 # get f50 values from Donghui:
-print('Adding f50 values from Donghui')
-fileh = tb.open_file("hdr213_fullfield_source_info_210323.h5", "r")
-detectid = fileh.root.hdr213_fullfield.detectid[:]
-f50 = fileh.root.hdr213_fullfield.f50[:]
-f50_tab = Table(
-    [detectid, f50[0], f50[1], f50[2], f50[3], f50[4], f50[5]],
-    names=["detectid", "f50_4pt8", "f50_5", "f50_5pt5", "f50_6", "f50_6pt5", "f50_7"],
-)
-fileh.close()
+#print('Adding f50 values from Donghui')
+#fileh = tb.open_file("hdr213_fullfield_source_info_210323.h5", "r")
+#detectid = fileh.root.hdr213_fullfield.detectid[:]
+#f50 = fileh.root.hdr213_fullfield.f50[:]
+#f50_tab = Table(
+#    [detectid, f50[0], f50[1], f50[2], f50[3], f50[4], f50[5]],
+#    names=["detectid", "f50_4pt8", "f50_5", "f50_5pt5", "f50_6", "f50_6pt5", "f50_7"],
+#)
+#fileh.close()
 
 # add 1sigma flim value for each detection from HDR1 flux limit model
 print('Adding f50_1sigma from flux limits')
 p = Pool(24)
-flim = p.map(get_f50_1sigma, det_table['detectid'])
+flim = p.map(get_flux_noise_1sigma, det_table['detectid'])
 p.close()
 
-det_table['f50_1sigma'] = flim
+det_table['flux_noise_1sigma'] = flim
 
 det_table_join = join(det_table, f50_tab, join_type="left")
 
