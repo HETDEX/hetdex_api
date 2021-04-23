@@ -183,23 +183,31 @@ def get_flux_for_source(
     convolve_image=False,
 ):
 
+    global deth5, conth5
+    
     if detectid is not None:
         detectid_obj = detectid
-        sel_det = source_table["detectid"] == detectid
-        det_info = source_table[sel_det][0]
-        coords_obj = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
-        wave_obj = det_info["wave"]
-        linewidth = det_info["linewidth"]
-        shotid_obj = det_info["shotid"]
-        shot_det = det_info["shotid"]
-        fwhm = det_info["fwhm"]
+        
+        if detectid_obj <= 2190000000:
+            det_info = deth5.root.Detections.read_where('detectid == detectid_obj')[0]
+            linewidth = det_info['linewidth']
+            wave_obj = det_info['wave']
+            redshift = wave_obj/(1216) - 1
+        else:
+            det_info = conth5.root.Detections.read_where('detectid == detectid_obj')[0]
+            redshift = 0
+            wave_obj = 4500
+            
+        coords_obj = SkyCoord(det_info['ra'], det_info['dec'], unit='deg')
+        shotid_obj = det_info['shotid']
 
     if coords is not None:
         coords_obj = coords
 
     if shotid is not None:
         shotid_obj = shotid
-        fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
+
+    #fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
 
     if wave is not None:
         wave_obj = wave
