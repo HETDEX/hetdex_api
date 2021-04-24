@@ -347,7 +347,7 @@ p.close()
 
 det_table['flux_noise_1sigma'] = flim
 
-det_table_join = join(det_table, f50_tab, join_type="left")
+#det_table_join = join(det_table, f50_tab, join_type="left")
 
-det_table_join.write("detect_hdr{}.fits".format(version), overwrite=True)
-det_table_join.write("detect_hdr{}.tab".format(version), format="ascii", overwrite=True)
+det_table.write("detect_hdr{}.fits".format(version), overwrite=True)
+det_table.write("detect_hdr{}.tab".format(version), format="ascii", overwrite=True)
