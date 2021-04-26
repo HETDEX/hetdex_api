@@ -138,7 +138,7 @@ class HDRconfig:
             self.flimmask = op.join(self.flim_dir, "masks")
             self.lowtpshots = op.join(self.bad_dir, "survey_shots_low_response.txt")
             self.rc3cat = op.join(self.bad_dir, "rc3.ugc.hetdex.both.v7.csv")
-            self.agncat = op.join(self.detect_dir, "catalogs", "AGN_v4.1.dat2")
+            self.agncat = op.join(self.detect_dir, "catalogs", "AGN_v4.3.dat")
             self.gaiacat = op.join(
                 self.host_dir,
                 "gaia_hetdex_value_added_catalog",
