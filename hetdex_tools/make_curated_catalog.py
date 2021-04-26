@@ -340,12 +340,12 @@ det_table.add_column(fiber_ratio, name="fiber_ratio")
 #fileh.close()
 
 # add 1sigma flim value for each detection from HDR1 flux limit model
-print('Adding f50_1sigma from flux limits')
-p = Pool(24)
-flim = p.map(get_flux_noise_1sigma, det_table['detectid'])
-p.close()
+#print('Adding f50_1sigma from flux limits')
+#p = Pool(24)
+#flim = p.map(get_flux_noise_1sigma, det_table['detectid'])
+#p.close()
 
-det_table['flux_noise_1sigma'] = flim
+#det_table['flux_noise_1sigma'] = flim
 
 #det_table_join = join(det_table, f50_tab, join_type="left")
 
