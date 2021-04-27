@@ -3,7 +3,7 @@ import time
 import argparse as ap
 import os.path as op
 
-from astropy.table import Table, vstack, join, Column, hstack
+from astropy.table import Table, unique, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
@@ -14,6 +14,8 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
+from multiprocessing import Pool
+
 from regions import LineSkyRegion, PixCoord, LinePixelRegion
 
 from hetdex_api.config import HDRconfig
@@ -22,6 +24,7 @@ from hetdex_api.detections import Detections
 import hetdex_tools.fof_kdtree as fof
 
 from hetdex_api.elixer_widget_cls import ElixerWidget
+from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container
 
 from elixer import catalogs
 
@@ -31,6 +34,50 @@ config = HDRconfig()
 agn_tab = None
 cont_gals = None
 cont_stars = None
+
+
+def get_flux_noise_1sigma(detid, mask=False):
+    
+    """ For a detid get the the f50_1sigma value
+    
+    No need to mask the flux limits if you are using the
+    curated catalog which is already masked. This avoid a
+    few good sources on the edges of masks that get flagged
+    with a high flux limit value.
+    """
+    
+    global config, detect_table
+    
+    sncut = 1
+    
+    sel_det = detect_table["detectid"] == detid
+    shotid = detect_table["shotid"][sel_det][0]
+    ifuslot = detect_table["ifuslot"][sel_det][0]
+    
+    det_table_here = detect_table[sel_det]
+    
+    datevobs = str(shotid)[0:8] + "v" + str(shotid)[8:11]
+    
+    fn = op.join(config.flim_dir, datevobs + "_sensitivity_cube.h5")
+    if mask:
+        mask_fn = op.join(config.flimmask, datevobs + "_mask.h5")
+        sscube = SensitivityCubeHDF5Container(fn, mask_filename=mask_fn, flim_model="hdr1")
+    else:
+        sscube = SensitivityCubeHDF5Container(fn, flim_model="hdr1")
+
+    try:
+        scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
+        flim = scube.get_f50(
+            det_table_here["ra"],
+            det_table_here["dec"],
+            det_table_here["wave"],
+            sncut
+        )
+        sscube.close()
+        return flim[0]
+    except Exception:
+        return np.nan
+
 
 def create_source_catalog(
         version="2.1.3",
@@ -46,6 +93,7 @@ def create_source_catalog(
 
 #    detects_line_table.write('test.tab', format='ascii')
     detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+
     detects_cont = Detections(catalog_type="continuum")
 
     sel1 = detects_cont.remove_bad_amps()
@@ -65,6 +113,7 @@ def create_source_catalog(
     dets_all = Detections().refine()
     sel_tp = dets_all.throughput > 0.08
     dets_all_table = dets_all[sel_tp].return_astropy_table()
+    dets_all_table.add_column(Column(str("line"), name="det_type", dtype=str))
     agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
 
     # add in continuum sources to match to Chenxu's combined catalog
@@ -75,20 +124,107 @@ def create_source_catalog(
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
-    detects_broad_table.remove_column('det_type')
-    detects_broad_table.add_column(Column(str("agn"), name="det_type", dtype=str))
+    #detects_broad_table.remove_column('det_type')
+    #detects_broad_table.add_column(Column(str("agn"), name="det_type", dtype=str))
     dets_all.close()
     del dets_all_table
 
-    detect_table = vstack([detects_line_table, detects_broad_table, detects_cont_table])
-    detect_table.write('test.fits', overwrite=True)
-    del detects_cont_table, detects_broad_table
+    global detect_table
+    
+    detect_table = unique(
+        vstack([detects_cont_table, detects_line_table, detects_broad_table]),
+        keys='detectid')
 
+    detect_table.write('test.fits', overwrite=True)
+
+    del detects_cont_table, detects_broad_table
+    
+    print('Adding 1sigma noise from flux limits')
+    p = Pool(24)
+    flim = p.map(get_flux_noise_1sigma, detect_table['detectid'])
+    p.close()
+       
+    detect_table['flux_noise_1sigma'] = flim
+
+    detect_table.write('test2.fits', overwrite=True)
+
+    print("Performing FOF in 3D space")
+
+    # get fluxes to derive flux-weighted distribution of group
+    
+    detect_table["gmag"][np.isnan(detect_table["gmag"])] = 27
+    gmag = detect_table["gmag"] * u.AB
+    flux = gmag.to(u.Jy).value
+                    
+    sel_line = detect_table['wave'] > 0 # remove continuum sources
+
+    # first cluster in positional/wavelegnth space in a larger
+    # linking length
+
+    kdtree, r = fof.mktree(
+                detect_table["ra"][sel_line],
+                detect_table["dec"][sel_line],
+                detect_table["wave"][sel_line],
+                dsky=6.0, dwave=5.6)
+    
+    t0 = time.time()
+    print("starting fof ...")
+    wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=3)
+    t1 = time.time()
+
+    wfriend_table = fof.process_group_list(
+        wfriend_lst,
+        detect_table["detectid"][sel_line],
+        detect_table["ra"][sel_line],
+        detect_table["dec"][sel_line],
+        detect_table["wave"][sel_line],
+        flux[sel_line],
+    )
+    print("Generating combined table \n")
+        
+    memberlist = []
+    friendlist = []
+    for row in wfriend_table:
+        friendid = row["id"]
+        members = np.array(row["members"])
+        friendlist.extend(friendid * np.ones_like(members))
+        memberlist.extend(members)
+    wfriend_table.remove_column("members")
+        
+    wdetfriend_tab = Table()
+    wdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+    wdetfriend_tab.add_column(Column(memberlist, name="detectid"))
+        
+    wdetfriend_all = join(wdetfriend_tab, wfriend_table, keys="id")
+
+    wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 213000000
+
+    wdetfriend_all.rename_column('size','wave_group_size')
+    wdetfriend_all.rename_column('a','wave_group_a')
+    wdetfriend_all.rename_column('b','wave_group_b')
+    wdetfriend_all.rename_column('pa','wave_group_pa')
+    wdetfriend_all.rename_column('icx', 'wave_group_ra')
+    wdetfriend_all.rename_column('icy', 'wave_group_dec')
+    wdetfriend_all.rename_column('icz', 'wave_group_wave')
+
+    w_keep = wdetfriend_all['detectid',
+                            'wave_group_id',
+                            'wave_group_a',
+                            'wave_group_b',
+                            'wave_group_pa',
+                            'wave_group_ra',
+                            'wave_group_dec',
+                            'wave_group_wave']
+        
+    print("3D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
+
+    print("Performing FOF in 2D space with dlink=6.0 arcsec")
+    
     kdtree, r = fof.mktree(
         detect_table["ra"],
         detect_table["dec"],
         np.zeros_like(detect_table["ra"]),
-        dsky=dsky,
+        dsky=6.0,
     )
     t0 = time.time()
     print("starting fof ...")
@@ -97,21 +233,15 @@ def create_source_catalog(
 
     print("FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
 
-    # get fluxes to derive flux-weighted distribution of group
-
-    detect_table["gmag"][np.isnan(detect_table["gmag"])] = 27
-    gmag = detect_table["gmag"] * u.AB
-    flux = gmag.to(u.Jy).value
-
     friend_table = fof.process_group_list(
-        friend_lst,
-        detect_table["detectid"],
-        detect_table["ra"],
-        detect_table["dec"],
-        0.0 * detect_table["wave"],
-        flux,
-    )
-
+                friend_lst,
+                detect_table["detectid"],
+                detect_table["ra"],
+                detect_table["dec"],
+                0.0 * detect_table["wave"],
+                flux,
+            )
+ 
     print("Generating combined table \n")
     memberlist = []
     friendlist = []
@@ -130,17 +260,81 @@ def create_source_catalog(
 
     del detfriend_tab
 
-    expand_table = join(detfriend_all, detect_table, keys="detectid")
+    # only match detectids at large linking length if a wave group exists
+    joinfriend = join(detfriend_all, w_keep, keys='detectid', join_type='left')
+    grp_by_id = joinfriend.group_by('id')
+    sum_grp = grp_by_id.groups.aggregate(np.sum)
+    spatial_id = grp_by_id.groups.keys
+    spatial_id_to_keep = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    del detfriend_all, detect_table, friend_table
+    detfriend_1 = join(spatial_id_to_keep, joinfriend)
 
-    starting_id = int(version.replace('.', '', 2))*10**10
+    # link the rest of the detectids with 3 arcsec linking length
 
-    expand_table.add_column(
-        Column(expand_table["id"] + starting_id, name="source_id"), index=0
+    keep_row = np.ones(np.size(detect_table), dtype=bool)
+
+    for i, det in enumerate(detect_table['detectid']):
+        if det in detfriend_1['detectid']:
+           keep_row[i] = 0
+        
+    print("Performing FOF in 2D space with dlink=3.0 arcsec")
+
+    kdtree, r = fof.mktree(
+        detect_table["ra"][keep_row],
+        detect_table["dec"][keep_row],
+        np.zeros_like(detect_table["ra"][keep_row]),
+        dsky=3.0,
     )
+        
+    t0 = time.time()
+    print("starting fof ...")
+    friend_lst = fof.frinds_of_friends(kdtree, r, Nmin=1)
+    t1 = time.time()
 
-    expand_table.remove_column("id")
+    print("Final FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
+
+    friend_table = fof.process_group_list(
+            friend_lst,
+            detect_table["detectid"][keep_row],
+            detect_table["ra"][keep_row],
+            detect_table["dec"][keep_row],
+            0.0 * detect_table["wave"][keep_row],
+            flux[keep_row],
+        )
+
+    print("Generating combined table \n")
+    memberlist = []
+    friendlist = []
+
+    for row in friend_table:
+        friendid = row["id"]
+        members = np.array(row["members"])
+        friendlist.extend(friendid * np.ones_like(members))
+        memberlist.extend(members)
+    friend_table.remove_column("members")
+    
+    detfriend_tab = Table()
+    detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+    detfriend_tab.add_column(Column(memberlist, name="detectid"))
+        
+    detfriend_2 = join(detfriend_tab, friend_table, keys="id")
+        
+    starting_id_1 = int(version.replace('.', '', 2))*10**10
+    starting_id_2 = starting_id_1 + 10**8
+    detfriend_1.add_column(
+        Column(detfriend_1["id"] + starting_id_1, name="source_id"), index=0
+    )
+    detfriend_2.add_column(
+        Column(detfriend_2["id"] + starting_id_2, name="source_id"), index=0
+    )
+    detfriend_1.remove_column("id")
+    detfriend_2.remove_column("id")
+        
+    detfriend_all = vstack([detfriend_1, detfriend_2])
+    expand_table = join(detfriend_all, detect_table, keys="detectid")
+    expand_table.write('test3.fits')
+    
+    del detfriend_all, detect_table, friend_table
 
     gaia_stars = Table.read(config.gaiacat)
 
@@ -225,14 +419,12 @@ def guess_source_wavelength(source_id):
         # get proper z's from Chenxu's catalog
         agn_dets = group["detectid"][group["det_type"] == "agn"]
         sel_det = agn_tab["detectid"] == agn_dets[0]
-        z_guess = agn_tab["z"][sel_det][0]
+        z_guess = agn_tab["zguess"][sel_det][0]
         s_type = "agn"
 
     elif np.any(group["det_type"] == "cont"):
-        # check Ben's classifications
         sel_cont = group['det_type'] == "cont"
         det = group['detectid'][sel_cont]
-
         if det in cont_gals:
             if np.any(group['det_type']=="line"):
                 z_guess = z_guess_3727(group, cont=True)
