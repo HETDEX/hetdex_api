@@ -35,6 +35,8 @@ agn_tab = None
 cont_gals = None
 cont_stars = None
 
+wavelya = 1215.67
+waveoii = 3727.
 
 def get_flux_noise_1sigma(detid, mask=False):
     
@@ -367,29 +369,29 @@ def create_source_catalog(
 
 def z_guess_3727(group, cont=False):
     sel_good_lines = None
-    if np.any((group["sn"] > 15) * (group["wave"] > 3727)):
-        sel_good_lines = (group["sn"] > 15) * (group["wave"] > 3727)
+    if np.any((group["sn"] > 15) * (group["wave"] > waveoii)):
+        sel_good_lines = (group["sn"] > 15) * (group["wave"] > waveoii)
     elif np.any((group["sn"] > 10) * (group["wave"] > 3727)):
-        sel_good_lines = (group["sn"] > 8) * (group["wave"] > 3727)
+        sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
     elif np.any((group["sn"] > 8) * (group["wave"] > 3727)):
-        sel_good_lines = (group["sn"] > 8) * (group["wave"] > 3727)
+        sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
     elif np.any((group["sn"] > 6) * (group["wave"] > 3727)):
-        sel_good_lines = (group["sn"] > 6) * (group["wave"] > 3727)
-    elif np.any((group["sn"] > 5.5) * (group["wave"] > 3727)):
+        sel_good_lines = (group["sn"] > 6) * (group["wave"] > waveoii)
+    elif np.any((group["sn"] > 5.5) * (group["wave"] > waveoii)):
         if cont:
             pass
         else:
-            sel_good_lines = (group["sn"] > 5.5) * (group["wave"] > 3727)
+            sel_good_lines = (group["sn"] > 5.5) * (group["wave"] > waveoii)
     else:
         if cont:
             pass
         else:
-            sel_good_lines = group["wave"] > 3727
+            sel_good_lines = group["wave"] > waveoii
 
     if sel_good_lines is not None:
         try:
             wave_guess = np.min(group["wave"][sel_good_lines])
-            z_guess = wave_guess / 3727.0 - 1
+            z_guess = wave_guess / waveoii - 1
         except Exception:
             z_guess = -3.0
     else:
@@ -414,11 +416,16 @@ def guess_source_wavelength(source_id):
     z_guess = -1.0
     s_type = "none"
 
-    # for now assign a plae_classification for -1 values
-    if np.any(group["det_type"] == "agn"):
+    # Check if any member is an AGN first
+    agn_flag = False
+    for det in group['detectid']:
+        if det in agn_tab['detectid']:
+            agn_flag = True
+            agn_det = det
+
+    if agn_flag:
         # get proper z's from Chenxu's catalog
-        agn_dets = group["detectid"][group["det_type"] == "agn"]
-        sel_det = agn_tab["detectid"] == agn_dets[0]
+        sel_det = agn_tab["detectid"] == agn_det
         z_guess = agn_tab["zguess"][sel_det][0]
         s_type = "agn"
 
@@ -503,12 +510,12 @@ def guess_source_wavelength(source_id):
         else:
             argmaxsn = np.argmax(group["sn"])
             wave_guess = group["wave"][argmaxsn]
-        z_guess = wave_guess / 1216.0 - 1
+        z_guess = wave_guess / wavelya - 1
         s_type = "lae"
     else:
         argmaxsn = np.argmax(group["sn"])
         wave_guess = group["wave"][argmaxsn]
-        z_guess = wave_guess / 1216.0 - 1
+        z_guess = wave_guess / wavelya - 1
         s_type = "lae"
         
     return z_guess, str(s_type)
@@ -1023,8 +1030,8 @@ def main(argv=None):
     det_coord = SkyCoord(ra=out_table['ra'], dec=out_table['dec'], unit='deg')
 
     src_wave = np.zeros_like(out_table['z_guess'])
-    src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * 3727
-    src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * 1216
+    src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * waveoii
+    src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * wavelya
 
     out_table['src_separation'] = det_coord.separation(src_coord)
     out_table['dwave'] = np.abs(src_wave - source_table['wave'])
