@@ -1120,7 +1120,7 @@ def fit_growing_aperture(detectid,
 
     if np.isfinite(r_2sigma):
         if plot:
-            plt.figure()
+            plt.figure(figsize=(6,6))
             if shotid is not None:
                 plottitle = "{} {} r_eff={:3.2}".format(detectid,
                                                         shotid,
