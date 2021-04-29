@@ -113,7 +113,7 @@ def FitCircularAperture(
 
     if plot:
         plt.subplot(111, projection=w)
-        plt.imshow(im, vmin=0 * stddev_sigclip, vmax=3 * stddev_sigclip)
+        plt.imshow(im, vmin= -1 * stddev_sigclip, vmax=4 * stddev_sigclip)
         aper.to_pixel(w).plot(color="white")  # for SkyCircularAperture
         aper_annulus.to_pixel(w).plot(color="red", linestyle="dashed")
         plt.xlabel("RA")
