@@ -535,9 +535,6 @@ def measure_aper_flux(hdu, aper):
     return flux, flux_err, bkg_stddev * u.Unit("10^-17 erg cm-2 s-1"), apcor
 
 
-# In[22]:
-
-
 def fit_ellipse_for_source(
     friendid=None,
     detectid=None,
@@ -1202,13 +1199,6 @@ def fit_growing_aperture(detectid,
             2,
             2,
             "S/N={:3.2f}".format(flux_snmax.value / bkg_stddev_snmax.value),
-            size=18,
-            color="w",
-        )
-        plt.text(
-            0.55*pixsize,
-            2,
-            "S/Nsig={:3.2f}".format(flux_2sigma.value / bkg_stddev_2sigma.value),
             size=18,
             color="w",
         )
