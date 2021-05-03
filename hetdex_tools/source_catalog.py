@@ -3,6 +3,8 @@ import time
 import argparse as ap
 import os.path as op
 
+import tables as tb
+
 from astropy.table import Table, unique, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -36,10 +38,12 @@ cont_gals = None
 cont_stars = None
 
 wavelya = 1215.67
-waveoii = 3727.
+waveoii = 3727.8
 
-def get_flux_noise_1sigma(detid, mask=False):
-    
+deth5 = None
+
+def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
+
     """ For a detid get the the f50_1sigma value
     
     No need to mask the flux limits if you are using the
@@ -48,9 +52,12 @@ def get_flux_noise_1sigma(detid, mask=False):
     with a high flux limit value.
     """
     
-    global config, detect_table
+    global config, detect_table, deth5
     
     sncut = 1
+
+    if add_apcor_fix and deth5 is None:
+        deth5 = tb.open_file(config.detecth5, 'r')
     
     sel_det = detect_table["detectid"] == detid
     shotid = detect_table["shotid"][sel_det][0]
@@ -67,18 +74,57 @@ def get_flux_noise_1sigma(detid, mask=False):
     else:
         sscube = SensitivityCubeHDF5Container(fn, flim_model="hdr1")
 
-    try:
-        scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
-        flim = scube.get_f50(
-            det_table_here["ra"],
-            det_table_here["dec"],
-            det_table_here["wave"],
-            sncut
-        )
+    if add_apcor_fix:
+
+        if detect_table['det_type'][sel_det][0] == 'cont':
+            flim_update = np.nan
+            flim = np.nan
+            
+        else:
+            apcor = detect_table['apcor'][sel_det][0]
+
+            if True:
+                scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
+                flim = scube.get_f50(
+                    det_table_here["ra"],
+                    det_table_here["dec"],
+                    det_table_here["wave"],
+                    sncut
+                )[0]
+                
+                if apcor >= 0.5:
+                    flim_update = flim
+                else:
+                    fiber_row = deth5.root.Fibers.read_where("detectid == detid")
+                    #print(fiber_row)
+                    max_idx = np.argmax(fiber_row["weight"])
+                    ra = fiber_row['ra'][max_idx]
+                    dec = fiber_row['dec'][max_idx]
+                    flim_update = scube.get_f50(
+                        ra, dec, det_table_here["wave"], sncut
+                    )
+                
+            else:#except Exception:
+                flim = np.nan
+                flim_update = np.nan
+
         sscube.close()
-        return flim[0]
-    except Exception:
-        return np.nan
+
+        return flim, flim_update
+
+    else:
+        try:
+            scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
+            flim = scube.get_f50(
+                det_table_here["ra"],
+                det_table_here["dec"],
+                det_table_here["wave"],
+                sncut
+            )[0]
+            sscube.close()
+            return flim
+        except Exception:
+            return np.nan
 
 
 def create_source_catalog(
@@ -143,21 +189,28 @@ def create_source_catalog(
     
     print('Adding 1sigma noise from flux limits')
     p = Pool(24)
-    flim = p.map(get_flux_noise_1sigma, detect_table['detectid'])
+    res = p.map(get_flux_noise_1sigma, detect_table['detectid'])
     p.close()
-       
-    detect_table['flux_noise_1sigma'] = flim
 
+    flim = []
+    flim_update = []
+    for r in res:
+        flim.append(r[0])
+        flim_update.append(r[1])
+        
+    detect_table['flux_noise_1sigma'] = flim_update
+    detect_table['flux_noise_1sigma_orig'] = flim
+    
     detect_table.write('test2.fits', overwrite=True)
 
-    print("Performing FOF in 3D space")
+    print("Performing FOF in 3D space with linking length=10 arcsec")
 
     # get fluxes to derive flux-weighted distribution of group
     
     detect_table["gmag"][np.isnan(detect_table["gmag"])] = 27
     gmag = detect_table["gmag"] * u.AB
     flux = gmag.to(u.Jy).value
-                    
+
     sel_line = detect_table['wave'] > 0 # remove continuum sources
 
     # first cluster in positional/wavelegnth space in a larger
@@ -167,11 +220,11 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=6.0, dwave=5.6)
-    
+                dsky=8.0, dwave=6.0)
+
     t0 = time.time()
     print("starting fof ...")
-    wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=3)
+    wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
     t1 = time.time()
 
     wfriend_table = fof.process_group_list(
@@ -180,7 +233,7 @@ def create_source_catalog(
         detect_table["ra"][sel_line],
         detect_table["dec"][sel_line],
         detect_table["wave"][sel_line],
-        flux[sel_line],
+        detect_table['flux'][sel_line],
     )
     print("Generating combined table \n")
         
@@ -192,11 +245,11 @@ def create_source_catalog(
         friendlist.extend(friendid * np.ones_like(members))
         memberlist.extend(members)
     wfriend_table.remove_column("members")
-        
+    
     wdetfriend_tab = Table()
     wdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
     wdetfriend_tab.add_column(Column(memberlist, name="detectid"))
-        
+
     wdetfriend_all = join(wdetfriend_tab, wfriend_table, keys="id")
 
     wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 213000000
@@ -217,11 +270,11 @@ def create_source_catalog(
                             'wave_group_ra',
                             'wave_group_dec',
                             'wave_group_wave']
-        
+
     print("3D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
 
     print("Performing FOF in 2D space with dlink=6.0 arcsec")
-    
+
     kdtree, r = fof.mktree(
         detect_table["ra"],
         detect_table["dec"],
@@ -278,14 +331,14 @@ def create_source_catalog(
     for i, det in enumerate(detect_table['detectid']):
         if det in detfriend_1['detectid']:
            keep_row[i] = 0
-        
-    print("Performing FOF in 2D space with dlink=3.0 arcsec")
+    
+    print("Performing FOF in 2D space with dlink=2.0 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"][keep_row],
         detect_table["dec"][keep_row],
         np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=3.0,
+        dsky=2.0,
     )
         
     t0 = time.time()
@@ -410,11 +463,12 @@ def guess_source_wavelength(source_id):
         cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
     if cont_stars is None:
         cont_stars = np.loadtxt(config.starlabels, dtype=int)
-    
+        
     sel_group = source_table["source_id"] == source_id
     group = source_table[sel_group]
     z_guess = -1.0
     s_type = "none"
+    z_flag = -1
 
     # Check if any member is an AGN first
     agn_flag = False
@@ -427,6 +481,7 @@ def guess_source_wavelength(source_id):
         # get proper z's from Chenxu's catalog
         sel_det = agn_tab["detectid"] == agn_det
         z_guess = agn_tab["zguess"][sel_det][0]
+        z_flag = agn_tab['zflag'][sel_det][0]
         s_type = "agn"
 
     elif np.any(group["det_type"] == "cont"):
@@ -456,16 +511,8 @@ def guess_source_wavelength(source_id):
                 s_type = "star"
 
         elif np.any(group["gaia_match_id"] > 0):
-            if np.any(group['det_type']=="line"):
-                z_guess = z_guess_3727(group, cont=True)
-                if z_guess > 0:
-                    s_type = "oii"
-                else:
-                    z_guess = 0.0
-                    s_type = "star"
-            else:
-                z_guess = 0.0
-                s_type = "star"
+            z_guess = 0.0
+            s_type = "star"
         else:
             if np.any(group['det_type'] == 'line'):
                 z_guess = z_guess_3727(group, cont=True)
@@ -518,7 +565,7 @@ def guess_source_wavelength(source_id):
         z_guess = wave_guess / wavelya - 1
         s_type = "lae"
         
-    return z_guess, str(s_type)
+    return z_guess, z_flag, str(s_type),
 
 
 def add_z_guess(source_table):
@@ -553,16 +600,18 @@ def add_z_guess(source_table):
     t1 = time.time()
     z_guess = []
     s_type = []
+    z_flag = []
     for r in res:
         z_guess.append(r[0])
         s_type.append(r[1])
+        z_flag.append(r[2])
     p.close()
 
     print("Finished in {:3.2f} minutes".format((t1 - t0) / 60))
 
     z_table = Table(
-        [src_list, z_guess, s_type],
-        names=["source_id", "z_guess", "source_type"]
+        [src_list, z_guess, z_flag, s_type],
+        names=["source_id", "z_guess", "z_agn_flag", "source_type"]
     )
 
     all_table = join(source_table, z_table, join_type="left")
