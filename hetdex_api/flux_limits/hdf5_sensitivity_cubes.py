@@ -20,7 +20,7 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
 _logger = logging.getLogger()
-_logger.setLevel("INFO")
+_logger.setLevel("WARNING")
 hndlr = logging.StreamHandler()
 _logger.addHandler(hndlr)
 
