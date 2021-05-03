@@ -168,7 +168,7 @@ class SensitivityCube(object):
                  cache_sim_interp = True): 
 
         # Note: flux limit model is also passed here by the HDF5 container class
-        print("Flux limit model: ", flim_model) 
+        #print("Flux limit model: ", flim_model) 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
