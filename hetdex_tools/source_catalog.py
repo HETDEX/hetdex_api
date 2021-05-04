@@ -102,7 +102,7 @@ def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
                     dec = fiber_row['dec'][max_idx]
                     flim_update = scube.get_f50(
                         ra, dec, det_table_here["wave"], sncut
-                    )
+                    )[0]
                 
             else:#except Exception:
                 flim = np.nan
@@ -338,7 +338,7 @@ def create_source_catalog(
         detect_table["ra"][keep_row],
         detect_table["dec"][keep_row],
         np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=2.0,
+        dsky=3.5,
     )
         
     t0 = time.time()
@@ -384,10 +384,10 @@ def create_source_catalog(
     )
     detfriend_1.remove_column("id")
     detfriend_2.remove_column("id")
-        
+
     detfriend_all = vstack([detfriend_1, detfriend_2])
     expand_table = join(detfriend_all, detect_table, keys="detectid")
-    expand_table.write('test3.fits')
+    expand_table.write('test3.fits', overwrite=True)
     
     del detfriend_all, detect_table, friend_table
 
@@ -424,17 +424,15 @@ def z_guess_3727(group, cont=False):
     sel_good_lines = None
     if np.any((group["sn"] > 15) * (group["wave"] > waveoii)):
         sel_good_lines = (group["sn"] > 15) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 10) * (group["wave"] > 3727)):
+    elif np.any((group["sn"] > 10) * (group["wave"] > waveoii)):
         sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 8) * (group["wave"] > 3727)):
+    elif np.any((group["sn"] > 8) * (group["wave"] > waveoii)):
         sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 6) * (group["wave"] > 3727)):
-        sel_good_lines = (group["sn"] > 6) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 5.5) * (group["wave"] > waveoii)):
+    elif np.any((group["sn"] > 6) * (group["wave"] > waveoii)):
         if cont:
             pass
         else:
-            sel_good_lines = (group["sn"] > 5.5) * (group["wave"] > waveoii)
+            sel_good_lines = (group["sn"] > 6) * (group["wave"] > waveoii)
     else:
         if cont:
             pass
@@ -511,8 +509,12 @@ def guess_source_wavelength(source_id):
                 s_type = "star"
 
         elif np.any(group["gaia_match_id"] > 0):
-            z_guess = 0.0
-            s_type = "star"
+            z_guess = z_guess_3727(group, cont=True)
+            if z_guess > 0:
+                s_type = "oii"
+            else:
+                s_type = "star"
+                z_guess = 0.0
         else:
             if np.any(group['det_type'] == 'line'):
                 z_guess = z_guess_3727(group, cont=True)
@@ -603,8 +605,8 @@ def add_z_guess(source_table):
     z_flag = []
     for r in res:
         z_guess.append(r[0])
-        s_type.append(r[1])
-        z_flag.append(r[2])
+        z_flag.append(r[1])
+        s_type.append(r[2])
     p.close()
 
     print("Finished in {:3.2f} minutes".format((t1 - t0) / 60))
