@@ -178,9 +178,9 @@ def create_source_catalog(
     del dets_all_table
 
     global detect_table
-    
+
     detect_table = unique(
-        vstack([detects_cont_table, detects_line_table, detects_broad_table]),
+        vstack([detects_broad_table, detects_cont_table, detects_line_table]),
         keys='detectid')
 
     detect_table.write('test.fits', overwrite=True)
@@ -220,7 +220,7 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=8.0, dwave=6.0)
+                dsky=10.0, dwave=6.0)
 
     t0 = time.time()
     print("starting fof ...")
@@ -315,30 +315,36 @@ def create_source_catalog(
 
     del detfriend_tab
 
-    # only match detectids at large linking length if a wave group exists
+    # match detectids at large linking length if a wave group exists
     joinfriend = join(detfriend_all, w_keep, keys='detectid', join_type='left')
     grp_by_id = joinfriend.group_by('id')
     sum_grp = grp_by_id.groups.aggregate(np.sum)
     spatial_id = grp_by_id.groups.keys
-    spatial_id_to_keep = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
+    spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    detfriend_1 = join(spatial_id_to_keep, joinfriend)
+    # also match if a group member is brighter than gmag=18 (testing this)
+    sel_bright = detect_table['gmag'] < 18
+    gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
+    spatial_id_to_keep2 = gmag_join['id']
 
-    # link the rest of the detectids with 3 arcsec linking length
+    spatial_id_to_keep = vstack([spatial_id_to_keep1, spatial_id_to_keep2])
+    detfriend_1 = join(unique(spatial_id_to_keep), joinfriend)
+    
+    # link the rest of the detectids with smaller linking length
 
     keep_row = np.ones(np.size(detect_table), dtype=bool)
 
     for i, det in enumerate(detect_table['detectid']):
         if det in detfriend_1['detectid']:
-           keep_row[i] = 0
-    
+            keep_row[i] = 0
+
     print("Performing FOF in 2D space with dlink=2.0 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"][keep_row],
         detect_table["dec"][keep_row],
         np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=3.5,
+        dsky=2.0,
     )
         
     t0 = time.time()
