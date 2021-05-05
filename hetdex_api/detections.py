@@ -35,7 +35,7 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
-from hetdex_api.extinction import get_2pt1_extinction_fix
+from hetdex_api.extinction import get_2pt1_extinction_fix, deredden_spectra
 from dustmaps.sfd import SFDQuery
 import extinction
 
@@ -192,10 +192,11 @@ class Detections:
                 self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
                 sfd = SFDQuery()
-                ebv = sfd(self.coords)
+                self.ebv = sfd(self.coords)
                 Rv = 2.742  # Landolt V  
                 ext = []
-                self.Av = Rv*ebv
+
+                self.Av = Rv*self.ebv
 
                 for index in np.arange( np.size(self.detectid)):
                     src_wave = np.array([np.double(self.wave[index])])
@@ -208,7 +209,7 @@ class Detections:
                 self.flux_err *= deredden
                 self.continuum *= deredden
                 self.continuum_err *= deredden
-                
+
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
 
@@ -825,7 +826,7 @@ class Detections:
 
         return mask
 
-    def get_spectrum(self, detectid_i):
+    def get_spectrum(self, detectid_i, deredden=True):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
         """
@@ -845,9 +846,20 @@ class Detections:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
 
-#        if self.survey == 'hdr2.1':
-            # remove extinction curve
-#            import hetdex_api.extinction 
+        if self.survey == 'hdr2.1':
+            # remove E(B-V)=0.02 screen extinction
+            fix = get_2pt1_extinction_fix()
+
+            flux_corr = fix( data["wave1d"])
+            data["spec1d"] /= flux_corr
+            data["spec1d_err"] /= flux_corr
+
+        if deredden:
+            coords = self.coords[ self.detectid == detectid_i]
+            deredden_corr = deredden_spectra(data["wave1d"], coords)
+            data["spec1d"] *= deredden_corr
+            data["spec1d_err"] *= deredden_corr
+
         return data
 
     def get_gband_mag(self, detectid_i):
