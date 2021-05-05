@@ -294,11 +294,12 @@ class Detections:
                     )
 
         else:
-            # just get coordinates and detectid
+            # just get coordinates, wavelength and detectid
             self.detectid = self.hdfile.root.Detections.cols.detectid[:]
             self.ra = self.hdfile.root.Detections.cols.ra[:]
             self.dec = self.hdfile.root.Detections.cols.dec[:]
-
+            self.wave = self.hdfile.root.Detections.cols.wave[:]
+            
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
