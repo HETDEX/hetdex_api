@@ -35,6 +35,9 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
+from hetdex_api.extinction import get_2pt1_extinction_fix
+from dustmaps.sfd import SFDQuery
+import extinction
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
@@ -165,13 +168,47 @@ class Detections:
                 for idx in np.arange(0, np.size(wave)):
                     sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
                     apcor_array[idx]=apcor[idx, sel_apcor]
-# This was actually done in error for 2.1.2, removing for 2.1.3
-#                self.flux /= apcor_array
-#                self.flux_err /= apcor_array
-#                self.continuum /= apcor_array
-#                self.continuum_err /= apcor_array
                 self.apcor = apcor_array
 
+                # remove E(B-V)=0.02 screen extinction
+                fix = get_2pt1_extinction_fix()
+
+                self.flux /= fix(wave)
+                self.flux_err /= fix(wave)
+                self.continuum /= fix(wave)
+                self.continuum_err /= fix(wave)
+
+                # store observed flux values in new columns
+                self.flux_obs = self.flux
+                self.flux_err_obs = self.flux_err
+                self.continuum_obs = self.continuum
+                self.continuum_err_obs = self.continuum_err
+
+                # apply extinction to observed values to get
+                # dust corrected values
+                # Apply S&F 2011 Extinction from SFD Map
+                # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
+
+                self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+
+                sfd = SFDQuery()
+                ebv = sfd(self.coords)
+                Rv = 2.742  # Landolt V  
+                ext = []
+                self.Av = Rv*ebv
+
+                for index in np.arange( np.size(self.detectid)):
+                    src_wave = np.array([np.double(self.wave[index])])
+                    ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[0]
+                    ext.append(ext_i)
+
+                deredden = 10**(0.4*np.array(ext))
+
+                self.flux *= deredden
+                self.flux_err *= deredden
+                self.continuum *= deredden
+                self.continuum_err *= deredden
+                
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
 
@@ -808,6 +845,9 @@ class Detections:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
 
+#        if self.survey == 'hdr2.1':
+            # remove extinction curve
+#            import hetdex_api.extinction 
         return data
 
     def get_gband_mag(self, detectid_i):
