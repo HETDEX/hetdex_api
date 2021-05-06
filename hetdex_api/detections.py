@@ -170,45 +170,47 @@ class Detections:
                     apcor_array[idx]=apcor[idx, sel_apcor]
                 self.apcor = apcor_array
 
-                # remove E(B-V)=0.02 screen extinction
-                fix = get_2pt1_extinction_fix()
+                if catalog_type == "lines":
 
-                self.flux /= fix(wave)
-                self.flux_err /= fix(wave)
-                self.continuum /= fix(wave)
-                self.continuum_err /= fix(wave)
+                    # remove E(B-V)=0.02 screen extinction
+                    fix = get_2pt1_extinction_fix()
+                    
+                    self.flux /= fix(wave)
+                    self.flux_err /= fix(wave)
+                    self.continuum /= fix(wave)
+                    self.continuum_err /= fix(wave)
 
-                # store observed flux values in new columns
-                self.flux_obs = self.flux
-                self.flux_err_obs = self.flux_err
-                self.continuum_obs = self.continuum
-                self.continuum_err_obs = self.continuum_err
+                    # store observed flux values in new columns
+                    self.flux_obs = self.flux
+                    self.flux_err_obs = self.flux_err
+                    self.continuum_obs = self.continuum
+                    self.continuum_err_obs = self.continuum_err
 
-                # apply extinction to observed values to get
-                # dust corrected values
-                # Apply S&F 2011 Extinction from SFD Map
-                # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
+                    # apply extinction to observed values to get
+                    # dust corrected values
+                    # Apply S&F 2011 Extinction from SFD Map
+                    # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
 
-                self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+                    self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+                    
+                    sfd = SFDQuery()
+                    self.ebv = sfd(self.coords)
+                    Rv = 2.742  # Landolt V  
+                    ext = []
+                    
+                    self.Av = Rv*self.ebv
+                    
+                    for index in np.arange( np.size(self.detectid)):
+                        src_wave = np.array([np.double(self.wave[index])])
+                        ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[0]
+                        ext.append(ext_i)
 
-                sfd = SFDQuery()
-                self.ebv = sfd(self.coords)
-                Rv = 2.742  # Landolt V  
-                ext = []
+                    deredden = 10**(0.4*np.array(ext))
 
-                self.Av = Rv*self.ebv
-
-                for index in np.arange( np.size(self.detectid)):
-                    src_wave = np.array([np.double(self.wave[index])])
-                    ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[0]
-                    ext.append(ext_i)
-
-                deredden = 10**(0.4*np.array(ext))
-
-                self.flux *= deredden
-                self.flux_err *= deredden
-                self.continuum *= deredden
-                self.continuum_err *= deredden
+                    self.flux *= deredden
+                    self.flux_err *= deredden
+                    self.continuum *= deredden
+                    self.continuum_err *= deredden
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
@@ -999,6 +1001,17 @@ class Detections:
         
         except:
             pass
+
+        if self.survey == 'hdr2.1':
+            if True:
+                table.add_column(self.Av, name='Av')
+                table.add_column(self.ebv, name="ebv")
+                table.add_column(self.flux_obs, name="flux_obs")
+                table.add_column(self.flux_err_obs, name="flux_obs_err")
+                table.add_column(self.continuum_obs, name="continuum_obs")
+                table.add_column(self.continuum_err_obs, name="continuum_obs_err")
+            else:#except:
+                print('Could not add new extinction columns')
             
         return table
 
