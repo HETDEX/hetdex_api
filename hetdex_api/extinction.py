@@ -73,7 +73,7 @@ def deredden_spectra(wave, coords):
     sfd = SFDQuery()
     ebv = sfd(coords)
     Av = Rv*ebv
-    ext = extinction.fitzpatrick99(wave, Av, Rv)
+    ext = extinction.fitzpatrick99(np.array(wave, dtype=np.double), Av, Rv)
 
     deredden = 10**(0.4*np.array(ext))
 
