@@ -1003,15 +1003,15 @@ class Detections:
             pass
 
         if self.survey == 'hdr2.1':
-            if True:
+            try:
                 table.add_column(self.Av, name='Av')
                 table.add_column(self.ebv, name="ebv")
                 table.add_column(self.flux_obs, name="flux_obs")
                 table.add_column(self.flux_err_obs, name="flux_obs_err")
                 table.add_column(self.continuum_obs, name="continuum_obs")
                 table.add_column(self.continuum_err_obs, name="continuum_obs_err")
-            else:#except:
-                print('Could not add new extinction columns')
+            except Exception:
+                pass
             
         return table
 
