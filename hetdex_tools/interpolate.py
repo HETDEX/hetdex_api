@@ -304,8 +304,8 @@ def make_data_cube(
     global config, detecth5, surveyh5
 
     if detectid is not None:
-        detectid_obj = detectid
-        det_info = detecth5.root.Detections.read_where("detectid == detectid_obj")[0]
+        sel_det = source_table['detectid'] == detectid
+        det_info = source_table[sel_det][0]
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 
