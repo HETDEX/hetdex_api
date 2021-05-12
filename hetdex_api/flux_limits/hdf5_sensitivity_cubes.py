@@ -13,7 +13,8 @@ from os.path import isfile, join
 from re import compile
 import tables as tb
 from numpy.ma import MaskedArray
-from numpy import linspace, mean, arange, array, histogram, zeros, std, array, sum
+from numpy import (linspace, mean, arange, array, histogram, zeros, std, 
+                   array, sum, pad, ceil, floor, nan)
 from astropy.stats import biweight_location
 from astropy.table import Table
 from hetdex_api.config import HDRconfig
@@ -216,6 +217,7 @@ class SensitivityCubeHDF5Container(object):
         else:
             shot = self.h5file.get_node(self.h5file.root, name=datevshot)
 
+        first = True
         warn = True
         for ifu in shot:
 
@@ -224,6 +226,12 @@ class SensitivityCubeHDF5Container(object):
             wavelengths = ifu.attrs.wavelengths
             alphas = ifu.attrs.alphas
             sigmas = ifu.read() / ifu.attrs.aper_corr
+
+            if first:
+                verbose = True
+                first = False
+            else:
+                verbose = False
 
             if self.h5mask:
                 mask = self.h5mask.get_node(self.h5mask.root.Mask, 
@@ -248,7 +256,8 @@ class SensitivityCubeHDF5Container(object):
             yield ifu.name, SensitivityCube(sigmas, header, wavelengths, alphas, 
                                             flim_model=self.flim_model,
                                             aper_corr=self.aper_corr, 
-                                            nsigma=nsigma, mask=mask)
+                                            nsigma=nsigma, mask=mask, 
+                                            verbose=verbose)
 
     def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
         """
@@ -541,48 +550,7 @@ def extract_sensitivity_cube(args=None):
     scube.write(opts.outfile)
 
 
-#def return_shot_completeness(fluxes, shots, sncut, pixlo=5, pixhi=25):
-#    """
-#    Return the total completeness over
-#    a series of shots
-#   
-#    Parameters
-#    ----------
-#    shots : list
-#        a list of shots to loop
-#        over
-#    pixlo, pixhi : int (optional)
-#        limits for the 2D ra/dec
-#        pixel array when computing 
-#        the values. Default is 5,25.
-#    """
-#    compl_all = []
-#    for shot in shots:
-#        fn, fnmask = return_sensitivity_hdf_path(shot, 
-#                                                 return_mask_fn = True)
-#
-#        print(fn)
-#        with SensitivityCubeHDF5Container(fn, mask_filename = fnmask) as hdf:
-#
-#            for ifuslot, scube in hdf.itercubes():
-#                 sigmas = scube.sigmas[:, pixlo:pixhi, pixlo:pixhi]
-#                 sigmas = sigmas.flatten()
-#                 f50s  = scube.f50_from_noise(sigmas, sncut)
-#                 frac_dets_all = []
-#                 for f in fluxes: 
-#                     if self.sinterp:
-#                         frac_dec = scube.sinterp(f, f50s)
-#                     else:
-#                        alphas = scube.alpha[0]
-#                        fracdet = fleming_function(flux, f50s, alphas)
-#                     frac_dets_all.append(frac_dec)
-#
-#        compl_all.append(frac_dets_all)
-
-#    return mean(compl_all, axis=0)
-
-
-def return_biweight_one_sigma(shots, pixlo=5, pixhi=25):
+def return_biweight_one_sigma(shots, pixlo=5, pixhi=25, wave_bins=None):
     """
     Return the biweight midvariance of the 
     1 sigma values of a series of shots. Trim
@@ -606,15 +574,44 @@ def return_biweight_one_sigma(shots, pixlo=5, pixhi=25):
         print(fn)
         with SensitivityCubeHDF5Container(fn, mask_filename = fnmask) as hdf:
 
+            first = True
+
             for ifuslot, scube in hdf.itercubes():
-                 sigmas = scube.sigmas[:, pixlo:pixhi, pixlo:pixhi]
-                 sigmas = sigmas.reshape(sigmas.shape[0], sigmas.shape[1]*sigmas.shape[2])
-                 sigmas_all.extend(sigmas.T)
 
-            pixels = arange(scube.sigmas.shape[0])
-            junkras, junkdecs, waves = scube.wcs.all_pix2world(0*pixels, 0*pixels, 
-                                                               pixels, 0)
+                 # assume wavelenghth WCS the same for whole HDF
+                 if (type(wave_bins) != type(None)) and first:
+                     junkx, junky, wlo = scube.wcs.all_world2pix(0., 0., wave_bins[:-1], 0)
+                     junkx, junky, whi = scube.wcs.all_world2pix(0., 0., wave_bins[1:], 0)
+                     first = False
+                     maxsize = int(max(floor(whi) - ceil(wlo))*(pixhi - pixlo)*(pixhi - pixlo))
 
+                 if type(wave_bins) != type(None):
+                     sigmas = []
+                     for lo, high in zip(wlo, whi):
+                         sigmas_slice = scube.sigmas.filled(nan)[int(ceil(lo)):int(floor(high)), 
+                                                                 pixlo:pixhi, pixlo:pixhi]
+                         sigmas_slice = sigmas_slice.reshape(sigmas_slice.shape[0]*sigmas_slice.shape[1]*sigmas_slice.shape[2])
+                         
+                         # pad with NaN to keep consistent size
+                         if len(sigmas_slice) < maxsize:
+                             sigmas_slice = pad(sigmas_slice, (0, maxsize - len(sigmas_slice)), 
+                                                'empty')
+
+                         sigmas.append(sigmas_slice)
+                 else:
+                     sigmas = scube.sigmas.filled(nan)[:, pixlo:pixhi, pixlo:pixhi]
+                     sigmas = sigmas.reshape(sigmas.shape[0], sigmas.shape[1]*sigmas.shape[2])
+
+                 sigmas_all.extend(array(sigmas).T)
+
+            # assume wavelenghth WCS the same for whole HDF
+            if type(wave_bins) == type(None):
+                 pixels = arange(scube.sigmas.shape[0])
+                 junkras, junkdecs, waves = scube.wcs.all_pix2world(0*pixels, 0*pixels,  
+                                                                    pixels, 0)
+            else:
+                 waves = 0.5*(wave_bins[1:] + wave_bins[:-1])
+ 
     biwt = biweight_location(array(sigmas_all), axis=0, ignore_nan=True)
 
     return waves, biwt 
