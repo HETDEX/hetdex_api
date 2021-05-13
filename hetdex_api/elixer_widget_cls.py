@@ -680,10 +680,10 @@ class ElixerWidget:
 
         if HETDEX_DETECT_HDF5_HANDLE:
             try:
-                dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
+                #dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
                 q_detectid = self.detectbox.value
 
-                rows = dtb.read_where("detectid==q_detectid", field="wave")
+                rows =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where("detectid==q_detectid", field="wave")
                 if (rows is not None) and (rows.size == 1):
                     current_wavelength = rows[0]
             except Exception as e:
