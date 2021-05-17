@@ -184,10 +184,10 @@ class Detections:
                     self.continuum_err /= fix(wave)
 
                     # store observed flux values in new columns
-                    self.flux_obs = self.flux
-                    self.flux_err_obs = self.flux_err
-                    self.continuum_obs = self.continuum
-                    self.continuum_err_obs = self.continuum_err
+                    self.flux_obs = self.flux.copy()
+                    self.flux_err_obs = self.flux_err.copy()
+                    self.continuum_obs = self.continuum.copy()
+                    self.continuum_err_obs = self.continuum_err.copy()
 
                     # apply extinction to observed values to get
                     # dust corrected values
