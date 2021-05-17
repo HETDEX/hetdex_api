@@ -226,7 +226,9 @@ def make_narrowband_image(
     E.close()
     if include_error:
         hdu_error = fits.ImageHDU(imerror, header=w.to_header())
-        return fits.HDUList([hdu, hdu_error])
+        hdu_x = fits.ImageHDU(zarray[2], header=w.to_header())
+        hdu_y = fits.ImageHDU(zarray[3], header=w.to_header())
+        return fits.HDUList([hdu, hdu_error, hdu_x, hdu_y])
     else:
         return hdu
 
@@ -302,8 +304,8 @@ def make_data_cube(
     global config, detecth5, surveyh5
 
     if detectid is not None:
-        detectid_obj = detectid
-        det_info = detecth5.root.Detections.read_where("detectid == detectid_obj")[0]
+        sel_det = source_table['detectid'] == detectid
+        det_info = source_table[sel_det][0]
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 

@@ -103,6 +103,7 @@ def frinds_of_friends(kdtree, r, Nmin=3):
          The list is sorted by group size, with the largest group first.
    """
     # make a set with all particles, makes set ops below much faster
+#    id_lst = set(range(0, kdtree.n - 1))
     id_lst = set(range(0, kdtree.n))
     group_lst = []
     # iterate over all particles

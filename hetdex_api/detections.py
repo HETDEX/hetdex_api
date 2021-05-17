@@ -35,6 +35,10 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
+from hetdex_api.extinction import get_2pt1_extinction_fix, deredden_spectra
+from dustmaps.sfd import SFDQuery
+from dustmaps.config import config as dustmaps_config
+import extinction
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
@@ -43,7 +47,9 @@ try:
     from hetdex_api.config import HDRconfig
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-
+    config = HDRconfig(LATEST_HDR_NAME)
+    dustmaps_config['data_dir'] = config.dustmaps
+    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -165,12 +171,49 @@ class Detections:
                 for idx in np.arange(0, np.size(wave)):
                     sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
                     apcor_array[idx]=apcor[idx, sel_apcor]
-# This was actually done in error for 2.1.2, removing for 2.1.3
-#                self.flux /= apcor_array
-#                self.flux_err /= apcor_array
-#                self.continuum /= apcor_array
-#                self.continuum_err /= apcor_array
                 self.apcor = apcor_array
+
+                if catalog_type == "lines":
+
+                    # remove E(B-V)=0.02 screen extinction
+                    fix = get_2pt1_extinction_fix()
+                    
+                    self.flux /= fix(wave)
+                    self.flux_err /= fix(wave)
+                    self.continuum /= fix(wave)
+                    self.continuum_err /= fix(wave)
+
+                    # store observed flux values in new columns
+                    self.flux_obs = self.flux
+                    self.flux_err_obs = self.flux_err
+                    self.continuum_obs = self.continuum
+                    self.continuum_err_obs = self.continuum_err
+
+                    # apply extinction to observed values to get
+                    # dust corrected values
+                    # Apply S&F 2011 Extinction from SFD Map
+                    # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
+
+                    self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+                    
+                    sfd = SFDQuery()
+                    self.ebv = sfd(self.coords)
+                    Rv = 2.742  # Landolt V  
+                    ext = []
+                    
+                    self.Av = Rv*self.ebv
+                    
+                    for index in np.arange( np.size(self.detectid)):
+                        src_wave = np.array([np.double(self.wave[index])])
+                        ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[0]
+                        ext.append(ext_i)
+
+                    deredden = 10**(0.4*np.array(ext))
+
+                    self.flux *= deredden
+                    self.flux_err *= deredden
+                    self.continuum *= deredden
+                    self.continuum_err *= deredden
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
@@ -294,11 +337,12 @@ class Detections:
                     )
 
         else:
-            # just get coordinates and detectid
+            # just get coordinates, wavelength and detectid
             self.detectid = self.hdfile.root.Detections.cols.detectid[:]
             self.ra = self.hdfile.root.Detections.cols.ra[:]
             self.dec = self.hdfile.root.Detections.cols.dec[:]
-
+            self.wave = self.hdfile.root.Detections.cols.wave[:]
+            
         # set the SkyCoords
         self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
@@ -787,7 +831,7 @@ class Detections:
 
         return mask
 
-    def get_spectrum(self, detectid_i):
+    def get_spectrum(self, detectid_i, deredden=True):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
         """
@@ -806,6 +850,20 @@ class Detections:
         # convert from 2AA binning to 1AA binning:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
+
+        if self.survey == 'hdr2.1':
+            # remove E(B-V)=0.02 screen extinction
+            fix = get_2pt1_extinction_fix()
+
+            flux_corr = fix( data["wave1d"])
+            data["spec1d"] /= flux_corr
+            data["spec1d_err"] /= flux_corr
+
+        if deredden:
+            coords = self.coords[ self.detectid == detectid_i]
+            deredden_corr = deredden_spectra(data["wave1d"], coords)
+            data["spec1d"] *= deredden_corr
+            data["spec1d_err"] *= deredden_corr
 
         return data
 
@@ -946,6 +1004,17 @@ class Detections:
         
         except:
             pass
+
+        if self.survey == 'hdr2.1':
+            try:
+                table.add_column(self.Av, name='Av')
+                table.add_column(self.ebv, name="ebv")
+                table.add_column(self.flux_obs, name="flux_obs")
+                table.add_column(self.flux_err_obs, name="flux_obs_err")
+                table.add_column(self.continuum_obs, name="continuum_obs")
+                table.add_column(self.continuum_err_obs, name="continuum_obs_err")
+            except Exception:
+                pass
             
         return table
 

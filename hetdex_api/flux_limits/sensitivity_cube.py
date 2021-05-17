@@ -37,7 +37,8 @@ from scipy.interpolate import interp1d
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-from hetdex_api.flux_limits import flim_models, flim_model_cache
+from hetdex_api.flux_limits import flim_model_cache
+from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 from hetdex_api.config import HDRconfig
 
 class WavelengthException(Exception):
@@ -131,8 +132,8 @@ class SensitivityCube(object):
         cubes it's 6 sigma) specify it here
     flim_model : str
         the name of the flux limit model 
-        to use. This can either be 'hdr1',
-        'hdr2pt1', hdr2pt1pt1'
+        to use. If None then use the latest
+        (default)
     mask : array (optional)
         a spatial ra, dec mask with the same
         WCS and dimensions as the data (default:
@@ -164,12 +165,8 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1pt3", mask=None, 
-                 cache_sim_interp = True, verbose=False): 
-
-        if verbose:
-            # Note: flux limit model is also passed here by the HDF5 container class
-            print("Flux limit model: ", flim_model) 
+                 nsigma=1.0, flim_model=None, mask=None, 
+                 cache_sim_interp = True, verbose = False): 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
@@ -183,31 +180,10 @@ class SensitivityCube(object):
 
         self.nsigma = nsigma
 
-        # Select flux limit model
-        try:
-            self.f50_from_noise = getattr(flim_models, "{:s}_f50_from_noise".format(flim_model)) 
-        except AttributeError as e:
-            print("Chosen flux limit model not found!")
-            raise e
-
-        # Decide between Fleming function or interpolation
-        if (flim_model == "hdr1") or (flim_model == "hdr2pt1"):
-            self.sinterp = None	
-        elif flim_model_cache.cached_model == flim_model and cache_sim_interp:
-            self.sinterp = flim_model_cache.cached_sim_interp
-        else:
-            conf = HDRconfig()
-            fdir = conf.flim_sim_completeness 
-            if "snmode" in flim_model:
-                print("Using S/N based model!") 
-                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=True)
-            else:
-                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=False)
-
-        # cache the model to save reinitialising the object
-        if cache_sim_interp: 
-            flim_model_cache.cached_sim_interp = self.sinterp
-            flim_model_cache.cached_model = flim_model 
+        # Grab the flux limit model
+        self.f50_from_noise, self.sinterp = return_flux_limit_model(flim_model, 
+                                                                    flim_model_cache,
+                                                                     verbose = verbose)
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -249,6 +225,7 @@ class SensitivityCube(object):
         """
         Return the parameter controlling
         the slope of the Fleming+ (1995) function
+        (only used for the old flux limit models)
 
         """
 

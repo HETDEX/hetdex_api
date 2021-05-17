@@ -17,12 +17,8 @@ class HDRconfig:
             self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
         elif op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
-        #elif op.exists("/data/05350/ecooper"):
-        #    self.host_dir = "/data/05350/ecooper"
         elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
-        elif op.exists("/work/03946/hetdex"):
-            self.host_dir = "/work/03946/hetdex"
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
@@ -46,12 +42,13 @@ class HDRconfig:
                 "hdr2": "/work/03946/hetdex/hdr2",
                 "hdr2.1": op.join(self.host_dir, "hdr2.1"),
             }
-
+        
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
         self.tp_dir = op.join(self.red_dir, "throughput")
         self.calib_dir = op.join(self.hdr_dir[survey], "calib")
+        self.dustmaps = op.join(self.calib_dir, 'dustmaps')
         self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
@@ -142,7 +139,7 @@ class HDRconfig:
             self.flimmask = op.join(self.flim_dir, "masks")
             self.lowtpshots = op.join(self.bad_dir, "survey_shots_low_response.txt")
             self.rc3cat = op.join(self.bad_dir, "rc3.ugc.hetdex.both.v7.csv")
-            self.agncat = op.join(self.detect_dir, "catalogs", "AGN_v4.1.dat2")
+            self.agncat = op.join(self.detect_dir, "catalogs", "AGN_v4.3.cat")
             self.gaiacat = op.join(
                 self.host_dir,
                 "gaia_hetdex_value_added_catalog",
@@ -151,3 +148,4 @@ class HDRconfig:
             self.galaxylabels = op.join(self.bad_dir, 'galaxies.txt')
             self.starlabels = op.join(self.bad_dir, 'stars.txt')
             self.sdsscat = op.join(self.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
+            self.extinction_fix = op.join(self.bad_dir, 'extinction')
