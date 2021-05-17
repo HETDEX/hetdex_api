@@ -1,4 +1,5 @@
 import pytest
+from os.path import join
 from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits.flim_models import read_karl_file, SimulationInterpolator
 
@@ -12,7 +13,7 @@ def test_simulation_interpolator(release, sncut):
     """
 
     conf = HDRconfig(survey=release)
-    fdir = conf.flim_sim_completeness
+    fdir = join(conf.flim_sim_completeness, "curves_v1")
     sinterp = SimulationInterpolator(fdir,
                                      wl_collapse = False,
                                      cmax = None)

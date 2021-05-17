@@ -12,9 +12,38 @@ simulation results.
 """
 
 from glob import glob
+from os.path import join
 from scipy.interpolate import interp1d, interp2d, splrep, griddata, RectBivariateSpline
 from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
                    array, linspace, tile, ones, array, argmin, zeros)
+from hetdex_api.config import HDRconfig
+from hetdex_api.flux_limits import flim_models_old
+
+
+class ModelInfo(object):
+    """
+    Store information about the flux
+    limit model
+
+    Parameters
+    ----------
+    snfile_version : str
+       which version of the sn?.?.use 
+       files to use
+    snpoly : array
+       a polynomial to go from S/N
+       cut to noise multiplier
+    wavepoly : array or NoneType
+       a polynomial to adjust the
+       noise as a function of
+       wavelength (None to not use)
+    """
+    def __init__(self, snfile_version, snpoly, wavepoly):
+
+        self.snfile_version = snfile_version
+        self.snpoly = snpoly
+        self.wavepoly = wavepoly
+
 
 class NoSNFilesException(Exception):
     pass
@@ -213,7 +242,7 @@ class SingleSNSimulationInterpolator(object):
         simulation files
 
     """
-    def __init__(self, filename, wl_collapse = False, cmax = 1.0, snmode=False):
+    def __init__(self, filename, wl_collapse = False, cmax = None, snmode = False):
 
         if not snmode:
             self.waves, self.f50, self.compl_curves, self.fluxes =\
@@ -326,155 +355,109 @@ class SingleSNSimulationInterpolator(object):
         f50 = array(f50)
         wave = array(wave)
 
-        if self._wl_collapse:
+        if self._snmode:
+            return self.completeness_model(f50, flux/f50)
+        elif self._wl_collapse:
             return self.completeness_model(flux/f50)
         else:
             return self.completeness_model(wave.flatten(), (flux/f50).flatten())
 
-def hdr2pt1pt1_f50_from_noise(noise, sncut):
+
+    # Blue end noise adjustment
+    #params_wl = [6.18971170e-07, -5.15522003e-03,  1.17598910e+01] 
+    #
+    #try:
+    #    noise[lambda_ < 4000.0] = noise[lambda_ < 4000]*polyval(params_wl, lambda_[lambda_ < 4000.0])
+    #except TypeError:
+    #    if lambda_ < 4000.0:
+    #        noise = noise*polyval(params_wl, lambda_)
+
+
+
+def return_flux_limit_model_old(flim_model):
     """
-    Return the 50% completeness
-    flux given noise and 
-    S/N cut. This uses an empirical
-    model calibrated on simulated
-    LAE detections inserted into
-    the calibration fields. The
-    simulations were run by Karl Gebhardt.
-
-    Parameters
-    ----------
-    noise : float
-        the noise from the
-        sensitivity cubes
-    sncut : float
-        the signal to noise
-        cut to assume
-
-    Returns
-    -------
-    f50s : array
-       the fluxes at 50%
-       completeness
-    """
-    try:
-        if sncut < 4.8 or sncut > 7.0:
-            print("WARNING: model not calibrated for this S/N range")
-    except ValueError:
-        if any(sncut < 4.5) or any(ncut > 7.5):
-            print("WARNING: model not calibrated for this S/N range")
-
-    # Karls
-    params = [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00]
-    snmult = polyval(params, sncut)
-
-    return noise*snmult
-
-def hdr2pt1_f50_from_noise(noise, sncut):
-    """
-    Return the 50% completeness
-    flux given noise and 
-    S/N cut. This uses an empirical
-    model calibrated on simulated
-    LAE detections inserted into
-    ~200 different shots (see
-    Figures in data release 
-    document)
-
-    Parameters
-    ----------
-    noise : float
-        the noise from the
-        sensitivity cubes
-    sncut : float
-        the signal to noise
-        cut to assume
-
-    Returns
-    -------
-    f50s : array
-       the fluxes at 50%
-       completeness
+    Return the noise -> 50% completeness
+    scaling and a function for the completeness
+    curves
     """
 
-    try:
-        if sncut < 4.5 or sncut > 7.5:
-            print("WARNING: model not calibrated for this S/N range")
-    except ValueError:
-        if any(sncut < 4.5) or any(ncut > 7.5):
-            print("WARNING: model not calibrated for this S/N range")
+    f50_from_noise = getattr(flim_models_old, "{:s}_f50_from_noise".format(flim_model)) 
+   
+    return f50_from_noise, None
+
+
+def return_flux_limit_model(flim_model, flim_model_cache, verbose = False):
+    """
+    Return the noise -> 50% completeness
+    scaling and a function for the 
+    completeness curves
+
+    """
+
+    # old models for legacy support
+    if flim_model in ["hdr1", "hdr2pt1"]:
+        if verbose:
+            print("Using flim model: {:s}".format(flim_model))
+        return return_flux_limit_model_old(flim_model)    
  
-    snslope=1.0
-    intercept_poly=[0.11268546,  -1.75103671,
-                    9.00946424, -15.71204789]
-    intercept = 1e-17*polyval(intercept_poly, sncut)
+    models = {
+              "hdr2pt1pt1" : ModelInfo("curves_v1", 
+                                       [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00], 
+                                       None),
+              "hdr2pt1pt3" : ModelInfo("curves_v1",
+                                       [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00],
+                                       None),
+              "v1" : ModelInfo("curves_v1", [1.0, 0.0], None)
+             }
+    latest = "v1"    
 
-    f50s = snslope*sncut*noise + intercept
+    if not flim_model:
+        flim_model = latest
+    
+    model =  models[flim_model]
+    if verbose:
+        print("Using flim model: {:s}".format(flim_model))
+ 
+    if flim_model_cache.cached_model == flim_model:
+        sinterp = flim_model_cache.cached_sim_interp
+    else:
+        conf = HDRconfig()
+        fdir = conf.flim_sim_completeness 
+        fdir = join(fdir, model.snfile_version)
+        sinterp = SimulationInterpolator(fdir, snmode=False)
+
+        def f50_from_noise(noise, lambda_, sncut):
+            """
+            Return the 50% completeness
+            flux given noise and S/N cut. 
         
-    return f50s
+            Parameters
+            ----------
+            noise : float
+                the noise from the
+                sensitivity cubes
+            sncut : float
+                the signal to noise
+                cut to assume
+        
+            Returns
+            -------
+            f50s : array
+               the fluxes at 50%
+               completeness  
+            """
+            try:
+                if sncut < 4.8 or sncut > 7.0:
+                    print("WARNING: model not calibrated for this S/N range")
+            except ValueError:
+                if any(sncut < 4.5) or any(ncut > 7.5):
+                    print("WARNING: model not calibrated for this S/N range")
 
-def hdr2pt1pt3_f50_from_noise(noise, sncut):
-    """
-    Return the 50% completeness
-    flux given noise and 
-    S/N cut. This uses an empirical
-    model calibrated on simulated
-    LAE detections inserted into
-    ~200 different shots (see
-    Figures in data release 
-    document)
+            if model.wavepoly:
+                noise = noise*polyval(model.wavepoly, lambda_)
+            snmult = polyval(model.snpoly, sncut)
+            return snmult*noise
+             
+    return f50_from_noise, sinterp
 
-    Parameters
-    ----------
-    noise : float
-        the noise from the
-        sensitivity cubes
-    sncut : float
-        the signal to noise
-        cut to assume
-
-    Returns
-    -------
-    f50s : array
-       the fluxes at 50%
-       completeness
-    """
-    try:
-        if sncut < 4.8 or sncut > 7.0:
-            print("WARNING: model not calibrated for this S/N range")
-    except ValueError:
-        if any(sncut < 4.8) or any(ncut > 7.0):
-            print("WARNING: model not calibrated for this S/N range")
-
-    params = [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00]
-    snmult = polyval(params, sncut)
-
-    return noise*snmult
-
-def hdr1_f50_from_noise(noise, sncut):
-    """
-    Return the 50% completeness
-    flux given noise and 
-    S/N cut. This just assumes
-    50% completeness is at
-    sncut*noise 
-
-    Parameters
-    ----------
-    noise : float
-        the noise from the
-        sensitivity cubes
-    sncut : float
-        the signal to noise
-        cut to assume
-
-    Returns
-    -------
-    f50s : array
-       the fluxes at 50%
-       completeness
-    """
-
-    f50s = sncut*noise 
-
-    return f50s
-
+  
