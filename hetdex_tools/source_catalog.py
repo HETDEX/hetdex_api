@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 import time
 import argparse as ap
 import os.path as op
@@ -110,7 +111,8 @@ def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
 
         sscube.close()
 
-        return flim, flim_update
+        flim_best = np.minimum(flim, flim_update)
+        return flim, flim_best
 
     else:
         try:
@@ -1078,6 +1080,7 @@ def main(argv=None):
     sel_star = out_table['source_type'] == 'star'
     sel_oii = out_table['source_type'] == 'oii'
     sel_lae = out_table['source_type'] == 'lae'
+    sel_agn = out_table['source_type'] == 'agn'
 
     print('There are {} stars, {} OII emitters and {} LAEs'.format(np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
 
@@ -1090,10 +1093,23 @@ def main(argv=None):
     src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * waveoii
     src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * wavelya
 
+    sel_z = ( out_table['z_guess'] >= 1.9) * (out_table['z_guess'] <= 3.6)
+    src_wave[sel_agn*sel_z] = (1 + out_table['z_guess'][sel_agn*sel_z]) * wavelya
+
     out_table['src_separation'] = det_coord.separation(src_coord)
     out_table['dwave'] = np.abs(src_wave - source_table['wave'])
 
     out_table.sort(['dwave', 'src_separation'])
+
+    print('Filling masked values with NaNs')
+    
+    for col in out_table.columns:
+        try:
+            out_table[col] = out_table[col].filled(np.nan)
+            print('yes', col)
+        except:
+            print('no', col)
+
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
     out_table.write("source_catalog_{}.tab".format(args.version),
