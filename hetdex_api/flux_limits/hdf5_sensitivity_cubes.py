@@ -113,10 +113,12 @@ class SensitivityCubeHDF5Container(object):
     """
 
     def __init__(self, filename, mode="r", flim_model=None, aper_corr=1.0, 
-                 mask_filename = None, **kwargs):
+                 mask_filename=None, verbose=True, **kwargs):
 
         if (mode == "w") and isfile(filename):
             raise FileExists("Error! Output file {:s} exists!".format(filename))
+
+        self.verbose = verbose
 
         # Filter for compression, set complevel=4 as higher levels only
         # give a few extra MB per file
@@ -182,7 +184,7 @@ class SensitivityCubeHDF5Container(object):
         """ List the contents of the HDF5 file """
         print(self.h5file)
 
-    def itercubes(self, datevshot=None):
+    def itercubes(self, datevshot=None, cache_sim_interp=True):
         """ 
         Iterate over the IFUs 
 
@@ -228,7 +230,7 @@ class SensitivityCubeHDF5Container(object):
             sigmas = ifu.read() / ifu.attrs.aper_corr
 
             if first:
-                verbose = True
+                verbose = self.verbose
                 first = False
             else:
                 verbose = False
@@ -257,9 +259,11 @@ class SensitivityCubeHDF5Container(object):
                                             flim_model=self.flim_model,
                                             aper_corr=self.aper_corr, 
                                             nsigma=nsigma, mask=mask, 
-                                            verbose=verbose)
+                                            verbose=verbose, 
+                                            cache_sim_interp=cache_sim_interp)
 
-    def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None):
+    def extract_ifu_sensitivity_cube(self, ifuslot, datevshot=None, 
+                                     cache_sim_interp=True):
         """
         Extract the sensitivity cube
         from IFU (ifuslot). If multiple
@@ -328,7 +332,8 @@ class SensitivityCubeHDF5Container(object):
         # Force apcor to be 1.0 here, so we don't double count it
         return SensitivityCube(sigmas, header, wavelengths, alphas, 
                                nsigma=nsigma, flim_model=self.flim_model,
-                               aper_corr=self.aper_corr, mask=mask)
+                               aper_corr=self.aper_corr, mask=mask,
+                               cache_sim_interp=cache_sim_interp)
 
     def return_shot_completeness(self, flux, lambda_low, lambda_high, sncut,
                                  bin_edges = None, sigma_clip = False):

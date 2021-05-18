@@ -37,7 +37,6 @@ from scipy.interpolate import interp1d
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-from hetdex_api.flux_limits import flim_model_cache
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 from hetdex_api.config import HDRconfig
 
@@ -182,8 +181,8 @@ class SensitivityCube(object):
 
         # Grab the flux limit model
         self.f50_from_noise, self.sinterp = return_flux_limit_model(flim_model, 
-                                                                    flim_model_cache,
-                                                                     verbose = verbose)
+                                                                    cache_sim_interp=cache_sim_interp,
+                                                                    verbose = verbose)
 
         # Fix issue with header
         if not "CD3_3" in header:

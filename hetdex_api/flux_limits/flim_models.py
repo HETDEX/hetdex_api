@@ -17,8 +17,7 @@ from scipy.interpolate import interp1d, interp2d, splrep, griddata, RectBivariat
 from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
                    array, linspace, tile, ones, array, argmin, zeros)
 from hetdex_api.config import HDRconfig
-from hetdex_api.flux_limits import flim_models_old
-
+from hetdex_api.flux_limits import flim_models_old, flim_model_cache
 
 class ModelInfo(object):
     """
@@ -386,7 +385,8 @@ def return_flux_limit_model_old(flim_model):
     return f50_from_noise, None
 
 
-def return_flux_limit_model(flim_model, flim_model_cache, verbose = False):
+def return_flux_limit_model(flim_model, cache_sim_interp = True, 
+                            verbose = False):
     """
     Return the noise -> 50% completeness
     scaling and a function for the 
@@ -407,7 +407,10 @@ def return_flux_limit_model(flim_model, flim_model_cache, verbose = False):
               "hdr2pt1pt3" : ModelInfo("curves_v1",
                                        [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00],
                                        None),
-              "v1" : ModelInfo("curves_v1", [1.0, 0.0], None)
+              "v1" : ModelInfo("curves_v1", 
+                               [-8.80650683e-02,  2.03488098e+00, -1.73733048e+01, 
+                               6.56038443e+01, -8.84158092e+01], 
+                               None)
              }
     latest = "v1"    
 
@@ -418,7 +421,7 @@ def return_flux_limit_model(flim_model, flim_model_cache, verbose = False):
     if verbose:
         print("Using flim model: {:s}".format(flim_model))
  
-    if flim_model_cache.cached_model == flim_model:
+    if flim_model_cache.cached_model == flim_model and cache_sim_interp:
         sinterp = flim_model_cache.cached_sim_interp
     else:
         conf = HDRconfig()
@@ -426,38 +429,44 @@ def return_flux_limit_model(flim_model, flim_model_cache, verbose = False):
         fdir = join(fdir, model.snfile_version)
         sinterp = SimulationInterpolator(fdir, snmode=False)
 
-        def f50_from_noise(noise, lambda_, sncut):
-            """
-            Return the 50% completeness
-            flux given noise and S/N cut. 
-        
-            Parameters
-            ----------
-            noise : float
-                the noise from the
-                sensitivity cubes
-            sncut : float
-                the signal to noise
-                cut to assume
-        
-            Returns
-            -------
-            f50s : array
-               the fluxes at 50%
-               completeness  
-            """
-            try:
-                if sncut < 4.8 or sncut > 7.0:
-                    print("WARNING: model not calibrated for this S/N range")
-            except ValueError:
-                if any(sncut < 4.5) or any(ncut > 7.5):
-                    print("WARNING: model not calibrated for this S/N range")
+    # save model in cache
+    if cache_sim_interp:
+        flim_model_cache.cached_model = flim_model
+        flim_model_cache.cached_sim_interp = sinterp
 
-            if model.wavepoly:
-                noise = noise*polyval(model.wavepoly, lambda_)
-            snmult = polyval(model.snpoly, sncut)
-            return snmult*noise
-             
+
+    def f50_from_noise(noise, lambda_, sncut):
+        """
+        Return the 50% completeness
+        flux given noise and S/N cut. 
+    
+        Parameters
+        ----------
+        noise : float
+            the noise from the
+            sensitivity cubes
+        sncut : float
+            the signal to noise
+            cut to assume
+    
+        Returns
+        -------
+        f50s : array
+           the fluxes at 50%
+           completeness  
+        """
+        try:
+            if sncut < 4.8 or sncut > 7.0:
+                print("WARNING: model not calibrated for this S/N range")
+        except ValueError:
+            if any(sncut < 4.5) or any(ncut > 7.5):
+                print("WARNING: model not calibrated for this S/N range")
+
+        if model.wavepoly:
+            noise = noise*polyval(model.wavepoly, lambda_)
+        snmult = polyval(model.snpoly, sncut)
+        return snmult*noise
+
     return f50_from_noise, sinterp
 
   
