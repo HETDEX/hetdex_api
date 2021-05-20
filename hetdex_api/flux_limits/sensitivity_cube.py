@@ -28,12 +28,12 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
-                   repeat, newaxis, logical_not, arange, tile)
+                   repeat, newaxis, logical_not, arange, tile, nan, dstack)
 from numpy.ma import filled
 from numpy.ma import array as maskedarray
 from numpy.random import normal
 from numpy import any as nany
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, RegularGridInterpolator
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
@@ -180,9 +180,20 @@ class SensitivityCube(object):
         self.nsigma = nsigma
 
         # Grab the flux limit model
-        self.f50_from_noise, self.sinterp = return_flux_limit_model(flim_model, 
-                                                                    cache_sim_interp=cache_sim_interp,
-                                                                    verbose = verbose)
+        self.f50_from_noise, self.sinterp, interp_sigmas \
+                                       = return_flux_limit_model(flim_model, 
+                                                                 cache_sim_interp=cache_sim_interp,
+                                                                 verbose = verbose)
+
+        self.sigma_interpolate = None
+        if interp_sigmas:
+            indicesz = arange(self.sigmas.shape[0])
+            indicesy = arange(self.sigmas.shape[1])
+            indicesx = arange(self.sigmas.shape[2])
+
+            self.sigma_interpolate = RegularGridInterpolator((indicesz, indicesy, indicesx),
+                                                              self.sigmas.filled(fill_value=nan),
+                                                              fill_value = 999)
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -322,7 +333,7 @@ class SensitivityCube(object):
             else: 
                 self.sigmas[iz, :, :] = rescale*self.sigmas[iz, :, :]  
 
-    def radecwltoxyz(self, ra, dec, lambda_):
+    def radecwltoxyz(self, ra, dec, lambda_, round_=True):
         """
         Convert ra, dec, wavelength position to
         x,y, z coordinate of cube
@@ -334,6 +345,9 @@ class SensitivityCube(object):
             declination of source
         lambda_ : array
             wavelength in Angstrom
+        round_ : bool
+            if true, round to nearest
+            integer (default is True)
 
         Returns
         -------
@@ -341,11 +355,16 @@ class SensitivityCube(object):
             indices of arrays for datacube
         """
 
+
         lambda_ = array(lambda_)
         ix,iy,iz = self.wcs.wcs_world2pix(ra, dec, lambda_, 0)
 
-        return array(around(ix), dtype=int), array(around(iy), dtype=int), \
-            array(around(iz), dtype=int)
+        if round_:
+            return array(around(ix), dtype=int), array(around(iy), dtype=int), \
+                array(around(iz), dtype=int)
+        else:
+            return array(ix), array(iy), array(iz)
+ 
 
     def get_average_f50(self, ra, dec, lambda_, sncut, npix=1):
         """
@@ -425,7 +444,8 @@ class SensitivityCube(object):
 
     def get_collapsed_value(self, ra, dec):
 
-        ix, iy, iz = self.radecwltoxyz(ra, dec, 4500.)
+        ix, iy, iz = self.radecwltoxyz(ra, dec, 4500., 
+                                       round_=True)
 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
@@ -434,6 +454,7 @@ class SensitivityCube(object):
         ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
 
+        # XXX not using interpolation
         noise = self.collapsed_data[iy, ix]
         noise[bad_vals] = 999.0
 
@@ -538,8 +559,14 @@ class SensitivityCube(object):
 
         """
 
-        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+        if self.sigma_interpolate:
+            round_ = False
+        else:
+            round_ = True
 
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_,
+                                       round_ = round_)
+ 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
         bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
@@ -549,7 +576,13 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], lambda_, sncut)
+        if self.sigma_interpolate:
+            coords = dstack((iz, iy, ix))[0]
+            noise = self.sigma_interpolate(coords)
+        else:
+            noise = self.sigmas.filled()[iz, iy, ix]
+
+        f50s = self.f50_from_noise(noise, lambda_, sncut)
 
         # Support arrays and floats
         try:
@@ -581,7 +614,8 @@ class SensitivityCube(object):
 
 
         """
-        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_,
+                                       round_ = True)
 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
@@ -592,6 +626,8 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
+
+        # HERE
         noise = self.sigmas.filled()[iz, iy, ix]
         snr = flux/noise
 

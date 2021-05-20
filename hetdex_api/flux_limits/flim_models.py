@@ -37,12 +37,15 @@ class ModelInfo(object):
        noise as a function of
        wavelength (None to not use)
     """
-    def __init__(self, snfile_version, snpoly, wavepoly):
+    def __init__(self, snfile_version, snpoly, wavepoly,
+                 interp_sigmas, snlow=4.8, snhigh=7.0):
 
         self.snfile_version = snfile_version
         self.snpoly = snpoly
         self.wavepoly = wavepoly
-
+        self.interp_sigmas = interp_sigmas
+        self.snlow = snlow
+        self.snhigh = snhigh
 
 class NoSNFilesException(Exception):
     pass
@@ -382,7 +385,7 @@ def return_flux_limit_model_old(flim_model):
 
     f50_from_noise = getattr(flim_models_old, "{:s}_f50_from_noise".format(flim_model)) 
    
-    return f50_from_noise, None
+    return f50_from_noise, None, False
 
 
 def return_flux_limit_model(flim_model, cache_sim_interp = True, 
@@ -399,18 +402,22 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         if verbose:
             print("Using flim model: {:s}".format(flim_model))
         return return_flux_limit_model_old(flim_model)    
- 
+
     models = {
+              "one-sigma-interpolate" : ModelInfo("curves_v1", 
+                                                  [1.0], 
+                                                  None, 
+                                                  True, snlow=0.999999, snhigh=1.000001), 
               "hdr2pt1pt1" : ModelInfo("curves_v1", 
                                        [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00], 
-                                       None),
+                                       None, False),
               "hdr2pt1pt3" : ModelInfo("curves_v1",
                                        [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00],
-                                       None),
+                                       None, False),
               "v1" : ModelInfo("curves_v1", 
                                [-8.80650683e-02,  2.03488098e+00, -1.73733048e+01, 
                                6.56038443e+01, -8.84158092e+01], 
-                               None)
+                               None, False)
              }
     latest = "v1"    
 
@@ -456,17 +463,15 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
            completeness  
         """
         try:
-            if sncut < 4.8 or sncut > 7.0:
-                print("WARNING: model not calibrated for this S/N range")
+            if sncut < model.snlow or sncut > model.snhigh:
+                print("WARNING: model {:s} not calibrated for this S/N range".format(flim_model))
         except ValueError:
             if any(sncut < 4.5) or any(ncut > 7.5):
-                print("WARNING: model not calibrated for this S/N range")
+                print("WARNING: model {:s} not calibrated for this S/N range".format(flim_model))
 
         if model.wavepoly:
             noise = noise*polyval(model.wavepoly, lambda_)
         snmult = polyval(model.snpoly, sncut)
         return snmult*noise
 
-    return f50_from_noise, sinterp
-
-  
+    return f50_from_noise, sinterp, model.interp_sigmas  
