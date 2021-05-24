@@ -37,6 +37,7 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
 from hetdex_api.extinction import get_2pt1_extinction_fix, deredden_spectra
 from dustmaps.sfd import SFDQuery
+from dustmaps.config import config as dustmaps_config
 import extinction
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
@@ -46,7 +47,9 @@ try:
     from hetdex_api.config import HDRconfig
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-
+    config = HDRconfig(LATEST_HDR_NAME)
+    dustmaps_config['data_dir'] = config.dustmaps
+    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -181,10 +184,10 @@ class Detections:
                     self.continuum_err /= fix(wave)
 
                     # store observed flux values in new columns
-                    self.flux_obs = self.flux
-                    self.flux_err_obs = self.flux_err
-                    self.continuum_obs = self.continuum
-                    self.continuum_err_obs = self.continuum_err
+                    self.flux_obs = self.flux.copy()
+                    self.flux_err_obs = self.flux_err.copy()
+                    self.continuum_obs = self.continuum.copy()
+                    self.continuum_err_obs = self.continuum_err.copy()
 
                     # apply extinction to observed values to get
                     # dust corrected values
