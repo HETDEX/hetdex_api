@@ -1059,6 +1059,51 @@ def main(argv=None):
     matched_catalog['zspec_dist'][sel_remove] = np.nan
     matched_catalog['zspec_catalog'][sel_remove] = ''
 
+    #add desi confirmed redshifts
+
+    dtab = Table.read('catalogs/desi-hetdex.fits')
+
+    sel_good_hetdex = (dtab['artifact_flag'] == 0) * (dtab['wave'] >= 3610 )
+    sel_good_desi = (dtab['FIBERSTATUS'] == 0)
+    sel_sample = sel_good_desi*sel_good_hetdex
+    sel_conf = dtab['VI_quality'] >= 1
+   
+    hetdex_coords = SkyCoord(ra=dtab['ra'], dec=dtab['dec'], unit='deg')
+    desi_coords = SkyCoord(ra=dtab['TARGET_RA'], dec=dtab['TARGET_DEC'], unit='deg')
+    dtab['zspec_dist'] = hetdex_coords.separation(desi_coords).arcsec
+
+    zspec = []
+    zspec_dist = []
+
+    desi_matches = dtab['detectid'][sel_sample*sel_conf]
+    for row in dtab[sel_sample*sel_conf]:
+        if row['VI_z'] > 1.9:
+            wave_z = (1 + row['VI_z'])*wavelya
+            if (np.abs(wave_z - row['wave']) < 10):
+                zspec.append(row['VI_z'])
+                zspec_dist.append(row['zspec_dist'])
+            else:
+                zspec.append(np.nan)
+                zspec_dist.append(np.nan)
+
+        elif row['VI_z'] < 0.5:
+            wave_z = (1 + row['VI_z'])*wavelya
+            if (np.abs(wave_z - row['wave']) < 10):
+                zspec.append(row['VI_z'])
+                zspec_dist.append(row['zspec_dist'])
+            else:
+                zspec.append(np.nan)
+                zspec_dist.append(np.nan)
+        else:
+            zspec.append(np.nan)
+            zspec_dist.append(np.nan)
+
+    for i in np.arange(len(desi_matches)):
+        sel_det = matched_catalog['detectid'] == det
+        matched_catalog['zspec'][sel_det] = zspec[i]
+        matched_catalog['zspec_dist'][sel_det] = zspec_dist[i]
+        matched_catalog['zspec_catalog'][sel_det] = 'DESI'
+        
     source_table = matched_catalog
     
     # Clear up memory
