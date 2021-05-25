@@ -35,18 +35,10 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
-from hetdex_api.extinction import get_2pt1_extinction_fix, deredden_spectra
+from hetdex_api.extinction import *x
 import extinction
-
-LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-config = HDRconfig(LATEST_HDR_NAME)
-
-from dustmaps.config import config as dustmaps_config
-
-if dustmaps_config['data_dir'] is None:
-    dustmaps_config['data_dir'] = config.dustmaps
-
 from dustmaps.sfd import SFDQuery
+
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
