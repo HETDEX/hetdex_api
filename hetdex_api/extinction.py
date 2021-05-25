@@ -27,7 +27,7 @@ def dustmaps_setup():
     import dustmaps
     config = HDRconfig()
     dustmaps_config['data_dir'] = config.dustmaps
-    dustmaps.sfd.fetch()
+    dustmaps.sfd.fetch() #don't need to do this
 
 
 def get_2pt1_extinction_fix(pad=True):
