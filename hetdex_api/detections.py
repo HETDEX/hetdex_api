@@ -35,7 +35,7 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
-from hetdex_api.extinction import *x
+from hetdex_api.extinction import *
 import extinction
 from dustmaps.sfd import SFDQuery
 
