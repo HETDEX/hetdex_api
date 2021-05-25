@@ -8,8 +8,15 @@ This includes HDR2.1 flat extinction fix
 import numpy as np
 from scipy import interpolate
 import extinction
-from dustmaps.sfd import SFDQuery
 from hetdex_api.config import HDRconfig
+
+LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+config = HDRconfig(LATEST_HDR_NAME)
+
+from dustmaps.config import config as dustmaps_config
+if dustmaps_config['data_dir'] is None:
+    dustmaps_config['data_dir'] = config.dustmaps        
+from dustmaps.sfd import SFDQuery
 
 
 def dustmaps_setup():
@@ -69,10 +76,12 @@ def deredden_spectra(wave, coords):
     coords    SkyCoord object
         sky coordinates
     """
-    Rv = 2.742  # Landolt V
+    Rv = 3.1
+    corr_SF2011 = 2.742  # Landolt V
+    
     sfd = SFDQuery()
     ebv = sfd(coords)
-    Av = Rv*ebv
+    Av = corr_SF2011 * ebv
     ext = extinction.fitzpatrick99(np.array(wave, dtype=np.double), Av, Rv)
 
     deredden = 10**(0.4*np.array(ext))
