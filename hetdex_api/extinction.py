@@ -15,6 +15,7 @@ config = HDRconfig(LATEST_HDR_NAME)
 
 from dustmaps.config import config as dustmaps_config
 if dustmaps_config['data_dir'] is None:
+    print("Populating dustmaps config with {}".format(config.dustmaps))
     dustmaps_config['data_dir'] = config.dustmaps        
 from dustmaps.sfd import SFDQuery
 
