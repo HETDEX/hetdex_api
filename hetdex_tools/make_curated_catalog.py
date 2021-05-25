@@ -313,6 +313,9 @@ elif version == "2.1.3":
             fixed_filter_name.append("")
             fixed_radius.append(np.nan)
 
+    det_table.add_column(best_z, name='best_z')
+    det_table.add_column(best_pz, name='best_pz')
+    det_table.add_column(flags, name='flags_elixer')
     det_table.add_column(mlname, name="multiline_name")
     det_table.add_column(cls, name="classification_labels")
     det_table.add_column(counterpart_mag, name="counterpart_mag")
