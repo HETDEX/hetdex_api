@@ -989,6 +989,9 @@ class Detections:
             
         # add new elixer info and fiber_ratio column
         try:
+            table.add_column(self.best_z, name='best_z')
+            table.add_column(self.best_pz, name='best_pz')
+            table.add_column(self.flags_elixer, name='flags_elixer')
             table.add_column(self.multiline_name, name='multiline_name')
             table.add_column(self.classification_labels, name='classification_labels')
             table.add_column(self.counterpart_mag, name='counterpart_mag')
