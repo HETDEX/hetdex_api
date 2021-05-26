@@ -35,10 +35,10 @@ import speclite.filters
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
-from hetdex_api.extinction import get_2pt1_extinction_fix, deredden_spectra
-from dustmaps.sfd import SFDQuery
-from dustmaps.config import config as dustmaps_config
+from hetdex_api.extinction import *
 import extinction
+from dustmaps.sfd import SFDQuery
+
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
@@ -48,7 +48,6 @@ try:
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     config = HDRconfig(LATEST_HDR_NAME)
-    dustmaps_config['data_dir'] = config.dustmaps
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -184,24 +183,25 @@ class Detections:
                     self.continuum_err /= fix(wave)
 
                     # store observed flux values in new columns
-                    self.flux_obs = self.flux
-                    self.flux_err_obs = self.flux_err
-                    self.continuum_obs = self.continuum
-                    self.continuum_err_obs = self.continuum_err
+                    self.flux_obs = self.flux.copy()
+                    self.flux_err_obs = self.flux_err.copy()
+                    self.continuum_obs = self.continuum.copy()
+                    self.continuum_err_obs = self.continuum_err.copy()
 
                     # apply extinction to observed values to get
                     # dust corrected values
-                    # Apply S&F 2011 Extinction from SFD Map
+                    # Apply S&F 2011 Extinction correction from SFD Map
                     # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
 
                     self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
                     
                     sfd = SFDQuery()
                     self.ebv = sfd(self.coords)
-                    Rv = 2.742  # Landolt V  
+                    Rv = 3.1
+                    corr_SF2011 = 2.742  # Landolt V  
                     ext = []
                     
-                    self.Av = Rv*self.ebv
+                    self.Av = corr_SF2011*self.ebv
                     
                     for index in np.arange( np.size(self.detectid)):
                         src_wave = np.array([np.double(self.wave[index])])
@@ -989,6 +989,9 @@ class Detections:
             
         # add new elixer info and fiber_ratio column
         try:
+            table.add_column(self.best_z, name='best_z')
+            table.add_column(self.best_pz, name='best_pz')
+            table.add_column(self.flags_elixer, name='flags_elixer')
             table.add_column(self.multiline_name, name='multiline_name')
             table.add_column(self.classification_labels, name='classification_labels')
             table.add_column(self.counterpart_mag, name='counterpart_mag')

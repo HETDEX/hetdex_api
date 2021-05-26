@@ -116,6 +116,7 @@ elif version == "2.1.2":
     mlname = []
     mlz = []
     mlprob = []
+    
 
     for row in det_table:
         detectid_obj = row["detectid"]
@@ -178,13 +179,16 @@ elif version == "2.1.3":
 
     det_table = detects[sel_cat].return_astropy_table()
 
-    elixer_file = op.join(config.detect_dir, "catalogs", "elixer.2.1.2.h5")
+    elixer_file = op.join(config.detect_dir, "catalogs", "elixer_2.1.3_cat.h5")
     elixer_cat = tb.open_file(elixer_file, "r")
 
     cls = []
     mlname = []
     mlz = []
     mlprob = []
+    best_z = []
+    best_pz = []
+    flags = []
 
     counterpart_mag = []
     counterpart_mag_err = []
@@ -209,12 +213,19 @@ elif version == "2.1.3":
             cls.append(elix_row["classification_labels"][0].decode())
             mlz.append(elix_row["multiline_z"][0])
             mlprob.append(elix_row["multiline_prob"][0])
+            best_z.append(elix_row['best_z'][0])
+            best_pz.append(elix_row['best_pz'][0])
+            flags.append(elix_row['flags'][0])
+            
         except Exception:
             mlname.append("")
             cls.append("")
             mlz.append(False)
-            mlprob.append(0.0)
-
+            mlprob.append(np.nan)
+            best_z.append(np.nan)
+            best_pz.append(np.nan)
+            flags.append(np.nan)
+            
         # append nearest source extracted neighbour match
         try:
 
@@ -302,6 +313,9 @@ elif version == "2.1.3":
             fixed_filter_name.append("")
             fixed_radius.append(np.nan)
 
+    det_table.add_column(best_z, name='best_z')
+    det_table.add_column(best_pz, name='best_pz')
+    det_table.add_column(flags, name='flags_elixer')
     det_table.add_column(mlname, name="multiline_name")
     det_table.add_column(cls, name="classification_labels")
     det_table.add_column(counterpart_mag, name="counterpart_mag")
