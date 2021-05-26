@@ -13,7 +13,8 @@ simulation results.
 
 from glob import glob
 from os.path import join
-from scipy.interpolate import interp1d, interp2d, splrep, griddata, RectBivariateSpline
+from scipy.interpolate import (interp1d, interp2d, splrep, griddata, RectBivariateSpline,
+                               NearestNDInterpolator)
 from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
                    array, linspace, tile, ones, array, argmin, zeros)
 from hetdex_api.config import HDRconfig
@@ -38,7 +39,8 @@ class ModelInfo(object):
        wavelength (None to not use)
     """
     def __init__(self, snfile_version, snpoly, wavepoly,
-                 interp_sigmas, snlow=4.8, snhigh=7.0):
+                 interp_sigmas, dont_interp_to_zero, 
+                 snlow=4.8, snhigh=7.0):
 
         self.snfile_version = snfile_version
         self.snpoly = snpoly
@@ -46,6 +48,7 @@ class ModelInfo(object):
         self.interp_sigmas = interp_sigmas
         self.snlow = snlow
         self.snhigh = snhigh
+        self.dont_interp_to_zero = dont_interp_to_zero
 
 class NoSNFilesException(Exception):
     pass
@@ -149,18 +152,22 @@ class SimulationInterpolator(object):
         passed to SingleSNSimulationInterpolator
     """
 
-    def __init__(self, fdir, snmode=False, **kwargs):
+    def __init__(self, fdir, dont_interp_to_zero, 
+                 snmode=False, **kwargs):
 
         if snmode:
             snfiles = glob(fdir + "/sn_based_?.?.dat")
         else: 
             snfiles = glob(fdir + "/sn?.?.use")
 
+        self.dont_interp_to_zero = dont_interp_to_zero
+
         sns = []
         self.sninterpolators = []
         for snfile in snfiles:
             print(snfile)
-            self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, snmode=snmode, **kwargs))
+            self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, dont_interp_to_zero,
+                                                                       snmode=snmode, **kwargs))
             sns.append(float(snfile[-7:-4]))
 
         if len(sns) == 0:
@@ -244,7 +251,8 @@ class SingleSNSimulationInterpolator(object):
         simulation files
 
     """
-    def __init__(self, filename, wl_collapse = False, cmax = None, snmode = False):
+    def __init__(self, filename, dont_interp_to_zero, wl_collapse = False, 
+                 cmax = None, snmode = False):
 
         if not snmode:
             self.waves, self.f50, self.compl_curves, self.fluxes =\
@@ -255,9 +263,15 @@ class SingleSNSimulationInterpolator(object):
             # set 50% to one as already in S/N units
             self.f50 = ones(len(self.waves))
 
+        # Check bin spacing uniform
+        offs = self.fluxes[1:] - self.fluxes[:-1]
+        if max(abs(offs - offs[0])) > 1e-20:
+            raise Exception("Bin spacing must be uniform!")
+
         self._snmode = snmode
         self._wl_collapse = wl_collapse
         self.cmax = cmax 
+        self.dont_interp_to_zero = dont_interp_to_zero
 
         # Optionally normalize all curves to cmax
         if cmax:
@@ -284,16 +298,34 @@ class SingleSNSimulationInterpolator(object):
 
         # bins to interpolate all completeness curves to,
         # in these coordinates 50% completeness always 
-        # at 1.0 
+        # at 1.0, also should in combination will fill_value
+        # ensure 0 returns zero completeness in the 
+        # RectBivariateSpline 
         fluxes_f50_units = linspace(0, 50, 5000)
 
         c_all = []
 
-        for tf50, c in zip(self.f50, self.compl_curves):
+        fgrid_for_mask = []
+        wgrid_for_mask = []                
+               
+ 
+        # Offset by half a bin brighter, so the mask kicks in
+        # at the center location, not 1/2 a bin away. The
+        # 0.999 factor is to ensure the actual value itself
+        # is not in the mask
+        fbsizediv2 = 0.999*(self.fluxes[1] - self.fluxes[0])/2.0
+
+        for twave, tf50, c in zip(self.waves, self.f50, self.compl_curves):
 
             if plot:
                 plt.plot(self.fluxes/tf50, c, linestyle="--")
- 
+           
+               
+            # Shift grid to center of bin, so don't
+            # interpolate past value
+            fgrid_for_mask.append((self.fluxes + fbsizediv2)/tf50)
+            wgrid_for_mask.append(ones(len(self.fluxes))*twave)
+
             # divide so 50% completeness to
             # convert to flux units of per f50
             interpolator = interp1d(self.fluxes/tf50, c, bounds_error = False, 
@@ -317,11 +349,24 @@ class SingleSNSimulationInterpolator(object):
                 vals_to_plot = completeness_model(fluxes_f50_units)
 
         else:
+
             # waves have to be uniformly spaced for this to work (? don't think so?)
             interp = RectBivariateSpline(self.waves, fluxes_f50_units, c_all, 
                                          kx=3, ky=3)
 
-            completeness_model = lambda x, y : interp(x, y, grid=False)
+            if self.dont_interp_to_zero:
+                # Use this as a mask to not extrapolate toward 0.0
+                # if nearest point is zero
+                compl_mask = zeros(self.compl_curves.shape)
+                compl_mask[self.compl_curves > 0.0] = 1.0
+                interp_mask = NearestNDInterpolator(list(zip(array(wgrid_for_mask).ravel(), 
+                                                             array(fgrid_for_mask).ravel())), 
+                                                             compl_mask.ravel())
+
+                completeness_model = lambda x, y : interp_mask(x, y)*interp(x, y, grid=False)
+            else:
+                completeness_model = lambda x, y : interp(x, y, grid=False)
+
 
             if plot:
                 vals_to_plot = completeness_model(self.waves[2]*ones(len(fluxes_f50_units)),
@@ -407,22 +452,28 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
               "one-sigma-interpolate" : ModelInfo("curves_v1", 
                                                   [1.0], 
                                                   None, 
-                                                  True, snlow=0.999999, snhigh=1.000001), 
+                                                  True, False, 
+                                                  snlow=0.999999, snhigh=1.000001), 
               "hdr2pt1pt1" : ModelInfo("curves_v1", 
                                        [2.76096687e-03, 2.09732448e-02, 7.21681512e-02, 3.36040017e+00], 
-                                       None, False),
+                                       None, False, False),
               "hdr2pt1pt3" : ModelInfo("curves_v1",
                                        [6.90111625e-04, 5.99169372e-02, 2.92352510e-01, 1.74348070e+00],
-                                       None, False),
+                                       None, False, False),
               "v1" : ModelInfo("curves_v1", 
                                [-8.80650683e-02,  2.03488098e+00, -1.73733048e+01, 
                                6.56038443e+01, -8.84158092e+01], 
-                               None, False)
+                               None, False, True),
+              "v1.1" : ModelInfo("curves_v1", 
+                               [-8.80650683e-02,  2.03488098e+00, -1.73733048e+01, 
+                               6.56038443e+01, -8.84158092e+01], 
+                               None, True, True)
              }
-    latest = "v1"    
+
+    default = "v1.1"    
 
     if not flim_model:
-        flim_model = latest
+        flim_model = default
     
     model =  models[flim_model]
     if verbose:
@@ -434,7 +485,8 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         conf = HDRconfig()
         fdir = conf.flim_sim_completeness 
         fdir = join(fdir, model.snfile_version)
-        sinterp = SimulationInterpolator(fdir, snmode=False)
+        sinterp = SimulationInterpolator(fdir, model.dont_interp_to_zero, 
+                                         snmode=False)
 
     # save model in cache
     if cache_sim_interp:
