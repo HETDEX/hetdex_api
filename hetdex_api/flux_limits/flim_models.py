@@ -449,7 +449,12 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         return return_flux_limit_model_old(flim_model)    
 
     models = {
-              "one-sigma-interpolate" : ModelInfo("curves_v1", 
+              "one_sigma_nearest_pixel" : ModelInfo("curves_v1", 
+                                              [1.0], 
+                                              None, 
+                                              False, False, 
+                                              snlow=0.999999, snhigh=1.000001),
+              "one_sigma_interpolate" : ModelInfo("curves_v1", 
                                                   [1.0], 
                                                   None, 
                                                   True, False, 
