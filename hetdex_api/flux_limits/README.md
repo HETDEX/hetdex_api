@@ -29,7 +29,7 @@ they are using, the "Notes" column is mainly for the reference of the developers
 | ---------- | ------------- | --------------------| ---------------------------------------------- | -------------------             | 
 | hdr2pt1pt1 |       v1      |      2.1.1-onwards  | `cal_on_karl_results.py` run on curves v0      | Near identical results to v1 for S/N < 6 or so  |
 | hdr2pt1pt3 |       v1      |      2.1.1-onwards  | `cal_on_karl_results.py` run on curves v1      |                                 |
-|    v1      |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | Doesn't interpolate `sn.use` if completeness in lower bin is zero (XXX need to do this) |
+|    v1      |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | Doesn't interpolate `sn.use` if completeness in lower bin is zero |
 |    v1.1    |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | v1 with interpolated sens. cubes |
 
 These are the different flux versus completeness curve versions (the `sn.use` files)
