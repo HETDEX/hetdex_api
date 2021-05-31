@@ -140,7 +140,8 @@ class Extract:
                                 coord,
                                 radius=3.5,
                                 ffsky=False,
-                                return_fiber_info=False):
+                                return_fiber_info=False,
+                                fiber_lower_limit=1):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -180,8 +181,6 @@ class Extract:
             array of amp IDs/multiframe values for each fiber.
             Return only if return_fiber_info is True
         """
-
-        fiber_lower_limit = 7
 
         if self.fibers:
             idx = self.fibers.query_region_idx(coord, radius=radius)
