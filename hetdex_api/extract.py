@@ -798,6 +798,51 @@ class Extract:
         weights: numpy 2d array (len of fibers by wavelength dimension)
             Weights for each fiber as function of wavelength for extraction
         """
+        SX = np.zeros(len(ifux))
+        SY = np.zeros(len(ifuy))
+        T = np.array([psf[1].ravel(), psf[2].ravel()]).swapaxes(0, 1)
+        I = LinearNDInterpolator(T, psf[0].ravel(), fill_value=0.0)
+        weights = np.zeros((len(ifux), len(self.wave)))
+        scale = np.abs(psf[1][0, 1] - psf[1][0, 0])
+        
+        # area = 0.75 ** 2 * np.pi
+        area = 1.7671458676442586
+        fac = area / scale ** 2
+        
+        # Avoid using a loop to speed things up, uses more memory though
+        SX = np.tile(ifux, len(self.wave)).reshape(len(self.wave), len(ifux)).T
+        SY = np.tile(ifuy, len(self.wave)).reshape(len(self.wave), len(ifuy)).T
+        ADRx3D = np.repeat(self.ADRx, len(ifux)).reshape(len(self.wave), len(ifux)).T
+        ADRy3D = np.repeat(self.ADRy, len(ifuy)).reshape(len(self.wave), len(ifuy)).T
+        SX = SX - ADRx3D - xc
+        SY = SY - ADRy3D - yc
+        weights = fac*I(SX, SY)
+        
+        return weights
+
+
+    def build_weights_old(self, xc, yc, ifux, ifuy, psf):
+        """
+        Build weight matrix for spectral extraction
+        
+        Parameters
+        ----------
+        xc: float
+            The ifu x-coordinate for the center of the collapse frame
+        yc: float 
+            The ifu y-coordinate for the center of the collapse frame
+        xloc: numpy array
+            The ifu x-coordinate for each fiber
+        yloc: numpy array
+            The ifu y-coordinate for each fiber
+        psf: numpy 3d array
+            zeroth dimension: psf image, xgrid, ygrid
+        
+        Returns
+        -------
+        weights: numpy 2d array (len of fibers by wavelength dimension)
+            Weights for each fiber as function of wavelength for extraction
+        """
         S = np.zeros((len(ifux), 2))
         T = np.array([psf[1].ravel(), psf[2].ravel()]).swapaxes(0, 1)
         I = LinearNDInterpolator(T, psf[0].ravel(), fill_value=0.0)
