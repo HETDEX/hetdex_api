@@ -395,14 +395,12 @@ def create_source_catalog(
 
     detfriend_all = vstack([detfriend_1, detfriend_2])
     expand_table = join(detfriend_all, detect_table, keys="detectid")
-    sel999999 = expand_table['wave_group_id'] == 999999
-    expand_table['wave_group_id'][sel999999] = 0
-
+    expand_table['wave_group_id'] = expand_table['wave_group_id'].filled(0)
     expand_table.write('test3.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
 
-    sel = expand_table['wave_group_id'] > 0 
+    sel = expand_table['wave_group_id'] > 0
     s_by_id = expand_table[sel].group_by('wave_group_id')
 
     for grp in s_by_id.groups:
@@ -556,14 +554,14 @@ def guess_source_wavelength(source_id):
         else:
             s_type = "unsure-line"
 
-    elif (np.nanmedian(group["plae_classification"]) < 0.5):
+    elif (np.nanmedian(group["plae_classification"]) < 0.4):
         z_guess = z_guess_3727(group)
         if z_guess > 0:
             s_type = "oii"
         else:
             s_type = "unsure-line"
 
-    elif (np.nanmedian(group["plae_classification"]) >= 0.5):
+    elif (np.nanmedian(group["plae_classification"]) >= 0.4):
         if np.any(group["sn"] > 15):
             sel_good_lines = group["sn"] > 15
             wave_guess = np.min(group["wave"][sel_good_lines])
