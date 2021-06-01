@@ -140,7 +140,8 @@ class Extract:
                                 coord,
                                 radius=3.5,
                                 ffsky=False,
-                                return_fiber_info=False):
+                                return_fiber_info=False,
+                                fiber_lower_limit=7):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -156,6 +157,9 @@ class Extract:
         return_fiber_info: bool
             Return full fibers table. This is needed to get additional
             masking and to debug fiberid weights
+        fiber_lower_limit : int
+            Minimum number of fibers needed in aperture to
+            return a result
         
         Returns
         -------
@@ -179,9 +183,7 @@ class Extract:
         multiframe_array: numpy array (length of number of fibers
             array of amp IDs/multiframe values for each fiber.
             Return only if return_fiber_info is True
-        """
-
-        fiber_lower_limit = 7
+       """
 
         if self.fibers:
             idx = self.fibers.query_region_idx(coord, radius=radius)
