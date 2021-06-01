@@ -222,7 +222,7 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=10.0, dwave=6.0)
+                dsky=6.0, dwave=6.0)
 
     t0 = time.time()
     print("starting fof ...")
@@ -256,10 +256,10 @@ def create_source_catalog(
 
     wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 213000000
 
-    wdetfriend_all.rename_column('size','wave_group_size')
-    wdetfriend_all.rename_column('a','wave_group_a')
-    wdetfriend_all.rename_column('b','wave_group_b')
-    wdetfriend_all.rename_column('pa','wave_group_pa')
+    wdetfriend_all.rename_column('size', 'wave_group_size')
+    wdetfriend_all.rename_column('a', 'wave_group_a')
+    wdetfriend_all.rename_column('b', 'wave_group_b')
+    wdetfriend_all.rename_column('pa', 'wave_group_pa')
     wdetfriend_all.rename_column('icx', 'wave_group_ra')
     wdetfriend_all.rename_column('icy', 'wave_group_dec')
     wdetfriend_all.rename_column('icz', 'wave_group_wave')
@@ -275,13 +275,13 @@ def create_source_catalog(
 
     print("3D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
 
-    print("Performing FOF in 2D space with dlink=6.0 arcsec")
+    print("Performing FOF in 2D space with dlink=3.5 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"],
         detect_table["dec"],
         np.zeros_like(detect_table["ra"]),
-        dsky=6.0,
+        dsky=3.5,
     )
     t0 = time.time()
     print("starting fof ...")
@@ -331,7 +331,7 @@ def create_source_catalog(
 
     spatial_id_to_keep = vstack([spatial_id_to_keep1, spatial_id_to_keep2])
     detfriend_1 = join(unique(spatial_id_to_keep), joinfriend)
-    
+
     # link the rest of the detectids with smaller linking length
 
     keep_row = np.ones(np.size(detect_table), dtype=bool)
@@ -375,13 +375,13 @@ def create_source_catalog(
         friendlist.extend(friendid * np.ones_like(members))
         memberlist.extend(members)
     friend_table.remove_column("members")
-    
+
     detfriend_tab = Table()
     detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
     detfriend_tab.add_column(Column(memberlist, name="detectid"))
-        
+     
     detfriend_2 = join(detfriend_tab, friend_table, keys="id")
-        
+     
     starting_id_1 = int(version.replace('.', '', 2))*10**10
     starting_id_2 = starting_id_1 + 10**8
     detfriend_1.add_column(
@@ -395,8 +395,23 @@ def create_source_catalog(
 
     detfriend_all = vstack([detfriend_1, detfriend_2])
     expand_table = join(detfriend_all, detect_table, keys="detectid")
+    sel999999 = expand_table['wave_group_id'] == 999999
+    expand_table['wave_group_id'][sel999999] = 0
+
     expand_table.write('test3.fits', overwrite=True)
-    
+
+    # combine common wavegroups to the same source_id
+
+    sel = expand_table['wave_group_id'] > 0 
+    s_by_id = expand_table[sel].group_by('wave_group_id')
+
+    for grp in s_by_id.groups:
+        sid, ns = np.unique(grp['source_id'], return_counts=True)
+        wid = grp['wave_group_id'][0]
+        if np.size(sid) > 1:
+            sel_wid = expand_table['wave_group_id'] == wid
+            expand_table['source_id'][sel_wid] = sid[0]
+
     del detfriend_all, detect_table, friend_table
 
     gaia_stars = Table.read(config.gaiacat)
@@ -541,14 +556,14 @@ def guess_source_wavelength(source_id):
         else:
             s_type = "unsure-line"
 
-    elif (np.nanmedian(group["plae_classification"]) <= 0.5):
+    elif (np.nanmedian(group["plae_classification"]) < 0.5):
         z_guess = z_guess_3727(group)
         if z_guess > 0:
             s_type = "oii"
         else:
             s_type = "unsure-line"
 
-    elif (np.nanmedian(group["plae_classification"]) > 0.5):
+    elif (np.nanmedian(group["plae_classification"]) >= 0.5):
         if np.any(group["sn"] > 15):
             sel_good_lines = group["sn"] > 15
             wave_guess = np.min(group["wave"][sel_good_lines])
@@ -1087,7 +1102,7 @@ def main(argv=None):
                 zspec_dist.append(np.nan)
 
         elif row['VI_z'] < 0.5:
-            wave_z = (1 + row['VI_z'])*wavelya
+            wave_z = (1 + row['VI_z'])*waveoii
             if (np.abs(wave_z - row['wave']) < 10):
                 zspec.append(row['VI_z'])
                 zspec_dist.append(row['zspec_dist'])
@@ -1099,13 +1114,13 @@ def main(argv=None):
             zspec_dist.append(np.nan)
 
     for i in np.arange(len(desi_matches)):
-        sel_det = matched_catalog['detectid'] == det
+        sel_det = matched_catalog['detectid'] == desi_matches[i]
         matched_catalog['zspec'][sel_det] = zspec[i]
         matched_catalog['zspec_dist'][sel_det] = zspec_dist[i]
         matched_catalog['zspec_catalog'][sel_det] = 'DESI'
-        
+
     source_table = matched_catalog
-    
+   
     # Clear up memory
 
     for name in dir():

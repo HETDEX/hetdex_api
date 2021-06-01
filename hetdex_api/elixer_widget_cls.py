@@ -22,8 +22,7 @@ import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 
-# from IPython import display#, HTML
-from IPython.display import Image
+from IPython.display import Image, Javascript
 from ipywidgets import interact, Layout  # Style #, interactive
 
 # from IPython.display import clear_output
@@ -439,7 +438,10 @@ class ElixerWidget:
             #                              self.e_manual_dec,
             #                              self.e_manual_button]))
 
-            display(self.det_table_button, self.get_mini_button )
+            display(widgets.HBox( [self.det_table_button,
+                                   self.get_sdss_button,
+                                   self.get_legacy_button,
+                                   self.get_mini_button]))
 
             self.e_blue_button.on_click(self.e_blue_button_click)
             self.e_red_button.on_click(self.e_red_button_click)
@@ -448,6 +450,9 @@ class ElixerWidget:
 
             self.det_table_button.on_click(self.det_table_button_click)
             self.get_mini_button.on_click(self.get_mini_button_click)
+            self.get_sdss_button.on_click(self.get_sdss_button_click)
+            self.get_legacy_button.on_click(self.get_legacy_button_click)
+            
         # always show the status box
         display(self.status_box)
 
@@ -663,6 +668,13 @@ class ElixerWidget:
         self.get_mini_button = widgets.Button(
             description="Get the zooniverse mini Image", layout=Layout(width="30%"))
 
+        self.get_sdss_button = widgets.Button(
+            description="Open SDSS Nav Tool", layout=Layout(width="30%"))
+
+        self.get_legacy_button = widgets.Button(
+            description="Open legacysurvey.com",
+            layout=Layout(width="30%"))
+        
         # self.submitbutton = widgets.Button(description="Submit Classification", button_style='success')
         # self.savebutton = widgets.Button(description="Save Progress", button_style='success')
 
@@ -1188,7 +1200,7 @@ class ElixerWidget:
     def get_spec(self, b):
         pass
 
-    def det_table_button_click(self, b):
+    def get_det_info(self):
 
         global HETDEX_DETECT_HDF5_HANDLE
         global CONT_H5_HANDLE
@@ -1220,8 +1232,29 @@ class ElixerWidget:
                         "detectid == detid"
                     )
                 )
-                display(self.det_row.show_in_notebook())
             except Exception as e:
                 self.status_box.value = str(e) + "\n" + traceback.format_exc()
+                            
+    def det_table_button_click(self, b):
+
+        self.get_det_info()
         
-        
+        try:
+            display(self.det_row.show_in_notebook())
+        except Exception as e:
+            self.status_box.value = str(e) + "\n" + traceback.format_exc()        
+
+    def get_sdss_button_click(self, b):
+        self.get_det_info()
+                    
+        url = 'http://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?ra={:6.4f}&dec={:6.4f}&scale=0.05&opt=G'.format(self.det_row['ra'][0], self.det_row['dec'][0])
+
+        display(Javascript('window.open("{url}");'.format(url=url)))
+
+    def get_legacy_button_click(self, b):
+
+        self.get_det_info()
+
+        url = 'https://www.legacysurvey.org/viewer?ra={:6.4f}&dec={:6.4f}&layer=ls-dr9&zoom=16'.format(self.det_row['ra'][0], self.det_row['dec'][0])
+
+        display(Javascript('window.open("{url}");'.format(url=url))) 
