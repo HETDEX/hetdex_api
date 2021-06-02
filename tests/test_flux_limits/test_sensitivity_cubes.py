@@ -43,8 +43,8 @@ def test_aper_corr(datadir, aper_corr):
                                                     ("hdr2pt1pt3", 4e-16, 5.0, 0.53179688),
                                                     ("v1", 4e-16, 6.0, 0.45716413),
                                                     ("v1", 4e-16, 5.0, 0.56845355),
-                                                    ("v1.1", 4e-16, 6.0, 0.45716413),
-                                                    ("v1.1", 4e-16, 5.0, 0.56845355), 
+                                                    ("v1.1", 4e-16, 6.0, 0.69945309),
+                                                    ("v1.1", 4e-16, 5.0, 0.76475039), 
                                                     ])
 def test_completeness_func(datadir, flux, model, sncut, expected):
     """

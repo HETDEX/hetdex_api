@@ -1,7 +1,7 @@
 """
 
 Unlike the sensitivity cubes, this module
-generates flux limi estimates on the fly
+generates flux limit estimates on the fly
 from the Fiber class.
 
 AUTHOR: Daniel Farrow
@@ -308,6 +308,7 @@ class ShotSensitivity(object):
                            radius=self.rad,
                            ffsky=self.ffsky,
                            return_fiber_info=True,
+                           fiber_lower_limit=1 
                            )
             if info_result:
                 ifux, ifuy, xc, yc, ra, dec, data, error, fmask, fiberid, \
@@ -348,7 +349,7 @@ class ShotSensitivity(object):
                 if wave_passed:
                     noise.append(999.)
                 else:
-                    noise.append(999.*ones(1036))
+                    noise.append(999.*ones(len(wave_rect)))
 
         # Apply the galaxy mask     
         gal_mask = ones(len(coords), dtype=int)
