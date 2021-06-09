@@ -221,9 +221,16 @@ def get_source_spectra(shotid, args):
                     multiframe = info_result
 
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+                # added by EMC 20210609
+                norm = np.sum(weights, axis=0)
+                weights = weights / norm[np.newaxis, :]
+
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
-
+                # apply aperture correction
+                spectrum_aper =/ norm
+                spectrum_aper_err =/ norm
+                
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     try:
@@ -896,6 +903,7 @@ def get_spectra(
     fiberweights=False,
     return_fiber_info=False,
     loglevel='WARNING',
+    
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
