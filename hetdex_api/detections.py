@@ -37,7 +37,6 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
 from hetdex_api.extinction import *
 import extinction
-from dustmaps.sfd import SFDQuery
 
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
@@ -48,7 +47,13 @@ try:
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     config = HDRconfig(LATEST_HDR_NAME)
+    from dustmaps.config import config as dustmaps_config
     
+    if dustmaps_config['data_dir'] is None:
+        print("Populating dustmaps config with {}".format(config.dustmaps))
+        dustmaps_config['data_dir'] = config.dustmaps
+    from dustmaps.sfd import SFDQuery
+                
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
