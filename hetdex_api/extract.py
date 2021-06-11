@@ -842,11 +842,11 @@ class Extract:
             / np.sum(mask * weights ** 2, axis=0)
         )
 
-#        # Only use wavelengths with enough weight to avoid large noise spikes
-#        w = np.sum(mask * weights ** 2, axis=0)
-#        sel = w < np.median(w) * 0.1
- #       spectrum[sel] = np.nan
- #       spectrum_error[sel] = np.nan
+        # Only use wavelengths with enough weight to avoid large noise spikes
+        w = np.sum(mask * weights ** 2, axis=0)
+        sel = w < np.median(w) * 0.1
+        spectrum[sel] = np.nan
+        spectrum_error[sel] = np.nan
 
         return spectrum, spectrum_error
 
