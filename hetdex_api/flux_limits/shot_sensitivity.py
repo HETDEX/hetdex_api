@@ -13,7 +13,7 @@ from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan)
+                   isnan, newaxis)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
@@ -43,6 +43,10 @@ class ShotSensitivity(object):
     A lot of this is adapted from 
    `hetdex_tools/get_spec.py` `hetdex_api/extract.py`
     and scripts written by Erin Mentuch Cooper.
+
+    The aperture correction stuff was taken
+    from 'Remedy' by Greg Zeimann:
+    grzeimann Remedy 
    
     Parameters
     ----------
@@ -86,6 +90,7 @@ class ShotSensitivity(object):
         self.rad = rad
         self.ffsky = ffsky
         self.wavenpix = wavenpix
+        self.verbose = verbose
         
         if not release:
             self.release = self.conf.LATEST_HDR_NAME
@@ -117,7 +122,7 @@ class ShotSensitivity(object):
         else:
             fwhm = self.survey.fwhm_virus[survey_sel][0]
 
-        self.moffat = self.extractor.moffat_psf(fwhm, 10.5, 0.25)
+        self.moffat = self.extractor.moffat_psf(fwhm, 3.*rad, 0.25)
         self.extractor.load_shot(self.shotid, fibers=True, survey=self.release)
         
         # Set up the focal plane astrometry
@@ -301,21 +306,44 @@ class ShotSensitivity(object):
             mask = True*ones(len(coords), dtype=int)
             
         noise = []
+        
+        info_results = self.extractor.get_fiberinfo_for_coords(
+                                coords,
+                                radius=self.rad,
+                                ffsky=self.ffsky,
+                                return_fiber_info=True,
+                                fiber_lower_limit=2, 
+                                verbose=self.verbose
+                                )
 
+        id_, aseps, aifux, aifuy, axc, ayc, ara, adec, adata, aerror, afmask, afiberid, \
+                    amultiframe = info_results
+        
+        
+        I = None
+        fac = None
+        norm_all = []
+        
         for i, c in enumerate(coords):
-            info_result = self.extractor.get_fiberinfo_for_coord(
-                           c,
-                           radius=self.rad,
-                           ffsky=self.ffsky,
-                           return_fiber_info=True,
-                           fiber_lower_limit=1 
-                           )
-            if info_result:
-                ifux, ifuy, xc, yc, ra, dec, data, error, fmask, fiberid, \
-                      multiframe = info_result
-                                   
+                
+            sel = (id_ == i)
+            
+            if sum(sel) > 0:
+                    
+                xc = axc[sel][0]
+                yc = ayc[sel][0]
+                ifux = aifux[sel]
+                ifuy = aifuy[sel]
+                ra = ara[sel]
+                dec = adec[sel]
+                data = adata[sel]
+                error = aerror[sel]
+                fmask = afmask[sel]
+                fiberid = afiberid[sel]
+                multiframe = amultiframe[sel]
+                seps = aseps[sel]
+                    
                 if len(self.bad_amps) > 0:
-                    seps = c.separation(SkyCoord(ra=ra, dec=dec, unit="deg"))
                     iclosest = argmin(seps)
                     amp_flag = amp_flag_from_fiberid(fiberid[iclosest], 
                                                          self.bad_amps)
@@ -328,29 +356,48 @@ class ShotSensitivity(object):
                 if not (amp_flag and meteor_flag):
                     if wave_passed:
                         noise.append(999.)
+                        norm_all.append(1.0)
                         continue
                     else:
                         mask[i] = False
                         
-                weights = self.extractor.build_weights(xc, yc, ifux, ifuy, self.moffat)
-                result = self.extractor.get_spectrum(data, error, fmask, weights)
+                weights, I, fac = self.extractor.build_weights(xc, yc, ifux, ifuy, self.moffat, 
+                                                               I=I, fac=fac, return_I_fac = True)
+                
+
+                # See Greg Zeimann's Remedy code
+                norm = sum(weights, axis=0)
+                weights = weights/norm
+                
+
+                result = self.extractor.get_spectrum(data, error, fmask, weights,
+                                                     remove_low_weights = False)
+                
                 spectrum_aper, spectrum_aper_error = [res for res in result] 
                 if wave_passed:
                     index = where(wave_rect >= wave[i])[0][0]
+                    ilo = index - self.wavenpix 
+                    ihi = index + self.wavenpix + 1
                     sum_sq = \
-                        sqrt(sum(square(spectrum_aper_error[index - self.wavenpix:index + self.wavenpix])))
+                        sqrt(sum(square(spectrum_aper_error[ilo:ihi])))
+                    norm_all.append(sum(norm[ilo:ihi])/len(norm[ilo:ihi]))
                     noise.append(sum_sq)
                 else:
                     convolved_variance = convolve(convolution_filter,
                                                   square(spectrum_aper_error),
                                                   mode='same')
                     noise.append(sqrt(convolved_variance))
+                    norm_all.append(norm)
+                    
             else:
                 if wave_passed:
                     noise.append(999.)
+                    norm_all.append(1.0)
                 else:
                     noise.append(999.*ones(len(wave_rect)))
+                    norm_all.append(ones(len(wave_rect)))
 
+                    
         # Apply the galaxy mask     
         gal_mask = ones(len(coords), dtype=int)
         for gal_region in self.gal_regions:
@@ -367,9 +414,8 @@ class ShotSensitivity(object):
             if not direct_sigmas:
                 snoise = self.f50_from_noise(snoise)
 
-            snoise[bad] = 999.0
- 
-            return snoise
+            snoise[bad] = 999.
+            return snoise/norm_all
 
         else:
             mask[(gal_mask < 0.5) & mask] = True
@@ -377,7 +423,7 @@ class ShotSensitivity(object):
             if not direct_sigmas:
                 snoise = self.f50_from_noise(snoise)
 
-            return snoise, mask
+            return snoise/norm_all, mask
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut):
         """
@@ -433,5 +479,22 @@ class ShotSensitivity(object):
                 fracdet = 0.0
 
         return fracdet
+    
+    def close(self):
+        """ 
+        Close the Extractor object 
+        (especially if it has a Shot HDF
+        file open)
+        
+        """
+        self.extractor.close()
+
+    def __enter__(self):
+        """ Added to support using the `with` statement """
+        return self
+
+    def __exit__(self, type_, value, traceback):
+        """ Support tidying up after using the `with` statement """
+        self.close()
 
 

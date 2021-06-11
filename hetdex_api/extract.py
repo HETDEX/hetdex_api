@@ -12,6 +12,8 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
+from nwaylib import _create_match_table
+from nwaylib.logger import NormalLogger, NullOutputLogger
 from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
 
@@ -136,6 +138,159 @@ class Extract:
         xc = dy + ifux[0]
         return xc, yc
 
+    def get_fiberinfo_for_coords(self,
+                                 coords,
+                                 radius=3.5,
+                                 ffsky=False,
+                                 return_fiber_info=False,
+                                 fiber_lower_limit=7,
+                                 verbose=True):
+        """ 
+        Grab fibers within a radius and get relevant info,
+        optimised for searching for a longer list of 
+        coordinates. Uses Nway (Salvato et al 2018)
+        
+        Parameters
+        ----------
+        coord: SkyCoord Object
+            a SkyCoord object with multiple ra and dec
+            positions
+        radius:
+            radius to extract fibers in arcsec
+        ffsky: bool
+            Flag to choose local (ffsky=False) or full frame (ffsky=True)
+            sky subtraction
+        return_fiber_info: bool
+            Return full fibers table. This is needed to get additional
+            masking and to debug fiberid weights
+        fiber_lower_limit : int
+            Minimum number of fibers needed in aperture to
+            return a result
+        
+        Returns
+        -------
+        icoord_all : array (length of number of fibers)
+            the indices of the input coordinates where
+            there are sufficient number of fibers to
+            produce an output. To get all the fibers
+            matched to a given input coordinate, select
+            on this column. 
+        seps_all : array (length of number of fibers)
+            separation of each fiber from the input
+            coordinates
+        ifux: numpy array (length of number of fibers)
+            ifu x-coordinate accounting for dither_pattern
+        ifuy: numpy array (length of number of fibers)
+            ifu y-coordinate accounting for dither_pattern
+        ra: numpy array (length of number of fibers)
+            Right ascension of fibers
+        dec: numpy array (length of number of fibers)
+            Declination of fibers
+        spec: numpy 2d array (number of fibers by wavelength dimension)
+            Calibrated spectra for each fiber
+        spece: numpy 2d array (number of fibers by wavelength dimension)
+            Error for calibrated spectra
+         mask: numpy 2d array (number of fibers by wavelength dimension)
+            Mask of good values for each fiber and wavelength
+        fiberid: numpy array (length of number of fibers)
+            array of fiberids for fibers used in the extraction.
+            Returned only if return_fiber_info is True
+        multiframe_array: numpy array (length of number of fibers
+            array of amp IDs/multiframe values for each fiber.
+            Return only if return_fiber_info is True
+        """
+
+        if not self.fibers:
+            raise Exception("Only supported with preloaded Fibers class")
+            
+        if fiber_lower_limit < 2:
+            raise Exception("fiber_lower_limit must be greater than 2")
+        
+        # Match the two tables with Nway
+        cat1 = {"name" : "sources", "ra" : coords.ra.value, "dec" : coords.dec.value, 
+                "error" : np.ones(len(coords))}
+        cat2 = {"name" : "fibers", "ra" : self.fibers.coords.ra.value, 
+                "dec" : self.fibers.coords.dec.value, "error" : np.ones(len(self.fibers.coords))}
+        
+        if verbose:
+            table, resultstable, separations, errors = _create_match_table([cat1, cat2], radius, 
+                                                                           NormalLogger())
+        else:
+            table, resultstable, separations, errors = _create_match_table([cat1, cat2], radius, 
+                                                                           NullOutputLogger())        
+            
+        
+        # Indices of matched positions and fibers
+        icoord_all = table["sources"].to_numpy()
+        idx_all = table["fibers"].to_numpy()
+        seps_all = table["Separation_sources_fibers"].to_numpy()
+            
+        # Remove the empty entries
+        icoord_all = icoord_all[idx_all > -1]
+        seps_all = seps_all[idx_all > -1]
+        idx_all = idx_all[idx_all > -1]
+            
+        table_here = self.fibers.table.read_coordinates(idx_all)
+        ifux = table_here["ifux"]
+        ifuy = table_here["ifuy"]
+        ra = table_here["ra"]
+        dec = table_here["dec"]
+            
+        if ffsky:
+            spec = table_here["spec_fullsky_sub"] / 2.0
+        else:
+            spec = table_here["calfib"] / 2.0
+ 
+        spece = table_here["calfibe"] / 2.0
+        ftf = table_here["fiber_to_fiber"]
+
+        if self.survey == "hdr1":
+            mask = table_here["Amp2Amp"]
+            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+        else:
+            mask = self.fibers.table.read_coordinates(idx_all, "calfibe")
+            mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+
+        expn = np.array(
+               table_here["expnum"], dtype=int
+               )
+        mf_array = table_here["multiframe"].astype(str)
+        fiber_id_array = table_here["fiber_id"].astype(str)
+                
+        ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
+        ifuy[:] = ifuy + self.dither_pattern[expn - 1, 1]
+        
+        xc = []
+        yc = []
+        for ic in np.unique(icoord_all):
+            sel = (icoord_all == ic)
+            n = len(ifux[sel])
+            if n >= fiber_lower_limit:
+                txc, tyc = self.convert_radec_to_ifux_ifuy(
+                                   ifux[sel], ifuy[sel], ra[sel], dec[sel], 
+                                   coords.ra.deg[ic], coords.dec.deg[ic]
+                                   )
+
+            else:
+                # if not enough fibers set position to 999
+                # and flag by setting index to -1
+                txc = np.array(999.)
+                tyc = np.array(999.)
+                icoord_all[sel] = -1
+                       
+            xc.extend(txc.repeat(n))
+            yc.extend(tyc.repeat(n))
+                             
+        xc = np.array(xc)
+        yc = np.array(yc)
+                    
+        if return_fiber_info:
+            return icoord_all, seps_all, ifux, ifuy, xc, yc, ra, dec, spec, spece, mask, fiber_id_array, mf_array
+        else:
+            return icoord_all, seps_all, ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
+
+    
+    
     def get_fiberinfo_for_coord(self,
                                 coord,
                                 radius=3.5,
@@ -185,6 +340,9 @@ class Extract:
             Return only if return_fiber_info is True
        """
 
+        if fiber_lower_limit < 2:
+            raise Exception("fiber_lower_limit must be greater than 2")
+        
         if self.fibers:
             idx = self.fibers.query_region_idx(coord, radius=radius)
 
@@ -252,6 +410,7 @@ class Extract:
 
         ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn - 1, 1]
+
         xc, yc = self.convert_radec_to_ifux_ifuy(
             ifux, ifuy, ra, dec, coord.ra.deg, coord.dec.deg
         )
@@ -778,9 +937,12 @@ class Extract:
         cog = np.cumsum(psf[0].ravel()[inds][sel]) / np.sum(psf[0].ravel()[inds][sel])
         return r[inds][sel], cog
 
-    def build_weights(self, xc, yc, ifux, ifuy, psf):
+    
+    
+    def build_weights(self, xc, yc, ifux, ifuy, psf, I = None, fac = None,
+                      return_I_fac = False):
         """
-        Build weight matrix for spectral extraction
+        Build weight matrix for spectral extraction.
         
         Parameters
         ----------
@@ -794,22 +956,42 @@ class Extract:
             The ifu y-coordinate for each fiber
         psf: numpy 3d array
             zeroth dimension: psf image, xgrid, ygrid
-        
+        I : callable (Optional)
+            a function that returns the PSF function
+            for a given x, y. If this is passed the
+            psf image is ignored, otherwise it is 
+            computed (default: None).
+        fac : float (Optional)
+            scale factor to account for area
+            differences between the PSF image and
+            the fibers. If None this is computed 
+            from the PSF grid (default: None)
+        return_I_fac : bool (Optional)
+            return the computed (or input) I and fac 
+            values (see above). This saves compute time 
+            if you call this function many times with 
+            the same PSF, as you can pass these values 
+            back in the next time you run. 
+
         Returns
         -------
         weights: numpy 2d array (len of fibers by wavelength dimension)
             Weights for each fiber as function of wavelength for extraction
+        I
         """
         SX = np.zeros(len(ifux))
         SY = np.zeros(len(ifuy))
-        T = np.array([psf[1].ravel(), psf[2].ravel()]).swapaxes(0, 1)
-        I = LinearNDInterpolator(T, psf[0].ravel(), fill_value=0.0)
         weights = np.zeros((len(ifux), len(self.wave)))
-        scale = np.abs(psf[1][0, 1] - psf[1][0, 0])
-        
-        # area = 0.75 ** 2 * np.pi
-        area = 1.7671458676442586
-        fac = area / scale ** 2
+
+        if not I:
+            T = np.array([psf[1].ravel(), psf[2].ravel()]).swapaxes(0, 1)
+            I = LinearNDInterpolator(T, psf[0].ravel(), fill_value=0.0)
+
+        if not fac:
+            scale = np.abs(psf[1][0, 1] - psf[1][0, 0])
+            # area = 0.75 ** 2 * np.pi
+            area = 1.7671458676442586
+            fac = area / scale ** 2
         
         # Avoid using a loop to speed things up, uses more memory though
         SX = np.tile(ifux, len(self.wave)).reshape(len(self.wave), len(ifux)).T
@@ -820,7 +1002,10 @@ class Extract:
         SY = SY - ADRy3D - yc
         weights = fac*I(SX, SY)
         
-        return weights
+        if not return_I_fac:
+            return weights
+        else:
+            return weights, I, fac
 
 
     def build_weights_old(self, xc, yc, ifux, ifuy, psf):
@@ -844,6 +1029,8 @@ class Extract:
         -------
         weights: numpy 2d array (len of fibers by wavelength dimension)
             Weights for each fiber as function of wavelength for extraction
+        I, fac : 
+            only returned if return_I_fac = True, see description above.
         """
         S = np.zeros((len(ifux), 2))
         T = np.array([psf[1].ravel(), psf[2].ravel()]).swapaxes(0, 1)
@@ -858,7 +1045,7 @@ class Extract:
 
         return weights
 
-    def get_spectrum(self, data, error, mask, weights):
+    def get_spectrum(self, data, error, mask, weights, remove_low_weights = True):
         """
         Weighted spectral extraction
         
@@ -873,6 +1060,10 @@ class Extract:
             Mask of good wavelength regions for each fiber
         weights: numpy 2d array (float)
             Normalized extraction model for each fiber
+        remove_low_weights : bool 
+            remove the contribution from fibers with
+            weights less than 10% the median 
+            (default: True).
         
         Returns
         -------
@@ -890,10 +1081,11 @@ class Extract:
         )
 
         # Only use wavelengths with enough weight to avoid large noise spikes
-        w = np.sum(mask * weights ** 2, axis=0)
-        sel = w < np.median(w) * 0.1
-        spectrum[sel] = np.nan
-        spectrum_error[sel] = np.nan
+        if remove_low_weights:
+            w = np.sum(mask * weights ** 2, axis=0)
+            sel = w < np.median(w) * 0.1
+            spectrum[sel] = np.nan
+            spectrum_error[sel] = np.nan
 
         return spectrum, spectrum_error
 

@@ -281,7 +281,10 @@ class SensitivityCubeHDF5Container(object):
             that one shot is present 
             and return the IFU
             for that
-
+        cache_sim_interp : bool
+            cache the simulation interpolator
+            to speed up execution (default: True)
+ 
         Returns
         -------
         scube : hetdex_api.flux_limits.sensitivity_cube:SensitivityCube
