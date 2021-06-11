@@ -367,7 +367,8 @@ class Extract:
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
                 mask = self.fibers.table.read_coordinates(idx, "calfibe")
-                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * spec > 0
+                
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )

@@ -37,7 +37,6 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
 from hetdex_api.extinction import *
 import extinction
-from dustmaps.sfd import SFDQuery
 
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
@@ -48,7 +47,13 @@ try:
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     config = HDRconfig(LATEST_HDR_NAME)
+    from dustmaps.config import config as dustmaps_config
     
+    if dustmaps_config['data_dir'] is None:
+        print("Populating dustmaps config with {}".format(config.dustmaps))
+        dustmaps_config['data_dir'] = config.dustmaps
+    from dustmaps.sfd import SFDQuery
+                
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -176,7 +181,7 @@ class Detections:
 
                     # remove E(B-V)=0.02 screen extinction
                     fix = get_2pt1_extinction_fix()
-                    
+                   
                     self.flux /= fix(wave)
                     self.flux_err /= fix(wave)
                     self.continuum /= fix(wave)
@@ -831,7 +836,9 @@ class Detections:
 
         return mask
 
-    def get_spectrum(self, detectid_i, deredden=True):
+    def get_spectrum(self, detectid_i,
+                     deredden=True,
+                     apply_extinction_fix=True):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
         """
@@ -851,7 +858,7 @@ class Detections:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
 
-        if self.survey == 'hdr2.1':
+        if self.survey == 'hdr2.1' and apply_extinction_fix:
             # remove E(B-V)=0.02 screen extinction
             fix = get_2pt1_extinction_fix()
 
