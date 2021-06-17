@@ -141,7 +141,7 @@ class Extract:
                                 radius=3.5,
                                 ffsky=False,
                                 return_fiber_info=False,
-                                fiber_lower_limit=1):
+                                fiber_lower_limit=3):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -206,7 +206,7 @@ class Extract:
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
                 mask = self.fibers.table.read_coordinates(idx, "calfibe")
-                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * spec > 0
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * (spec > 0)
                 
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
