@@ -129,7 +129,7 @@ class CubeWidget(ImageWidget):
             min=self.wave_start,
             max=self.wave_end,
             step=self.dwave,
-            value=self.wave_start,
+            value=4540,
             continuous_update=False,
         )
 
