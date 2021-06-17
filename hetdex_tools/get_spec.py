@@ -223,7 +223,7 @@ def get_source_spectra(shotid, args):
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 # added by EMC 20210609
                 norm = np.sum(weights, axis=0)
-                weights = weights / norm[np.newaxis, :]
+                #weights = weights / norm[np.newaxis, :]
 
                 result = E.get_spectrum(data, error, mask, weights)
                 spectrum_aper, spectrum_aper_error = [res for res in result]
