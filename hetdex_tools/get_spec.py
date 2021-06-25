@@ -231,6 +231,8 @@ def get_source_spectra(shotid, args):
                 # apply aperture correction
                 spectrum_aper /= norm
                 spectrum_aper_error /= norm
+
+                weights *= norm[np.newaxis, :]
                 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
