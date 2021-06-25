@@ -221,14 +221,17 @@ class MCMC_Gauss:
                 self.err_x = np.ones(np.shape(self.data_x))
 
             if (self.data_x is None) or (self.data_y is None) or (self.err_y is None):
+                self.log.debug("Sanity check failed. data_x or data_y or err_y is None")
                 return False
 
             if len(self.data_x) == len(self.data_y) == len(self.err_y): #leave off self.err_x as could be None
                 if (self.err_x is not None):
                     if len(self.data_x) != len(self.err_x):
+                        self.log.debug("Sanity check failed. len(data_x) != len(err_x)")
                         return False
 
                 if (self.initial_sigma is None) or (self.initial_mu is None) or (self.initial_A is None) or (self.initial_y is None):
+                    self.log.debug("Sanity check failed. initial sigma, mu, A, or y is None")
                     return False
 
                 if self.initial_peak is None:
@@ -238,14 +241,17 @@ class MCMC_Gauss:
                     self.initial_peak = max(self.data_y[left:right])
 
                 if self.initial_sigma < 0.0: #self.initial_A < 0.0  ... actually, leave A alone .. might allow absorportion later
+                    self.log.debug("Sanity check failed. initial sigma < 0")
                     return False
 
                 if ((self.initial_A > 0) and (self.initial_y > self.initial_peak) or \
                         (self.initial_A < 0) and (self.initial_y < self.initial_peak) ):
                     #i.e. if an emission (A > 0) then y must be less than the peak
                     # else if an absorption line (A < 0) then y must be greater than the peak
+                    self.log.debug("Sanity check failed. y offset inconsistent with area (A) and initial peak.")
                     return False
             else:
+                self.log.debug("Sanity check failed. lengths of data_x, data_y, and err_y do not match.")
                 return False
             return True
         except:
