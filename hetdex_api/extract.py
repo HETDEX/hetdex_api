@@ -422,9 +422,62 @@ class Extract:
         yl, yh = (0.0 - boxsize / 2.0, 0.0 + boxsize / 2.0 + scale)
         x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
         xgrid, ygrid = np.meshgrid(x, y)
-        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
+
+        Z = self.moffat_psf_integration(xgrid.ravel(), ygrid.ravel(),
+                                        seeing,
+                                        boxsize=boxsize+1.5,
+                                        alpha=alpha)
+        Z = np.reshape(Z, xgrid.shape)
+#        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
+
+        zarray = np.array([Z, xgrid, ygrid])
         zarray[0] /= zarray[0].sum()
+       
         return zarray
+
+        
+    def moffat_psf_integration(self, xloc, yloc, seeing, boxsize=14.,
+                               scale=0.1, alpha=3.5):
+        '''
+        Based on Remedy extract.py code from G. Zeimann
+        https://github.com/grzeimann/Remedy/blob/master/extract.py
+        Moffat PSF profile image
+        
+        Parameters
+        ----------
+        seeing: float
+            FWHM of the Moffat profile
+        boxsize: float
+            Size of image on a side for Moffat profile
+        scale: float
+            Pixel scale for image
+        alpha: float
+            Power index in Moffat profile function
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        '''
+        M = Moffat2D()
+        M.alpha.value = alpha
+        M.gamma.value = 0.5 * seeing / np.sqrt(2**(1./ M.alpha.value) - 1.)
+        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        xgrid, ygrid = np.meshgrid(x, y)
+        Z = M(xgrid, ygrid)
+        Z = Z / Z.sum()
+        V = xloc * 0.
+        cnt = 0
+        for xl, yl in zip(xloc, yloc):
+            d = np.sqrt((xgrid-xl)**2 + (ygrid-yl)**2)
+            sel = d <= 0.75
+            adj = np.pi * 0.75**2 / (sel.sum() * scale**2)
+            V[cnt] = np.sum(Z[sel]) * adj
+            cnt += 1
+        return V
+
 
     def model_psf(
         self,
@@ -844,7 +897,8 @@ class Extract:
 
         # Only use wavelengths with enough weight to avoid large noise spikes
         w = np.sum(mask * weights ** 2, axis=0)
-        sel = w < np.median(w) * 0.1
+        #sel = w < np.median(w) * 0.1
+        sel = w < 0.05
         spectrum[sel] = np.nan
         spectrum_error[sel] = np.nan
 
