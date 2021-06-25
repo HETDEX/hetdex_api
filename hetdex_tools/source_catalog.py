@@ -129,6 +129,127 @@ def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
             return np.nan
 
 
+def add_elixer_cat_info(det_table, version):
+
+    global config
+    
+    elixer_file = op.join(config.detect_dir, "catalogs", "elixer_{}_cat.h5".format(version))
+    elixer_cat = tb.open_file(elixer_file, "r")
+
+    cls = []
+    mlname = []
+    mlz = []
+    mlprob = []
+    best_z = []
+    best_pz = []
+    flags = []
+    
+    counterpart_mag = []
+    counterpart_mag_err = []
+    counterpart_dist = []
+    counterpart_catalog_name = []
+    counterpart_filter_name = []
+    
+    fixed_mag = []
+    fixed_mag_err = []
+    fixed_catalog_name = []
+    fixed_filter_name = []
+    fixed_radius = []
+
+    for row in det_table:
+        detectid_obj = row["detectid"]
+        try:
+            elix_row = elixer_cat.root.Detections.read_where("detectid == detectid_obj")
+            row["plae_classification"] = elix_row["plae_classification"]
+            row["combined_plae"] = elix_row["combined_plae"]
+            row["combined_plae_err"] = elix_row["combined_plae_err"]
+            mlname.append(elix_row["multiline_name"][0].decode())
+            cls.append(elix_row["classification_labels"][0].decode())
+            mlz.append(elix_row["multiline_z"][0])
+            mlprob.append(elix_row["multiline_prob"][0])
+            best_z.append(elix_row['best_z'][0])
+            best_pz.append(elix_row['best_pz'][0])
+            flags.append(elix_row['flags'][0])
+            
+        except Exception:
+            mlname.append("")
+            cls.append("")
+            mlz.append(False)
+            mlprob.append(np.nan)
+            best_z.append(np.nan)
+            best_pz.append(np.nan)
+            flags.append(np.nan)
+            
+        # append nearest source extracted neighbour match
+        try:
+        
+            elix_row = elixer_cat.root.ExtractedObjects.read_where(
+                "(detectid == detectid_obj) & (selected == True)"
+            )
+            
+            if np.size(elix_row) == 0:
+                elix_row = elixer_cat.root.ExtractedObjects.read_where(
+                    "detectid == detectid_obj"
+                )
+            if np.size(elix_row) > 1:
+                sel_r = elix_row["filter_name"] == b"r"
+                if np.sum(sel_r) == 1:
+                    counterpart_mag.append(elix_row["mag"][sel_r][0])
+                    counterpart_mag_err.append(elix_row["mag_err"][sel_r][0])
+                    counterpart_dist.append(elix_row["dist_baryctr"][sel_r][0])
+                    counterpart_catalog_name.append(
+                        elix_row["catalog_name"][sel_r][0].decode()
+                    )
+                    counterpart_filter_name.append(
+                        elix_row["filter_name"][sel_r][0].decode()
+                    )
+                else:
+                    counterpart_mag.append(elix_row["mag"][0])
+                    counterpart_mag_err.append(elix_row["mag_err"][0])
+                    counterpart_dist.append(elix_row["dist_baryctr"][0])
+                    counterpart_catalog_name.append(
+                        elix_row["catalog_name"][0].decode()
+                    )
+                    counterpart_filter_name.append(elix_row["filter_name"][0].decode())
+                elif np.size(elix_row) == 1:
+                    counterpart_mag.append(elix_row["mag"][0])
+                    counterpart_mag_err.append(elix_row["mag_err"][0])
+                    counterpart_dist.append(elix_row["dist_baryctr"][0])
+                    counterpart_catalog_name.append(elix_row["catalog_name"][0].decode())
+                    counterpart_filter_name.append(elix_row["filter_name"][0].decode())
+                else:
+                    counterpart_mag.append(np.nan)
+                    counterpart_mag_err.append(np.nan)
+                    counterpart_dist.append(np.nan)
+                    counterpart_catalog_name.append("")
+                    counterpart_filter_name.append("")
+            except:
+                fixed_mag.append(np.nan)
+                fixed_mag_err.append(np.nan)
+                fixed_catalog_name.append("")
+                fixed_filter_name.append("")
+                fixed_radius.append(np.nan)
+
+                       
+        det_table.add_column(best_z, name='best_z')
+        det_table.add_column(best_pz, name='best_pz')
+        det_table.add_column(flags, name='flags_elixer')
+        det_table.add_column(mlname, name="multiline_name")
+        det_table.add_column(cls, name="classification_labels")
+        det_table.add_column(counterpart_mag, name="counterpart_mag")
+        det_table.add_column(counterpart_mag_err, name="counterpart_mag_err")
+        det_table.add_column(counterpart_dist, name="counterpart_dist")
+        det_table.add_column(counterpart_catalog_name, name="counterpart_catalog_name")
+        det_table.add_column(counterpart_filter_name, name="counterpart_filter_name")
+        det_table.add_column(fixed_mag, name="forced_mag")
+        det_table.add_column(fixed_mag_err, name="forced_mag_err")
+        det_table.add_column(fixed_catalog_name, name="forced_catalog_name")
+        det_table.add_column(fixed_filter_name, name="forced_filter_name")
+        det_table.add_column(fixed_radius, name="forced_radius")
+
+        return det_table
+
+   
 def create_source_catalog(
         version="2.1.3",
         make_continuum=True,
@@ -188,6 +309,8 @@ def create_source_catalog(
     detect_table.write('test.fits', overwrite=True)
 
     del detects_cont_table, detects_broad_table
+
+    detect_table = add_elixer_cat_info(detect_table, version)
     
     print('Adding 1sigma noise from flux limits')
     p = Pool(24)
