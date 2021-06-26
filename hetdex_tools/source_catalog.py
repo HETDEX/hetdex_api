@@ -211,26 +211,95 @@ def add_elixer_cat_info(det_table, version):
                         elix_row["catalog_name"][0].decode()
                     )
                     counterpart_filter_name.append(elix_row["filter_name"][0].decode())
-                elif np.size(elix_row) == 1:
-                    counterpart_mag.append(elix_row["mag"][0])
-                    counterpart_mag_err.append(elix_row["mag_err"][0])
-                    counterpart_dist.append(elix_row["dist_baryctr"][0])
-                    counterpart_catalog_name.append(elix_row["catalog_name"][0].decode())
-                    counterpart_filter_name.append(elix_row["filter_name"][0].decode())
-                else:
-                    counterpart_mag.append(np.nan)
-                    counterpart_mag_err.append(np.nan)
-                    counterpart_dist.append(np.nan)
-                    counterpart_catalog_name.append("")
-                    counterpart_filter_name.append("")
-            except:
-                fixed_mag.append(np.nan)
-                fixed_mag_err.append(np.nan)
-                fixed_catalog_name.append("")
-                fixed_filter_name.append("")
-                fixed_radius.append(np.nan)
+            elif np.size(elix_row) == 1:
+                counterpart_mag.append(elix_row["mag"][0])
+                counterpart_mag_err.append(elix_row["mag_err"][0])
+                counterpart_dist.append(elix_row["dist_baryctr"][0])
+                counterpart_catalog_name.append(elix_row["catalog_name"][0].decode())
+                counterpart_filter_name.append(elix_row["filter_name"][0].decode())
+            else:
+                counterpart_mag.append(np.nan)
+                counterpart_mag_err.append(np.nan)
+                counterpart_dist.append(np.nan)
+                counterpart_catalog_name.append("")
+                counterpart_filter_name.append("")
+        except:
+            counterpart_mag.append(np.nan)
+            counterpart_mag_err.append(np.nan)
+            counterpart_dist.append(np.nan)
+            counterpart_catalog_name.append("")
+            counterpart_filter_name.append("")
 
-                       
+        # append fixed aperture mag
+        try:
+            elix_tab = elixer_cat.root.ElixerApertures.read_where(
+                ("detectid == detectid_obj")
+            )
+            sel_r = elix_tab["filter_name"] == b"r"
+            sel_g = elix_tab["filter_name"] == b"g"
+            
+            if np.any(sel_r):
+                elix_r = elix_tab[sel_r]
+                fixed_mag.append(elix_r["mag"][-1])
+                fixed_mag_err.append(elix_r["mag_err"][-1])
+                fixed_catalog_name.append(elix_r["catalog_name"][-1].decode())
+                fixed_filter_name.append(elix_r["filter_name"][-1].decode())
+                fixed_radius.append(elix_r["radius"][-1])
+            elif np.any(sel_g):
+                elix_g = elix_tab[sel_g]
+                fixed_mag.append(elix_g["mag"][-1])
+                fixed_mag_err.append(elix_g["mag_err"][-1])
+                fixed_catalog_name.append(elix_g["catalog_name"][-1].decode())
+                fixed_filter_name.append(elix_g["filter_name"][-1].decode())
+                fixed_radius.append(elix_g["radius"][-1])
+            else:
+                sel = elix_tab["radius"] < 3
+                elix_sel = elix_tab[sel]
+                fixed_mag.append(elix_sel["mag"][-1])
+                fixed_mag_err.append(elix_sel["mag_err"][-1])
+                fixed_catalog_name.append(elix_sel["catalog_name"][-1].decode())
+                fixed_filter_name.append(elix_sel["filter_name"][-1].decode())
+                fixed_radius.append(elix_sel["radius"][-1])
+        except:
+            fixed_mag.append(np.nan)
+            fixed_mag_err.append(np.nan)
+            fixed_catalog_name.append("")
+            fixed_filter_name.append("")
+            fixed_radius.append(np.nan)
+
+    try:
+        det_table.add_column(best_z, name='best_z')
+        det_table.add_column(best_pz, name='best_pz')
+        det_table.add_column(flags, name='flags_elixer')
+        det_table.add_column(mlname, name="multiline_name")
+        det_table.add_column(cls, name="classification_labels")
+        det_table.add_column(counterpart_mag, name="counterpart_mag")
+        det_table.add_column(counterpart_mag_err, name="counterpart_mag_err")
+        det_table.add_column(counterpart_dist, name="counterpart_dist")
+        det_table.add_column(counterpart_catalog_name, name="counterpart_catalog_name")
+        det_table.add_column(counterpart_filter_name, name="counterpart_filter_name")
+        det_table.add_column(fixed_mag, name="forced_mag")
+        det_table.add_column(fixed_mag_err, name="forced_mag_err")
+        det_table.add_column(fixed_catalog_name, name="forced_catalog_name")
+        det_table.add_column(fixed_filter_name, name="forced_filter_name")
+        det_table.add_column(fixed_radius, name="forced_radius")
+    except:
+        det_table.remove_column('best_z')
+        det_table.remove_column('best_pz')
+        det_table.remove_column('flags_elixer')
+        det_table.remove_column("multiline_name")
+        det_table.remove_column("classification_labels")
+        det_table.remove_column("counterpart_mag")
+        det_table.remove_column("counterpart_mag_err")
+        det_table.remove_column("counterpart_dist")
+        det_table.remove_column("counterpart_catalog_name")
+        det_table.remove_column("counterpart_filter_name")
+        det_table.remove_column("forced_mag")
+        det_table.remove_column("forced_mag_err")
+        det_table.remove_column("forced_catalog_name")
+        det_table.remove_column("forced_filter_name")
+        det_table.remove_column("forced_radius")
+        
         det_table.add_column(best_z, name='best_z')
         det_table.add_column(best_pz, name='best_pz')
         det_table.add_column(flags, name='flags_elixer')
@@ -247,9 +316,9 @@ def add_elixer_cat_info(det_table, version):
         det_table.add_column(fixed_filter_name, name="forced_filter_name")
         det_table.add_column(fixed_radius, name="forced_radius")
 
-        return det_table
+    return det_table
 
-   
+
 def create_source_catalog(
         version="2.1.3",
         make_continuum=True,
