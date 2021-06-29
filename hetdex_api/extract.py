@@ -98,7 +98,7 @@ class Extract:
             self.shoth5 = self.fibers.hdfile
         else:
             self.fibers = None
-            self.shoth5 = open_shot_file(self.shot, survey=survey)
+#            self.shoth5 = open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
@@ -272,8 +272,12 @@ class Extract:
             Object ID from the original catalog of the stars (e.g., SDSS)
         """
         if not hasattr(self, "shoth5"):
-            self.log.warning("Please do load_shot to get star catalog params.")
-            return None
+            pass
+        else:
+            self.shoth5 = open_shot_file(self.shot, survey=survey)
+        
+            #self.log.warning("Please do load_shot to get star catalog params.")
+            #return None
 
         ras = self.shoth5.root.Astrometry.StarCatalog.cols.ra_cat[:]
         decs = self.shoth5.root.Astrometry.StarCatalog.cols.dec_cat[:]
