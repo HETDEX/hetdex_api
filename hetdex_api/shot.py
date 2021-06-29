@@ -150,7 +150,7 @@ class Fibers:
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
-    def query_region(self, coords, radius=3.0 / 3600.0):
+    def query_region(self, coords, radius=3.0*u.arcsec):
         """
         Returns an indexed fiber table for a defined aperture.
 
@@ -160,11 +160,13 @@ class Fibers:
             Fibers class object
         coords
             astropy coordinate object
-        radius
-            radius in degrees
+        radius 
+            astropy quantity. If no quantity given, assume arcsec
         """
-
-        idx = coords.separation(self.coords) < radius * u.degree
+        try:
+            idx = coords.separation(self.coords) < radius
+        except:
+            idx = coords.separation(self.coords) < radius * u.arcsec
 
         return self.table[idx]
 
