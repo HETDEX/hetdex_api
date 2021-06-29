@@ -445,7 +445,7 @@ def get_fibers_table(
     """
 
     fileh = open_shot_file(shot, survey=survey.lower())
-    fibers = fileh.root.Data.Fibers
+
     try:
         ra_in = coords.ra.degree
         dec_in = coords.dec.degree
@@ -463,7 +463,7 @@ def get_fibers_table(
     if survey == "hdr1":
         # search first along ra
 
-        ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+        ra_table = fileh.root.Data.Fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
 
         if any(ra_table):
             coords_table = SkyCoord(
@@ -483,10 +483,11 @@ def get_fibers_table(
 
     else:
 
-        # use FiberIndex table to find fiber_ids
+        # use Fibers table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region(coords, radius=rad_in.value)
 
+        fibers_table = fiberindex.query_region(coords, radius=rad_in)
+        
         if np.size(fibers_table) > 0:
             if astropy:
                 fibers_table = Table(fibers_table)
