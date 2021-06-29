@@ -43,7 +43,10 @@ class Extract:
             self.wave = self.get_wave()
         self.get_ADR()
         self.log = setup_logging("Extract")
+        self.fibers = None
+        self.set_dither_pattern()
 
+        
     def set_dither_pattern(self, dither_pattern=None):
         """ 
         Set dither pattern (default if None given)
@@ -96,8 +99,8 @@ class Extract:
         if fibers:
             self.fibers = Fibers(self.shot, survey=survey)
             self.shoth5 = self.fibers.hdfile
-        else:
-            self.fibers = None
+        #else:
+        #    self.fibers = None
 #            self.shoth5 = open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
@@ -182,7 +185,7 @@ class Extract:
             Return only if return_fiber_info is True
         """
 
-        if self.fibers:
+        if self.fibers is not None:
             idx = self.fibers.query_region_idx(coord, radius=radius)
 
             if len(idx) < fiber_lower_limit:
