@@ -150,7 +150,7 @@ class Fibers:
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
-    def query_region(self, coords, radius=3.0*u.arcsec):
+    def query_region(self, coords, radius=3.5*u.arcsec):
         """
         Returns an indexed fiber table for a defined aperture.
 
@@ -183,6 +183,7 @@ class Fibers:
             idx = coords.separation(self.coords) < radius
         except:
             idx = coords.separation(self.coords) < radius * u.arcsec
+
         return np.where(idx)[0]
 
     def get_closest_fiber(self, coords, exp=None):
