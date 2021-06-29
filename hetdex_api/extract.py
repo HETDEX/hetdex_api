@@ -99,9 +99,10 @@ class Extract:
         if fibers:
             self.fibers = Fibers(self.shot, survey=survey)
             self.shoth5 = self.fibers.hdfile
-        #else:
-        #    self.fibers = None
-#            self.shoth5 = open_shot_file(self.shot, survey=survey)
+        else:
+            self.fibers = None
+            self.shoth5 = None
+            #open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
