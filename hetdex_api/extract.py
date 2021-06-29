@@ -229,10 +229,10 @@ class Extract:
             ra = fib_table["ra"]
             dec = fib_table["dec"]
             if ffsky:
-                spec = fib_table["spec_fullsky_sub"]
+                spec = fib_table["spec_fullsky_sub"] / 2.0
             else:
-                spec = fib_table["calfib"]
-            spece = fib_table["calfibe"]
+                spec = fib_table["calfib"] / 2.0
+            spece = fib_table["calfibe"] / 2.0
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
