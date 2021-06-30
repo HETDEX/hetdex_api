@@ -21,7 +21,8 @@ from hetdex_api.input_utils import setup_logging
 #import corner
 #import io
 
-SNR_SIGMA_WIDTH = 4 #line center +/- this width over which to compute the noise
+SNR_SIGMA_WIDTH = 2 #line center +/- this width over which to compute the noise
+SNR_LINEFLUX_FRACTION = 0.954 #0.682 for 1 sigma, 0.954 for 2 sigma, 0.996 for 3 sigma, assume 1.0 thereafter
 UncertaintyRange = [16,50,84] #e.g. for the uncertainty as distribution
 
 def getnearpos(array,value):
@@ -331,7 +332,7 @@ class MCMC_Gauss:
                 data_err = copy.copy(self.err_y[left:right])
                 data_err[data_err<=0] = np.nan #Karl has 0 value meaning it is flagged and should be skipped
 
-                self.mcmc_snr = abs(self.mcmc_A[0]/bin_width) / np.sqrt(np.nansum(data_err**2))
+                self.mcmc_snr = SNR_LINEFLUX_FRACTION*abs(self.mcmc_A[0]/bin_width) / np.sqrt(np.nansum(data_err**2))
                 self.mcmc_snr_err = abs(0.5*(self.mcmc_A[1]+self.mcmc_A[2])/self.mcmc_A[0] * self.mcmc_snr)
                 self.log.info(f"MCMC SNR model Area with data error: {self.mcmc_snr} +/- {self.mcmc_snr_err}")
 
