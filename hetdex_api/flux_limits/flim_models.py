@@ -153,7 +153,7 @@ class SimulationInterpolator(object):
     """
 
     def __init__(self, fdir, dont_interp_to_zero, 
-                 snmode=False, **kwargs):
+                 snmode=False, verbose=False, **kwargs):
 
         if snmode:
             snfiles = glob(fdir + "/sn_based_?.?.dat")
@@ -165,7 +165,8 @@ class SimulationInterpolator(object):
         sns = []
         self.sninterpolators = []
         for snfile in snfiles:
-            print(snfile)
+            if verbose:
+                print(snfile)
             self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, dont_interp_to_zero,
                                                                        snmode=snmode, **kwargs))
             sns.append(float(snfile[-7:-4]))
@@ -173,7 +174,8 @@ class SimulationInterpolator(object):
         if len(sns) == 0:
             raise NoSNFilesException("Could not find any simulation files! ")
 
-        print("Read S/N files for the following cuts: {:s}".format(str(sns)))
+        if verbose:
+            print("Read S/N files for the following cuts: {:s}".format(str(sns)))
         self.sns = array(sns)        
 
 
@@ -491,7 +493,7 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         fdir = conf.flim_sim_completeness 
         fdir = join(fdir, model.snfile_version)
         sinterp = SimulationInterpolator(fdir, model.dont_interp_to_zero, 
-                                         snmode=False)
+                                         snmode=False, verbose=verbose)
 
     # save model in cache
     if cache_sim_interp:

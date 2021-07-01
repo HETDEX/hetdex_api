@@ -2,6 +2,8 @@
 """
 Created on Mon Mar 11 11:48:55 2019
 
+Note: this uses nway and pandas
+
 @author: gregz
 """
 
@@ -144,7 +146,8 @@ class Extract:
                                  ffsky=False,
                                  return_fiber_info=False,
                                  fiber_lower_limit=7,
-                                 verbose=True):
+                                 verbose=False,
+                                 nmax=30000):
         """ 
         Grab fibers within a radius and get relevant info,
         optimised for searching for a longer list of 
@@ -166,7 +169,11 @@ class Extract:
         fiber_lower_limit : int
             Minimum number of fibers needed in aperture to
             return a result
-        
+        nmax : int
+            Maximum number of coordinates to consider at once
+            during the match. If you put in more it loops
+            over them.
+
         Returns
         -------
         icoord_all : array (length of number of fibers)
@@ -205,30 +212,47 @@ class Extract:
             
         if fiber_lower_limit < 2:
             raise Exception("fiber_lower_limit must be greater than 2")
-        
-        # Match the two tables with Nway
-        cat1 = {"name" : "sources", "ra" : coords.ra.value, "dec" : coords.dec.value, 
-                "error" : np.ones(len(coords))}
-        cat2 = {"name" : "fibers", "ra" : self.fibers.coords.ra.value, 
-                "dec" : self.fibers.coords.dec.value, "error" : np.ones(len(self.fibers.coords))}
-        
-        if verbose:
-            table, resultstable, separations, errors = _create_match_table([cat1, cat2], radius, 
-                                                                           NormalLogger())
+
+
+        fibers_cat = {"name" : "fibers", "ra" : self.fibers.coords.ra.value, 
+                      "dec" : self.fibers.coords.dec.value, "error" : np.ones(len(self.fibers.coords))}
+
+
+        if len(coords) > nmax:
+            if verbose:
+                print("Number of coords exceeds nmax, splitting into sets.")
+            nsets = int(np.ceil(len(coords)/nmax))
         else:
-            table, resultstable, separations, errors = _create_match_table([cat1, cat2], radius, 
-                                                                           NullOutputLogger())        
-            
-        
+            nsets = 1
+
+        for i in range(nsets):
+
+            # Match the two tables with Nway
+            tcoords =  coords[i*nmax:(i+1)*nmax]
+            cat1 = {"name" : "sources", "ra" : tcoords.ra.value, "dec" : tcoords.dec.value, 
+                    "error" : np.ones(len(tcoords))}
+            if verbose:
+                ttable, resultstable, separations, errors = _create_match_table([cat1, fibers_cat], radius, 
+                                                                               NormalLogger())
+            else:
+                ttable, resultstable, separations, errors = _create_match_table([cat1, fibers_cat], radius, 
+                                                                               NullOutputLogger())        
+
+            # Shift index along 
+            ttable["sources"] = ttable["sources"] + i*nmax
+
+            # remove sources with no matched fibers
+            ttable = ttable[ttable["fibers"] > -1]
+
+            if i == 0:
+                table = ttable
+            else:
+                table = table.append(ttable)
+ 
         # Indices of matched positions and fibers
         icoord_all = table["sources"].to_numpy()
         idx_all = table["fibers"].to_numpy()
         seps_all = table["Separation_sources_fibers"].to_numpy()
-            
-        # Remove the empty entries
-        icoord_all = icoord_all[idx_all > -1]
-        seps_all = seps_all[idx_all > -1]
-        idx_all = idx_all[idx_all > -1]
             
         table_here = self.fibers.table.read_coordinates(idx_all)
         ifux = table_here["ifux"]

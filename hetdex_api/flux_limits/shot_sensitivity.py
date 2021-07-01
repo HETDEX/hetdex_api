@@ -13,7 +13,7 @@ from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan, newaxis)
+                   isnan, newaxis, ceil)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
@@ -81,7 +81,7 @@ class ShotSensitivity(object):
         to the screen
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
-                 ffsky=False, wavenpix=3, d25scale=3.5, verbose=True):
+                 ffsky=False, wavenpix=3, d25scale=3.5, verbose=False):
 
         self.conf = HDRconfig()
         self.extractor = Extract()
@@ -241,7 +241,7 @@ class ShotSensitivity(object):
 
             all_ra, all_dec, junk = scube.wcs.all_pix2world(ix.ravel(), iy.ravel(), 
                                                             [500.], 0)
-            noises, mask = self.get_f50(all_ra, all_dec, None, 
+            noises, mask = self.get_f50(all_ra, all_dec, None, 1.0, 
                                         direct_sigmas = True)
             sigmas = noises.ravel(order="F").reshape(nz, ny, nx)
 
@@ -251,8 +251,92 @@ class ShotSensitivity(object):
         
         return scube
        
-    
-    def get_f50(self, ra, dec, wave, direct_sigmas = False):
+
+    def get_f50(self, ra, dec, wave, sncut, direct_sigmas = False, 
+                nmax = 5000):
+        """
+        Return flux at 50% for the input positions
+        most of this is cut and paste from 
+        `hetdex_tools/get_spec.py` and 
+        the old sensitivity_cube:SensitivityCube 
+        class.
+
+        This class splits the data up into sets of
+        up to `nmax` to save memory
+
+        Parameters
+        ----------
+        ra, dec : array 
+            right ascension and dec in degrees
+        wave : array 
+            wavelength in Angstroms. If None,
+            then return flux limits for
+            all wave bins.
+        sncut : float
+            cut in detection significance 
+            that defines this catalogue
+        direct_sigmas : bool
+            return the noise values directly
+            without passing them through
+            the noise to 50% completeness 
+            flux
+        nmax : int
+            maximum number of sources to 
+            consider at once, otherwise split
+            up and loop.
+
+        Returns
+        -------
+        f50s : array
+            50% completeness. If outside
+            of cube return 999. If None
+            was passed for wave this is 
+            a 2D array of ra, dec and
+            all wavelengths
+        """
+        if type(wave) != type(None):
+            wave_passed = True
+        else:
+            wave_passed = False
+ 
+        f50s = []
+        mask = []
+
+        try:
+            nsplit = int(ceil(len(ra)/nmax))
+        except TypeError as e:
+            nsplit = 1
+            # If the user does not pass arrays
+            ra = array([ra])
+            dec = array([dec])
+            wave = array([wave])
+
+        for i in range(nsplit):  
+
+            if self.verbose: 
+                print("Split {:d}".format(i)) 
+
+            tra = ra[i*nmax : (i+1)*nmax]
+            tdec = dec[i*nmax : (i+1)*nmax]
+
+            if wave_passed:
+                twave = wave[i*nmax : (i+1)*nmax]
+                tf50s = self._get_f50_worker(tra, tdec, twave, sncut, 
+                                             direct_sigmas = direct_sigmas)
+            else:
+                tf50s, tmask = self._get_f50_worker(tra, tdec, None, sncut, 
+                                             direct_sigmas = direct_sigmas) 
+                mask.extend(tmask)
+
+            f50s.extend(tf50s)    
+
+        if wave_passed:
+            return array(f50s)        
+        else:
+            return array(f50s), array(mask)
+
+
+    def _get_f50_worker(self, ra, dec, wave, sncut, direct_sigmas = False):
         """
         Return flux at 50% for the input positions
         most of this is cut and paste from 
@@ -409,23 +493,20 @@ class ShotSensitivity(object):
         snoise = pixsize_aa*1e-17*noise
 
         if wave_passed:
-            bad = (gal_mask < 0.5) | (noise > 998)
+            bad = (gal_mask < 0.5) | (noise > 998) | isnan(snoise)
 
             if not direct_sigmas:
-                snoise = self.f50_from_noise(snoise)
+                snoise = self.f50_from_noise(snoise, wave, sncut)
 
             snoise[bad] = 999.
             return snoise/norm_all
 
         else:
             mask[(gal_mask < 0.5) & mask] = True
- 
-            if not direct_sigmas:
-                snoise = self.f50_from_noise(snoise)
 
             return snoise/norm_all, mask
 
-    def return_completeness(self, flux, ra, dec, lambda_, sncut):
+    def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None):
         """
         Return completeness at a 3D position as an array. 
         If for whatever reason the completeness is NaN, it's
@@ -469,7 +550,9 @@ class ShotSensitivity(object):
                                              sure it's in Angstrom?""")
         
 
-        f50s = self.get_f50(ra, dec, lambda_, sncut)
+        if type(f50s) == type(None):
+            f50s = self.get_f50(ra, dec, lambda_, sncut)
+
         fracdet = self.sinterp(flux, f50s, lambda_, sncut)
 
         try:

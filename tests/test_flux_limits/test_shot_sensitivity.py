@@ -38,7 +38,7 @@ def test_extract_cube(shot_sensitivity):
                           )
                          ])
 def test_get_f50(ra, dec, wave, shot_sensitivity, exptd):
-    f50 = shot_sensitivity.get_f50(ra, dec, wave, 
+    f50 = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
                                    direct_sigmas=True)
 
     assert pytest.approx(exptd, rel=0.2) == f50*1e17
@@ -46,13 +46,13 @@ def test_get_f50(ra, dec, wave, shot_sensitivity, exptd):
 
 @pytest.mark.parametrize("ra, dec, wave, flux, exptd",
                           [
-                          (178.700104, 50.90477, 3785.28, 7e-17,  0.6696),
-                          (178.620972, 50.787903, 5243.32, 3e-17, 0.3544),
-                          (178.617676, 50.788761, 4509.88, 2e-17, 0.0108),
-                          (178.539658, 50.743679, 4163.34, 1e-16, 0.5417),
+                          (178.700104, 50.90477, 3785.28, 1e-16,  0.005694),
+                          (178.620972, 50.787903, 5243.32, 7e-17, 0.015411),
+                          (178.617676, 50.788761, 4509.88, 9e-17, 0.009756),
+                          (178.539658, 50.743679, 4163.34, 2e-16, 0.013435),
                           (
                            [178.880859, 178.88652], [50.8312, 50.827698],
-                           [4602.69, 3863.54], [2e-17, 7e-17], [0.3649, 0.9544]
+                           [4602.69, 3863.54], [8e-17, 9e-17], [0.20541, 0.046439]
                           )
                          ])
 def test_completeness(shot_sensitivity, ra, dec, wave, flux, exptd):
