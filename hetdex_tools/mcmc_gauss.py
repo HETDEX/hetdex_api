@@ -10,6 +10,7 @@ line center (mu), line width (sigma), area (A), and y offset (y)
 from __future__ import print_function
 
 import numpy as np
+from scipy.signal import medfilt
 import emcee
 import copy
 import warnings
@@ -261,6 +262,20 @@ class MCMC_Gauss:
 
     def run_mcmc(self):
 
+        #cannot have nans
+        #note: assumes data_x (the spectral axis) and err_x have none since they are on a known grid
+        data_nans = np.isnan(self.data_y)
+        err_nans = np.isnan(self.err_y)
+
+        if (np.sum(data_nans) > 0) or (np.sum(err_nans) > 0):
+            self.data_y = copy.copy(self.data_y)[~data_nans]
+            self.err_y = copy.copy(self.err_y)[~data_nans]
+            self.data_x = copy.copy(self.data_x)[~data_nans]
+            self.err_x = copy.copy(self.err_x)[~data_nans]
+            #and clean up any other nan's in the error array for y
+            err_nans = np.isnan(self.err_y)
+            self.err_y[err_nans] = np.nanmax(self.err_y*10)
+
         if not self.sanity_check_init():
             self.log.info("Sanity check failed. Cannot conduct MCMC.")
             return False
@@ -285,10 +300,32 @@ class MCMC_Gauss:
             min_pos = [   0.0,  0.01,   0.01,         -np.inf,-np.inf] #must be greater than this
 
         ndim = len(initial_pos)
-        scale = np.array([1.,1.,1.,1.,-100.5]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
+        scale = np.array([10.,5.,2.0*self.initial_A,5.0*self.initial_y,0.01]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
 
         try:
-            pos = [np.minimum(np.maximum(initial_pos + scale * np.random.randn(ndim),min_pos),max_pos) for i in range(self.walkers)]
+            ##############################################################################
+            # This is an alternate way to control the jitter in the initial positions,
+            # can uncomment this block if the jitter is not sufficient
+            ##############################################################################
+            # ip_mu = initial_pos[0] + np.random.uniform(-1.0*(self.data_x[1]-self.data_x[0]),1.0*(self.data_x[1]-self.data_x[0]),self.walkers)
+            # #sigma cannot go zero or below
+            # ip_sigma = initial_pos[1] + np.random.uniform(-0.5*self.initial_sigma,0.5*self.initial_sigma,self.walkers)
+            # #area cannot flip signs
+            # ip_A = initial_pos[2] +  np.random.uniform(0,1.0*self.initial_A,self.walkers)
+            # #y should not exceed min/max data value, but won't cause and error if it does
+            # # ... should technically never be negative regardless of absorption or emission
+            # ip_y = np.random.uniform(0,max(self.data_y),self.walkers)
+            # ip_lnf = np.zeros(self.walkers) #np.random.uniform(0.005,0.015,self.walkers) #np.zeros(self.walkers)
+            #
+            # #for p in pos: #just a debug check
+            # #  print(f"{p[0]:0.4g},{p[1]:0.4g},{p[2]:0.4g},{p[3]:0.4g},{p[4]:0.4g}")
+
+            ##############################################################################
+            # OTHERWISE, keep the line below
+            #
+            ##############################################################################
+
+            pos = [np.minimum(np.maximum(initial_pos + scale * np.random.uniform(-1,1,ndim),min_pos),max_pos) for i in range(self.walkers)]
 
             #build the sampler
             self.sampler = emcee.EnsembleSampler(self.walkers, ndim, self.lnprob,
@@ -298,9 +335,9 @@ class MCMC_Gauss:
             with warnings.catch_warnings(): #ignore the occassional warnings from the walkers (NaNs, etc that reject step)
                 warnings.simplefilter("ignore")
                 self.log.debug("MCMC burn in (%d) ...." %self.burn_in)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in)  # burn in
+                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in,skip_initial_state_check=False)  # burn in
                 self.log.debug("MCMC main run (%d) ..." %self.main_run)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run, rstate0=state)  # start from end position of burn-in
+                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run, rstate0=state,skip_initial_state_check=False)  # start from end position of burn-in
 
             self.samples = self.sampler.flatchain  # collapse the walkers and interations (aka steps or epochs)
 
