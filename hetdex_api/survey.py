@@ -108,7 +108,7 @@ class Survey:
         for attrname in attrnames:
             try:
                 setattr(p, attrname, getattr(self, attrname)[indx])
-            except TypeError as e:
+            except TypeError:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 

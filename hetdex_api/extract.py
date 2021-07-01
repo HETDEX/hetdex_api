@@ -47,7 +47,10 @@ class Extract:
             self.wave = self.get_wave()
         self.get_ADR()
         self.log = setup_logging("Extract")
+        self.fibers = None
+        self.set_dither_pattern()
 
+        
     def set_dither_pattern(self, dither_pattern=None):
         """ 
         Set dither pattern (default if None given)
@@ -102,7 +105,8 @@ class Extract:
             self.shoth5 = self.fibers.hdfile
         else:
             self.fibers = None
-            self.shoth5 = open_shot_file(self.shot, survey=survey)
+            self.shoth5 = None
+            #open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
@@ -145,7 +149,7 @@ class Extract:
                                  radius=3.5,
                                  ffsky=False,
                                  return_fiber_info=False,
-                                 fiber_lower_limit=7,
+                                 fiber_lower_limit=3,
                                  verbose=False,
                                  nmax=30000):
         """ 
@@ -320,7 +324,7 @@ class Extract:
                                 radius=3.5,
                                 ffsky=False,
                                 return_fiber_info=False,
-                                fiber_lower_limit=7):
+                                fiber_lower_limit=3):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -362,12 +366,12 @@ class Extract:
         multiframe_array: numpy array (length of number of fibers
             array of amp IDs/multiframe values for each fiber.
             Return only if return_fiber_info is True
-       """
+        """
 
         if fiber_lower_limit < 2:
             raise Exception("fiber_lower_limit must be greater than 2")
         
-        if self.fibers:
+        if self.fibers is not None:
             idx = self.fibers.query_region_idx(coord, radius=radius)
 
             if len(idx) < fiber_lower_limit:
@@ -391,8 +395,8 @@ class Extract:
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
                 mask = self.fibers.table.read_coordinates(idx, "calfibe")
-                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * spec > 0
-                
+                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * (spec != 0)
+
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
             )
@@ -403,7 +407,7 @@ class Extract:
         else:
 
             fib_table = get_fibers_table(
-                self.shot, coord, survey=self.survey, radius=radius
+                self.shot, coord, survey=self.survey, radius=radius*u.arcsec,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
@@ -414,10 +418,10 @@ class Extract:
             ra = fib_table["ra"]
             dec = fib_table["dec"]
             if ffsky:
-                spec = fib_table["spec_fullsky_sub"]
+                spec = fib_table["spec_fullsky_sub"] / 2.0
             else:
-                spec = fib_table["calfib"]
-            spece = fib_table["calfibe"]
+                spec = fib_table["calfib"] / 2.0
+            spece = fib_table["calfibe"] / 2.0
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
@@ -458,8 +462,12 @@ class Extract:
             Object ID from the original catalog of the stars (e.g., SDSS)
         """
         if not hasattr(self, "shoth5"):
-            self.log.warning("Please do load_shot to get star catalog params.")
-            return None
+            pass
+        else:
+            self.shoth5 = open_shot_file(self.shot, survey=survey)
+        
+            #self.log.warning("Please do load_shot to get star catalog params.")
+            #return None
 
         ras = self.shoth5.root.Astrometry.StarCatalog.cols.ra_cat[:]
         decs = self.shoth5.root.Astrometry.StarCatalog.cols.dec_cat[:]
@@ -608,9 +616,61 @@ class Extract:
         yl, yh = (0.0 - boxsize / 2.0, 0.0 + boxsize / 2.0 + scale)
         x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
         xgrid, ygrid = np.meshgrid(x, y)
-        zarray = np.array([M(xgrid, ygrid), xgrid, ygrid])
+
+        Z = self.moffat_psf_integration(xgrid.ravel(), ygrid.ravel(),
+                                        seeing,
+                                        boxsize=boxsize+1.5,
+                                        alpha=alpha)
+        Z = np.reshape(Z, xgrid.shape)
+
+        zarray = np.array([Z, xgrid, ygrid])
         zarray[0] /= zarray[0].sum()
+       
         return zarray
+
+        
+    def moffat_psf_integration(self, xloc, yloc, seeing, boxsize=14.,
+                               scale=0.1, alpha=3.5):
+        '''
+        Based on Remedy extract.py code from G. Zeimann
+        https://github.com/grzeimann/Remedy/blob/master/extract.py
+        Moffat PSF profile image
+        
+        Parameters
+        ----------
+        seeing: float
+            FWHM of the Moffat profile
+        boxsize: float
+            Size of image on a side for Moffat profile
+        scale: float
+            Pixel scale for image
+        alpha: float
+            Power index in Moffat profile function
+        
+        Returns
+        -------
+        zarray: numpy 3d array
+            An array with length 3 for the first axis: PSF image, xgrid, ygrid
+        '''
+        M = Moffat2D()
+        M.alpha.value = alpha
+        M.gamma.value = 0.5 * seeing / np.sqrt(2**(1./ M.alpha.value) - 1.)
+        xl, xh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        yl, yh = (0. - boxsize / 2., 0. + boxsize / 2. + scale)
+        x, y = (np.arange(xl, xh, scale), np.arange(yl, yh, scale))
+        xgrid, ygrid = np.meshgrid(x, y)
+        Z = M(xgrid, ygrid)
+        Z = Z / Z.sum()
+        V = xloc * 0.
+        cnt = 0
+        for xl, yl in zip(xloc, yloc):
+            d = np.sqrt((xgrid-xl)**2 + (ygrid-yl)**2)
+            sel = d <= 0.75
+            adj = np.pi * 0.75**2 / (sel.sum() * scale**2)
+            V[cnt] = np.sum(Z[sel]) * adj
+            cnt += 1
+        return V
+
 
     def model_psf(
         self,
@@ -1108,7 +1168,8 @@ class Extract:
         # Only use wavelengths with enough weight to avoid large noise spikes
         if remove_low_weights:
             w = np.sum(mask * weights ** 2, axis=0)
-            sel = w < np.median(w) * 0.1
+            #sel = w < np.median(w) * 0.1
+            sel = w < 0.05
             spectrum[sel] = np.nan
             spectrum_error[sel] = np.nan
 

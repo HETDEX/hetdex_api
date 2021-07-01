@@ -867,7 +867,8 @@ class Detections:
             data["spec1d_err"] /= flux_corr
 
         if deredden:
-            coords = self.coords[ self.detectid == detectid_i]
+            det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
+            coords = SkyCoord(ra = det_row['ra'][0], dec=det_row['dec'][0], unit='deg')
             deredden_corr = deredden_spectra(data["wave1d"], coords)
             data["spec1d"] *= deredden_corr
             data["spec1d_err"] *= deredden_corr
@@ -1035,6 +1036,7 @@ class Detections:
         else:
             ascii.write(spec_data, "spec_" + str(detectid_i) + ".dat", overwrite=True)
 
+            
     def plot_spectrum(self, detectid_i, xlim=None, ylim=None):
         spec_data = self.get_spectrum(detectid_i)
         plt.figure(figsize=(8, 6))

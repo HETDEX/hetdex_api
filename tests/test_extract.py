@@ -21,12 +21,12 @@ def extract_class():
 
 @pytest.mark.parametrize("single", [True, False])
 @pytest.mark.parametrize("fwhm, ra, dec, exptd_sum, exptd_1, exptd_2", 
-                         [(1.1, 163.353, 51.6549, 950.0812383206099, 
-                           0.037616255398805365, 0.09509532139159248),
-                          (2.5, 163.400, 51.8978, 910.8985995435256,
-                           2.7117054674636605, 7.310208323356028),
-                          (3.0, 163.367, 51.647, 852.6199603368874,
-                           0.8423417542640232, 1.6824348505231255)])
+                         [(1.1, 163.353, 51.6549, 980.1408432285158, 
+                           0.046918763050191784, 0.12593912864041298),
+                          (2.5, 163.400, 51.8978, 904.9176245728158,
+                           2.902759511273673, 7.352106179003551),
+                          (3.0, 163.367, 51.647, 844.7713064758907,
+                           0.8965918928480822, 1.7689201400288936)])
  
 def test_build_weights(fwhm, ra, dec, exptd_sum, exptd_1, exptd_2, 
                        extract_class, single):
@@ -47,6 +47,7 @@ def test_build_weights(fwhm, ra, dec, exptd_sum, exptd_1, exptd_2,
                                radius=3.5,
                                ffsky=False,
                                return_fiber_info=True,
+                               fiber_lower_limit = 7
                                )
         ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                    multiframe = info_result
@@ -57,6 +58,7 @@ def test_build_weights(fwhm, ra, dec, exptd_sum, exptd_1, exptd_2,
                                radius=3.5,
                                ffsky=False,
                                return_fiber_info=True,
+                               fiber_lower_limit = 7
                                )
         id_, seps, aifux, aifuy, axc, ayc, ara, adec, adata, aerror, amask, afiberid, \
                    multiframe = info_result
@@ -72,5 +74,3 @@ def test_build_weights(fwhm, ra, dec, exptd_sum, exptd_1, exptd_2,
     assert pytest.approx(weights[5, 167]*100, rel=1e-5) == exptd_1
     assert pytest.approx(weights[2, 801]*100, rel=1e-5) == exptd_2
     assert pytest.approx(sum(weights.ravel()), rel=1e-5) == exptd_sum
-
-

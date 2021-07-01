@@ -150,7 +150,7 @@ class Fibers:
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
-    def query_region(self, coords, radius=3.0 / 3600.0):
+    def query_region(self, coords, radius=3.5*u.arcsec):
         """
         Returns an indexed fiber table for a defined aperture.
 
@@ -160,11 +160,13 @@ class Fibers:
             Fibers class object
         coords
             astropy coordinate object
-        radius
-            radius in degrees
+        radius 
+            astropy quantity. If no quantity given, assume arcsec
         """
-
-        idx = coords.separation(self.coords) < radius * u.degree
+        try:
+            idx = coords.separation(self.coords) < radius
+        except:
+            idx = coords.separation(self.coords) < radius * u.arcsec
 
         return self.table[idx]
 
@@ -181,6 +183,7 @@ class Fibers:
             idx = coords.separation(self.coords) < radius
         except:
             idx = coords.separation(self.coords) < radius * u.arcsec
+
         return np.where(idx)[0]
 
     def get_closest_fiber(self, coords, exp=None):
@@ -445,7 +448,7 @@ def get_fibers_table(
     """
 
     fileh = open_shot_file(shot, survey=survey.lower())
-    fibers = fileh.root.Data.Fibers
+
     try:
         ra_in = coords.ra.degree
         dec_in = coords.dec.degree
@@ -463,7 +466,7 @@ def get_fibers_table(
     if survey == "hdr1":
         # search first along ra
 
-        ra_table = fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+        ra_table = fileh.root.Data.Fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
 
         if any(ra_table):
             coords_table = SkyCoord(
@@ -483,10 +486,11 @@ def get_fibers_table(
 
     else:
 
-        # use FiberIndex table to find fiber_ids
+        # use Fibers table to find fiber_ids
         fiberindex = Fibers(shot, survey=survey)
-        fibers_table = fiberindex.query_region(coords, radius=rad_in.value)
 
+        fibers_table = fiberindex.query_region(coords, radius=rad_in)
+        
         if np.size(fibers_table) > 0:
             if astropy:
                 fibers_table = Table(fibers_table)
