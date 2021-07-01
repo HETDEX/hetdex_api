@@ -335,9 +335,9 @@ class MCMC_Gauss:
             with warnings.catch_warnings(): #ignore the occassional warnings from the walkers (NaNs, etc that reject step)
                 warnings.simplefilter("ignore")
                 self.log.debug("MCMC burn in (%d) ...." %self.burn_in)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in,skip_initial_state_check=False)  # burn in
+                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in)#,skip_initial_state_check=False)  # burn in
                 self.log.debug("MCMC main run (%d) ..." %self.main_run)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run, rstate0=state,skip_initial_state_check=False)  # start from end position of burn-in
+                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run, rstate0=state)#,skip_initial_state_check=False)  # start from end position of burn-in
 
             self.samples = self.sampler.flatchain  # collapse the walkers and interations (aka steps or epochs)
 
