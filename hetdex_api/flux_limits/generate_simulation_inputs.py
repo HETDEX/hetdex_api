@@ -149,7 +149,7 @@ def generate_sencube_hdf(datevshot, ra, dec, pa, fplane_output_dir,
     return hdfcont
 
 def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize, 
-                                        wrange=[3470.0, 5542.0]): 
+                                        wrange=[3470.0, 5542.0], **kwargs): 
     """
     Return an (empty) sensitivity cube object to fill
     with data from simulations later
@@ -167,6 +167,8 @@ def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize,
     wrange : array (optional)
         the lower and upper wavelength
         limits in Angstrom
+    ***kwargs : 
+        arguments to pass to SensitivityCube
     """
 
     cards = {}
@@ -208,8 +210,8 @@ def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize,
     sigmas = zeros((nz, ny, nx))
     alphas = zeros((nz, ny, nx))
 
-    return SensitivityCube(sigmas, header, None, alphas, aper_corr=1.0, nsigma=1.0)
-
+    return SensitivityCube(sigmas, header, None, alphas, aper_corr=1.0, 
+                           nsigma=1.0, **kwargs)
 
 
 def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000, 
@@ -415,11 +417,9 @@ def split_into_ifus(table, unique_fields, unique_ifus, outdir,
                ifu = fplane.by_id(ifuslot[-3:], "ifuslot")               
                
 
+               fn2 = "{:03d}_{:s}_{:s}".format(ifu.specid, ifu.ifuslot, ifu.ifuid)
                if isplit + nsplit_start > 0: 
-                   fn2 = ifuslot + "_{:d}".format(isplit + nsplit_start)
-               else:
-                   # ingestion script compatible fn
-                   fn2 = "{:03d}_{:s}_{:s}".format(ifu.specid, ifu.ifuslot, ifu.ifuid)
+                   fn2 = fn2 + "_{:d}".format(isplit + nsplit_start)
 
                outfn = join(outdir, "{:s}_{:s}.input".format(field, fn2))
                savetxt(outfn, transpose([ttable["ra"], ttable["dec"],

@@ -28,16 +28,16 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
-                   repeat, newaxis, logical_not, arange, tile)
+                   repeat, newaxis, logical_not, arange, tile, nan, dstack)
 from numpy.ma import filled
 from numpy.ma import array as maskedarray
 from numpy.random import normal
 from numpy import any as nany
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, RegularGridInterpolator
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-from hetdex_api.flux_limits import flim_models, flim_model_cache
+from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 from hetdex_api.config import HDRconfig
 
 class WavelengthException(Exception):
@@ -131,8 +131,8 @@ class SensitivityCube(object):
         cubes it's 6 sigma) specify it here
     flim_model : str
         the name of the flux limit model 
-        to use. This can either be 'hdr1',
-        'hdr2pt1', hdr2pt1pt1'
+        to use. If None then use the latest
+        (default)
     mask : array (optional)
         a spatial ra, dec mask with the same
         WCS and dimensions as the data (default:
@@ -164,11 +164,8 @@ class SensitivityCube(object):
 
     """
     def __init__(self, sigmas, header, wavelengths, alphas, aper_corr=1.0, 
-                 nsigma=1.0, flim_model="hdr2pt1pt3", mask=None, 
-                 cache_sim_interp = True): 
-
-        # Note: flux limit model is also passed here by the HDF5 container class
-        #print("Flux limit model: ", flim_model) 
+                 nsigma=1.0, flim_model=None, mask=None, 
+                 cache_sim_interp = True, verbose = False): 
 
         if type(mask) != type(None):
             mask = logical_not(mask)
@@ -182,24 +179,21 @@ class SensitivityCube(object):
 
         self.nsigma = nsigma
 
-        # Decide between Fleming function or interpolation
-        if (flim_model == "hdr1") or (flim_model == "hdr2pt1"):
-            self.sinterp = None	
-        elif flim_model_cache.cached_model == flim_model and cache_sim_interp:
-            self.sinterp = flim_model_cache.cached_sim_interp
-        else:
-            conf = HDRconfig()
-            fdir = conf.flim_sim_completeness 
-            if "snbased" in flim_model:
-                print("Using S/N based model!") 
-                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=True)
-            else:
-                self.sinterp = flim_models.SimulationInterpolator(fdir, snmode=False)
+        # Grab the flux limit model
+        self.f50_from_noise, self.sinterp, interp_sigmas \
+                                       = return_flux_limit_model(flim_model, 
+                                                                 cache_sim_interp=cache_sim_interp,
+                                                                 verbose = verbose)
 
-        # cache the model to save reinitialising the object
-        if cache_sim_interp: 
-            flim_model_cache.cached_sim_interp = self.sinterp
-            flim_model_cache.cached_model = flim_model 
+        self.sigma_interpolate = None
+        if interp_sigmas:
+            indicesz = arange(self.sigmas.shape[0])
+            indicesy = arange(self.sigmas.shape[1])
+            indicesx = arange(self.sigmas.shape[2])
+
+            self.sigma_interpolate = RegularGridInterpolator((indicesz, indicesy, indicesx),
+                                                              self.sigmas.filled(fill_value=nan),
+                                                              fill_value = 999)
 
         # Fix issue with header
         if not "CD3_3" in header:
@@ -236,18 +230,12 @@ class SensitivityCube(object):
             self.alpha_func = interp1d(wavelengths, alphas, 
                                        fill_value="extrapolate")
 
-        # Select flux limit model
-        try:
-            self.f50_from_noise = getattr(flim_models, "{:s}_f50_from_noise".format(flim_model)) 
-        except AttributeError as e:
-            print("Chosen flux limit model not found!")
-            raise e
-
 
     def get_alpha(self, ra, dec, lambda_):
         """
         Return the parameter controlling
         the slope of the Fleming+ (1995) function
+        (only used for the old flux limit models)
 
         """
 
@@ -345,7 +333,7 @@ class SensitivityCube(object):
             else: 
                 self.sigmas[iz, :, :] = rescale*self.sigmas[iz, :, :]  
 
-    def radecwltoxyz(self, ra, dec, lambda_):
+    def radecwltoxyz(self, ra, dec, lambda_, round_=True):
         """
         Convert ra, dec, wavelength position to
         x,y, z coordinate of cube
@@ -357,6 +345,9 @@ class SensitivityCube(object):
             declination of source
         lambda_ : array
             wavelength in Angstrom
+        round_ : bool
+            if true, round to nearest
+            integer (default is True)
 
         Returns
         -------
@@ -364,11 +355,16 @@ class SensitivityCube(object):
             indices of arrays for datacube
         """
 
+
         lambda_ = array(lambda_)
         ix,iy,iz = self.wcs.wcs_world2pix(ra, dec, lambda_, 0)
 
-        return array(around(ix), dtype=int), array(around(iy), dtype=int), \
-            array(around(iz), dtype=int)
+        if round_:
+            return array(around(ix), dtype=int), array(around(iy), dtype=int), \
+                array(around(iz), dtype=int)
+        else:
+            return array(ix), array(iy), array(iz)
+ 
 
     def get_average_f50(self, ra, dec, lambda_, sncut, npix=1):
         """
@@ -433,7 +429,7 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
+        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], lambda_, sncut)
 
         # Support arrays and floats
         f50s[bad_vals] = 999.0
@@ -448,7 +444,8 @@ class SensitivityCube(object):
 
     def get_collapsed_value(self, ra, dec):
 
-        ix, iy, iz = self.radecwltoxyz(ra, dec, 4500.)
+        ix, iy, iz = self.radecwltoxyz(ra, dec, 4500., 
+                                       round_=True)
 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
@@ -457,6 +454,7 @@ class SensitivityCube(object):
         ix[(ix >= self.sigmas.shape[2]) | (ix < 0)] = 0
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
 
+        # XXX not using interpolation
         noise = self.collapsed_data[iy, ix]
         noise[bad_vals] = 999.0
 
@@ -526,7 +524,7 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
+        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], lambda_, sncut)
 
         # Support arrays and floats
         f50s[bad_vals] = 999.0
@@ -561,8 +559,14 @@ class SensitivityCube(object):
 
         """
 
-        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+        if self.sigma_interpolate:
+            round_ = False
+        else:
+            round_ = True
 
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_,
+                                       round_ = round_)
+ 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
         bad_vals = bad_vals | (iy >= self.sigmas.shape[1]) | (iy < 0) 
@@ -572,7 +576,13 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
-        f50s = self.f50_from_noise(self.sigmas.filled()[iz, iy, ix], sncut)
+        if self.sigma_interpolate:
+            coords = dstack((iz, iy, ix))[0]
+            noise = self.sigma_interpolate(coords)
+        else:
+            noise = self.sigmas.filled()[iz, iy, ix]
+
+        f50s = self.f50_from_noise(noise, lambda_, sncut)
 
         # Support arrays and floats
         try:
@@ -604,7 +614,8 @@ class SensitivityCube(object):
 
 
         """
-        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_)
+        ix, iy, iz = self.radecwltoxyz(ra, dec, lambda_,
+                                       round_ = True)
 
         # Check for stuff outside of cube
         bad_vals = (ix >= self.sigmas.shape[2]) | (ix < 0) 
@@ -615,6 +626,8 @@ class SensitivityCube(object):
         iy[(iy >= self.sigmas.shape[1]) | (iy < 0)] = 0
         iz[(iz >= self.sigmas.shape[0]) | (iz < 0)] = 0
 
+
+        # HERE
         noise = self.sigmas.filled()[iz, iy, ix]
         snr = flux/noise
 
@@ -773,7 +786,7 @@ class SensitivityCube(object):
             else:
                 return []
 
-        f50s = self.f50_from_noise(noise, sncut)
+        f50s = self.f50_from_noise(noise, waves, sncut)
 
         if type(self.sinterp) == type(None):
             if len(self.alphas.shape) > 1:
@@ -841,8 +854,9 @@ class SensitivityCube(object):
         ix, iy, izhigh = self.radecwltoxyz(self.wcs.wcs.crval[0], self.wcs.wcs.crval[1], lambda_high)
         noise = self.sigmas.filled()[izlo:(izhigh + 1), :, :]
         noise = noise[(noise < noise_cut) & (noise > 0)]
-  
-        f50 = self.f50_from_noise(median(noise), sncut)
+ 
+        wl_mid =  0.5*(lambda_low +  lambda_high)
+        f50 = self.f50_from_noise(median(noise), wl_mid, sncut)
 
         return f50
 

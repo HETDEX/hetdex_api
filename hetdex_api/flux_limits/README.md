@@ -6,12 +6,38 @@ The flux limits in HETDEX are stored in ra, dec, wavelength datacubes ("sensitiv
 value stored is the inverse of the PSF weighted 1-sigma noise, which can be used to
 compute flux limits. This is how we can store the flux limit as a function of position and wavelength.
 
-To characterise the fraction of sources detected as a function of flux, a parameterisation
-from [Fleming et al 1995](http://adsabs.harvard.edu/abs/1995AJ....109.1044F) is used. One input
-to this paramterisation are the flux limits stored in the datacubes. The second and
-final parameter in this function controls how quickly the detection rate falls off with 
-flux. This is currently set to a fixed value, calibrated from simulations.
 
+## The old, deprecated flux limit models
+
+In the old, deprecated models (hdr1, hdr2pt1), to characterise the fraction of sources detected as a function 
+of flux, a parameterisation from [Fleming et al 1995](http://adsabs.harvard.edu/abs/1995AJ....109.1044F) is used. 
+One input to this parameterisation are the flux limits stored in the datacubes. The second and final parameter 
+in this function controls how quickly the detection rate falls off with flux. This was set to a fixed 
+value, calibrated from simulations. This wasn't used in the end as we developed a more sophisticated method.
+
+## The new flux limit models
+
+The new models store the wavelength dependent shape of the completeness versus flux for different S/N cuts 
+in a series of files. The existing models and a description of them is given below. The "Curve Version" column gives
+different versions of the completeness versus flux files (the `sn.use` files). These `sn.use` files also contain 50% 
+completeness values, which some models use to derive the scaling between noise in the sensitivity cubes and 
+the flux at 50% completeness. This scaling is needed to rescale the curves from the `sn.use` files as a function
+of position and wavelength. Most users should just use the latest version that's usable for the data release 
+they are using, the "Notes" column is mainly for the reference of the developers.
+
+| Model Name | Curve Version | Data releases       | Noise to 50% flux scaling                      |   Notes                         | 
+| ---------- | ------------- | --------------------| ---------------------------------------------- | -------------------             | 
+| hdr2pt1pt1 |       v1      |      2.1.1-onwards  | `cal_on_karl_results.py` run on curves v0      | Near identical results to v1 for S/N < 6 or so  |
+| hdr2pt1pt3 |       v1      |      2.1.1-onwards  | `cal_on_karl_results.py` run on curves v1      |                                 |
+|    v1      |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | Doesn't interpolate `sn.use` if completeness in lower bin is zero |
+|    v1.1    |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | v1 with interpolated sens. cubes |
+
+These are the different flux versus completeness curve versions (the `sn.use` files)
+
+| Curve Version | Notes                                           |
+| ------------- | ----------------------------------------------  |
+|      v0       | check.f bug didn't apply cuts to sims properly  |
+|      v1       | check.f bug fixed                               |
 
 ## Command line tools
 
