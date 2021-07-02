@@ -293,9 +293,9 @@ class MCMC_Gauss:
         try:
             ####################################################################################################
             # This is an alternate way to control the jitter in the initial positions,
-            # Set the boolean below to True to use this vs. the original method (smaller, normal distro jitter)
+            # Set the boolean below to False to use this vs. the original method (smaller, normal distro jitter)
             ####################################################################################################
-            if False:
+            if True:
                 ip_mu = initial_pos[0] + np.random.uniform(-1.0*(self.data_x[1]-self.data_x[0]),1.0*(self.data_x[1]-self.data_x[0]),self.walkers)
                 #sigma cannot go zero or below
                 ip_sigma = initial_pos[1] + np.random.uniform(-0.5*self.initial_sigma,0.5*self.initial_sigma,self.walkers)
@@ -313,6 +313,7 @@ class MCMC_Gauss:
             else:
                 ##############################################################################################
                 # OTHERWISE, keep the block below
+                # this is generally for older emcee (version < 3)
                 #############################################################################################
 
                 #mostly for the A (area)
@@ -324,7 +325,7 @@ class MCMC_Gauss:
                     max_pos = [np.inf, np.inf,np.inf,max(self.data_y), np.inf] #must be less than this
                     min_pos = [   0.0,  0.01,   0.01,         -np.inf,-np.inf] #must be greater than this
 
-                scale = np.array([10.,5.,2.0*self.initial_A,5.0*self.initial_y,0.0]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
+                scale = np.array([10.,5.,2.0*self.initial_A,5.0*self.initial_y,1]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
                 pos = [np.minimum(np.maximum(initial_pos + scale * np.random.uniform(-1,1,ndim),min_pos),max_pos) for i in range(self.walkers)]
 
             #build the sampler
@@ -338,7 +339,7 @@ class MCMC_Gauss:
                 #the skip_initial_state_check seems to be necessary now with newere emcee versions
                 #it does not like setting the initial lnf positions to all zero
                 #but the parameter coverage is good. If you are worried, switch the pos jitter boolean in the
-                # if False/else block just above
+                # if True/else block just above
                 pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in, skip_initial_state_check=True)  # burn in
                 self.log.debug("MCMC main run (%d) ..." %self.main_run)
                 pos, prob, state = self.sampler.run_mcmc(pos, self.main_run,rstate0=state,skip_initial_state_check=True)  # start from end position of burn-in
