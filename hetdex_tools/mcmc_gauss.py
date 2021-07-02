@@ -287,45 +287,45 @@ class MCMC_Gauss:
         #mu, sigma, A, y, ln_f = theta #note f or ln(f) is another uncertainty ...an underestimation of the variance
         #                               by some factor (f) .... e.g. variance = variance + f * model
         initial_pos = [self.initial_mu,self.initial_sigma,self.initial_A,self.initial_y,0.0]
-
+        ndim = len(initial_pos)
         #even with the random nudging the pos values must be greater than (or less than for absorption) these values
 
-        #mostly for the A (area)
-        if self.initial_A < 0: #absorber
-            max_pos = [np.inf, np.inf,     0.0, max(self.data_y),  np.inf]
-            min_pos = [   0.0,   0.01, -np.inf,          -np.inf, -np.inf]
-        else:
-            #here, because of the max check, none mu, sigma, or A will be negative
-            max_pos = [np.inf, np.inf,np.inf,max(self.data_y), np.inf] #must be less than this
-            min_pos = [   0.0,  0.01,   0.01,         -np.inf,-np.inf] #must be greater than this
-
-        ndim = len(initial_pos)
-        scale = np.array([10.,5.,2.0*self.initial_A,5.0*self.initial_y,0.01]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
-
         try:
-            ##############################################################################
+            ####################################################################################################
             # This is an alternate way to control the jitter in the initial positions,
-            # can uncomment this block if the jitter is not sufficient
-            ##############################################################################
-            # ip_mu = initial_pos[0] + np.random.uniform(-1.0*(self.data_x[1]-self.data_x[0]),1.0*(self.data_x[1]-self.data_x[0]),self.walkers)
-            # #sigma cannot go zero or below
-            # ip_sigma = initial_pos[1] + np.random.uniform(-0.5*self.initial_sigma,0.5*self.initial_sigma,self.walkers)
-            # #area cannot flip signs
-            # ip_A = initial_pos[2] +  np.random.uniform(0,1.0*self.initial_A,self.walkers)
-            # #y should not exceed min/max data value, but won't cause and error if it does
-            # # ... should technically never be negative regardless of absorption or emission
-            # ip_y = np.random.uniform(0,max(self.data_y),self.walkers)
-            # ip_lnf = np.zeros(self.walkers) #np.random.uniform(0.005,0.015,self.walkers) #np.zeros(self.walkers)
-            #
-            # #for p in pos: #just a debug check
-            # #  print(f"{p[0]:0.4g},{p[1]:0.4g},{p[2]:0.4g},{p[3]:0.4g},{p[4]:0.4g}")
+            # Set the boolean below to True to use this vs. the original method (smaller, normal distro jitter)
+            ####################################################################################################
+            if False:
+                ip_mu = initial_pos[0] + np.random.uniform(-1.0*(self.data_x[1]-self.data_x[0]),1.0*(self.data_x[1]-self.data_x[0]),self.walkers)
+                #sigma cannot go zero or below
+                ip_sigma = initial_pos[1] + np.random.uniform(-0.5*self.initial_sigma,0.5*self.initial_sigma,self.walkers)
+                #area cannot flip signs
+                ip_A = initial_pos[2] +  np.random.uniform(0,1.0*self.initial_A,self.walkers)
+                #y should not exceed min/max data value, but won't cause and error if it does
+                # ... should technically never be negative regardless of absorption or emission
+                ip_y = np.random.uniform(0,max(self.data_y),self.walkers)
+                ip_lnf = np.random.uniform(0.005,0.015,self.walkers) #np.zeros(self.walkers) #np.random.uniform(0.005,0.015,self.walkers) #np.zeros(self.walkers)
 
-            ##############################################################################
-            # OTHERWISE, keep the line below
-            #
-            ##############################################################################
+                pos = np.column_stack((ip_mu,ip_sigma,ip_A,ip_y,ip_lnf))
 
-            pos = [np.minimum(np.maximum(initial_pos + scale * np.random.uniform(-1,1,ndim),min_pos),max_pos) for i in range(self.walkers)]
+                # #for p in pos: #just a debug check
+                # #  print(f"{p[0]:0.4g},{p[1]:0.4g},{p[2]:0.4g},{p[3]:0.4g},{p[4]:0.4g}")
+            else:
+                ##############################################################################################
+                # OTHERWISE, keep the block below
+                #############################################################################################
+
+                #mostly for the A (area)
+                if self.initial_A < 0: #absorber
+                    max_pos = [np.inf, np.inf,     0.0, max(self.data_y),  np.inf]
+                    min_pos = [   0.0,   0.01, -np.inf,          -np.inf, -np.inf]
+                else:
+                    #here, because of the max check, none mu, sigma, or A will be negative
+                    max_pos = [np.inf, np.inf,np.inf,max(self.data_y), np.inf] #must be less than this
+                    min_pos = [   0.0,  0.01,   0.01,         -np.inf,-np.inf] #must be greater than this
+
+                scale = np.array([10.,5.,2.0*self.initial_A,5.0*self.initial_y,0.0]) #don't nudge ln_f ...note ln_f = -4.5 --> f ~ 0.01
+                pos = [np.minimum(np.maximum(initial_pos + scale * np.random.uniform(-1,1,ndim),min_pos),max_pos) for i in range(self.walkers)]
 
             #build the sampler
             self.sampler = emcee.EnsembleSampler(self.walkers, ndim, self.lnprob,
@@ -335,9 +335,13 @@ class MCMC_Gauss:
             with warnings.catch_warnings(): #ignore the occassional warnings from the walkers (NaNs, etc that reject step)
                 warnings.simplefilter("ignore")
                 self.log.debug("MCMC burn in (%d) ...." %self.burn_in)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in)#,skip_initial_state_check=False)  # burn in
+                #the skip_initial_state_check seems to be necessary now with newere emcee versions
+                #it does not like setting the initial lnf positions to all zero
+                #but the parameter coverage is good. If you are worried, switch the pos jitter boolean in the
+                # if False/else block just above
+                pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in, skip_initial_state_check=True)  # burn in
                 self.log.debug("MCMC main run (%d) ..." %self.main_run)
-                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run, rstate0=state)#,skip_initial_state_check=False)  # start from end position of burn-in
+                pos, prob, state = self.sampler.run_mcmc(pos, self.main_run,rstate0=state,skip_initial_state_check=True)  # start from end position of burn-in
 
             self.samples = self.sampler.flatchain  # collapse the walkers and interations (aka steps or epochs)
 
