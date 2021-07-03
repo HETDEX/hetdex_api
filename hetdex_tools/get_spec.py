@@ -355,7 +355,13 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 result = E.get_spectrum(data, error, mask, weights)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
+
+                # apply aperture correction
+                spectrum_aper /= norm
+                spectrum_aper_error /= norm
                 
+                weights *= norm[np.newaxis, :]
+                                                                
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     
