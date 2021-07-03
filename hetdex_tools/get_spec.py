@@ -349,8 +349,11 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID)
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
- 
+                                            
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+                # added by EMC 20210609
+                norm = np.sum(weights, axis=0)
+                weights = weights / norm[np.newaxis, :]
 
                 result = E.get_spectrum(data, error, mask, weights)
 
@@ -359,7 +362,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 # apply aperture correction
                 spectrum_aper /= norm
                 spectrum_aper_error /= norm
-                
+               
                 weights *= norm[np.newaxis, :]
                                                                 
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
