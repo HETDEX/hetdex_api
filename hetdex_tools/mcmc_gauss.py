@@ -273,8 +273,11 @@ class MCMC_Gauss:
             self.data_x = copy.copy(self.data_x)[~data_nans]
             self.err_x = copy.copy(self.err_x)[~data_nans]
             #and clean up any other nan's in the error array for y
-            err_nans = np.isnan(self.err_y)
-            self.err_y[err_nans] = np.nanmax(self.err_y*10)
+            try:
+                err_nans = np.isnan(self.err_y)
+                self.err_y[err_nans] = np.nanmax(self.err_y*10)
+            except:
+                self.err_y[err_nans] = 9e9 #just set to a large value
 
         if not self.sanity_check_init():
             self.log.info("Sanity check failed. Cannot conduct MCMC.")
