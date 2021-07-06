@@ -364,20 +364,33 @@ class MCMC_Gauss:
                 map(lambda v: (v[1], v[2] - v[1], v[1] - v[0]),zip(*np.percentile(self.samples, UncertaintyRange,axis=0)))
 
             try: #basic info used by multiple SNR calculations
-                bin_width = self.data_x[1] - self.data_x[0]
-                left,*_ = getnearpos(self.data_x,self.mcmc_mu[0]-self.mcmc_sigma[0]*SNR_SIGMA_WIDTH)
-                right,*_ = getnearpos(self.data_x,self.mcmc_mu[0]+self.mcmc_sigma[0]*SNR_SIGMA_WIDTH)
+                #bin_width = self.data_x[1] - self.data_x[0]
+                #2.1195 = 1.8AA * 2.355 / 2.0  ... the instrumental DEX (1.8AA)
+                delta_wave = max(self.mcmc_sigma[0]*SNR_SIGMA_WIDTH,2.1195)  #must be at least +/- 2.1195AA
+                #!!! Notice: if we ever change this to +/- 1sigma, need to switch out to sum over the data
+                #instead of the model !!!
+                left,*_ = getnearpos(self.data_x,self.mcmc_mu[0]-delta_wave)
+                right,*_ = getnearpos(self.data_x,self.mcmc_mu[0]+delta_wave)
+
+                if self.data_x[left] - (self.mcmc_mu[0]-delta_wave) < 0:
+                    left += 1 #less than 50% overlap in the left bin, so move one bin to the red
+                if self.data_x[right] - (self.mcmc_mu[0]+delta_wave) > 0:
+                    right -=1 #less than 50% overlap in the right bin, so move one bin to the blue
+
+                #lastly ... could combine, but this is easier to read
+                right += 1 #since the right index is not included in slice
 
                 #at 4 sigma the mcmc_A[0] is almost identical to the model_fit (as you would expect)
                 #note: if choose to sum over model fit, remember that this is usually over 2AA wide bins, so to
                 #compare to the error data, need to multiply the model_sum by the bin width (2AA)
                 #(or noting that the Area == integrated flux x binwidth)
 
-                #model_fit = self.compute_model(self.data_x[left:right],self.mcmc_mu[0],self.mcmc_sigma[0],self.mcmc_A[0],self.mcmc_y[0])
+                model_fit = self.compute_model(self.data_x[left:right],self.mcmc_mu[0],self.mcmc_sigma[0],self.mcmc_A[0],self.mcmc_y[0])
                 data_err = copy.copy(self.err_y[left:right])
                 data_err[data_err<=0] = np.nan #Karl has 0 value meaning it is flagged and should be skipped
 
-                self.mcmc_snr = SNR_LINEFLUX_FRACTION*abs(self.mcmc_A[0]/bin_width) / np.sqrt(np.nansum(data_err**2))
+                #self.mcmc_snr = SNR_LINEFLUX_FRACTION*abs(self.mcmc_A[0]/bin_width) / np.sqrt(np.nansum(data_err**2))
+                self.mcmc_snr = abs(np.sum(model_fit-self.mcmc_y[0])) / np.sqrt(np.nansum(data_err**2))
                 self.mcmc_snr_err = abs(0.5*(self.mcmc_A[1]+self.mcmc_A[2])/self.mcmc_A[0] * self.mcmc_snr)
                 self.log.info(f"MCMC SNR model Area with data error: {self.mcmc_snr} +/- {self.mcmc_snr_err}")
 
