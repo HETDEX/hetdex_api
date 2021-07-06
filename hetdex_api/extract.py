@@ -217,10 +217,11 @@ class Extract:
         if fiber_lower_limit < 2:
             raise Exception("fiber_lower_limit must be greater than 2")
 
-
-        fibers_cat = {"name" : "fibers", "ra" : self.fibers.coords.ra.value, 
-                      "dec" : self.fibers.coords.dec.value, "error" : np.ones(len(self.fibers.coords))}
-
+        # remove NaN fibers
+        notnan = np.isfinite(self.fibers.coords.ra.value) & np.isfinite(self.fibers.coords.dec.value)
+        fibers_cat = {"name" : "fibers", "ra" : self.fibers.coords.ra.value[notnan], 
+                      "dec" : self.fibers.coords.dec.value[notnan], 
+                      "error" : np.ones(sum(notnan))}
 
         if len(coords) > nmax:
             if verbose:
@@ -235,6 +236,7 @@ class Extract:
             tcoords =  coords[i*nmax:(i+1)*nmax]
             cat1 = {"name" : "sources", "ra" : tcoords.ra.value, "dec" : tcoords.dec.value, 
                     "error" : np.ones(len(tcoords))}
+
             if verbose:
                 ttable, resultstable, separations, errors = _create_match_table([cat1, fibers_cat], radius, 
                                                                                NormalLogger())
