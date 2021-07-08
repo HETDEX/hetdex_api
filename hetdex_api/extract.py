@@ -14,8 +14,14 @@ from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
 from astropy import units as u
 from scipy.interpolate import griddata, LinearNDInterpolator
+
+# Need to do this to set backend to avoid crashes when
+# importing nway
+import matplotlib
+matplotlib.use("agg")
 from nwaylib import _create_match_table
 from nwaylib.logger import NormalLogger, NullOutputLogger
+
 from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
 
