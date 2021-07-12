@@ -45,6 +45,10 @@ survey: str
 tpmin: float
    Include only shots above tpmin. Default is None, we recommend
    0.08
+keep_bad_shots: bool
+   Set this to True if you want to include fibers from bad 
+   shots. This is dangerous as it can include fibers with
+   bad astrometry, bad calibration. Default is False.
 ffsky: bool
    Use the full frame 2D sky subtraction model. Default is
    to use the local sky subtracted, flux calibrated fibers.
@@ -727,6 +731,15 @@ def get_parser():
         required=False,
         action="store_true",
     )
+    
+    parser.add_argument(
+        "--keep_bad_shots",
+        "-keep_bad",
+        help="""Set to include fibers on bad shots. Use with caution!! Default is True""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
     parser.add_argument(
         "--fiber_info",
         "-fid",
@@ -834,8 +847,11 @@ def main(argv=None):
         args.coords = SkyCoord(args.ra, args.dec, unit=u.deg)
 
     S = Survey(args.survey)
-    
-    ind_good_shots = S.remove_shots()
+
+    if args.keep_bad_shots:
+        ind_good_shots = np.ones_like(S.shotid, dtype=bool)
+    else:
+        ind_good_shots = S.remove_shots()
 
     if args.tpmin:
         ind_tp = S.response_4540 > args.tpmin
@@ -911,6 +927,7 @@ def get_spectra(
     shotid=None,
     survey=LATEST_HDR_NAME,
     tpmin=0.08,
+    keep_bad_shots=False,
     ffsky=False,
     fiberweights=False,
     return_fiber_info=False,
@@ -959,6 +976,10 @@ def get_spectra(
     fiber_info: bool
         returns the fiber_info and weights of the fibers used
         in the extraction
+    keep_bad_shots: bool
+        Set this to True if you want to include fibers from bad
+        shots. This is dangerous as it can include fibers with
+        bad astrometry, bad calibration. Default is False.
     loglevel: str
         Level to set logging. Options are ERROR, WARNING, INFO,
         DEBUG. Defaults to WARNING
@@ -981,10 +1002,16 @@ def get_spectra(
     args.ffsky = ffsky
     args.fiberweights = fiberweights
     args.return_fiber_info = return_fiber_info
-    
-    S = Survey(survey)
-    ind_good_shots = S.remove_shots()
 
+    args.keep_bad_shots = keep_bad_shots
+
+    S = Survey(survey)
+
+    if args.keep_bad_shots:
+        ind_good_shots = np.ones_like(S.shotid, dtype=bool)
+    else:
+        ind_good_shots = S.remove_shots()
+        
     if tpmin:
         ind_tp = S.response_4540 > tpmin
         args.survey_class = S[ind_good_shots * ind_tp]
