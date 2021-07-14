@@ -319,7 +319,12 @@ class FiberIndex:
                 self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
             )
 
-    def query_region(self, coords, radius=3.0 * u.arcsec, shotid=None):
+    def query_region(self,
+                     coords,
+                     radius=3.0 * u.arcsec,
+                     shotid=None,
+                     return_index=False
+    ):
         """
         Function to retrieve the indexes of the FiberIndex table
         for a specific region
@@ -335,6 +340,9 @@ class FiberIndex:
             radius you want to search. An astropy quantity object
         shotid
             Specific shotid (dtype=int) you want
+        return_index
+            Option to return row index values for slicing. Default
+            is False
 
         Returns
         -------
@@ -365,10 +373,13 @@ class FiberIndex:
         )
 
         idx = coords.separation(fibcoords) < radius
-        
-        return seltab[idx]
 
-        
+        if return_index:
+            return idx, seltab[idx]
+        else:
+            return seltab[idx]
+
+            
     def get_fib_from_hp(self, hp, shotid=None, astropy=True):
 
         if astropy:
