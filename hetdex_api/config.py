@@ -118,6 +118,8 @@ class HDRconfig:
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr2.1"
             elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
                 self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
+            elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"):
+                self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"
             else:
                 self.bad_dir = (
                     "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
