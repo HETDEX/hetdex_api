@@ -15,9 +15,13 @@ import numpy as np
 import tables as tb
 import numpy
 import copy
+import time
 import astropy.units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table, vstack
+from astropy.table import Table, vstack, join
+from astropy import wcs
+
+from regions import EllipseSkyRegion, EllipsePixelRegion
 
 import healpy as hp
 from hetdex_api.config import HDRconfig
@@ -271,7 +275,7 @@ class Survey:
 
 
 class FiberIndex:
-    def __init__(self, survey=LATEST_HDR_NAME, loadall=False):
+    def __init__(self, survey=LATEST_HDR_NAME, load_fiber_table=False, loadall=False):
         """
         Initialize the Fiber class for a given data release
         
@@ -280,6 +284,9 @@ class FiberIndex:
         survey : string
             Data release you would like to load, i.e., 'hdr1','HDR2'
             This is case insensitive.
+        load_fiber_table : bool
+            Option to read in all fibers. This takes about a minute
+            and will use a lot of memory.
 
         Returns
         -------
@@ -296,6 +303,7 @@ class FiberIndex:
 
         self.filename = config.fiberindexh5
         self.hdfile = tb.open_file(self.filename, mode="r")
+        self.fiber_table = None
 
         if loadall:
             colnames = self.hdfile.root.FiberIndex.colnames
@@ -318,12 +326,16 @@ class FiberIndex:
             self.coords = SkyCoord(
                 self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
             )
+        if load_fiber_table:
+            self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
+            self.coords = SkyCoord(
+                self.fiber_table["ra"] * u.degree,
+                self.fiber_table["dec"] * u.degree,
+                frame="icrs",
+            )
 
-    def query_region(self,
-                     coords,
-                     radius=3.0 * u.arcsec,
-                     shotid=None,
-                     return_index=False
+    def query_region(
+        self, coords, radius=3.0 * u.arcsec, shotid=None, return_index=False
     ):
         """
         Function to retrieve the indexes of the FiberIndex table
@@ -340,13 +352,17 @@ class FiberIndex:
             radius you want to search. An astropy quantity object
         shotid
             Specific shotid (dtype=int) you want
-        return_index
+        return_index: bool
             Option to return row index values for slicing. Default
             is False
 
         Returns
         -------
-        An astropy table of Fiber infomation in queried aperture
+        table: astropy table
+            An astropy table of Fiber infomation in queried aperture
+        table_index: optional
+            an optional array of row coordinates corresponding to the
+            retrieved fiber table
         """
 
         Nside = 2 ** 15
@@ -361,12 +377,16 @@ class FiberIndex:
         pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
 
         seltab = Table()
+        table_index = []
         for hpix in pix_region:
             if shotid:
-                h_tab = self.get_fib_from_hp(hpix, shotid=shotid)
+                h_tab, h_tab_index = self.get_fib_from_hp(
+                    hpix, shotid=shotid, return_index=True
+                )
             else:
-                h_tab = self.get_fib_from_hp(hpix)
+                h_tab, h_tab_index = self.get_fib_from_hp(hpix, return_index=True)
             seltab = vstack([seltab, h_tab])
+            table_index.extend(h_tab_index)
 
         fibcoords = SkyCoord(
             seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
@@ -375,30 +395,58 @@ class FiberIndex:
         idx = coords.separation(fibcoords) < radius
 
         if return_index:
-            return idx, seltab[idx]
+            try:
+                return seltab[idx], np.array(table_index)[idx]
+            except TypeError:
+                return None, None
         else:
             return seltab[idx]
 
-            
-    def get_fib_from_hp(self, hp, shotid=None, astropy=True):
+    def get_fib_from_hp(self, hp, shotid=None, astropy=True, return_index=False):
+        """
+        Return rows with corresponding healpix value
+
+        Parameters
+        ----------
+        hp:int
+           healpix integer you want to search
+        shotid:int
+           optional shotid to search. Default is none.
+        astropy: bool
+           returned table is an astropy table object. Defaults to True.
+        return_index: bool
+           option to return fiber row index values for additional slicing
+
+        Returns
+        -------
+        table
+            table with fiber information including coordinates, healpix, fiber_id name
+            and more
+        table_index
+            row indices to access h5 table coordinates
+        """
+
+        if shotid is None:
+            tab_idx = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
+        else:
+            tab_idx = self.hdfile.root.FiberIndex.get_where_list(
+                "(healpix == hp) & (shotid== sid)"
+            )
+
+        tab = self.hdfile.root.FiberIndex.read_coordinates(tab_idx)
 
         if astropy:
-
-            tab= Table(self.hdfile.root.FiberIndex.read_where("healpix == hp"))
-            
-            if shotid:
-                sel_shot = tab['shotid'] == shotid
-                return tab[sel_shot]
+            if return_index:
+                return Table(tab), tab_idx
+            else:
+                return Table(tab)
+        else:
+            if return_index:
+                return tab, tab_idx
             else:
                 return tab
-        else:
-            if shotid:
-                sid = shotid
-                return self.hdfile.root.FiberIndex.read_where("(healpix == hp) & (shoti d== sid)")
-            else:
-                return self.hdfile.root.FiberIndex.read_where("(healpix == hp)")
-                
-    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.*u.arcsec):
+
+    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.0 * u.arcsec):
         """
         Function to retrieve the closest fiberid in a shot
         
@@ -422,29 +470,243 @@ class FiberIndex:
         
         """
 
-        #start searching at small radius to search more efficiently
-        search = 2.*u.arcsec
+        # start searching at small radius to search more efficiently
+        search = 2.0 * u.arcsec
 
         while search <= maxdistance:
             fiber_table = self.query_region(coords, radius=search, shotid=shotid)
-            search = search + 4.*u.arcsec
+            search = search + 4.0 * u.arcsec
             if np.size(fiber_table) > 0:
                 break
 
         if np.size(fiber_table) > 0:
             fibcoords = SkyCoord(
-                fiber_table["ra"] * u.degree, fiber_table["dec"] * u.degree, frame="icrs"
+                fiber_table["ra"] * u.degree,
+                fiber_table["dec"] * u.degree,
+                frame="icrs",
             )
-            
+
             idx = np.argmin(coords.separation(fibcoords))
-            fiberid = fiber_table['fiber_id'][idx]
-        
-            return fiber_table['fiber_id'][idx]
+            fiberid = fiber_table["fiber_id"][idx]
+
+            return fiber_table["fiber_id"][idx]
         else:
             return None
+
+    def get_amp_flag(self):
+        """
+        Generate amp flag for each fiber in the survey
+        
+        Parameters
+        ----------
+        FiberIndex Class
+        
+        Returns
+        -------
+        fiber_id: str
+        unique fiber identifier string
+        amp_flag: bool
+        True if fiber is on a good quality amplifier
+        """
+        global config
+
+        print("Adding amplifier flags")
+        t0 = time.time()
+
+        badamps = Table.read(config.badamp)
+        self.fiber_table["row_index"] = np.arange(0, len(self.fiber_table))
+        join_tab = join(
+            self.fiber_table, badamps, keys=["shotid", "multiframe"], join_type="left"
+        )
+        join_tab.rename_column("flag", "amp_flag")
+        t1 = time.time()
+
+        join_tab.sort("row_index")
+
+        # quick check to make sure columns match
+        
+        for idx in np.random.random_integers(
+            0, high=len(self.hdfile.root.FiberIndex), size=5000
+        ):
+            if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
+                print("Something went wrong. fiber_id columns don't match")
+
+        print("Done adding amplifier flags in {:4.3} minutes".format((t1 - t0) / 60))
+
+        return np.array(join_tab["amp_flag"], dtype=bool)
+
+    def get_gal_flag(self, d25scale=3.0):
+        """
+        Returns boolean mask with detections landing within
+        galaxy defined by d25scale flagged as False.
+        
+        Based on check_all_large_gal from hetdex_tools/galmask.py
+        written by John Feldmeier
+        """
+
+        global config
+        t0 = time.time()
+
+        S = Survey()
+        galaxy_cat = Table.read(config.rc3cat, format="ascii")
+
+        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+        # Loop over each galaxy
+
+        for idx in np.arange(len(galaxy_cat)):
+            row = galaxy_cat[idx]
+            gal_coord = SkyCoord(row["Coords"], frame="icrs")
+            rlimit = 1.1 * d25scale * row["SemiMajorAxis"] * u.arcmin
+
+            shots = S.get_shotlist(gal_coord, radius=rlimit)
+            if len(shots) == 0:
+                continue
+            down_select = self.coords.separation(gal_coord) < rlimit
+            if np.any(down_select):
+
+                galregion = create_gal_ellipse(
+                    galaxy_cat, row_index=idx, d25scale=d25scale
+                )
+
+                dummy_wcs = create_dummy_wcs(
+                    galregion.center, imsize=2 * galregion.height
+                )
+                galflag = np.zeros(len(self.hdfile.root.FiberIndex), dtype=bool)
+                galflag[down_select] = galregion.contains(
+                    self.coords[down_select], dummy_wcs
+                )
+
+                mask = mask * np.invert(galflag)
+
+        t1 = time.time()
+        S.close()
+        print("Galaxy mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
+
+        return mask
+
+    def get_meteor_flag(self, streaksize=12.0 * u.arcsec):
+        """
+        Returns boolean mask with detections landing on meteor
+        streaks masked. Use np.invert(mask) to find meteors
+        """
+
+        t0 = time.time()
+        global config
+
+        S = Survey()
+        # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
+
+        met_tab = Table.read(config.meteor, format="ascii")
+
+        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+
+        for row in met_tab:
+            sel_shot = np.where(
+                (self.fiber_table["shotid"] == row["shotid"])
+                & (np.isfinite(self.fiber_table["ra"]))
+                & (np.isfinite(self.fiber_table["dec"]))
+            )[0]
+
+            if np.sum(sel_shot) > 0:
+                a = row["a"]
+                b = row["b"]
+
+                sel_shot_survey = S.shotid == row["shotid"]
+                shot_coords = S.coords[sel_shot_survey]
+
+                ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                dec_met = (a + ra_met.deg * b) * u.deg
+
+                met_coords = SkyCoord(ra=ra_met, dec=dec_met)
+
+                idxc, idxcatalog, d2d, d3d = met_coords.search_around_sky(
+                    self.coords[sel_shot], streaksize
+                )
+                mask_index = [sel_shot][0][idxc]
+                mask[mask_index] = False
+
+        S.close()
+        t1 = time.time()
+
+        print("Meteor mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
+        
+        return mask
 
     def close(self):
         """
         Close the hdfile when done
         """
         self.hdfile.close()
+
+
+def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
+    """
+    Similar to galmask.py/ellreg but can take a galaxy name as input.
+    
+    Create galaxy ellipse region using an input galaxy catalog_table (likely need
+    to change this API as it heavily follows the RC3 catalog format)
+    
+    Parameters
+    ----------
+    galaxy_catalog_table: an astropy table
+        table of nearby galaxy positions and sizes. Must have a central
+        coordinate and the SemiMajorAxis, SemiMinorAxis, Position Angle
+        info as table column names
+    row_index: int
+        a row index in the galaxy catalog to create the ellipse for
+    pgcname: str
+        the PGCNAME in the RC3 cat. This is a string. eg. "PGC 43255" for NGC 4707
+    d25scale: float
+        how many times D25 should to scale the region
+    """
+    if row_index is not None:
+        index = row_index
+    elif pgcname is not None:
+        index = np.where(galaxy_cat["PGC"] == pgcname)[0][0]
+
+    coords = SkyCoord(galaxy_cat["Coords"][index], frame="icrs")
+
+    # The ellipse region uses the major and minor axes, so we have to multiply by
+    # two first, before applying any user scaling.
+
+    major = (galaxy_cat["SemiMajorAxis"][index]) * d25scale * u.arcmin
+    minor = (galaxy_cat["SemiMinorAxis"][index]) * d25scale * u.arcmin
+    pa = (galaxy_cat["PositionAngle"][index]) * u.deg
+    ellipse_reg = EllipseSkyRegion(center=coords, height=major, width=minor, angle=pa)
+
+    return ellipse_reg
+
+
+def create_dummy_wcs(coords, pixscale=0.5 * u.arcsec, imsize=60.0 * u.arcmin):
+    """
+    Create a simple fake WCS in order to use the regions subroutine.
+    Adapted from John Feldmeiers galmask.py
+    
+    Parameters
+    ----------
+    coords: a SkyCoord object
+        center coordinates of WCS
+    pixscale: astropy quantity
+        pixel scale of WCS in astropy angle quantity units
+    imsize: astropy quantity
+        size of WCS in astropy angle quanity units
+    """
+
+    gridsize = imsize.to_value("arcsec")
+    gridstep = pixscale.to_value("arcsec")
+
+    # Create coordinate center
+    ra_cen = coords.ra.deg
+    dec_cen = coords.dec.deg
+
+    ndim = np.int(2 * gridsize / gridstep + 1)
+    center = ndim / 2
+    w = wcs.WCS(naxis=2)
+    w.wcs.crval = [ra_cen, dec_cen]
+    w.wcs.crpix = [center, center]
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+    w.wcs.cunit = ["deg", "deg"]
+    w.wcs.cdelt = [-gridstep / gridsize, gridstep / gridsize]
+    w.array_shape = [ndim, ndim]
+
+    return w
