@@ -304,7 +304,12 @@ class FiberIndex:
         self.filename = config.fiberindexh5
         self.hdfile = tb.open_file(self.filename, mode="r")
         self.fiber_table = None
-
+        try:
+            self.fibermaskh5 = tb.open_file(config.fibermaskh5, 'r')
+        except:
+            print('Could not find fiber mask file in {}'.format(config.fibermaskh5))
+            self.fibermaskh5 = None
+    
         if loadall:
             colnames = self.hdfile.root.FiberIndex.colnames
 
@@ -632,6 +637,49 @@ class FiberIndex:
         
         return mask
 
+        
+    def get_fiber_flags(self, coord=None, shotid=None):
+        """
+        Returns boolean mask values for a coord/shotid combo
+        
+        Parameters
+        ----------
+        coord: SkyCoord object
+            sky coordinates
+        shotid: int
+            shotid
+
+        Returns
+        -------
+        meteor_flag: bool
+            False if location is on meteor streak
+        gal_flag: bool
+            False if location is within a large galaxy
+        amp_flag: bool
+            False if location is on a bad quality amplifier
+        flag: bool
+            False if any of the above flags are False
+        """
+
+        if self.fibermaskh5 is None:
+            print('No fiber mask file found')
+            return None
+            
+        table, table_index = self.query_region(
+            coord, return_index=True, shotid=shotid)
+        mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(table_index))
+        
+        flag  = np.all(mask_table['flag'])
+        
+        meteor_flag = np.all(mask_table['meteor_flag'])
+        
+        gal_flag = np.all(mask_table['gal_flag'])
+        
+        amp_flag = np.all(mask_table['amp_flag'])
+
+        return meteor_flag, gal_flag, amp_flag, flag
+
+        
     def close(self):
         """
         Close the hdfile when done
