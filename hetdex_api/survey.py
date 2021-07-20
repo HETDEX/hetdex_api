@@ -430,7 +430,7 @@ class FiberIndex:
             tab_idx = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
         else:
             tab_idx = self.hdfile.root.FiberIndex.get_where_list(
-                "(healpix == hp) & (shotid== sid)"
+                "(healpix == hp) & (shotid== shotid)"
             )
 
         tab = self.hdfile.root.FiberIndex.read_coordinates(tab_idx)
