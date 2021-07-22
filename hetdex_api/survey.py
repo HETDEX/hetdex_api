@@ -18,7 +18,7 @@ import copy
 import time
 import astropy.units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table, vstack, join
+from astropy.table import Table, vstack, join, hstack
 from astropy import wcs
 
 from regions import EllipseSkyRegion, EllipsePixelRegion
@@ -340,7 +340,10 @@ class FiberIndex:
             )
 
     def query_region(
-        self, coords, radius=3.0 * u.arcsec, shotid=None, return_index=False
+        self, coords, radius=3.0 * u.arcsec,
+            shotid=None,
+            return_index=False,
+            return_flags=True
     ):
         """
         Function to retrieve the indexes of the FiberIndex table
@@ -360,6 +363,8 @@ class FiberIndex:
         return_index: bool
             Option to return row index values for slicing. Default
             is False
+        return_flags: bool
+            Option to return mask info. Default is True
 
         Returns
         -------
@@ -383,6 +388,7 @@ class FiberIndex:
 
         seltab = Table()
         table_index = []
+
         for hpix in pix_region:
             if shotid:
                 h_tab, h_tab_index = self.get_fib_from_hp(
@@ -399,13 +405,26 @@ class FiberIndex:
 
         idx = coords.separation(fibcoords) < radius
 
+        selected_index = np.array(table_index)[idx]
+
+        if return_flags:
+            if self.fibermaskh5 is None:
+                print('No fiber mask file found')
+            selected_index = np.array(table_index)[idx]
+
+            mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(selected_index))
+
+            fiber_table = hstack([seltab[idx], mask_table])
+        else:
+            fiber_table = seltab[idx]
+            
         if return_index:
             try:
-                return seltab[idx], np.array(table_index)[idx]
+                return fiber_table, selected_index
             except TypeError:
                 return None, None
         else:
-            return seltab[idx]
+            return fiber_table
 
     def get_fib_from_hp(self, hp, shotid=None, astropy=True, return_index=False):
         """
