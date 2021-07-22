@@ -107,7 +107,7 @@ from astropy.table import Table, Column, vstack
 import astropy.units as u
 
 from hetdex_api.extract import Extract
-from hetdex_api.survey import Survey
+from hetdex_api.survey import Survey, FiberIndex
 from hetdex_api.mask import *
 from hetdex_api.config import HDRconfig
 
@@ -124,7 +124,8 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 config = HDRconfig()
 bad_amps_table = Table.read(config.badamp)
 galaxy_cat = Table.read(config.rc3cat, format="ascii")
-             
+FibIndex = FiberIndex()
+
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
     result = deepcopy(dict1)
@@ -178,6 +179,8 @@ def get_flags(fiber_info):
 
     
 def get_source_spectra(shotid, args):
+
+    global FibIndex
     E = Extract()
     source_dict = {}
 
@@ -259,7 +262,13 @@ def get_source_spectra(shotid, args):
                     fiber_info = []
 
                 if len(fiber_info) > 0:
-                    flags = get_flags(fiber_info)
+                    #flags = get_flags(fiber_info)
+                    try:
+                        flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
+                                                         shotid=shotid)
+                    except IndexError:
+                        flags = FibIndex.get_fiber_flags(coord=args.coords,
+                                                         shotid=shotid)
                 else:
                     flags = None
                     
@@ -310,6 +319,9 @@ def get_source_spectra(shotid, args):
         
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
+
+    global FibIndex
+
     E = Extract()
 
     if args.survey == "hdr1":
@@ -387,7 +399,13 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     fiber_info = []
 
                 if len(fiber_info) > 0:
-                    flags = get_flags(fiber_info)
+                    #flags = get_flags(fiber_info)
+                    try:
+                        flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
+                                                         shotid=shotid)
+                    except IndexError:
+                        flags = FibIndex.get_fiber_flags(coord=args.coords,
+                                                         shotid=shotid)
                 else:
                     flags = None
                     
@@ -455,10 +473,6 @@ def return_astropy_table(Source_dict,
     amp_flag_arr = []
     flag_arr = []
 
-    config = HDRconfig()
-    bad_amps_table = Table.read(config.badamp)
-    galaxy_cat = Table.read(config.rc3cat, format="ascii")
-    
     # loop over every ID/observation combo:
 
     for ID in Source_dict.keys():
