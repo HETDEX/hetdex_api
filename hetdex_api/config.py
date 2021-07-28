@@ -42,7 +42,7 @@ class HDRconfig:
                 "hdr2": "/work/03946/hetdex/hdr2",
                 "hdr2.1": op.join(self.host_dir, "hdr2.1"),
             }
-        
+        self.survey_dir = op.join(self.hdr_dir[survey], "survey")
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
@@ -118,6 +118,8 @@ class HDRconfig:
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr2.1"
             elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
                 self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
+            elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"):
+                self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"
             else:
                 self.bad_dir = (
                     "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
@@ -149,3 +151,4 @@ class HDRconfig:
             self.starlabels = op.join(self.bad_dir, 'stars.txt')
             self.sdsscat = op.join(self.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
             self.extinction_fix = op.join(self.bad_dir, 'extinction')
+            self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask_2.1.3.h5')

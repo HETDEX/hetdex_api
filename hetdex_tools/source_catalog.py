@@ -532,13 +532,13 @@ def create_source_catalog(
         if det in detfriend_1['detectid']:
             keep_row[i] = 0
 
-    print("Performing FOF in 2D space with dlink=2.0 arcsec")
+    print("Performing FOF in 2D space with dlink=3.0 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"][keep_row],
         detect_table["dec"][keep_row],
         np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=2.0,
+        dsky=3.0,
     )
         
     t0 = time.time()
