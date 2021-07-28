@@ -152,6 +152,7 @@ class ShotSensitivity(object):
             applied (default 3.5)
         """       
         # see if this is a bad shot
+        #print("Bad shot from ", self.conf.badshot)
         badshot = loadtxt(self.conf.badshot, dtype=int)
         badtpshots = loadtxt(self.conf.lowtpshots, dtype=int)
         if (self.shotid in badshot) or (self.shotid in badtpshots):
@@ -161,11 +162,13 @@ class ShotSensitivity(object):
             self.badshot = False
         
         # set up bad amps
+        #print("Bad amps from ", self.conf.badamp)
         self.bad_amps = Table.read(self.conf.badamp)
         sel_shot = (self.bad_amps["shotid"] == self.shotid)
         self.bad_amps = self.bad_amps[sel_shot]
         
         # set up galaxy mask
+        #print("Galaxy mask from ", self.conf.rc3cat)
         galaxy_cat = Table.read(self.conf.rc3cat, format='ascii')
         gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
         shot_coords = SkyCoord(ra=self.shot_ra, dec=self.shot_dec,
@@ -253,7 +256,7 @@ class ShotSensitivity(object):
        
 
     def get_f50(self, ra, dec, wave, sncut, direct_sigmas = False, 
-                nmax = 5000):
+                nmax = 5000, return_amp = False):
         """
         Return flux at 50% for the input positions
         most of this is cut and paste from 
@@ -301,6 +304,7 @@ class ShotSensitivity(object):
  
         f50s = []
         mask = []
+        amp = []
 
         try:
             nsplit = int(ceil(len(ra)/nmax))
@@ -321,20 +325,32 @@ class ShotSensitivity(object):
 
             if wave_passed:
                 twave = wave[i*nmax : (i+1)*nmax]
-                tf50s = self._get_f50_worker(tra, tdec, twave, sncut, 
-                                             direct_sigmas = direct_sigmas)
+                if self.badshot:
+                    tf50s = twave*0 + 999.
+                    tamp = ["bad"]*len(tf50s)
+                else:
+                    tf50s, tamp = self._get_f50_worker(tra, tdec, twave, sncut, 
+                                                       direct_sigmas = direct_sigmas)
             else:
-                tf50s, tmask = self._get_f50_worker(tra, tdec, None, sncut, 
-                                             direct_sigmas = direct_sigmas) 
+                # if bad shot then the mask is all set to zero
+                tf50s, tmask, tamp = self._get_f50_worker(tra, tdec, None, sncut, 
+                                                          direct_sigmas = direct_sigmas) 
                 mask.extend(tmask)
 
+            amp.extend(tamp)
             f50s.extend(tf50s)    
 
-        if wave_passed:
-            return array(f50s)        
+        if return_amp:
+            if wave_passed:
+                return array(f50s), array(amp)        
+            else:
+                return array(f50s), array(mask), array(amp)
         else:
-            return array(f50s), array(mask)
-
+            if wave_passed:
+                return array(f50s)        
+            else:
+                return array(f50s), array(mask)
+ 
 
     def _get_f50_worker(self, ra, dec, wave, sncut, direct_sigmas = False):
         """
@@ -407,7 +423,8 @@ class ShotSensitivity(object):
         I = None
         fac = None
         norm_all = []
-        
+        amp = []       
+ 
         for i, c in enumerate(coords):
                 
             sel = (id_ == i)
@@ -427,8 +444,11 @@ class ShotSensitivity(object):
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
                     
+                iclosest = argmin(seps)
+
+                amp.append(fiberid[iclosest])
+
                 if len(self.bad_amps) > 0:
-                    iclosest = argmin(seps)
                     amp_flag = amp_flag_from_fiberid(fiberid[iclosest], 
                                                          self.bad_amps)
                 else:
@@ -453,7 +473,6 @@ class ShotSensitivity(object):
                 norm = sum(weights, axis=0)
                 weights = weights/norm
                 
-
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False)
                 
@@ -477,9 +496,11 @@ class ShotSensitivity(object):
                 if wave_passed:
                     noise.append(999.)
                     norm_all.append(1.0)
+                    amp.append("000")
                 else:
                     noise.append(999.*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
+                    amp.append("000")
 
                     
         # Apply the galaxy mask     
@@ -499,12 +520,16 @@ class ShotSensitivity(object):
                 snoise = self.f50_from_noise(snoise, wave, sncut)
 
             snoise[bad] = 999.
-            return snoise/norm_all
+
+            return snoise/norm_all, amp
 
         else:
             mask[(gal_mask < 0.5) & mask] = True
+ 
+            if self.badshot:
+                mask[:] = True
 
-            return snoise/norm_all, mask
+            return snoise/norm_all, mask, amp
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None):
         """
@@ -553,7 +578,13 @@ class ShotSensitivity(object):
         if type(f50s) == type(None):
             f50s = self.get_f50(ra, dec, lambda_, sncut)
 
-        fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+        try:
+            fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+        except IndexError as e:
+            print("Interpolation failed!")
+            print(min(flux), max(flux), min(f50s), max(f50s))
+            print(min(lambda_), max(lambda_))
+            raise e
 
         try:
             fracdet[isnan(fracdet)] = 0.0
