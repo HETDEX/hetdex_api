@@ -124,7 +124,7 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 config = HDRconfig()
 bad_amps_table = Table.read(config.badamp)
 galaxy_cat = Table.read(config.rc3cat, format="ascii")
-FibIndex = FiberIndex()
+
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
@@ -180,8 +180,11 @@ def get_flags(fiber_info):
     
 def get_source_spectra(shotid, args):
 
-    global FibIndex
+
     E = Extract()
+
+    FibIndex = FiberIndex(args.survey)
+    
     source_dict = {}
 
     if args.survey == "hdr1":
@@ -314,15 +317,16 @@ def get_source_spectra(shotid, args):
                         ]
 
         E.shoth5.close()
+        FibIndex.close()
         
     return source_dict
         
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
 
-    global FibIndex
 
     E = Extract()
+    FibIndex = FiberIndex(args.survey)
 
     if args.survey == "hdr1":
         source_num_switch = 20
@@ -451,6 +455,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                         ]
 
         E.shoth5.close()
+        FibIndex.close()
         
     return source_dict
         
