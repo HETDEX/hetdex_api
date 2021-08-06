@@ -132,10 +132,17 @@ def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
 def add_elixer_cat_info(det_table, version):
 
     global config
-    
+
     elixer_file = op.join(config.detect_dir, "catalogs", "elixer_{}_cat.h5".format(version))
     elixer_cat = tb.open_file(elixer_file, "r")
 
+    elixer_cont_file = '/scratch/03261/polonius/hdr2.1.3/work/continuum/elixer_merged_cat.h5'
+
+    if op.exists(elixer_cont_file):
+        elixer_cont = tb.open_file(elixer_cont_file, 'r')
+    else:
+        elixer_cont = None
+        
     cls = []
     mlname = []
     mlz = []
@@ -158,20 +165,53 @@ def add_elixer_cat_info(det_table, version):
 
     for row in det_table:
         detectid_obj = row["detectid"]
-        try:
-            elix_row = elixer_cat.root.Detections.read_where("detectid == detectid_obj")
-            row["plae_classification"] = elix_row["plae_classification"]
-            row["combined_plae"] = elix_row["combined_plae"]
-            row["combined_plae_err"] = elix_row["combined_plae_err"]
-            mlname.append(elix_row["multiline_name"][0].decode())
-            cls.append(elix_row["classification_labels"][0].decode())
-            mlz.append(elix_row["multiline_z"][0])
-            mlprob.append(elix_row["multiline_prob"][0])
-            best_z.append(elix_row['best_z'][0])
-            best_pz.append(elix_row['best_pz'][0])
-            flags.append(elix_row['flags'][0])
+
+        if row['det_type'] == 'line':
+            try:
+                elix_row = elixer_cat.root.Detections.read_where("detectid == detectid_obj")
+                row["plae_classification"] = elix_row["plae_classification"]
+                row["combined_plae"] = elix_row["combined_plae"]
+                row["combined_plae_err"] = elix_row["combined_plae_err"]
+                mlname.append(elix_row["multiline_name"][0].decode())
+                cls.append(elix_row["classification_labels"][0].decode())
+                mlz.append(elix_row["multiline_z"][0])
+                mlprob.append(elix_row["multiline_prob"][0])
+                best_z.append(elix_row['best_z'][0])
+                best_pz.append(elix_row['best_pz'][0])
+                flags.append(elix_row['flags'][0])
             
-        except Exception:
+            except Exception:
+                mlname.append("")
+                cls.append("")
+                mlz.append(False)
+                mlprob.append(np.nan)
+                best_z.append(np.nan)
+                best_pz.append(np.nan)
+                flags.append(np.nan)
+                
+        elif row['det_type'] == 'cont' and elixer_cont is not None:
+            try:
+                elix_row = elixer_cont.root.Detections.read_where("detectid == detectid_obj")
+                row["plae_classification"] = elix_row["plae_classification"]
+                row["combined_plae"] = elix_row["combined_plae"]
+                row["combined_plae_err"] = elix_row["combined_plae_err"]
+                mlname.append(elix_row["multiline_name"][0].decode())
+                cls.append(elix_row["classification_labels"][0].decode())
+                mlz.append(elix_row["multiline_z"][0])
+                mlprob.append(elix_row["multiline_prob"][0])
+                best_z.append(elix_row['best_z'][0])
+                best_pz.append(elix_row['best_pz'][0])
+                flags.append(elix_row['flags'][0])
+                
+            except Exception:
+                mlname.append("")
+                cls.append("")
+                mlz.append(False)
+                mlprob.append(np.nan)
+                best_z.append(np.nan)
+                best_pz.append(np.nan)
+                flags.append(np.nan)
+        else:
             mlname.append("")
             cls.append("")
             mlz.append(False)
@@ -179,7 +219,7 @@ def add_elixer_cat_info(det_table, version):
             best_z.append(np.nan)
             best_pz.append(np.nan)
             flags.append(np.nan)
-            
+
         # append nearest source extracted neighbour match
         try:
         
@@ -364,8 +404,8 @@ def create_source_catalog(
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
-    #detects_broad_table.remove_column('det_type')
-    #detects_broad_table.add_column(Column(str("agn"), name="det_type", dtype=str))
+    #detects_broad_table['flux_Lya'] = detects_broad_table['flux_Lya'].filled(-98)
+    
     dets_all.close()
     del dets_all_table
 
@@ -414,7 +454,7 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=6.0, dwave=6.0)
+                dsky=8.0, dwave=6.0)
 
     t0 = time.time()
     print("starting fof ...")
@@ -516,8 +556,8 @@ def create_source_catalog(
     spatial_id = grp_by_id.groups.keys
     spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    # also match if a group member is brighter than gmag=18 (testing this)
-    sel_bright = detect_table['gmag'] < 18
+    # also match if a group member is brighter than gmag=22 (testing this)
+    sel_bright = detect_table['gmag'] < 22
     gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
     spatial_id_to_keep2 = gmag_join['id']
 
@@ -1089,7 +1129,7 @@ def main(argv=None):
     print(args.dsky, args.version)
 
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-    source_table.write('source_cat_tmp.fits', overwrite=True)
+#    source_table.write('source_cat_tmp.fits', overwrite=True)
 #    source_table = Table.read('source_cat_tmp.fits')
     # add source name
     source_name = []
@@ -1346,7 +1386,7 @@ def main(argv=None):
     sel_z = ( out_table['z_guess'] >= 1.9) * (out_table['z_guess'] <= 3.6)
     src_wave[sel_agn*sel_z] = (1 + out_table['z_guess'][sel_agn*sel_z]) * wavelya
 
-    out_table['src_separation'] = det_coord.separation(src_coord)
+    out_table['src_separation'] = det_coord.separation(src_coord).arcsec
     out_table['dwave'] = np.abs(src_wave - source_table['wave'])
 
     out_table.sort(['dwave', 'src_separation'])
@@ -1359,9 +1399,11 @@ def main(argv=None):
             print('yes', col)
         except:
             print('no', col)
-
+    #remove nonsense metadata
+    out_table.meta = {}
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
+
     out_table.write("source_catalog_{}.tab".format(args.version),
                     format='ascii', overwrite=True)
 
