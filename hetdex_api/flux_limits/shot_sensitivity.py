@@ -350,7 +350,7 @@ class ShotSensitivity(object):
         pixsize_aa = wave_rect[1] - wave_rect[0]
 
         # This will give 999 once the noise is scaled suitably
-        badval = pixsize_aa*999*1e14
+        badval = 999*1e17/pixsize_aa
 
         # Arrays to store full output
         f50s = badval*ones(nsrc)
@@ -451,7 +451,7 @@ class ShotSensitivity(object):
         pixsize_aa = wave_rect[1] - wave_rect[0]
 
         # This will give 999 once the noise is scaled suitably
-        badval = pixsize_aa*999*1e14
+        badval = 999*1e17/pixsize_aa
 
         if type(wave) != type(None):
             wave_passed = True
