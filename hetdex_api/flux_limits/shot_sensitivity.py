@@ -241,8 +241,8 @@ class ShotSensitivity(object):
         
         if generate_sigma_array:
             
-            ix, iy = meshgrid(arange(0.5, nx + 0.5, 1.0),
-                              arange(0.5, ny + 0.5, 1.0))
+            ix, iy = meshgrid(arange(0, nx, 1.0),
+                              arange(0, ny, 1.0))
         
 
             all_ra, all_dec, junk = scube.wcs.all_pix2world(ix.ravel(), iy.ravel(), 
