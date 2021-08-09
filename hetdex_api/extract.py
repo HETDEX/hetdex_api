@@ -19,6 +19,8 @@ from scipy.interpolate import griddata, LinearNDInterpolator
 # importing nway
 import matplotlib
 matplotlib.use("agg")
+
+import nwaylib
 from nwaylib import _create_match_table
 from nwaylib.logger import NormalLogger, NullOutputLogger
 
@@ -157,7 +159,7 @@ class Extract:
                                  return_fiber_info=False,
                                  fiber_lower_limit=3,
                                  verbose=False,
-                                 nmax=30000):
+                                 nmax=5000):
         """ 
         Grab fibers within a radius and get relevant info,
         optimised for searching for a longer list of 

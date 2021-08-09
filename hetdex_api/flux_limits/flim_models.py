@@ -16,9 +16,13 @@ from os.path import join
 from scipy.interpolate import (interp1d, interp2d, splrep, griddata, RectBivariateSpline,
                                NearestNDInterpolator)
 from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
-                   array, linspace, tile, ones, array, argmin, zeros)
+                   array, linspace, tile, ones, array, argmin, zeros, 
+                   sqrt)
 from hetdex_api.config import HDRconfig
 from hetdex_api.flux_limits import flim_models_old, flim_model_cache
+
+class NoLineWidthModel(Exception):
+    pass
 
 class ModelInfo(object):
     """
@@ -40,7 +44,7 @@ class ModelInfo(object):
     """
     def __init__(self, snfile_version, snpoly, wavepoly,
                  interp_sigmas, dont_interp_to_zero, 
-                 snlow=4.8, snhigh=7.0):
+                 snlow=4.8, snhigh=7.0, lw_scaling = None):
 
         self.snfile_version = snfile_version
         self.snpoly = snpoly
@@ -49,9 +53,51 @@ class ModelInfo(object):
         self.snlow = snlow
         self.snhigh = snhigh
         self.dont_interp_to_zero = dont_interp_to_zero
+        self.lw_scaling = lw_scaling
 
 class NoSNFilesException(Exception):
     pass
+
+
+def linewidth_f50_scaling_v1(linewidth, sncut):
+    """
+    Model for how the 50% completeness flux
+    changes with linewidth. Based on Karl's
+    simulation calibrated model from 
+    July 11th 2021, quoting from Karl
+    Gebhardt:
+
+    x12=min(x12,12.)
+    rfit=sqrt(x12/2.2)*(1.64-(sncut-4.8)/(9.5-4.8))/(1.+0.07*(12.-x12))
+    rfit=max(1.,rfit)
+
+    Parameters
+    ----------
+    linewidth : array or float
+        linewidth in A
+    sncut : float
+        S/N cut
+
+    Returns
+    -------
+    rfit : array or float
+        scaling of 50% flux
+        with linewidth
+    """
+    try:
+        linewidth[linewidth > 12.0] = 12.0
+    except TypeError:
+        linewidth = max(linewidth, 12.0)
+
+    rfit=sqrt(linewidth/2.2)*(1.64-(sncut-4.8)/(9.5-4.8))/(1.+0.07*(12.-linewidth))
+
+    try:
+        rfit[rfit < 1.0] = 1.0
+    except TypeError:
+        rfit = min(1.0, rfit)
+
+    return rfit
+
 
 
 def write_karl_file(fn, f50s, fcens, wlcens, 
@@ -474,10 +520,16 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
               "v1.1" : ModelInfo("curves_v1", 
                                [-8.80650683e-02,  2.03488098e+00, -1.73733048e+01, 
                                6.56038443e+01, -8.84158092e+01], 
-                               None, True, True)
+                               None, True, True),
+              "v2" : ModelInfo("curves_v1",
+                               [1.0, 0.0], 
+                               [-1.59395767e-14, 3.10388106e-10, 
+                                -2.26855051e-06,  7.38507004e-03, 
+                                -8.06953973e+00], False, True,
+                                lw_scaling = linewidth_f50_scaling_v1)
              }
 
-    default = "v1.1"    
+    default = "v2"    
 
     if not flim_model:
         flim_model = default
@@ -501,7 +553,7 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         flim_model_cache.cached_sim_interp = sinterp
 
 
-    def f50_from_noise(noise, lambda_, sncut):
+    def f50_from_noise(noise, lambda_, sncut, linewidth = None):
         """
         Return the 50% completeness
         flux given noise and S/N cut. 
@@ -514,7 +566,11 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         sncut : float
             the signal to noise
             cut to assume
-    
+        linewidth : float
+            the linewidth in A,
+            only used with supported
+            models    
+
         Returns
         -------
         f50s : array
@@ -530,6 +586,15 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
 
         if model.wavepoly:
             noise = noise*polyval(model.wavepoly, lambda_)
+ 
+        if type(linewidth) != type(None):
+            if type(model.lw_scaling) != type(None):
+                lw_scale = model.lw_scaling(linewidth, sncut)
+            else:
+                raise NoLineWidthModel("Linewidth dependence not available for this flim model")
+
+            noise = noise*lw_scale
+           
         snmult = polyval(model.snpoly, sncut)
         return snmult*noise
 

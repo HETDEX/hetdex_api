@@ -31,7 +31,6 @@ from hetdex_api.mask import create_gal_ellipse, amp_flag_from_fiberid, meteor_fl
 from hetdex_api.flux_limits.sensitivity_cube import WavelengthException 
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 
-
 class ShotSensitivity(object):
     """
     Generate completeness estimates for a shot
@@ -81,7 +80,7 @@ class ShotSensitivity(object):
         to the screen
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
-                 ffsky=False, wavenpix=3, d25scale=3.5, verbose=False):
+                 ffsky=False, wavenpix=3, d25scale=3.5, verbose=False): 
 
         self.conf = HDRconfig()
         self.extractor = Extract()
@@ -91,7 +90,10 @@ class ShotSensitivity(object):
         self.ffsky = ffsky
         self.wavenpix = wavenpix
         self.verbose = verbose
-        
+
+        if verbose:
+            print("shotid: ", self.shotid)
+ 
         if not release:
             self.release = self.conf.LATEST_HDR_NAME
         else:
@@ -152,6 +154,7 @@ class ShotSensitivity(object):
             applied (default 3.5)
         """       
         # see if this is a bad shot
+        #print("Bad shot from ", self.conf.badshot)
         badshot = loadtxt(self.conf.badshot, dtype=int)
         badtpshots = loadtxt(self.conf.lowtpshots, dtype=int)
         if (self.shotid in badshot) or (self.shotid in badtpshots):
@@ -161,11 +164,13 @@ class ShotSensitivity(object):
             self.badshot = False
         
         # set up bad amps
+        #print("Bad amps from ", self.conf.badamp)
         self.bad_amps = Table.read(self.conf.badamp)
         sel_shot = (self.bad_amps["shotid"] == self.shotid)
         self.bad_amps = self.bad_amps[sel_shot]
         
         # set up galaxy mask
+        #print("Galaxy mask from ", self.conf.rc3cat)
         galaxy_cat = Table.read(self.conf.rc3cat, format='ascii')
         gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
         shot_coords = SkyCoord(ra=self.shot_ra, dec=self.shot_dec,
@@ -235,8 +240,8 @@ class ShotSensitivity(object):
         
         if generate_sigma_array:
             
-            ix, iy = meshgrid(arange(0.5, nx + 0.5, 1.0),
-                              arange(0.5, ny + 0.5, 1.0))
+            ix, iy = meshgrid(arange(0, nx, 1.0),
+                              arange(0, ny, 1.0))
         
 
             all_ra, all_dec, junk = scube.wcs.all_pix2world(ix.ravel(), iy.ravel(), 
@@ -253,7 +258,7 @@ class ShotSensitivity(object):
        
 
     def get_f50(self, ra, dec, wave, sncut, direct_sigmas = False, 
-                nmax = 5000):
+                nmax = 5000, return_amp = False):
         """
         Return flux at 50% for the input positions
         most of this is cut and paste from 
@@ -299,42 +304,105 @@ class ShotSensitivity(object):
         else:
             wave_passed = False
  
-        f50s = []
-        mask = []
 
         try:
-            nsplit = int(ceil(len(ra)/nmax))
-        except TypeError as e:
-            nsplit = 1
-            # If the user does not pass arrays
-            ra = array([ra])
-            dec = array([dec])
-            wave = array([wave])
+            nsrc = len(ra)
 
-        for i in range(nsplit):  
-
-            if self.verbose: 
-                print("Split {:d}".format(i)) 
-
-            tra = ra[i*nmax : (i+1)*nmax]
-            tdec = dec[i*nmax : (i+1)*nmax]
-
-            if wave_passed:
-                twave = wave[i*nmax : (i+1)*nmax]
-                tf50s = self._get_f50_worker(tra, tdec, twave, sncut, 
-                                             direct_sigmas = direct_sigmas)
+            if wave_passed:   
+                # Trim stuff very far away
+                gal_coords = SkyCoord(ra=ra, dec=dec, unit="deg")
+                shot_coords = SkyCoord(ra=self.shot_ra, dec=self.shot_dec,
+                                       unit="deg")
+        
+                sel = array(shot_coords.separation(gal_coords) < 2.0*u.deg)
+    
+                ra_sel = array(ra)[sel]
+                dec_sel = array(dec)[sel]
+                wave_sel = array(wave)[sel]
+                nsel = len(ra_sel)
             else:
-                tf50s, tmask = self._get_f50_worker(tra, tdec, None, sncut, 
-                                             direct_sigmas = direct_sigmas) 
-                mask.extend(tmask)
+                # If not passing wave always loop
+                # over all ra/dec in range
+                ra_sel = ra
+                dec_sel = dec
+                wave_sel = None
+                nsel = len(ra)
+ 
+            nsplit = int(ceil(float(nsel)/float(nmax)))
 
-            f50s.extend(tf50s)    
+        except TypeError as e:
 
-        if wave_passed:
-            return array(f50s)        
+            # If the user does not pass arrays
+            nsplit = 1
+            nsrc = 1
+            nsel = 1
+            sel = True
+            ra_sel = array([ra])
+            dec_sel = array([dec])
+            wave_sel = array([wave])
+
+        # Array to store output actually in the shot
+        f50s_sel = []
+        mask_sel = []
+        amp_sel = []
+
+        wave_rect = self.extractor.get_wave()
+        pixsize_aa = wave_rect[1] - wave_rect[0]
+
+        # This will give 999 once the noise is scaled suitably
+        badval = 999*1e17/pixsize_aa
+
+        # Arrays to store full output
+        f50s = badval*ones(nsrc)
+        mask = ones(nsrc)
+        amp = array(["notinshot"]*nsrc)
+
+        if nsel > 0:
+            for i in range(nsplit):  
+     
+                tra = ra_sel[i*nmax : (i+1)*nmax]
+                tdec = dec_sel[i*nmax : (i+1)*nmax]
+
+                if self.verbose: 
+                    print("Split {:d}".format(i)) 
+                    print(tra)
+                    print("***") 
+    
+                if wave_passed:
+                    twave = wave_sel[i*nmax : (i+1)*nmax]
+                    if not self.badshot:
+                        tf50s, tamp = self._get_f50_worker(tra, tdec, twave, sncut, 
+                                                           direct_sigmas = direct_sigmas)
+                    else:
+                        tamp = ["bad"]*len(tra)
+                else:
+                    # if bad shot then the mask is all set to zero
+                    tf50s, tmask, tamp = \
+                                      self._get_f50_worker(tra, tdec, None, sncut, 
+                                                          direct_sigmas = direct_sigmas) 
+    
+                    mask_sel.extend(tmask)
+          
+                f50s_sel.extend(tf50s)
+                amp_sel.extend(tamp)
+
+        if return_amp:
+            if wave_passed:
+
+                # copy to output
+                f50s[sel] = f50s_sel
+                amp[sel] = amp_sel
+
+                return f50s, amp        
+            else:
+                return array(f50s_sel), array(mask_sel), array(amp_sel)
         else:
-            return array(f50s), array(mask)
-
+            if wave_passed:
+                f50s[sel] = f50s_sel
+                return f50s        
+            else:
+                return array(f50s_sel), array(mask_sel)
+ 
 
     def _get_f50_worker(self, ra, dec, wave, sncut, direct_sigmas = False):
         """
@@ -382,6 +450,9 @@ class ShotSensitivity(object):
         wave_rect = self.extractor.get_wave()
         pixsize_aa = wave_rect[1] - wave_rect[0]
 
+        # This will give 999 once the noise is scaled suitably
+        badval = 999*1e17/pixsize_aa
+
         if type(wave) != type(None):
             wave_passed = True
         else:
@@ -407,7 +478,8 @@ class ShotSensitivity(object):
         I = None
         fac = None
         norm_all = []
-        
+        amp = []       
+ 
         for i, c in enumerate(coords):
                 
             sel = (id_ == i)
@@ -427,8 +499,11 @@ class ShotSensitivity(object):
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
                     
+                iclosest = argmin(seps)
+
+                amp.append(fiberid[iclosest])
+
                 if len(self.bad_amps) > 0:
-                    iclosest = argmin(seps)
                     amp_flag = amp_flag_from_fiberid(fiberid[iclosest], 
                                                          self.bad_amps)
                 else:
@@ -439,7 +514,7 @@ class ShotSensitivity(object):
                 
                 if not (amp_flag and meteor_flag):
                     if wave_passed:
-                        noise.append(999.)
+                        noise.append(badval)
                         norm_all.append(1.0)
                         continue
                     else:
@@ -453,11 +528,11 @@ class ShotSensitivity(object):
                 norm = sum(weights, axis=0)
                 weights = weights/norm
                 
-
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False)
                 
                 spectrum_aper, spectrum_aper_error = [res for res in result] 
+ 
                 if wave_passed:
                     index = where(wave_rect >= wave[i])[0][0]
                     ilo = index - self.wavenpix 
@@ -475,11 +550,14 @@ class ShotSensitivity(object):
                     
             else:
                 if wave_passed:
-                    noise.append(999.)
+                    noise.append(badval)
                     norm_all.append(1.0)
+                    amp.append("000")
                 else:
-                    noise.append(999.*ones(len(wave_rect)))
+                    noise.append(badval*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
+                    amp.append("000")
+                    mask[i] = False
 
                     
         # Apply the galaxy mask     
@@ -487,6 +565,7 @@ class ShotSensitivity(object):
         for gal_region in self.gal_regions:
             dummy_wcs = create_dummy_wcs(gal_region.center,
                                          imsize=2*gal_region.height)
+            # zero if near galaxy
             gal_mask = gal_mask & invert(gal_region.contains(coords, dummy_wcs))
 
         noise = array(noise)
@@ -498,13 +577,18 @@ class ShotSensitivity(object):
             if not direct_sigmas:
                 snoise = self.f50_from_noise(snoise, wave, sncut)
 
-            snoise[bad] = 999.
-            return snoise/norm_all
+            normnoise = snoise/norm_all
+            normnoise[bad] = 999.
+
+            return normnoise, amp
 
         else:
-            mask[(gal_mask < 0.5) & mask] = True
+            mask[gal_mask < 0.5] = False
+ 
+            if self.badshot:
+                mask[:] = False
 
-            return snoise/norm_all, mask
+            return snoise/norm_all, mask, amp
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None):
         """
@@ -553,7 +637,13 @@ class ShotSensitivity(object):
         if type(f50s) == type(None):
             f50s = self.get_f50(ra, dec, lambda_, sncut)
 
-        fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+        try:
+            fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+        except IndexError as e:
+            print("Interpolation failed!")
+            print(min(flux), max(flux), min(f50s), max(f50s))
+            print(min(lambda_), max(lambda_))
+            raise e
 
         try:
             fracdet[isnan(fracdet)] = 0.0
