@@ -31,7 +31,6 @@ from hetdex_api.mask import create_gal_ellipse, amp_flag_from_fiberid, meteor_fl
 from hetdex_api.flux_limits.sensitivity_cube import WavelengthException 
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 
-
 class ShotSensitivity(object):
     """
     Generate completeness estimates for a shot
@@ -347,8 +346,14 @@ class ShotSensitivity(object):
         mask_sel = []
         amp_sel = []
 
+        wave_rect = self.extractor.get_wave()
+        pixsize_aa = wave_rect[1] - wave_rect[0]
+
+        # This will give 999 once the noise is scaled suitably
+        badval = pixsize_aa*999*1e14
+
         # Arrays to store full output
-        f50s = 999.0*ones(nsrc)
+        f50s = badval*ones(nsrc)
         mask = ones(nsrc)
         amp = array(["notinshot"]*nsrc)
 
@@ -445,6 +450,9 @@ class ShotSensitivity(object):
         wave_rect = self.extractor.get_wave()
         pixsize_aa = wave_rect[1] - wave_rect[0]
 
+        # This will give 999 once the noise is scaled suitably
+        badval = pixsize_aa*999*1e14
+
         if type(wave) != type(None):
             wave_passed = True
         else:
@@ -506,7 +514,7 @@ class ShotSensitivity(object):
                 
                 if not (amp_flag and meteor_flag):
                     if wave_passed:
-                        noise.append(999.)
+                        noise.append(badval)
                         norm_all.append(1.0)
                         continue
                     else:
@@ -542,11 +550,11 @@ class ShotSensitivity(object):
                     
             else:
                 if wave_passed:
-                    noise.append(999.)
+                    noise.append(badval)
                     norm_all.append(1.0)
                     amp.append("000")
                 else:
-                    noise.append(999.*ones(len(wave_rect)))
+                    noise.append(badval*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
                     amp.append("000")
                     mask[i] = False
@@ -569,9 +577,10 @@ class ShotSensitivity(object):
             if not direct_sigmas:
                 snoise = self.f50_from_noise(snoise, wave, sncut)
 
-            snoise[bad] = 999.
+            normnoise = snoise/norm_all
+            normnoise[bad] = 999.
 
-            return snoise/norm_all, amp
+            return normnoise, amp
 
         else:
             mask[gal_mask < 0.5] = False
