@@ -136,7 +136,7 @@ def add_elixer_cat_info(det_table, version):
     elixer_file = op.join(config.detect_dir, "catalogs", "elixer_{}_cat.h5".format(version))
     elixer_cat = tb.open_file(elixer_file, "r")
 
-    elixer_cont_file = '/scratch/03261/polonius/hdr2.1.3/work/continuum/elixer_merged_cat.h5'
+    elixer_cont_file =  '/scratch/03261/polonius/hdr2.1.3/work/c2/c2no/elixer_merged_cat.h5'
 
     if op.exists(elixer_cont_file):
         elixer_cont = tb.open_file(elixer_cont_file, 'r')
@@ -421,19 +421,19 @@ def create_source_catalog(
 
     detect_table = add_elixer_cat_info(detect_table, version)
     
-    print('Adding 1sigma noise from flux limits')
-    p = Pool(24)
-    res = p.map(get_flux_noise_1sigma, detect_table['detectid'])
-    p.close()
+    #print('Adding 1sigma noise from flux limits')
+    #p = Pool(24)
+    #res = p.map(get_flux_noise_1sigma, detect_table['detectid'])
+    #p.close()
 
-    flim = []
-    flim_update = []
-    for r in res:
-        flim.append(r[0])
-        flim_update.append(r[1])
+    #flim = []
+    #flim_update = []
+    #for r in res:
+    #    flim.append(r[0])
+    #    flim_update.append(r[1])
         
-    detect_table['flux_noise_1sigma'] = flim_update
-    detect_table['flux_noise_1sigma_orig'] = flim
+    #detect_table['flux_noise_1sigma'] = flim_update
+    #detect_table['flux_noise_1sigma_orig'] = flim
     
     detect_table.write('test2.fits', overwrite=True)
 
@@ -1362,34 +1362,39 @@ def main(argv=None):
     import gc
     gc.collect()
     
-    # add a guess on redshift and source type
-    out_table = add_z_guess(source_table)
-
-    #names=['zCOSMOS-deepID','zspec','flag','zphot','ra','dec'],
-    
-    sel_star = out_table['source_type'] == 'star'
-    sel_oii = out_table['source_type'] == 'oii'
-    sel_lae = out_table['source_type'] == 'lae'
-    sel_agn = out_table['source_type'] == 'agn'
-
-    print('There are {} stars, {} OII emitters and {} LAEs'.format(np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
-
     # sort table by source wavelength closest to z_guess and position
     # so unique will produce the closest match    
-    src_coord = SkyCoord(ra=out_table['ra_mean'], dec=out_table['dec_mean'], unit='deg')
-    det_coord = SkyCoord(ra=out_table['ra'], dec=out_table['dec'], unit='deg')
+    src_coord = SkyCoord(ra=source_table['ra_mean'], dec=source_table['dec_mean'], unit='deg')
+    det_coord = SkyCoord(ra=source_table['ra'], dec=source_table['dec'], unit='deg')
 
-    src_wave = np.zeros_like(out_table['z_guess'])
-    src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * waveoii
-    src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * wavelya
+    source_table['src_separation'] = det_coord.separation(src_coord)
+    source_table.sort(['src_separation'])
+    #source_table['dwave'] = np.abs(src_wave - source_table['wave'])
+    
+    #source_table.sort(['dwave', 'src_separation'])
 
-    sel_z = ( out_table['z_guess'] >= 1.9) * (out_table['z_guess'] <= 3.6)
-    src_wave[sel_agn*sel_z] = (1 + out_table['z_guess'][sel_agn*sel_z]) * wavelya
+    # add a guess on redshift and source type
 
-    out_table['src_separation'] = det_coord.separation(src_coord).arcsec
-    out_table['dwave'] = np.abs(src_wave - source_table['wave'])
+    if False:
+        out_table = add_z_guess(source_table)
 
-    out_table.sort(['dwave', 'src_separation'])
+        sel_star = out_table['source_type'] == 'star'
+        sel_oii = out_table['source_type'] == 'oii'
+        sel_lae = out_table['source_type'] == 'lae'
+        sel_agn = out_table['source_type'] == 'agn'
+        
+        print('There are {} stars, {} OII emitters and {} LAEs'.format(
+            np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
+        
+        # sort table by source wavelength closest to z_guess and position         
+        src_wave = np.zeros_like(out_table['z_guess'])
+        src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * waveoii
+        src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * wavelya
+        
+        sel_z = ( out_table['z_guess'] >= 1.9) * (out_table['z_guess'] <= 3.6)
+        src_wave[sel_agn*sel_z] = (1 + out_table['z_guess'][sel_agn*sel_z]) * wavelya
+    else:
+        out_table = source_table
 
     print('Filling masked values with NaNs')
     
