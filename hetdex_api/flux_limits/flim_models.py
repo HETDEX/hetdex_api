@@ -84,7 +84,9 @@ def linewidth_f50_scaling_v1(linewidth, sncut):
         scaling of 50% flux
         with linewidth
     """
+    
     try:
+        linewidth = array(linewidth)
         linewidth[linewidth > 12.0] = 12.0
     except TypeError:
         linewidth = max(linewidth, 12.0)
@@ -94,10 +96,9 @@ def linewidth_f50_scaling_v1(linewidth, sncut):
     try:
         rfit[rfit < 1.0] = 1.0
     except TypeError:
-        rfit = min(1.0, rfit)
+        rfit = max(1.0, rfit)
 
     return rfit
-
 
 
 def write_karl_file(fn, f50s, fcens, wlcens, 
@@ -584,6 +585,8 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
             if any(sncut < 4.5) or any(ncut > 7.5):
                 print("WARNING: model {:s} not calibrated for this S/N range".format(flim_model))
 
+        bad = noise > 998
+
         if model.wavepoly:
             noise = noise*polyval(model.wavepoly, lambda_)
  
@@ -596,6 +599,15 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
             noise = noise*lw_scale
            
         snmult = polyval(model.snpoly, sncut)
-        return snmult*noise
+        f50 = snmult*noise
+
+        # keep bad values unscaled
+        try:
+            f50[bad] = 999
+        except TypeError:
+            if bad:
+                f50 = 999
+
+        return f50
 
     return f50_from_noise, sinterp, model.interp_sigmas  
