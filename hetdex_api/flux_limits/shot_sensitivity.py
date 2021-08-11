@@ -74,13 +74,13 @@ class ShotSensitivity(object):
         2*wavenpix + 1 (default 3)
     d25scale : float
         Sets the multiplier for the galaxy masks
-        applied (default 3.5)
+        applied (default 3.0)
     verbose : bool
         Print information about the flux limit model
         to the screen
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
-                 ffsky=False, wavenpix=3, d25scale=3.5, verbose=False): 
+                 ffsky=False, wavenpix=3, d25scale=3.0, verbose=False): 
 
         self.conf = HDRconfig()
         self.extractor = Extract()
@@ -258,7 +258,7 @@ class ShotSensitivity(object):
        
 
     def get_f50(self, ra, dec, wave, sncut, direct_sigmas = False, 
-                nmax = 5000, return_amp = False):
+                nmax = 5000, return_amp = False, linewidth=None):
         """
         Return flux at 50% for the input positions
         most of this is cut and paste from 
@@ -284,11 +284,20 @@ class ShotSensitivity(object):
             return the noise values directly
             without passing them through
             the noise to 50% completeness 
-            flux
+            flux (default = False)
         nmax : int
             maximum number of sources to 
             consider at once, otherwise split
             up and loop.
+        return_amp : bool
+            if True return amplifier information
+            for the closest fiber to each source
+            (default = False)
+        linewidth : array
+            optionally pass the linewidth of
+            the source (in AA) to activate the linewidth
+            dependent part of the completeness
+            model (default = None).
 
         Returns
         -------
@@ -298,6 +307,15 @@ class ShotSensitivity(object):
             was passed for wave this is 
             a 2D array of ra, dec and
             all wavelengths
+        mask : array
+            Only returned if `wave=None`. This
+            mask is True where the ra/dec
+            positions passed are in good
+            regions of data
+        amp : array
+            Only returned in `return_amp=True`,
+            it's an array of amplifier information
+            for the closest fiber to each source
         """
         if type(wave) != type(None):
             wave_passed = True
@@ -372,14 +390,16 @@ class ShotSensitivity(object):
                     twave = wave_sel[i*nmax : (i+1)*nmax]
                     if not self.badshot:
                         tf50s, tamp = self._get_f50_worker(tra, tdec, twave, sncut, 
-                                                           direct_sigmas = direct_sigmas)
+                                                           direct_sigmas = direct_sigmas,
+                                                           linewidth = linewidth)
                     else:
                         tamp = ["bad"]*len(tra)
                 else:
                     # if bad shot then the mask is all set to zero
                     tf50s, tmask, tamp = \
                                       self._get_f50_worker(tra, tdec, None, sncut, 
-                                                          direct_sigmas = direct_sigmas) 
+                                                          direct_sigmas = direct_sigmas,
+                                                          linewidth = linewidth) 
     
                     mask_sel.extend(tmask)
           
@@ -404,7 +424,8 @@ class ShotSensitivity(object):
                 return array(f50s_sel), array(mask_sel)
  
 
-    def _get_f50_worker(self, ra, dec, wave, sncut, direct_sigmas = False):
+    def _get_f50_worker(self, ra, dec, wave, sncut, 
+                        direct_sigmas = False, linewidth = None):
         """
         Return flux at 50% for the input positions
         most of this is cut and paste from 
@@ -428,6 +449,12 @@ class ShotSensitivity(object):
             without passing them through
             the noise to 50% completeness 
             flux
+        linewidth : array
+            optionally pass the linewidth of
+            the source (in AA) to activate the linewidth
+            dependent part of the completeness
+            model (default = None).
+
 
         Returns
         -------
@@ -437,6 +464,15 @@ class ShotSensitivity(object):
             was passed for wave this is 
             a 2D array of ra, dec and
             all wavelengths
+        mask : array
+            Only returned if `wave=None`. This
+            mask is True where the ra/dec
+            positions passed are in good
+            regions of data
+        amp : array
+            Only returned in `return_amp=True`,
+            it's an array of amplifier information
+            for the closest fiber to each source 
         """
  
         try:
@@ -572,14 +608,16 @@ class ShotSensitivity(object):
         snoise = pixsize_aa*1e-17*noise
 
         if wave_passed:
-            bad = (gal_mask < 0.5) | (noise > 998) | isnan(snoise)
-
-            if not direct_sigmas:
-                snoise = self.f50_from_noise(snoise, wave, sncut)
+            bad = (gal_mask < 0.5) | (snoise > 998) | isnan(snoise)
 
             normnoise = snoise/norm_all
             normnoise[bad] = 999.
 
+            if not direct_sigmas:
+                normnoise = self.f50_from_noise(normnoise, wave, sncut,
+                                                linewidth = linewidth)
+
+            
             return normnoise, amp
 
         else:
@@ -588,9 +626,19 @@ class ShotSensitivity(object):
             if self.badshot:
                 mask[:] = False
 
-            return snoise/norm_all, mask, amp
+            bad = snoise > 998
+            normnoise = snoise/norm_all
+            normnoise[bad] = 999
 
-    def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None):
+            if not direct_sigmas:
+                normnoise = self.f50_from_noise(normnoise, wave, sncut,
+                                                linewidth = linewidth)
+
+
+            return normnoise, mask, amp
+
+    def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None,
+                            linewidth = None):
         """
         Return completeness at a 3D position as an array. 
         If for whatever reason the completeness is NaN, it's
@@ -608,6 +656,18 @@ class ShotSensitivity(object):
         sncut : float
             the detection significance (S/N) cut
             applied to the data
+        f50s : array (optional)
+            optional array of precomputed
+            50% completeness fluxes. Otherwise
+            the method will compute them itself
+            from the ra/dec/linewidth (default:None)
+        linewidth : array (optional)
+            optionally pass the linewidth of
+            the source (in AA) to activate the linewidth
+            dependent part of the completeness
+            model (default = None). Only does
+            anything when you don't pass the f50s
+            (default: None)
 
         Return
         ------
@@ -635,7 +695,7 @@ class ShotSensitivity(object):
         
 
         if type(f50s) == type(None):
-            f50s = self.get_f50(ra, dec, lambda_, sncut)
+            f50s = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
 
         try:
             fracdet = self.sinterp(flux, f50s, lambda_, sncut)
