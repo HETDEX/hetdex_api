@@ -412,7 +412,7 @@ class FiberIndex:
                 print('No fiber mask file found')
             selected_index = np.array(table_index)[idx]
 
-            mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(selected_index))
+            mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(selected_index))
 
             fiber_table = hstack([seltab[idx], mask_table])
         else:
