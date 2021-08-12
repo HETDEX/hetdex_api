@@ -340,7 +340,7 @@ class FiberIndex:
             )
 
     def query_region(
-        self, coords, radius=3.0 * u.arcsec,
+        self, coords, radius=3.5 * u.arcsec,
             shotid=None,
             return_index=False,
             return_flags=True
@@ -420,7 +420,7 @@ class FiberIndex:
                 if row['fiber_id_1'] == row['fiber_id_2']:
                     continue
                 else:
-                    print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2'])
+                    print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2']))
             fiber_table.rename_column('fiber_id_1', 'fiber_id')
             fiber_table.remove_column('fiber_id_2')
         else:
