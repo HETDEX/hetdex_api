@@ -413,8 +413,16 @@ class FiberIndex:
             selected_index = np.array(table_index)[idx]
 
             mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(selected_index))
-
+            
             fiber_table = hstack([seltab[idx], mask_table])
+            #check fibers match
+            for row in fiber_table:
+                if row['fiber_id_1'] == row['fiber_id_2']:
+                    continue
+                else:
+                    print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2'])
+            fiber_table.rename_column('fiber_id_1', 'fiber_id')
+            fiber_table.remove_column('fiber_id_2')
         else:
             fiber_table = seltab[idx]
             
