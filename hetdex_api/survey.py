@@ -686,7 +686,7 @@ class FiberIndex:
             
         table, table_index = self.query_region(
             coord, return_index=True, shotid=shotid)
-        mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(table_index))
+        mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
         
         flag  = np.all(mask_table['flag'])
         
