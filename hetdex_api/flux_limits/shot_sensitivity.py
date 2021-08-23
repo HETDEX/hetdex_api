@@ -394,6 +394,7 @@ class ShotSensitivity(object):
                                                            linewidth = linewidth)
                     else:
                         tamp = ["bad"]*len(tra)
+                        tf50s = [999.0]*len(tra)
                 else:
                     # if bad shot then the mask is all set to zero
                     tf50s, tmask, tamp = \
