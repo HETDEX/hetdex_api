@@ -227,6 +227,9 @@ class Extract:
 
         # remove NaN fibers
         notnan = np.isfinite(self.fibers.coords.ra.value) & np.isfinite(self.fibers.coords.dec.value)
+
+        # Save original indices to use later
+        indices_original = np.arange(len(self.fibers.coords.ra.value))[notnan]
         fibers_cat = {"name" : "fibers", "ra" : self.fibers.coords.ra.value[notnan], 
                       "dec" : self.fibers.coords.dec.value[notnan], 
                       "error" : np.ones(sum(notnan))}
@@ -268,7 +271,8 @@ class Extract:
         idx_all = table["fibers"].to_numpy()
         seps_all = table["Separation_sources_fibers"].to_numpy()
             
-        table_here = self.fibers.table.read_coordinates(idx_all)
+        # Remember to grab the fibers using their original table indices
+        table_here = self.fibers.table.read_coordinates(indices_original[idx_all])
         ifux = table_here["ifux"]
         ifuy = table_here["ifuy"]
         ra = table_here["ra"]
@@ -1096,7 +1100,7 @@ class Extract:
         SX = SX - ADRx3D - xc
         SY = SY - ADRy3D - yc
         weights = fac*I(SX, SY)
-        
+   
         if not return_I_fac:
             return weights
         else:
