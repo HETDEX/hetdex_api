@@ -984,7 +984,7 @@ class Extract:
             grid_z_error = (
                 griddata(
                     S[~error_image.mask],
-                    image.data[~error_image.mask],
+                    error_image.data[~error_image.mask],
                     (xgrid, ygrid),
                     method=interp_kind,
                 )
@@ -992,7 +992,7 @@ class Extract:
                 / area
             )
 
-                
+        
         if convolve_image:
             grid_z = convolve(grid_z, G)
             if error is not None:

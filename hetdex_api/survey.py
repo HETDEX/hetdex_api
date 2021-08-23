@@ -310,27 +310,6 @@ class FiberIndex:
             print('Could not find fiber mask file in {}'.format(config.fibermaskh5))
             self.fibermaskh5 = None
     
-        if loadall:
-            colnames = self.hdfile.root.FiberIndex.colnames
-
-            for name in colnames:
-
-                if isinstance(
-                    getattr(self.hdfile.root.FiberIndex.cols, name)[0], np.bytes_
-                ):
-                    setattr(
-                        self,
-                        name,
-                        getattr(self.hdfile.root.FiberIndex.cols, name)[:].astype(str),
-                    )
-                else:
-                    setattr(
-                        self, name, getattr(self.hdfile.root.FiberIndex.cols, name)[:]
-                    )
-
-            self.coords = SkyCoord(
-                self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs"
-            )
         if load_fiber_table:
             self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
             self.coords = SkyCoord(
@@ -339,8 +318,21 @@ class FiberIndex:
                 frame="icrs",
             )
 
+            # add masking info if found
+            if self.fibermaskh5 is not None:
+                self.mask_table = Table(self.fibermaskh5.root.Flags.read())
+                self.fiber_table = hstack([self.fiber_table, self.mask_table])
+
+                for row in self.fiber_table:
+                    if row['fiber_id_1'] == row['fiber_id_2']:
+                        continue
+                    else:
+                        print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2']))
+                self.fiber_table.rename_column('fiber_id_1', 'fiber_id')
+                self.fiber_table.remove_column('fiber_id_2')
+
     def query_region(
-        self, coords, radius=3.0 * u.arcsec,
+        self, coords, radius=3.5 * u.arcsec,
             shotid=None,
             return_index=False,
             return_flags=True
@@ -410,11 +402,19 @@ class FiberIndex:
         if return_flags:
             if self.fibermaskh5 is None:
                 print('No fiber mask file found')
+            else:
+                mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(selected_index))
+
             selected_index = np.array(table_index)[idx]
-
-            mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(selected_index))
-
             fiber_table = hstack([seltab[idx], mask_table])
+            #check fibers match
+            for row in fiber_table:
+                if row['fiber_id_1'] == row['fiber_id_2']:
+                    continue
+                else:
+                    print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2']))
+            fiber_table.rename_column('fiber_id_1', 'fiber_id')
+            fiber_table.remove_column('fiber_id_2')
         else:
             fiber_table = seltab[idx]
             
@@ -686,7 +686,7 @@ class FiberIndex:
             
         table, table_index = self.query_region(
             coord, return_index=True, shotid=shotid)
-        mask_table = Table(self.fibermaskh5.root.flags.Flags.read_coordinates(table_index))
+        mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
         
         flag  = np.all(mask_table['flag'])
         
@@ -704,7 +704,8 @@ class FiberIndex:
         Close the hdfile when done
         """
         self.hdfile.close()
-
+        if self.fibermaskh5 is not None:
+            self.fibermaskh5.close()
 
 def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
     """

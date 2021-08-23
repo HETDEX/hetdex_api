@@ -269,7 +269,7 @@ def get_source_spectra(shotid, args):
                     try:
                         flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
                                                          shotid=shotid)
-                    except IndexError:
+                    except:
                         flags = FibIndex.get_fiber_flags(coord=args.coords,
                                                          shotid=shotid)
                 else:
@@ -403,11 +403,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     fiber_info = []
 
                 if len(fiber_info) > 0:
-                    #flags = get_flags(fiber_info)
                     try:
                         flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
                                                          shotid=shotid)
-                    except IndexError:
+                    except:
                         flags = FibIndex.get_fiber_flags(coord=args.coords,
                                                          shotid=shotid)
                 else:
