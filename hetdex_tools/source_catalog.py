@@ -454,7 +454,7 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=8.0, dwave=6.0)
+                dsky=10.0, dwave=6.0)
 
     t0 = time.time()
     print("starting fof ...")
@@ -556,8 +556,8 @@ def create_source_catalog(
     spatial_id = grp_by_id.groups.keys
     spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    # also match if a group member is brighter than gmag=22 (testing this)
-    sel_bright = detect_table['gmag'] < 22
+    # also match if a group member is brighter than gmag=21 (testing this)
+    sel_bright = detect_table['gmag'] < 21
     gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
     spatial_id_to_keep2 = gmag_join['id']
 
@@ -572,13 +572,13 @@ def create_source_catalog(
         if det in detfriend_1['detectid']:
             keep_row[i] = 0
 
-    print("Performing FOF in 2D space with dlink=3.0 arcsec")
+    print("Performing FOF in 2D space with dlink=1.0 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"][keep_row],
         detect_table["dec"][keep_row],
         np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=3.0,
+        dsky=1.0,
     )
         
     t0 = time.time()
