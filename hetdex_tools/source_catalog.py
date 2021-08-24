@@ -1060,7 +1060,7 @@ def plot_source_group(
     z_guess = group["z_guess"][0]
 
     plt.title(
-        "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%4.3f"
+        "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%5.3f"
         % (
             source_id,
             group["n_members"][0],
