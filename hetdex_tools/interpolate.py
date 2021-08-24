@@ -94,7 +94,7 @@ def make_narrowband_image(
         
         detectid_obj = detectid
         sel_det = source_table['detectid'] == detectid
-        det_info=source_table[sel_det][0]
+        det_info = source_table[sel_det][0]
         
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
