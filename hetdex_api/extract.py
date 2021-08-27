@@ -32,6 +32,10 @@ try:
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     config = HDRconfig()
+
+    if LATEST_HDR_NAME == 'hdr2.1':
+        from hetdex_api.extinction import get_2pt1_extinction_fix
+    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -265,25 +269,32 @@ class Extract:
                 table = ttable
             else:
                 table = table.append(ttable)
- 
+
         # Indices of matched positions and fibers
         icoord_all = table["sources"].to_numpy()
         idx_all = table["fibers"].to_numpy()
         seps_all = table["Separation_sources_fibers"].to_numpy()
-            
+           
         # Remember to grab the fibers using their original table indices
         table_here = self.fibers.table.read_coordinates(indices_original[idx_all])
         ifux = table_here["ifux"]
         ifuy = table_here["ifuy"]
         ra = table_here["ra"]
         dec = table_here["dec"]
-            
+           
         if ffsky:
             spec = table_here["spec_fullsky_sub"] / 2.0
         else:
             spec = table_here["calfib"] / 2.0
- 
+
         spece = table_here["calfibe"] / 2.0
+
+        if self.survey == 'hdr2.1':
+            #apply HDR2.1 E(B-V)=0.02 extinction fix to fiber arrays
+            fix = get_2pt1_extinction_fix()
+            spec /= fix(self.wave)
+            spece /= fix(self.wave)
+
         ftf = table_here["fiber_to_fiber"]
 
         if self.survey == "hdr1":
@@ -450,6 +461,12 @@ class Extract:
                 fiber_id_array = fib_table['fiber_id']
             except:
                 fiber_id_array = []
+
+        if self.survey == 'hdr2.1':
+            #apply HDR2.1 E(B-V)=0.02 extinction fix to fiber arrays
+            fix = get_2pt1_extinction_fix()
+            spec /= fix(self.wave)
+            spece /= fix(self.wave)
 
         ifux[:] = ifux + self.dither_pattern[expn - 1, 0]
         ifuy[:] = ifuy + self.dither_pattern[expn - 1, 1]
