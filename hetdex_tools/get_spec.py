@@ -232,7 +232,7 @@ def get_source_spectra(shotid, args):
 
                 I = None
                 fac = None
-                
+               
                 weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
                                                   I=I, fac=fac, return_I_fac = True)
 #                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
@@ -376,7 +376,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID)
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
-                                            
+                                           
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 # added by EMC 20210609
                 norm = np.sum(weights, axis=0)
@@ -389,9 +389,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 # apply aperture correction
                 spectrum_aper /= norm
                 spectrum_aper_error /= norm
-               
+              
                 weights *= norm[np.newaxis, :]
-                                                                
+                                                               
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     
@@ -956,7 +956,7 @@ def get_spectra(
     ffsky=False,
     fiberweights=False,
     return_fiber_info=False,
-    loglevel='WARNING',
+    loglevel='INFO',
     
 ):
     """
@@ -1007,7 +1007,7 @@ def get_spectra(
         bad astrometry, bad calibration. Default is False.
     loglevel: str
         Level to set logging. Options are ERROR, WARNING, INFO,
-        DEBUG. Defaults to WARNING
+        DEBUG. Defaults to INFO
 
     Returns
     -------
