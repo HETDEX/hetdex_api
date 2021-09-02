@@ -13,7 +13,7 @@ from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan, newaxis, ceil)
+                   isnan, newaxis, ceil, nansum)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
@@ -535,7 +535,7 @@ class ShotSensitivity(object):
                 fiberid = afiberid[sel]
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
-                    
+ 
                 iclosest = argmin(seps)
 
                 amp.append(fiberid[iclosest])
@@ -548,7 +548,7 @@ class ShotSensitivity(object):
                     
                 # XXX Could be faster - reloads the file every run
                 meteor_flag = meteor_flag_from_coords(c, self.shotid)
-                
+
                 if not (amp_flag and meteor_flag):
                     if wave_passed:
                         noise.append(badval)
@@ -564,7 +564,7 @@ class ShotSensitivity(object):
                 # See Greg Zeimann's Remedy code
                 norm = sum(weights, axis=0)
                 weights = weights/norm
-                
+
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False)
                 
@@ -572,11 +572,15 @@ class ShotSensitivity(object):
  
                 if wave_passed:
                     index = where(wave_rect >= wave[i])[0][0]
-                    ilo = index - self.wavenpix 
+                    ilo = index - self.wavenpix
                     ihi = index + self.wavenpix + 1
+
+                    # Account for NaN spectral bins
+                    goodfrac = 1.0 - sum(isnan(spectrum_aper_error[ilo:ihi]))/(ihi - ilo)
+
                     sum_sq = \
-                        sqrt(sum(square(spectrum_aper_error[ilo:ihi])))
-                    norm_all.append(sum(norm[ilo:ihi])/len(norm[ilo:ihi]))
+                        sqrt(nansum(square(spectrum_aper_error[ilo:ihi]/goodfrac)))
+                    norm_all.append(nansum(norm[ilo:ihi])/len(norm[ilo:ihi]))
                     noise.append(sum_sq)
                 else:
                     convolved_variance = convolve(convolution_filter,
