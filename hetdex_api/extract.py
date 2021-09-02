@@ -290,6 +290,8 @@ class Extract:
         spece = table_here["calfibe"] / 2.0
 
         if self.survey == 'hdr2.1':
+            if verbose:
+                print('Removing extinction of E(B-V)=0.02')
             #apply HDR2.1 E(B-V)=0.02 extinction fix to fiber arrays
             fix = get_2pt1_extinction_fix()
             spec /= fix(self.wave)
@@ -349,7 +351,8 @@ class Extract:
                                 radius=3.5,
                                 ffsky=False,
                                 return_fiber_info=False,
-                                fiber_lower_limit=3):
+                                fiber_lower_limit=3,
+                                verbose=False):
         """ 
         Grab fibers within a radius and get relevant info
         
@@ -463,6 +466,8 @@ class Extract:
                 fiber_id_array = []
 
         if self.survey == 'hdr2.1':
+            if verbose:
+                print('Removing extinction of E(B-V)=0.02')
             #apply HDR2.1 E(B-V)=0.02 extinction fix to fiber arrays
             fix = get_2pt1_extinction_fix()
             spec /= fix(self.wave)
