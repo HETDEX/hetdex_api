@@ -41,6 +41,53 @@ except Exception as e:
     LATEST_HDR_NAME = "hdr2.1"
     config = None
 
+def sclean(waves, fiber_data, fiber_error, mask,
+           npix = 5, error_scale = 4.0):
+    """
+    A version of `sclean` from 
+    `karlspipe/fitrsdecsp.f`. Bad data
+    is replaced with the average of a +/-
+    `npix` window around the nearest element.
+    The error is replaced with `error_scale`
+    times the error of the nearest element.
+    These value where tuned by K. Gebhardt to
+    optimise the detections and minimise false
+    detections.
+    
+    Parameters 
+    ----------
+    fiber_data, fiber_error : array
+        the data and error arrays of
+        the fiber
+    npix : int
+        the size of the +/- pixel
+        to average to find the 
+        replacement value
+    error_scale : float
+        scale the error by this
+        when replacing
+    """
+    fiber_data_out = np.copy(fiber_data)
+    fiber_error_out = np.copy(fiber_error)
+
+    bad = (abs(fiber_data) < 1e-40) | (abs(fiber_error) < 1e-40)
+    good = np.logical_not(bad)
+    good_indices = np.arange(len(waves))[good]
+ 
+    # If it's all bad, give up!
+    if all(bad):
+        return fiber_data_out, fiber_error_out, mask
+
+    for idx in np.arange(len(waves))[bad]:
+        mask[idx] = True
+        jnear = good_indices[np.argmin(abs(waves[good] - waves[idx]))]
+        arr = fiber_data[max(0, jnear - npix): jnear + npix + 1]
+        fiber_data_out[idx] = np.mean(arr[abs(arr) > 0])
+        #print(np.mean(arr[arr > 0]), idx, any(np.isnan(arr)), len(arr[arr > 0]))
+        fiber_error_out[idx] = error_scale*fiber_error[jnear]        
+
+    return fiber_data_out, fiber_error_out, mask
+
 
 class Extract:
     def __init__(self, wave=None):
@@ -1161,7 +1208,8 @@ class Extract:
 
         return weights
 
-    def get_spectrum(self, data, error, mask, weights, remove_low_weights = True):
+    def get_spectrum(self, data, error, mask, weights, remove_low_weights = True,
+                     sclean_bad = True):
         """
         Weighted spectral extraction
         
@@ -1180,7 +1228,11 @@ class Extract:
             remove the contribution from fibers with
             weights less than 10% the median 
             (default: True).
-        
+        sclean_bad : bool
+            replace bad data in the
+            way described by Karl Gebhardt and
+            implemented in his `fitradecsp` code
+       
         Returns
         -------
         spectrum: numpy 1d array
@@ -1188,6 +1240,12 @@ class Extract:
         spectrum_error: numpy 1d array
             Error for the flux calibrated extracted spectrum
         """
+
+        # Replace bad data with an average
+        if sclean_bad:
+            for i in range(data.shape[0]):
+                data[i, :], error[i, :], mask[i, :] = sclean(self.wave, data[i,:], error[i,:], mask[i, :])
+
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
         )
