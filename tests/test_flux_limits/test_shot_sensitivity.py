@@ -7,7 +7,10 @@ AUTHOR: Daniel Farrow
 """
 import pytest
 from hetdex_api.flux_limits.shot_sensitivity import ShotSensitivity
+from hetdex_api.extinction import get_2pt1_extinction_fix
 
+# Fix for hdr2.1 and earlier
+ext = get_2pt1_extinction_fix()
 
 @pytest.fixture(scope="module")
 def shot_sensitivity():
@@ -40,6 +43,8 @@ def test_extract_cube(shot_sensitivity):
                           )
                          ])
 def test_get_f50(ra, dec, wave, exptd, shot_sensitivity):
+
+    exptd = exptd/ext(wave) 
     f50 = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
                                    direct_sigmas=True)
 
@@ -66,10 +71,8 @@ def test_get_f50_lw(ra, dec, wave, linewidth, exptd, shot_sensitivity):
     f50 = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
                                    linewidth = linewidth)
 
-    assert pytest.approx(exptd, rel=0.2) == f50*1e17
-
-
-
+    exptd = exptd/ext(wave) 
+    assert pytest.approx(exptd, rel=0.02) == f50*1e17
 
 
 @pytest.mark.parametrize("ra, dec, wave, flux, lw, exptd, flim_model",
@@ -101,10 +104,9 @@ def test_get_f50_lw(ra, dec, wave, linewidth, exptd, shot_sensitivity):
 def test_completeness(ra, dec, wave, flux, lw, exptd, flim_model):
 
     s = ShotSensitivity("20190316v019", release="hdr2.1", 
-                        flim_model=flim_model)
+                        flim_model=flim_model, sclean_bad = False)
  
-    c = s.return_completeness(flux, ra, dec, wave, 5.0,
+    c = s.return_completeness(flux/ext(wave), ra, dec, wave, 5.0,
                               linewidth=lw)
 
     assert pytest.approx(c, rel=0.005) == exptd
-
