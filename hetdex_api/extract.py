@@ -56,9 +56,13 @@ def sclean(waves, fiber_data, fiber_error, mask,
     
     Parameters 
     ----------
-    fiber_data, fiber_error : array
+    fiber_data, fiber_error : 1D array
         the data and error arrays of
         the fiber
+    mask : 1D array
+        the mask for this fiber (so
+        the bad data can be unmasked
+        after replacement)
     npix : int
         the size of the +/- pixel
         to average to find the 
@@ -66,6 +70,12 @@ def sclean(waves, fiber_data, fiber_error, mask,
     error_scale : float
         scale the error by this
         when replacing
+
+    Returns
+    -------
+    fiber_data_out, fiber_error_out, mask : 1D array
+        the input data with bad values 
+        replaced and unmasked
     """
     fiber_data_out = np.copy(fiber_data)
     fiber_error_out = np.copy(fiber_error)
