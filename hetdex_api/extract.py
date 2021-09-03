@@ -65,7 +65,7 @@ def sclean(waves, fiber_data, fiber_error, mask,
         after replacement)
     npix : int
         the size of the +/- pixel
-        to average to find the 
+        range to average to find the 
         replacement value
     error_scale : float
         scale the error by this
