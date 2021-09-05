@@ -230,12 +230,20 @@ def get_source_spectra(shotid, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
 
-                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
-                # added by EMC 20210609
-                norm = np.sum(weights, axis=0)
-                weights = weights / norm[np.newaxis, :]
+                I = None
+                fac = None
+               
+                weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
+                                                  I=I, fac=fac, return_I_fac = True)
+#                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
 
-                result = E.get_spectrum(data, error, mask, weights)
+                # added by EMC 20210609. See Greg Zeimann's Remedy code
+                norm = np.sum(weights, axis=0)
+                weights = weights / norm 
+
+                result = E.get_spectrum(data, error, mask, weights,
+                                        remove_low_weights = False)
+               
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
                 # apply aperture correction
@@ -243,7 +251,7 @@ def get_source_spectra(shotid, args):
                 spectrum_aper_error /= norm
 
                 weights *= norm[np.newaxis, :]
-                
+              
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     try:
@@ -265,7 +273,6 @@ def get_source_spectra(shotid, args):
                     fiber_info = []
 
                 if len(fiber_info) > 0:
-                    #flags = get_flags(fiber_info)
                     try:
                         flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
                                                          shotid=shotid)
@@ -369,22 +376,22 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID)
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
-                                            
+                                           
                 weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 # added by EMC 20210609
                 norm = np.sum(weights, axis=0)
                 weights = weights / norm[np.newaxis, :]
 
-                result = E.get_spectrum(data, error, mask, weights)
+                result = E.get_spectrum(data, error, mask, weights, remove_low_weights = False)
 
                 spectrum_aper, spectrum_aper_error = [res for res in result]
 
                 # apply aperture correction
                 spectrum_aper /= norm
                 spectrum_aper_error /= norm
-               
+              
                 weights *= norm[np.newaxis, :]
-                                                                
+                                                               
                 #add in the total weight of each fiber (as the sum of its weight per wavebin)
                 if args.fiberweights:
                     
@@ -949,7 +956,7 @@ def get_spectra(
     ffsky=False,
     fiberweights=False,
     return_fiber_info=False,
-    loglevel='WARNING',
+    loglevel='INFO',
     
 ):
     """
@@ -1000,7 +1007,7 @@ def get_spectra(
         bad astrometry, bad calibration. Default is False.
     loglevel: str
         Level to set logging. Options are ERROR, WARNING, INFO,
-        DEBUG. Defaults to WARNING
+        DEBUG. Defaults to INFO
 
     Returns
     -------
