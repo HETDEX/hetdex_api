@@ -584,8 +584,13 @@ class ShotSensitivity(object):
                     # Account for NaN spectral bins
                     goodfrac = 1.0 - sum(isnan(spectrum_aper_error[ilo:ihi]))/(ihi - ilo)
 
-                    sum_sq = \
-                        sqrt(nansum(square(spectrum_aper_error[ilo:ihi]/goodfrac)))
+                    if all(isnan(spectrum_aper_error[ilo:ihi])):
+                        sum_sq = badval
+                    else:
+                        sum_sq = \
+                            sqrt(nansum(square(spectrum_aper_error[ilo:ihi]/goodfrac)))
+
+
                     norm_all.append(nansum(norm[ilo:ihi])/len(norm[ilo:ihi]))
                     noise.append(sum_sq)
                 else:
@@ -709,7 +714,12 @@ class ShotSensitivity(object):
             f50s = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
 
         try:
+            # to stop bad values breaking interpolation
+            bad = (f50s > 998)
+            f50s[bad] = 1e-16
             fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+            fracdet[bad] = 0.0
+            f50s[bad] = 999.0
         except IndexError as e:
             print("Interpolation failed!")
             print(min(flux), max(flux), min(f50s), max(f50s))
