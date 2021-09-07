@@ -717,7 +717,7 @@ class Extract:
         Z = np.reshape(Z, xgrid.shape)
 
         zarray = np.array([Z, xgrid, ygrid])
-        zarray[0] /= zarray[0].sum()
+        #zarray[0] /= zarray[0].sum()
        
         return zarray
 
@@ -1167,10 +1167,12 @@ class Extract:
 
         if not fac:
             scale = np.abs(psf[1][0, 1] - psf[1][0, 0])
-            # area = 0.75 ** 2 * np.pi
-            area = 1.7671458676442586
-            fac = area / scale ** 2
-        
+            #area = 0.75 ** 2 * np.pi
+            #area = 1.7671458676442586
+            #fac = area / scale ** 2
+            # scale to fiber size already included in moffat_psf_integration?
+            fac = 1.0
+
         # Avoid using a loop to speed things up, uses more memory though
         SX = np.tile(ifux, len(self.wave)).reshape(len(self.wave), len(ifux)).T
         SY = np.tile(ifuy, len(self.wave)).reshape(len(self.wave), len(ifuy)).T
@@ -1219,7 +1221,8 @@ class Extract:
         for i in np.arange(len(self.wave)):
             S[:, 0] = ifux - self.ADRx[i] - xc
             S[:, 1] = ifuy - self.ADRy[i] - yc
-            weights[:, i] = I(S[:, 0], S[:, 1]) * area / scale ** 2
+            # don't rescale by area factor - already done in moffat_psf_integration?
+            weights[:, i] = I(S[:, 0], S[:, 1]) #* area / scale ** 2
 
         return weights
 
