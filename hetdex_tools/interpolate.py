@@ -119,13 +119,14 @@ def make_narrowband_image(
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     E = Extract()
-    E.load_shot(shotid_obj)
+    E.load_shot(shotid_obj, fibers=False)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
     center = int(ndim / 2)
 
-    rad = imsize
+    rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
+
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=ffsky)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
@@ -313,7 +314,7 @@ def make_data_cube(
             print("Provide a detectid or both a coords and shotid")
 
     E = Extract()
-    E.load_shot(shotid)
+    E.load_shot(shotid, fibers=False)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
@@ -328,7 +329,8 @@ def make_data_cube(
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
     
-    rad = imsize
+    rad = imsize.to(u.arcsec).value
+    
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
