@@ -249,7 +249,7 @@ def get_flux_for_source(
     else:
         flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
             hdu=hdu, coords=coords_obj,
-            raidus=radius, annulus=annulus, plot=False
+            radius=radius, annulus=annulus, plot=False
         )
     return flux.value, flux_err.value, bkg_stddev.value, apcor
 
