@@ -150,7 +150,7 @@ def get_flux_for_index(index, plot=True, convolve_image=True):
             include_error=True,
         )
     except:
-        return np.nan, np.nan
+        return np.nan, np.nan, np.nan, np.nan
 
     if plot:
         plt.figure()
@@ -176,6 +176,8 @@ def get_flux_for_index(index, plot=True, convolve_image=True):
 def get_flux_for_source(
     detectid,
     coords=None,
+    radius=1 * u.arcsec,
+    annulus=[5, 7] * u.arcsec,
     shotid=None,
     wave=None,
     linewidth=None,
@@ -228,12 +230,14 @@ def get_flux_for_source(
             include_error=True,
         )
     except:
-        # print('Could not make narrowband image for {}'.format(detectid_obj))
-        return np.nan, np.nan
+        print('Could not make narrowband image for {}'.format(detectid_obj))
+        return np.nan, np.nan, np.nan, np.nan
+        
     if plot:
         plottitle = "{} {}".format(detectid_obj, shotid_obj)
         flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
-            hdu=hdu, coords=coords_obj, plot=True, plottitle=plottitle
+            hdu=hdu, coords=coords_obj, plot=True, plottitle=plottitle,
+            radius=radius, annulus=annulus
         )
         plt.text(
             2,
@@ -244,7 +248,8 @@ def get_flux_for_source(
         )
     else:
         flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
-            hdu=hdu, coords=coords_obj, plot=False
+            hdu=hdu, coords=coords_obj,
+            raidus=radius, annulus=annulus, plot=False
         )
     return flux.value, flux_err.value, bkg_stddev.value, apcor
 
