@@ -404,8 +404,7 @@ def create_source_catalog(
     detects_broad_table = join(
         agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
     )
-    #detects_broad_table['flux_Lya'] = detects_broad_table['flux_Lya'].filled(-98)
-    
+   
     dets_all.close()
     del dets_all_table
 
@@ -437,7 +436,7 @@ def create_source_catalog(
     
     detect_table.write('test2.fits', overwrite=True)
 
-    print("Performing FOF in 3D space with linking length=10 arcsec")
+    print("Performing FOF in 3D space with linking length=6 arcsec")
 
     # get fluxes to derive flux-weighted distribution of group
     
@@ -445,7 +444,7 @@ def create_source_catalog(
     gmag = detect_table["gmag"] * u.AB
     flux = gmag.to(u.Jy).value
 
-    sel_line = detect_table['wave'] > 0 # remove continuum sources
+    sel_line = detect_table['det_type'] == 'line' # remove continuum sources
 
     # first cluster in positional/wavelegnth space in a larger
     # linking length
@@ -454,7 +453,7 @@ def create_source_catalog(
                 detect_table["ra"][sel_line],
                 detect_table["dec"][sel_line],
                 detect_table["wave"][sel_line],
-                dsky=10.0, dwave=6.0)
+                dsky=6.0, dwave=8.0)
 
     t0 = time.time()
     print("starting fof ...")
@@ -670,6 +669,13 @@ def create_source_catalog(
 
     expand_table.sort("source_id")
 
+    # fill mask values with nans
+    for col in expand_table.columns:
+        try:
+            out_table[col] = out_table[col].filled(np.nan)
+            print('yes', col)
+        except:
+            print('no', col)
     return expand_table
 
 
