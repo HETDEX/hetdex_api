@@ -31,6 +31,9 @@ from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Con
 
 from elixer import catalogs
 
+from hetdex_api.extinction import *
+import extinction
+
 catlib = catalogs.CatalogLibrary()
 config = HDRconfig()
 
@@ -42,92 +45,6 @@ wavelya = 1215.67
 waveoii = 3727.8
 
 deth5 = None
-
-def get_flux_noise_1sigma(detid, mask=False, add_apcor_fix=True):
-
-    """ For a detid get the the f50_1sigma value
-    
-    No need to mask the flux limits if you are using the
-    curated catalog which is already masked. This avoid a
-    few good sources on the edges of masks that get flagged
-    with a high flux limit value.
-    """
-    
-    global config, detect_table, deth5
-    
-    sncut = 1
-
-    if add_apcor_fix and deth5 is None:
-        deth5 = tb.open_file(config.detecth5, 'r')
-    
-    sel_det = detect_table["detectid"] == detid
-    shotid = detect_table["shotid"][sel_det][0]
-    ifuslot = detect_table["ifuslot"][sel_det][0]
-    
-    det_table_here = detect_table[sel_det]
-    
-    datevobs = str(shotid)[0:8] + "v" + str(shotid)[8:11]
-    
-    fn = op.join(config.flim_dir, datevobs + "_sensitivity_cube.h5")
-    if mask:
-        mask_fn = op.join(config.flimmask, datevobs + "_mask.h5")
-        sscube = SensitivityCubeHDF5Container(fn, mask_filename=mask_fn, flim_model="hdr1")
-    else:
-        sscube = SensitivityCubeHDF5Container(fn, flim_model="hdr1")
-
-    if add_apcor_fix:
-
-        if detect_table['det_type'][sel_det][0] == 'cont':
-            flim_update = np.nan
-            flim = np.nan
-            
-        else:
-            apcor = detect_table['apcor'][sel_det][0]
-
-            if True:
-                scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
-                flim = scube.get_f50(
-                    det_table_here["ra"],
-                    det_table_here["dec"],
-                    det_table_here["wave"],
-                    sncut
-                )[0]
-                
-                if apcor >= 0.5:
-                    flim_update = flim
-                else:
-                    fiber_row = deth5.root.Fibers.read_where("detectid == detid")
-                    #print(fiber_row)
-                    max_idx = np.argmax(fiber_row["weight"])
-                    ra = fiber_row['ra'][max_idx]
-                    dec = fiber_row['dec'][max_idx]
-                    flim_update = scube.get_f50(
-                        ra, dec, det_table_here["wave"], sncut
-                    )[0]
-                
-            else:#except Exception:
-                flim = np.nan
-                flim_update = np.nan
-
-        sscube.close()
-
-        flim_best = np.minimum(flim, flim_update)
-        return flim, flim_best
-
-    else:
-        try:
-            scube = sscube.extract_ifu_sensitivity_cube("ifuslot_{}".format(ifuslot))
-            flim = scube.get_f50(
-                det_table_here["ra"],
-                det_table_here["dec"],
-                det_table_here["wave"],
-                sncut
-            )[0]
-            sscube.close()
-            return flim
-        except Exception:
-            return np.nan
-
 
 def add_elixer_cat_info(det_table, version):
 
@@ -384,15 +301,31 @@ def create_source_catalog(
 
     sel6 = detects_cont.throughput > 0.08
 
-    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6].return_astropy_table()
+    sel_field = (
+        (detects_cont.field == "cosmos")
+        | (detects_cont.field == "dex-fall")
+        | (detects_cont.field == "dex-spring")
+        | (detects_cont.field == "egs")
+        | (detects_cont.field == "goods-n")
+    )
+    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6 * sel_field].return_astropy_table()
     detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
 
     if make_continuum:
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
+        detects_cont_table.write("continuum_" + version + ".tab", overwrite=True, format='ascii')
 
     dets_all = Detections().refine()
     sel_tp = dets_all.throughput > 0.08
-    dets_all_table = dets_all[sel_tp].return_astropy_table()
+    sel_field = (
+            (dets_all.field == "cosmos")
+            | (dets_all.field == "dex-fall")
+            | (dets_all.field == "dex-spring")
+            | (dets_all.field == "egs")
+            | (dets_all.field == "goods-n")
+        )
+    
+    dets_all_table = dets_all[sel_tp*sel_field].return_astropy_table()
     dets_all_table.add_column(Column(str("line"), name="det_type", dtype=str))
     agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
 
@@ -418,6 +351,19 @@ def create_source_catalog(
 
     del detects_cont_table, detects_broad_table
 
+    # calculate ebv and av for every detections
+    all_coords = SkyCoord(ra=detect_table['ra'], dec=detect_table['dec'], unit='deg')
+    sfd = SFDQuery()
+    ebv = sfd(all_coords)
+    Rv = 3.1
+    corr_SF2011 = 2.742  # Landolt V
+    ext = []
+
+    Av = corr_SF2011*ebv
+
+    detect_table['Av'] = Av
+    detect_table['ebv'] = ebv
+    
     detect_table = add_elixer_cat_info(detect_table, version)
     
     #print('Adding 1sigma noise from flux limits')
@@ -626,7 +572,7 @@ def create_source_catalog(
 
     detfriend_all = vstack([detfriend_1, detfriend_2])
     expand_table = join(detfriend_all, detect_table, keys="detectid")
-    expand_table['wave_group_id'] = expand_table['wave_group_id'].filled(0)
+    expand_table['wave_group_id'] = expand_table['wave_group_id']
     expand_table.write('test3.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
@@ -677,208 +623,6 @@ def create_source_catalog(
         except:
             print('no', col)
     return expand_table
-
-
-def z_guess_3727(group, cont=False):
-    sel_good_lines = None
-    if np.any((group["sn"] > 15) * (group["wave"] > waveoii)):
-        sel_good_lines = (group["sn"] > 15) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 10) * (group["wave"] > waveoii)):
-        sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 8) * (group["wave"] > waveoii)):
-        sel_good_lines = (group["sn"] > 8) * (group["wave"] > waveoii)
-    elif np.any((group["sn"] > 6) * (group["wave"] > waveoii)):
-        if cont:
-            pass
-        else:
-            sel_good_lines = (group["sn"] > 6) * (group["wave"] > waveoii)
-    else:
-        if cont:
-            pass
-        else:
-            sel_good_lines = group["wave"] > waveoii
-
-    if sel_good_lines is not None:
-        try:
-            wave_guess = np.min(group["wave"][sel_good_lines])
-            z_guess = wave_guess / waveoii - 1
-        except Exception:
-            z_guess = -3.0
-    else:
-        z_guess = -2.0
-
-    return z_guess
-
-
-def guess_source_wavelength(source_id):
-
-    global source_table, agn_tab, cont_gals, cont_stars, config
-
-    if agn_tab is None:
-        agn_tab = Table.read(config.agncat, format="ascii")
-    if cont_gals is None:
-        cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
-    if cont_stars is None:
-        cont_stars = np.loadtxt(config.starlabels, dtype=int)
-        
-    sel_group = source_table["source_id"] == source_id
-    group = source_table[sel_group]
-    z_guess = -1.0
-    s_type = "none"
-    z_flag = -1
-
-    # Check if any member is an AGN first
-    agn_flag = False
-    for det in group['detectid']:
-        if det in agn_tab['detectid']:
-            agn_flag = True
-            agn_det = det
-
-    if agn_flag:
-        # get proper z's from Chenxu's catalog
-        sel_det = agn_tab["detectid"] == agn_det
-        z_guess = agn_tab["zguess"][sel_det][0]
-        z_flag = agn_tab['zflag'][sel_det][0]
-        s_type = "agn"
-
-    elif np.any(group["det_type"] == "cont"):
-        sel_cont = group['det_type'] == "cont"
-        det = group['detectid'][sel_cont]
-        if det in cont_gals:
-            if np.any(group['det_type']=="line"):
-                z_guess = z_guess_3727(group, cont=True)
-                if z_guess > 0:
-                    s_type = "oii"
-                else:
-                    s_type = "unsure-cont-line"
-            else:
-                s_type = 'lzg'
-                z_guess = -4.0
-
-        elif det in cont_stars:
-            if np.any(group['det_type']=="line"):
-                z_guess = z_guess_3727(group, cont=True)
-                if z_guess > 0:
-                    s_type = "oii"
-                else:
-                    s_type = "star"
-                    z_guess = 0.0
-            else:
-                z_guess = 0.0
-                s_type = "star"
-
-        elif np.any(group["gaia_match_id"] > 0):
-            z_guess = z_guess_3727(group, cont=True)
-            if z_guess > 0:
-                s_type = "oii"
-            else:
-                s_type = "star"
-                z_guess = 0.0
-        else:
-            if np.any(group['det_type'] == 'line'):
-                z_guess = z_guess_3727(group, cont=True)
-                if z_guess > 0:
-                    s_type = "oii"
-                else:
-                    s_type = "unsure-cont-line"
-            else:
-                s_type = "unsure-cont"
-                z_guess = -5.0
-                
-    elif np.any(group["plae_classification"] < 0.1):
-        z_guess = z_guess_3727(group)
-        if z_guess > 0:
-            s_type = "oii"
-        else:
-            s_type = "unsure-line"
-
-    elif (np.nanmedian(group["plae_classification"]) < 0.4):
-        z_guess = z_guess_3727(group)
-        if z_guess > 0:
-            s_type = "oii"
-        else:
-            s_type = "unsure-line"
-
-    elif (np.nanmedian(group["plae_classification"]) >= 0.4):
-        if np.any(group["sn"] > 15):
-            sel_good_lines = group["sn"] > 15
-            wave_guess = np.min(group["wave"][sel_good_lines])
-        elif np.any(group["sn"] > 10):
-            sel_good_lines = group["sn"] > 10
-            wave_guess = np.min(group["wave"][sel_good_lines])
-        elif np.any(group["sn"] > 8):
-            sel_good_lines = group["sn"] > 8
-            wave_guess = np.min(group["wave"][sel_good_lines])
-        elif np.any(group["sn"] > 6.5):
-            sel_good_lines = group["sn"] > 6.5
-            wave_guess = np.min(group["wave"][sel_good_lines])
-        elif np.any(group["sn"] > 5.5):
-            sel_good_lines = group["sn"] > 5.5
-            wave_guess = np.min(group["wave"][sel_good_lines])
-        else:
-            argmaxsn = np.argmax(group["sn"])
-            wave_guess = group["wave"][argmaxsn]
-        z_guess = wave_guess / wavelya - 1
-        s_type = "lae"
-    else:
-        argmaxsn = np.argmax(group["sn"])
-        wave_guess = group["wave"][argmaxsn]
-        z_guess = wave_guess / wavelya - 1
-        s_type = "lae"
-        
-    return z_guess, z_flag, str(s_type),
-
-
-def add_z_guess(source_table):
-
-    try:
-        # remove z_guess column if it exists
-        print("Removing existing z_guess column")
-        source_table.remove_column("z_guess")
-    except Exception:
-        pass
-
-    try:
-        source_table.remove_column("source_type")
-    except Exception:
-        pass
-    print("Assigning a best guess redshift")
-
-    from multiprocessing import Pool
-
-    src_list = np.unique(source_table["source_id"])
-
-    #z_guess = []
-    #s_type = []
-    #for src in src_list:
-    #    z_g, s_t = guess_source_wavelength(src)
-    #    z_guess.append(z_g)
-    #    s_type.append(s_t)
-        
-    t0 = time.time()
-    p = Pool(6)
-    res = p.map(guess_source_wavelength, src_list)
-    t1 = time.time()
-    z_guess = []
-    s_type = []
-    z_flag = []
-    for r in res:
-        z_guess.append(r[0])
-        z_flag.append(r[1])
-        s_type.append(r[2])
-    p.close()
-
-    print("Finished in {:3.2f} minutes".format((t1 - t0) / 60))
-
-    z_table = Table(
-        [src_list, z_guess, z_flag, s_type],
-        names=["source_id", "z_guess", "z_agn_flag", "source_type"]
-    )
-
-    all_table = join(source_table, z_table, join_type="left")
-    del source_table, z_table
-    
-    return all_table
 
 
 def plot_source_group(
@@ -1062,8 +806,10 @@ def plot_source_group(
                 fontsize=9,
                 color="red",
             )
-    #    z_guess = guess_source_wavelength(source_id, source_table)
-    z_guess = group["z_guess"][0]
+    try:
+        z_hetdex = group["z_hetdex"][0]
+    except:
+        z_hetdex = group["z_guess"][0]
 
     plt.title(
         "source_id:%d n:%d ra:%6.3f dec:%6.3f z:%5.3f"
@@ -1072,7 +818,7 @@ def plot_source_group(
             group["n_members"][0],
             group["ra_mean"][0],
             group["dec_mean"][0],
-            z_guess,
+            z_hetdex,
         )
     )
 
@@ -1356,7 +1102,7 @@ def main(argv=None):
         matched_catalog['zspec_catalog'][sel_det] = 'DESI'
 
     source_table = matched_catalog
-   
+
     # Clear up memory
 
     for name in dir():
@@ -1368,39 +1114,14 @@ def main(argv=None):
     import gc
     gc.collect()
     
-    # sort table by source wavelength closest to z_guess and position
-    # so unique will produce the closest match    
+    # sort table closest to group mean position
+    # so unique will produce the closest match
+
     src_coord = SkyCoord(ra=source_table['ra_mean'], dec=source_table['dec_mean'], unit='deg')
     det_coord = SkyCoord(ra=source_table['ra'], dec=source_table['dec'], unit='deg')
 
     source_table['src_separation'] = det_coord.separation(src_coord)
     source_table.sort(['src_separation'])
-    #source_table['dwave'] = np.abs(src_wave - source_table['wave'])
-    
-    #source_table.sort(['dwave', 'src_separation'])
-
-    # add a guess on redshift and source type
-
-    if False:
-        out_table = add_z_guess(source_table)
-
-        sel_star = out_table['source_type'] == 'star'
-        sel_oii = out_table['source_type'] == 'oii'
-        sel_lae = out_table['source_type'] == 'lae'
-        sel_agn = out_table['source_type'] == 'agn'
-        
-        print('There are {} stars, {} OII emitters and {} LAEs'.format(
-            np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae)))
-        
-        # sort table by source wavelength closest to z_guess and position         
-        src_wave = np.zeros_like(out_table['z_guess'])
-        src_wave[sel_oii] = (1 + out_table['z_guess'][sel_oii]) * waveoii
-        src_wave[sel_lae] = (1 + out_table['z_guess'][sel_lae]) * wavelya
-        
-        sel_z = ( out_table['z_guess'] >= 1.9) * (out_table['z_guess'] <= 3.6)
-        src_wave[sel_agn*sel_z] = (1 + out_table['z_guess'][sel_agn*sel_z]) * wavelya
-    else:
-        out_table = source_table
 
     print('Filling masked values with NaNs')
     
@@ -1414,10 +1135,6 @@ def main(argv=None):
     out_table.meta = {}
     out_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
-
-    out_table.write("source_catalog_{}.tab".format(args.version),
-                    format='ascii', overwrite=True)
-
 
 if __name__ == "__main__":
     main()
