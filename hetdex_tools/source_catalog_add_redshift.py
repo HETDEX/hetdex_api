@@ -23,9 +23,9 @@ version = '2.1.3'
 config = HDRconfig()
 #catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
-catfile = '../hdr2.1-recovery-tests/catalogs/source_catalog_2.1.3.fits'
+catfile = 'source_catalog_2.1.3.fits'
 source_table = Table.read(catfile)
-
+agn_tab = Table.read(config.agncat, format='ascii')
 print('Source catalog was found at {}'.format(catfile))
 
 wavelya = 1215.67
@@ -35,14 +35,14 @@ waveheii = 1640.4
 
 # match Diagnose classification table
 
-diagnose_tab = Table.read( 'diagnose_2.1.3.fits')
-diagnose_tab.rename_column('z_best', 'z_diagnose')
-diagnose_tab.rename_column('classification', 'cls_diagnose')
+if True:
+    diagnose_tab = Table.read( '/work/05350/ecooper/stampede2/redshift-tests/diagnose_2.1.3.fits')
+    diagnose_tab.rename_column('z_best', 'z_diagnose')
+    diagnose_tab.rename_column('classification', 'cls_diagnose')
+    
+    combined = join( source_table, diagnose_tab['detectid', 'z_diagnose', 'cls_diagnose', 'stellartype'], join_type='left', keys=['detectid'])
+    source_table = combined.copy()
 
-combined = join( source_table, diagnose_tab['detectid', 'z_diagnose', 'cls_diagnose', 'stellartype'], join_type='left', keys=['detectid'])
-agn_tab = Table.read(config.agncat, format='ascii')
-
-source_table = combined.copy()
 uniq_table = unique(source_table, keys='source_id')
 
 def add_z_guess(source_id):
@@ -51,13 +51,9 @@ def add_z_guess(source_id):
 
     if agn_tab is None:
         agn_tab = Table.read(config.agncat, format="ascii")
-    if cont_gals is None:
-        cont_gals = np.loadtxt(config.galaxylabels, dtype=int)
-    if cont_stars is None:
-        cont_stars = np.loadtxt(config.starlabels, dtype=int)
- 
+
     sel_group = source_table["source_id"] == source_id
-    
+   
     group = source_table[sel_group]
     z_guess = -1.0
     s_type = "none"
@@ -188,8 +184,7 @@ res = p.map(add_z_guess, uniq_table['source_id'])
 p.close()
 t1 = time.time()
 
-print('Adding z_hetdex complete in {:5.3} m'.format( (t1-t0) / 60)
-
+print('Adding z_hetdex complete in {:5.3} m'.format( (t1-t0) / 60))
 
 z_hetdex = []
 z_conf = []
