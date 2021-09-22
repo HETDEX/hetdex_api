@@ -572,7 +572,8 @@ def create_source_catalog(
 
     detfriend_all = vstack([detfriend_1, detfriend_2])
     expand_table = join(detfriend_all, detect_table, keys="detectid")
-    expand_table['wave_group_id'] = expand_table['wave_group_id']
+    expand_table['wave_group_id'] = expand_table['wave_group_id'].filled(0)
+    expand_table.remove_column('detectname')
     expand_table.write('test3.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
@@ -618,10 +619,11 @@ def create_source_catalog(
     # fill mask values with nans
     for col in expand_table.columns:
         try:
-            out_table[col] = out_table[col].filled(np.nan)
+            expand_table[col] = expand_table[col].filled(np.nan)
             print('yes', col)
         except:
-            print('no', col)
+            pass
+            #print('no', col)
     return expand_table
 
 
@@ -1125,15 +1127,16 @@ def main(argv=None):
 
     print('Filling masked values with NaNs')
     
-    for col in out_table.columns:
+    for col in source_table.columns:
         try:
-            out_table[col] = out_table[col].filled(np.nan)
+            source_table[col] = source_table[col].filled(np.nan)
             print('yes', col)
         except:
-            print('no', col)
+            pass
+            #print('no', col)
     #remove nonsense metadata
-    out_table.meta = {}
-    out_table.write("source_catalog_{}.fits".format(args.version),
+    source_table.meta = {}
+    source_table.write("source_catalog_{}.fits".format(args.version),
                     overwrite=True)
 
 if __name__ == "__main__":
