@@ -16,9 +16,7 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 config = HDRconfig()
 surveyh5 = tb.open_file(config.surveyh5, "r")
 detecth5 = tb.open_file(config.detecth5, "r")
-version='2.1.3'
-catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
-source_table = Table.read(catfile)
+
 
 def make_narrowband_image(
     detectid=None,
@@ -88,13 +86,12 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, source_table, surveyh5
+    global config, detecth5, surveyh5
 
     if detectid is not None:
         
         detectid_obj = detectid
-        sel_det = source_table['detectid'] == detectid
-        det_info = source_table[sel_det][0]
+        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
         
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
@@ -305,8 +302,8 @@ def make_data_cube(
     global config, detecth5, surveyh5
 
     if detectid is not None:
-        sel_det = source_table['detectid'] == detectid
-        det_info = source_table[sel_det][0]
+        detectid_obj = detectid
+        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 
