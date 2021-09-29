@@ -132,7 +132,7 @@ class VIRUSFiber(tb.IsDescription):
     error1D = tb.Float32Col((1032,))
     calfib = tb.Float32Col((1036,))
     calfibe = tb.Float32Col((1036,))
-    spec_fullsky_sub = tb.Float32Col((1036,))
+    calfib_ffsky = tb.Float32Col((1036,))
     Throughput = tb.Float32Col((1036,))
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
