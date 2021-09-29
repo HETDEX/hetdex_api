@@ -39,7 +39,7 @@ def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
     parser = ap.ArgumentParser(
-        description="""Create HDF5 Astrometry file.""", add_help=True
+        description="""Append HDF5 Calibration info table.""", add_help=True
     )
 
     parser.add_argument(
@@ -63,7 +63,7 @@ def main(argv=None):
         "--tpdir",
         help="""Directory for Throughput Info""",
         type=str,
-        default="/data/00115/gebhardt/detect",
+        default="/scratch/00115/gebhardt/detect",
     )
 
     parser.add_argument(
@@ -82,8 +82,8 @@ def main(argv=None):
         default=0,
     )
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1}""",
-                        type=str, default="hdr2.1")
+                        help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+                        type=str, default="hdr3")
     
                     
     args = parser.parse_args(argv)
