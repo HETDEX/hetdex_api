@@ -82,14 +82,14 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Reductions''',
-                        type=str, default='/data/00115/gebhardt/calfits/')
+                        type=str, default='/scratch/00115/gebhardt/calfits/')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5                          
                         file.''', default=None)
 
-    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr2.1}''',
-                        type=str, default='hdr2.1')
+    parser.add_argument("-survey", "--survey", help='''{hdr1, hdr2, hdr2.1, hdr3}''',
+                        type=str, default='hdr3')
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
