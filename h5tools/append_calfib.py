@@ -40,7 +40,7 @@ def get_cal_table(calfile):
     cal_table = Table([cal_f[0].data, cal_f[1].data, cal_f[2].data,
                        cal_f[3].data, cal_f[4].data],
                       names=['calfib','calfibe', 'calfib_counts',
-                             'calfibe_counts','spec_fullsky_sub'])
+                             'calfibe_counts','calfib_ffsky'])
     multi  = calfile[49:60]
 
     amp_col = []
@@ -150,7 +150,7 @@ def main(argv=None):
                     fibrow['calfibe'] = cal_table['calfibe'][idx]
                     fibrow['calfib_counts'] = cal_table['calfib_counts'][idx]
                     fibrow['calfibe_counts'] = cal_table['calfibe_counts'][idx]
-                    fibrow['spec_fullsky_sub'] = cal_table['spec_fullsky_sub'][idx]
+                    fibrow['calfib_ffsky'] = cal_table['calfib_ffsky'][idx]
                     fibrow.update()
                 #else:
                    # args.log.warning("No fiber match for %s" % fibrow['fiber_id'])
