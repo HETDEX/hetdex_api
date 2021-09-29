@@ -5,43 +5,32 @@ Config file for HETDEX data release paths
 import os
 import os.path as op
 
+LATEST_HDR_NAME = "hdr2.1"
+
 class HDRconfig:
-
-    LATEST_HDR_NAME = "hdr2.1"
-
     def __init__(self, survey=LATEST_HDR_NAME):
-        # Check corral first. This only works from a login node
-        if op.exists("/corral-repl/utexas/Hobby-Eberly-Teelsco"):
+        # Check stampede2 first
+        if op.exists("/scratch/03946/hetdex"):
+            self.host_dir = "/scratch/03946/hetdex"
+        elif op.exists("/corral-repl/utexas/Hobby-Eberly-Teelsco"):
             self.host_dir = "/corral-repl/utexas/Hobby-Eberly-Teelsco"
         elif op.exists("/home/jovyan/Hobby-Eberly-Telesco"):
             self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
         elif op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
-        elif op.exists("/scratch/03946/hetdex"):
-            self.host_dir = "/scratch/03946/hetdex"
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
             self.host_dir = os.getcwd()
+            print('Could not find {} directory path'.format(survey))
 
-        if op.exists("/home/jovyan/Hobby-Eberly-Telesco"):
-            self.hdr_dir = {
-                "hdr1": op.join(self.host_dir, "hdr1"),
-                "hdr2": op.join(self.host_dir, "hdr2"),
-                "hdr2.1": op.join(self.host_dir, "hdr2.1"),
-            }
-        elif op.exists("/corral-repl/utexas/Hobby-Eberly-Telesco"):
-            self.hdr_dir = {
-                "hdr1": op.join(self.host_dir, "hdr1"),
-                "hdr2": op.join(self.host_dir, "hdr2"),
-                "hdr2.1": op.join(self.host_dir, "hdr2.1"),
-            }
-        else:
-            self.hdr_dir = {
-                "hdr1": "/work/03946/hetdex/hdr1",
-                "hdr2": "/work/03946/hetdex/hdr2",
-                "hdr2.1": op.join(self.host_dir, "hdr2.1"),
-            }
+        self.hdr_dir = {
+            "hdr1": op.join(self.host_dir, "hdr1"),
+            "hdr2": op.join(self.host_dir, "hdr2"),
+            "hdr2.1": op.join(self.host_dir, "hdr2.1"),
+            "hdr3" : op.join(self.host_dir, "hdr3"),
+        }
+
         self.survey_dir = op.join(self.hdr_dir[survey], "survey")
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
@@ -113,7 +102,7 @@ class HDRconfig:
             self.badamp = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
 
-        if survey == "hdr2.1":
+        if survey in ["hdr2.1",'hdr3']:
             if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr2.1"
             elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
