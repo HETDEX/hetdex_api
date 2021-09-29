@@ -83,7 +83,7 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Shifts''',
-                        type=str, default='/data/00115/gebhardt/vdrp/shifts')
+                        type=str, default='/scratch/00115/gebhardt/vdrp/shifts')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5
@@ -96,11 +96,11 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/data/00115/gebhardt/detect')
+                        default='/scratch/00115/gebhardt/detect')
 
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1}""",
-                        type=str, default="hdr2.1")
+                        help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+                        type=str, default="hdr3")
     
     
     args = parser.parse_args(argv)
@@ -262,7 +262,7 @@ def main(argv=None):
 
         matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            'match_' + expn + '.pdf')
-        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
+        matchpng = 'match_pngs/match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
         if op.exists(matchpdf):
             os.system('convert ' + matchpdf + ' ' + matchpng)  
