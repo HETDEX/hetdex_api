@@ -27,10 +27,9 @@ from hetdex_api.config import HDRconfig
 
 def get_cal_files(args):
     datestr = '%sv%03d' % (args.date, int(args.observation))
-
     datemonth = datestr[0:6]
-    files = glob.glob(op.join(args.rootdir, datemonth, datestr + '*cal.fits')) 
-
+#    files = glob.glob(op.join(args.rootdir, datemonth, datestr + '*cal.fits')) 
+    files = glob.glob(op.join(args.rootdir, datestr + '*cal.fits')) 
     return files
 
 
@@ -82,7 +81,7 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Reductions''',
-                        type=str, default='/scratch/00115/gebhardt/calfits/')
+                        type=str, default='/scratch/00115/gebhardt/alldet/cal_out/')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5                          
@@ -128,8 +127,9 @@ def main(argv=None):
     fibtable = fileh.root.Data.Fibers
     
     for calfile in calfiles:
-
-        multi  = calfile[49:60]
+        
+#        multi  = calfile[49:60]
+        multi = calfile[48:59]
         try:
             cal_table = get_cal_table(calfile)
         except:
