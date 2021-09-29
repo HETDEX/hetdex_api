@@ -25,8 +25,7 @@ from hetdex_api.config import HDRconfig
 # hard coded variable to initialize 'rms', 'chi' arrays
 # and remove 'twi_spectrum' for all realeases past hdr1
 global hdr_survey
-hdr_survey = "hdr2.1"
-
+hdr_survey = "hdr3"
 
 def build_path(reduction_folder, instr, date, obsid, expn):
     folder = op.join(
@@ -130,7 +129,7 @@ class VIRUSFiber(tb.IsDescription):
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     sky_spectrum = tb.Float32Col((1032,))
-    error1Dfib = tb.Float32Col((1032,))
+    error1D = tb.Float32Col((1032,))
     calfib = tb.Float32Col((1036,))
     calfibe = tb.Float32Col((1036,))
     spec_fullsky_sub = tb.Float32Col((1036,))
@@ -299,7 +298,7 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             "sky_spectrum",
             "sky_subtracted",
             "trace",
-            "error1Dfib",
+            "error1D",
             "calfib",
             "calfibe",
             "Amp2Amp",
@@ -457,7 +456,7 @@ def main(argv=None):
         "--rootdir",
         help="""Root Directory for Reductions""",
         type=str,
-        default="/data/05350/ecooper/",
+        default="/scratch/00115/gebhardt/red1/reductions",
     )
 
     parser.add_argument(
@@ -482,11 +481,11 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-#        default="/work/00115/gebhardt/maverick/detect",
-        default="/data/00115/gebhardt/detect")
+        default="/scratch/00115/gebhardt/detect",
+    )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1}""", type=str, default="hdr2.1"
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""", type=str, default="hdr3"
     )
 
     parser.add_argument(
