@@ -5,9 +5,11 @@ Config file for HETDEX data release paths
 import os
 import os.path as op
 
-LATEST_HDR_NAME = "hdr2.1"
 
 class HDRconfig:
+
+    LATEST_HDR_NAME = 'hdr2.1'
+    
     def __init__(self, survey=LATEST_HDR_NAME):
         # Check stampede2 first
         if op.exists("/scratch/03946/hetdex"):
