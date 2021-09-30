@@ -133,7 +133,6 @@ class VIRUSFiber(tb.IsDescription):
     calfib = tb.Float32Col((1036,))
     calfibe = tb.Float32Col((1036,))
     calfib_ffsky = tb.Float32Col((1036,))
-    Throughput = tb.Float32Col((1036,))
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
@@ -302,7 +301,6 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             "calfib",
             "calfibe",
             "Amp2Amp",
-            "Throughput",
             "chi2",
             "rms",
         ]
