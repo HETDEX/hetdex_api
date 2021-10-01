@@ -315,7 +315,7 @@ def main(argv=None):
 
         filefiberinfo = op.join(args.detect_path, inputid_i + ".list")
 
-        try:
+        if True:
             datafiber = Table.read(filefiberinfo, format="ascii.no_header")
 
             for ifiber in np.arange(np.size(datafiber)):
@@ -351,12 +351,12 @@ def main(argv=None):
                 rowfiber["obsid"] = str(datafiber["col11"][ifiber])[0:3]
                 rowfiber["x_raw"] = datafiber["col12"][ifiber]
                 rowfiber["y_raw"] = datafiber["col13"][ifiber]
-                rowfiber["flag"] = datafiber["col15"][ifiber]
-                rowfiber["weight"] = datafiber["col14"][ifiber]
+                #rowfiber["flag"] = datafiber["col15"][ifiber]
+                #rowfiber["weight"] = datafiber["col14"][ifiber]
                 rowfiber.append()
 
             # Now append brightest fiber info to Detections table:
-            ifiber = np.argmax(datafiber["col14"])
+            ifiber = 0 #np.argmax(datafiber["col14"])
             multiname = datafiber["col5"][ifiber]
             multiframe = multiname[0:20]
             row["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
@@ -381,10 +381,10 @@ def main(argv=None):
             row["x_ifu"] = datafiber["col3"][ifiber]
             row["y_ifu"] = datafiber["col4"][ifiber]
             row["expnum"] = str(datafiber["col6"][ifiber])[3:5]
-            row["weight"] = datafiber["col14"][ifiber]
+            #row["weight"] = datafiber["col14"][ifiber]
             row.update()
-
-        except:
+    
+        else:#except:
             args.log.error("Could not ingest %s" % filefiberinfo)
 
         tableFibers.flush()
