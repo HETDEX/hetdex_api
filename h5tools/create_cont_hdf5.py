@@ -36,18 +36,21 @@ import astropy.units as u
 from hetdex_api.input_utils import setup_logging
 
 import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 
 def get_detectname(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
     """
-    coord = SkyCoord(ra*u.deg, dec*u.deg)
-    
+    coord = SkyCoord(ra * u.deg, dec * u.deg)
+
     return "HETDEX J{0}{1}".format(
         coord.ra.to_string(unit=u.hourangle, sep="", precision=2, pad=True),
-        coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True))
+        coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True),
+    )
+
 
 class Detections(tb.IsDescription):
     shotid = tb.Int64Col(pos=2)
@@ -86,7 +89,7 @@ class Detections(tb.IsDescription):
     expnum = tb.Int32Col()
     chi2fib = tb.Float32Col()
 
-    
+
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
     wave1d = tb.Float32Col(1036, pos=1)
@@ -96,11 +99,12 @@ class Spectra(tb.IsDescription):
     counts1d_err = tb.Float32Col(1036, pos=5)
     apsum_counts = tb.Float32Col(1036, pos=6)
     apsum_counts_err = tb.Float32Col(1036, pos=7)
+    spec1d_ffsky = tb.Float32Col(1036)
     spec1d_nc = tb.Float32Col(1036)
     spec1d_nc_err = tb.Float32Col(1036)
     apcor = tb.Float32Col(1036)
     flag_pix = tb.Float32Col(1036)
-    
+
 
 class Fibers(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -127,12 +131,11 @@ class Fibers(tb.IsDescription):
     x_raw = tb.Int32Col()
     y_raw = tb.Int32Col()
 
-    
+
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
-
 
     parser.add_argument(
         "-cs",
@@ -141,14 +144,15 @@ def main(argv=None):
         type=str,
         default=None,
     )
-        
+
     parser.add_argument(
         "-dp",
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/data/00115/gebhardt/alldet/output")
-    
+        default="/data/00115/gebhardt/alldet/output",
+    )
+
     parser.add_argument(
         "-of",
         "--outfilename",
@@ -166,32 +170,34 @@ def main(argv=None):
         default=0,
     )
 
-
     args = parser.parse_args(argv)
     args.log = setup_logging()
-    
+
     outfilename = args.outfilename
-                            
-    fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
-    index_buff = 2190000000
+
+    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+    index_buff = 3190000000
     detectidx = index_buff
 
     detectcat = Table.read(args.contsource, format="ascii")
-    detectcat.remove_columns(["col1",
-                              "col4",
-                              "col5",
-                              "col6",
-                              "col9",
-                              "col10",
-                              "col11",
-                              "col12",
-                              "col13",
-                              "col14"])
+    detectcat.remove_columns(
+        [
+            "col1",
+            "col4",
+            "col5",
+            "col6",
+            "col9",
+            "col10",
+            "col11",
+            "col12",
+            "col13",
+            "col14",
+        ]
+    )
     detectcat["col2"].name = "ra"
     detectcat["col3"].name = "dec"
     detectcat["col7"].name = "obnum"
     detectcat["col8"].name = "datevshot"
-
 
     tableMain = fileh.create_table(
         fileh.root,
@@ -214,7 +220,7 @@ def main(argv=None):
         "1D Spectra for each Line Detection",
         expectedrows=15 * np.size(detectcat),
     )
-    
+
     shotid = []
     date = []
     obsid = []
@@ -223,12 +229,11 @@ def main(argv=None):
 
     detectid_i = detectidx
 
-
     for row in detectcat:
         p = re.compile("v")
         shotid_i = int(p.sub("", row["datevshot"]))
         inputid_i = str(row["datevshot"]) + "_" + str(row["obnum"])
-    
+
         detectid.append(detectid_i)
         inputid.append(inputid_i)
         date.append(int(str(shotid_i)[0:8]))
@@ -242,12 +247,12 @@ def main(argv=None):
     detectcat["obsid"] = obsid
     detectcat["detectid"] = detectid
     detectcat["shotid"] = shotid
-    
+
     det_cols = fileh.root.Detections.colnames
-    
+
     for row in detectcat:
         rowMain = tableMain.row
-        
+
         for col in det_cols:
             try:
                 rowMain[col] = row[col]
@@ -259,45 +264,60 @@ def main(argv=None):
     tableMain.flush()
 
     # add spectra for each detectid in the detections table
-    
+
     for row in tableMain:
         try:
-            inputid_i = row["inputid"].decode()
-            
-            specfile = op.join(args.detect_path, inputid_i + ".spec")
 
-            dataspec = Table.read(specfile, format="ascii.no_header")
+            inputid_i = row["inputid"].decode()
+            specfile = op.join(args.detect_path, inputid_i + ".spec")
+            dataspec = Table(
+                np.loadtxt(specfile),
+                names=[
+                    "wave1d",
+                    "spec1d_nc",
+                    "spec1d_nc_err",
+                    "counts1d",
+                    "counts1d_err",
+                    "apsum_counts",
+                    "apsum_counts_err",
+                    "dummy",
+                    "apcor",
+                    "flag_pix",
+                    "obnum",
+                    "spec1d_nc_ffsky",
+                ],
+            )
+
             rowspectra = tableSpectra.row
             rowspectra["detectid"] = row["detectid"]
-            rowspectra["spec1d"] = dataspec["col2"] / dataspec["col9"]
-            rowspectra["spec1d_err"] = dataspec["col3"] / dataspec["col9"]
-            rowspectra["wave1d"] = dataspec["col1"]
-            rowspectra["spec1d_nc"] = dataspec["col2"]
-            rowspectra["spec1d_nc_err"] = dataspec["col3"]
-            rowspectra["counts1d"] = dataspec["col4"]
-            rowspectra["counts1d_err"] = dataspec["col5"]
-            rowspectra["apsum_counts"] = dataspec["col6"]
-            rowspectra["apsum_counts_err"] = dataspec["col7"]
-            rowspectra["apcor"] = dataspec["col9"]
-            rowspectra["flag_pix"] = dataspec["col10"]
+            rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
+            rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
+            rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+            rowspectra["wave1d"] = dataspec["wave1d"]
+            rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
+            rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
+            rowspectra["counts1d"] = dataspec["counts1d"]
+            rowspectra["counts1d_err"] = dataspec["counts1d_err"]
+            rowspectra["apsum_counts"] = dataspec["apsum_counts"]
+            rowspectra["apsum_counts_err"] = dataspec["apsum_counts_err"]
+            rowspectra["apcor"] = dataspec["apcor"]
+            rowspectra["flag_pix"] = dataspec["flag_pix"]
             rowspectra.append()
         except Exception:
             args.log.error("Could not ingest %s" % specfile)
 
-
     tableSpectra.flush()
-
 
     # add fiber info for each detection
 
     for row in tableMain:
         inputid_i = row["inputid"].decode()
-        
+
         filefiberinfo = op.join(args.detect_path, inputid_i + ".list")
-        
+
         try:
             datafiber = Table.read(filefiberinfo, format="ascii.no_header")
-            
+
             for ifiber in np.arange(np.size(datafiber)):
                 rowfiber = tableFibers.row
                 rowfiber["detectid"] = row["detectid"]
@@ -334,7 +354,6 @@ def main(argv=None):
                 rowfiber["flag"] = datafiber["col15"][ifiber]
                 rowfiber["weight"] = datafiber["col14"][ifiber]
                 rowfiber.append()
-                
 
             # Now append brightest fiber info to Detections table:
             ifiber = np.argmax(datafiber["col14"])
@@ -344,7 +363,7 @@ def main(argv=None):
             fiber_id_i = (
                 str(row["shotid"])
                 + "_"
-                + str(row['expnum'])
+                + str(row["expnum"])
                 + "_"
                 + multiframe
                 + "_"
@@ -378,6 +397,7 @@ def main(argv=None):
     tableMain.flush()
     args.log.info("File finished: %s" % args.outfilename)
     fileh.close()
+
 
 if __name__ == "__main__":
     main()
