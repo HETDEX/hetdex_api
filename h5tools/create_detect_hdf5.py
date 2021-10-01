@@ -100,6 +100,11 @@ class Detections(tb.IsDescription):
     amp = tb.StringCol((2))
     expnum = tb.Int32Col()
     chi2fib = tb.Float32Col()
+    apcor = tb.Float32Col()
+    sn_cen = tb.Float32Col()
+    flux_noise_1sigma = tb.Float32Col()
+    sn_3fib = tb.Float32Col()
+    sn_3fib_cen = tb.Float32Col()
 
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -114,6 +119,7 @@ class Spectra(tb.IsDescription):
     spec1d_nc_err = tb.Float32Col(1036)
     apcor = tb.Float32Col(1036)
     flag_pix = tb.Float32Col(1036)
+    spec1d_ffsky = tb.Float32Col(1036)
 
 class Fibers(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -188,7 +194,7 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/data/00115/gebhardt/alldet/output",
+        default="/scratch/00115/gebhardt/alldet/detect_out",
     )
 
     parser.add_argument(
@@ -235,13 +241,19 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+        type=str,
+        default="hdr3"
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     #check if shotid is in badlist
-#    config = HDRconfig(args.survey)
-#    badshots = np.loadtxt(config.badshot, dtype=int)
-
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+    
     if args.outfilename:
         outfilename = args.outfilename
     elif args.month and args.merge:
@@ -253,19 +265,19 @@ def main(argv=None):
     # does not already exist.
     
     if args.append:
-        fileh = tb.open_file(args.outfilename, "a", "HDR2.1 Detections Database")
+        fileh = tb.open_file(args.outfilename, "a", "HDR3 Detections Database")
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
 
         if args.broad:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
-            index_buff = 2160000000
+            fileh = tb.open_file(outfilename, "w", "HDR3 Broad Detections Database")
+            index_buff = 3160000000
 #        elif args.continuum:
-#            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
+#            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
-            index_buff = 2100000000
+            fileh = tb.open_file(outfilename, "w", "HDR3 Detections Database")
+            index_buff = 3000000000
 
         detectidx = index_buff
 
@@ -383,14 +395,13 @@ def main(argv=None):
                 "1D Spectra for each Line Detection"
             )
 
-        
-        amp_stats = Table.read('/data/05350/ecooper/hdr2.1/survey/amp_flag.fits')
-    
+        amp_stats = Table.read(config.badamp)
+   
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
-                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight']
-
+                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight',
+                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen']
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
@@ -417,12 +428,6 @@ def main(argv=None):
             
             amp_i = catfile[-27:-3]
 
-            if args.ifu:
-                # Fudge to add in V038 for 201701 to 20180915 only
-                date_i = int(amp_i[0:8])
-                if date_i > 20180915:
-                    break
-            
             amplist.append(amp_i)
 
             args.log.info('Ingesting Amp: '+ amp_i)
@@ -515,7 +520,7 @@ def main(argv=None):
                                    + str(rowMain['shotid'])
                                    + ' ' + multiframe)
                     
-                if ampflag==False:
+                if ampflag == False:
                     continue
 
                 # check if Karl stored the same fiber as me:
@@ -544,6 +549,7 @@ def main(argv=None):
                 
                 rowspectra["spec1d"] = dataspec["col2"] / dataspec["col9"]
                 rowspectra["spec1d_err"] = dataspec["col3"] / dataspec["col9"]
+                rowspectra["spec1d_ffsky"] = dataspec["col12"] / dataspec["col9"]
                 rowspectra["wave1d"] = dataspec["col1"]
                 rowspectra["spec1d_nc"] = dataspec["col2"]
                 rowspectra["spec1d_nc_err"] = dataspec["col3"]
