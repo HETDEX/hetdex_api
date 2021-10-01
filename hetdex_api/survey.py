@@ -246,8 +246,11 @@ class Survey:
 
         survey_table["mjd"] = self.mjd[:, 0]
         survey_table["exptime"] = np.mean(self.exptime, axis=1)
-        survey_table["fluxlimit_4540"] = self.fluxlimit_4540
-
+        try:
+            survey_table["fluxlimit_4540"] = self.fluxlimit_4540
+        except:
+            pass
+            
         for col in survey_table.colnames:
             try:
                 if np.shape(survey_table[col])[1] == 3:
