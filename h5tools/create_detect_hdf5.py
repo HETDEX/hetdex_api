@@ -469,8 +469,24 @@ def main(argv=None):
 
             try:
                 specfile = op.join(args.detect_path, amp_i + ".spec")
-                spectable= Table.read(specfile, format="ascii.no_header")
-            except:
+                spec_table = Table(
+                    np.loadtxt(specfile),
+                    names=[
+                        "wave1d",
+                        "spec1d_nc",
+                        "spec1d_nc_err",
+                        "counts1d",
+                        "counts1d_err",
+                        "apsum_counts",
+                        "apsum_counts_err",
+                        "dummy",
+                        "apcor",
+                        "flag_pix",
+                        "src_index",
+                        "spec1d_nc_ffsky",
+                    ],
+                )
+            except Exception:
                 args.log.warning('Could not ingest ' + specfile)
                 ndet_sel.append( 0)
                 continue
@@ -478,7 +494,7 @@ def main(argv=None):
             try:
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
                 fibertable = Table.read(filefiberinfo, format="ascii.no_header")
-            except:
+            except Exception:
                 args.log.warning('Could not ingest ' + filefiberinfo)
                 ndet_sel.append( 0)
                 continue
@@ -539,30 +555,29 @@ def main(argv=None):
 
                 rowMain['detectname'] = get_detectname(row['ra'], row['dec'])
                         
-                selspec = spectable['col11'] == row['src_index']
+                selspec = spec_table['src_index'] == row['src_index']
                 
                 rowspectra = tableSpectra.row
 
                 rowspectra["detectid"] = detectidx
 
-                dataspec = spectable[selspec]
-                
-                rowspectra["spec1d"] = dataspec["col2"] / dataspec["col9"]
-                rowspectra["spec1d_err"] = dataspec["col3"] / dataspec["col9"]
-                rowspectra["spec1d_ffsky"] = dataspec["col12"] / dataspec["col9"]
-                rowspectra["wave1d"] = dataspec["col1"]
-                rowspectra["spec1d_nc"] = dataspec["col2"]
-                rowspectra["spec1d_nc_err"] = dataspec["col3"]
-                rowspectra["counts1d"] = dataspec["col4"]
-                rowspectra["counts1d_err"] = dataspec["col5"]
-                rowspectra["apsum_counts"] = dataspec["col6"]
-                rowspectra["apsum_counts_err"] = dataspec["col7"]
-                rowspectra["apcor"] = dataspec["col9"]
-                rowspectra["flag_pix"] = dataspec["col10"]
+                dataspec = spec_table[selspec]
 
+                rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
+                rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
+                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+                rowspectra["wave1d"] = dataspec["wave1d"]
+                rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
+                rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
+                rowspectra["counts1d"] = dataspec["counts1d"]
+                rowspectra["counts1d_err"] = dataspec["counts1d_err"]
+                rowspectra["apsum_counts"] = dataspec["apsum_counts"]
+                rowspectra["apsum_counts_err"] = dataspec["apsum_counts_err"]
+                rowspectra["apcor"] = dataspec["apcor"]
+                rowspectra["flag_pix"] = dataspec["flag_pix"]
+                
                 #rowspectra.append()
                 
-
                 # add fiber info for each detection
 
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
