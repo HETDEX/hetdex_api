@@ -73,7 +73,7 @@ class AmpWidget:
         self.imw = ImageWidget()  # image_width=600, image_height=600)
 
         self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2.1"],
+            options=["HDR1", "HDR2.1", "HDR3"],
             value=self.survey.upper(),
             layout=Layout(width="10%"),
         )
@@ -92,7 +92,7 @@ class AmpWidget:
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
-            max=3000000000,
+            max=4000000000,
             step=1,
             description="DetectID:",
             disabled=False,
