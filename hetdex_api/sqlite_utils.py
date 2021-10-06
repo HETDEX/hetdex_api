@@ -45,6 +45,15 @@ DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db"
                       "/work/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03261/polonius/hdr2.1/detect/image_db"
                       ],
+                 30: ["/scratch/03261/polonius/hdr3/detect/image_db",
+                      "/work/03261/polonius/hdr3/detect/image_db",
+                      "/work/03946/hetdex/hdr3/detect/image_db"
+                      ],
+                 #note: 31 is just temporary as the 30 detectIDs were named as 31 detectids
+                 31: ["/scratch/03261/polonius/hdr3/detect/image_db",
+                      "/work/03261/polonius/hdr3/detect/image_db",
+                      "/work/03946/hetdex/hdr3/detect/image_db"
+                      ],
                  }
 #
 # add paths from hetdex_api to search (place in first position)
