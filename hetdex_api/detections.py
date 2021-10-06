@@ -43,10 +43,7 @@ PYTHON_MAJOR_VERSION = sys.version_info[0]
 PYTHON_VERSION = sys.version_info
 
 try:
-    from hetdex_api.config import HDRconfig
-
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-    config = HDRconfig(LATEST_HDR_NAME)
     from dustmaps.config import config as dustmaps_config
     
     if dustmaps_config['data_dir'] is None:
@@ -83,7 +80,7 @@ class Detections:
            For example, if you just want to grab a spectrum this isn't needed.
         
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3"]
         catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
@@ -91,6 +88,7 @@ class Detections:
             print(survey_options)
             return None
 
+        
         if catalog_type.lower() not in catalog_type_options:
             print("catalog_type not in catalog_type options")
             print(catalog_type_options)
@@ -105,8 +103,7 @@ class Detections:
             self.version = None
             self.survey = survey
             self.loadtable = loadtable
-
-        global config
+        
         config = HDRconfig(survey=self.survey)
 
         if catalog_type == "lines":
@@ -121,15 +118,7 @@ class Detections:
 
         self.hdfile = tb.open_file(self.filename, mode="r")
 
-        # store to class
-        if curated_version is not None:
-            self.version = curated_version
-            self.loadtable = False
-            self.survey = "hdr" + curated_version[0:3]
-        else:
-            self.survey = survey
-            self.loadtable = loadtable
-
+        
         if self.version is not None:
 
             try:
