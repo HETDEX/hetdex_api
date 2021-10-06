@@ -69,7 +69,7 @@ def get_files(args):
 def define_field(objname):
     if re.match("par", str(objname)):
         field = "parallel"
-    elif re.match("COS|cos|DEXcos", str(objname)):
+    elif re.match("COS|cos|DEXcos|DEXcs", str(objname)):
         field = "cosmos"
     elif re.match("EGS", str(objname)):
         field = "egs"
