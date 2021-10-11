@@ -837,7 +837,7 @@ class Detections:
         return mask
 
     def get_spectrum(self, detectid_i,
-                     deredden=True,
+                     deredden=False,
                      apply_extinction_fix=True):
         """
         Grabs the 1D spectrum used to measure fitted parameters.

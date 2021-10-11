@@ -224,7 +224,7 @@ class ElixerWidget:
             else:
                 self.detectid = []
         else:
-            self.detectid = np.unique(np.array(detectlist).flatten())
+            self.detectid = np.array(detectlist).flatten()
             self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
             self.flag = np.zeros(np.size(self.detectid), dtype=int)
             self.z = np.full(np.size(self.detectid), -1.0)

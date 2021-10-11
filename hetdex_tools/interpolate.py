@@ -16,9 +16,7 @@ LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 config = HDRconfig()
 surveyh5 = tb.open_file(config.surveyh5, "r")
 detecth5 = tb.open_file(config.detecth5, "r")
-version='2.1.3'
-catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
-source_table = Table.read(catfile)
+
 
 def make_narrowband_image(
     detectid=None,
@@ -88,13 +86,12 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, source_table, surveyh5
+    global config, detecth5, surveyh5
 
     if detectid is not None:
         
         detectid_obj = detectid
-        sel_det = source_table['detectid'] == detectid
-        det_info = source_table[sel_det][0]
+        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
         
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
@@ -119,13 +116,14 @@ def make_narrowband_image(
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     E = Extract()
-    E.load_shot(shotid_obj)
+    E.load_shot(shotid_obj, fibers=False)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
     center = int(ndim / 2)
 
-    rad = imsize
+    rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
+
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=ffsky)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
@@ -304,8 +302,8 @@ def make_data_cube(
     global config, detecth5, surveyh5
 
     if detectid is not None:
-        sel_det = source_table['detectid'] == detectid
-        det_info = source_table[sel_det][0]
+        detectid_obj = detectid
+        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 
@@ -313,7 +311,7 @@ def make_data_cube(
             print("Provide a detectid or both a coords and shotid")
 
     E = Extract()
-    E.load_shot(shotid)
+    E.load_shot(shotid, fibers=False)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
@@ -328,7 +326,8 @@ def make_data_cube(
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
     
-    rad = imsize
+    rad = imsize.to(u.arcsec).value
+    
     info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 

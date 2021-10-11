@@ -416,7 +416,8 @@ class Fibers:
         """
         table = Table()
         for name in self.hdfile.root.Data.Fibers.colnames:
-            table[name] = getattr(self, name)
+            if hasattr(self,name):
+                table[name] = getattr(self, name)
 
         return table
 

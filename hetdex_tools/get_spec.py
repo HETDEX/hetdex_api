@@ -1085,6 +1085,8 @@ def get_spectra(
             nobj = len(args.coords)
             if nobj > 1:
                 args.ID = np.arange(1, nobj + 1)
+            else:
+                args.ID = 1
         except Exception:
             args.ID = 1
     else:
