@@ -251,8 +251,8 @@ class ShotSensitivity(object):
 
             all_ra, all_dec, junk = scube.wcs.all_pix2world(ix.ravel(), iy.ravel(), 
                                                             [500.], 0)
-            noises, mask = self.get_f50(all_ra, all_dec, None, 1.0, 
-                                        direct_sigmas = True)
+            noises, norm, mask = self.get_f50(all_ra, all_dec, None, 1.0, 
+                                              direct_sigmas = True)
             sigmas = noises.ravel(order="F").reshape(nz, ny, nx)
 
             mask = logical_not(mask.reshape(ny, nx))
@@ -368,6 +368,7 @@ class ShotSensitivity(object):
         f50s_sel = []
         mask_sel = []
         amp_sel = []
+        norm_sel = []
 
         wave_rect = self.extractor.get_wave()
         pixsize_aa = wave_rect[1] - wave_rect[0]
@@ -378,6 +379,7 @@ class ShotSensitivity(object):
         # Arrays to store full output
         f50s = badval*ones(nsrc)
         mask = ones(nsrc)
+        norm = ones(nsrc)
         amp = array(["notinshot"]*nsrc)
 
         if nsel > 0:
@@ -394,15 +396,16 @@ class ShotSensitivity(object):
                 if wave_passed:
                     twave = wave_sel[i*nmax : (i+1)*nmax]
                     if not self.badshot:
-                        tf50s, tamp = self._get_f50_worker(tra, tdec, twave, sncut, 
-                                                           direct_sigmas = direct_sigmas,
-                                                           linewidth = linewidth)
+                        tf50s, tamp, tnorm = self._get_f50_worker(tra, tdec, twave, sncut, 
+                                                                  direct_sigmas = direct_sigmas,
+                                                                  linewidth = linewidth)
                     else:
                         tamp = ["bad"]*len(tra)
                         tf50s = [999.0]*len(tra)
+                        tnorm = [1.0]*len(tra)
                 else:
                     # if bad shot then the mask is all set to zero
-                    tf50s, tmask, tamp = \
+                    tf50s, tmask, tamp, tnorm = \
                                       self._get_f50_worker(tra, tdec, None, sncut, 
                                                           direct_sigmas = direct_sigmas,
                                                           linewidth = linewidth) 
@@ -411,6 +414,8 @@ class ShotSensitivity(object):
           
                 f50s_sel.extend(tf50s)
                 amp_sel.extend(tamp)
+                norm_sel.extend(tnorm)
+                 
 
         if return_amp:
             if wave_passed:
@@ -418,16 +423,19 @@ class ShotSensitivity(object):
                 # copy to output
                 f50s[sel] = f50s_sel
                 amp[sel] = amp_sel
+                norm[sel] = norm_sel
 
-                return f50s, amp        
+                return f50s, norm, amp       
             else:
-                return array(f50s_sel), array(mask_sel), array(amp_sel)
+                return array(f50s_sel), array(norm_sel), array(mask_sel), array(amp_sel)
         else:
             if wave_passed:
                 f50s[sel] = f50s_sel
-                return f50s        
+                norm[sel] = norm_sel
+
+                return f50s, norm
             else:
-                return array(f50s_sel), array(mask_sel)
+                return array(f50s_sel), array(norm_sel), array(mask_sel)
  
 
     def _get_f50_worker(self, ra, dec, wave, sncut, 
@@ -470,6 +478,8 @@ class ShotSensitivity(object):
             was passed for wave this is 
             a 2D array of ra, dec and
             all wavelengths
+        norm_all : array
+            the aperture corrections
         mask : array
             Only returned if `wave=None`. This
             mask is True where the ra/dec
@@ -480,7 +490,7 @@ class ShotSensitivity(object):
             it's an array of amplifier information
             for the closest fiber to each source 
         """
- 
+
         try:
             [x for x in ra]
         except TypeError:
@@ -567,7 +577,7 @@ class ShotSensitivity(object):
                 
 
                 # See Greg Zeimann's Remedy code
-                norm = sum(weights, axis=0)
+                norm = sum(weights, axis=0) # is this apcor?
                 weights = weights/norm
 
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
@@ -634,7 +644,7 @@ class ShotSensitivity(object):
                                                 linewidth = linewidth)
 
             
-            return normnoise, amp
+            return normnoise, amp, norm_all
 
         else:
             mask[gal_mask < 0.5] = False
@@ -651,7 +661,7 @@ class ShotSensitivity(object):
                                                 linewidth = linewidth)
 
 
-            return normnoise, mask, amp
+            return normnoise, mask, amp, norm_all
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None,
                             linewidth = None):
@@ -711,13 +721,14 @@ class ShotSensitivity(object):
         
 
         if type(f50s) == type(None):
-            f50s = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
+            f50s, norm = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
 
         try:
             # to stop bad values breaking interpolation
             bad = (f50s > 998)
             f50s[bad] = 1e-16
             fracdet = self.sinterp(flux, f50s, lambda_, sncut)
+            #print(min(flux), max(flux), min(f50s), max(f50s))
             fracdet[bad] = 0.0
             f50s[bad] = 999.0
         except IndexError as e:

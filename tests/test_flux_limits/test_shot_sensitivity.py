@@ -45,8 +45,8 @@ def test_extract_cube(shot_sensitivity):
 def test_get_f50(ra, dec, wave, exptd, shot_sensitivity):
 
     exptd = exptd/ext(wave) 
-    f50 = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
-                                   direct_sigmas=True)
+    f50, norm = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
+                                         direct_sigmas=True)
 
     assert pytest.approx(exptd, rel=0.2) == f50*1e17
 
@@ -68,8 +68,8 @@ def test_get_f50(ra, dec, wave, exptd, shot_sensitivity):
                           ]
                          )
 def test_get_f50_lw(ra, dec, wave, linewidth, exptd, shot_sensitivity):
-    f50 = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
-                                   linewidth = linewidth)
+    f50, norm = shot_sensitivity.get_f50(ra, dec, wave, 5.0, 
+                                         linewidth = linewidth)
 
     exptd = exptd/ext(wave) 
     assert pytest.approx(exptd, rel=0.02) == f50*1e17
