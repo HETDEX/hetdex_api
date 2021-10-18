@@ -96,7 +96,8 @@ def main(argv=None):
         "--rootdir",
         help="""Root Directory for Reductions""",
         type=str,
-        default="/scratch/00115/gebhardt/alldet/cal_out/",
+#        default="/scratch/03946/hetdex/alldet/cal_out/",
+        default="/scratch/00115/gebhardt/alldet/cal_out/"
     )
 
     parser.add_argument(
