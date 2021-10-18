@@ -170,16 +170,24 @@ def main(argv=None):
         default=0,
     )
 
+    parser.add_argument(
+        "-sl",
+        "--shotlist",
+        help="""Text file of DATE OBS list""",
+        type=str,
+        default="../survey/hdr3.shotlist",
+    )
+   
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     outfilename = args.outfilename
 
     fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
-    index_buff = 3190000000
+    index_buff = 3090000000
     detectidx = index_buff
 
-    detectcat = Table.read(args.contsource, format="ascii")
+    detectcat = Table.read(args.contsource, format="ascii.no_header")
     detectcat.remove_columns(
         [
             "col1",
@@ -250,7 +258,13 @@ def main(argv=None):
 
     det_cols = fileh.root.Detections.colnames
 
+    shotlist = np.loadtxt(args.shotlist)
+
     for row in detectcat:
+
+        if row['shotid'] not in shotlist:
+            continue
+            
         rowMain = tableMain.row
 
         for col in det_cols:
