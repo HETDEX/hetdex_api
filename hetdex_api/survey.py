@@ -456,9 +456,9 @@ class FiberIndex:
         if shotid is None:
             tab_idx = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
         else:
-            tab_idx = self.hdfile.root.FiberIndex.get_where_list(
-                "(healpix == hp) & (shotid== shotid)"
-            )
+            tab_hp = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
+            tab_shotid = np.where( self.hdfile.root.FiberIndex.read_coordinates(tab_hp)['shotid'] == shotid)
+            tab_idx = tab_hp[tab_shotid]
 
         tab = self.hdfile.root.FiberIndex.read_coordinates(tab_idx)
 
