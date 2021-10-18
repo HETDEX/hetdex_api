@@ -32,6 +32,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import ascii
 from astropy.io import fits
+from astropy.table import Table
+
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.config import HDRconfig
 
@@ -67,6 +69,14 @@ def main(argv=None):
     )
 
     parser.add_argument(
+        "-detdir",
+        "--detectdir",
+        help="""Directory for Detect Info""",
+        type=str,
+        default="/scratch/03946/hetdex/detect",
+    )
+        
+    parser.add_argument(
         "-of",
         "--outfilename",
         type=str,
@@ -81,6 +91,7 @@ def main(argv=None):
         action="count",
         default=0,
     )
+
     parser.add_argument("-survey", "--survey",
                         help="""{hdr1, hdr2, hdr2.1, hdr3}""",
                         type=str, default="hdr3")
@@ -124,7 +135,7 @@ def main(argv=None):
 
     datevshot = str(args.date) + "v" + str(args.observation.zfill(3))
 
-    tpfile = op.join(args.tpdir, "tp", datevshot + "sedtp_f.dat")
+    tpfile = op.join(args.detectdir, "tp", datevshot + "sedtp_f.dat")
 
     try:
         tp_data = ascii.read(
@@ -162,16 +173,17 @@ def main(argv=None):
     # add virus FWHM and response_4540 to the Shot table
 
     shottable = fileh.root.Shot
-    fwhm_file = op.join(
-        args.tpdir, str(args.date) + "v" + str(args.observation.zfill(3)), "fwhm.out"
-    )
-    try:
-        fwhm_arr = np.loadtxt(fwhm_file)
+    fwhm_file = op.join( args.detectdir, "fwhm.all")
 
+    try:
+        
+        fwhm_tab = Table.read( fwhm_file, format='ascii.no_header')
+        sel_datevobs = fwhm_tab['col1'] == str(args.date) + "v" + str(args.observation.zfill(3))
+        
         for row in shottable:
-            row["fwhm_virus"] = fwhm_arr[0]
-            row["fwhm_virus_err"] = fwhm_arr[1]
-            row["nstars_fit_fwhm"] = int(fwhm_arr[2])
+            row["fwhm_virus"] = float(fwhm_tab['col2'][sel_datevobs])
+            row["fwhm_virus_err"] = float(fwhm_tab['col3'][sel_datevobs])
+            row["nstars_fit_fwhm"] = int(fwhm_tab['col4'][sel_datevobs])
             row["response_4540"] = tp_4540
             row.update()
 
