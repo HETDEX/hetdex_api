@@ -143,4 +143,4 @@ class HDRconfig:
             self.starlabels = op.join(self.bad_dir, 'stars.txt')
             self.sdsscat = op.join(self.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
             self.extinction_fix = op.join(self.bad_dir, 'extinction')
-            self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask_2.1.3.h5')
+            self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask.h5')
