@@ -448,6 +448,7 @@ def get_fibers_table(
 
     """
 
+    print("Fiber spectra returned in /2AA bins. Please use get_fiberinfo_for_coord(s) from Extract class in hetdex_api.extract")
     fileh = open_shot_file(shot, survey=survey.lower())
 
     try:
