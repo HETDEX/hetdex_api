@@ -584,7 +584,8 @@ class ShotSensitivity(object):
         fac = None
         norm_all = []
         amp = []       
- 
+        nan_fib_mask = []
+
         for i, c in enumerate(coords):
                 
             sel = (id_ == i)
@@ -634,7 +635,7 @@ class ShotSensitivity(object):
                         noise.append(badval)
                         norm_all.append(1.0)
                         # value doesn't matter as in amp flag
-                        nan_fib_mask = True
+                        nan_fib_mask.append(True)
                         continue
                     else:
                         mask[i] = False
@@ -645,7 +646,6 @@ class ShotSensitivity(object):
 
                 # (See Greg Zeimann's Remedy code)
                 # normalized in the fiber direction
-                weight_cut = 0.05
                 norm = sum(weights, axis=0) 
                 weights = weights/norm
 
@@ -679,8 +679,9 @@ class ShotSensitivity(object):
 
 
                     # Mask source if bad values within the central 3 wavebins
-                    nan_fib_mask = bad_central_mask(weights*norm, scleaned, index)   
- 
+                    nan_fib = bad_central_mask(weights*norm, scleaned, index)   
+                    nan_fib_mask.append(nan_fib)
+
                     # Account for NaN and masked spectral bins
                     bad = isnan(spectrum_aper_error[ilo:ihi])
                     goodfrac = 1.0 - sum(bad)/(ihi - ilo)
@@ -700,7 +701,16 @@ class ShotSensitivity(object):
                     convolved_variance = convolve(convolution_filter,
                                                   square(spectrum_aper_error),
                                                   mode='same')
-                    noise.append(sqrt(convolved_variance))
+                    std = sqrt(convolved_variance)
+
+                    # XXX This will be slow might be able to speed up
+                    # Mask wavelengths with too many bad pixels
+                    wunorm = weights*norm
+                    for index in range(len(convolved_variance)):
+                        if not bad_central_mask(wunorm, scleaned, index):
+                            std[index] = badval
+
+                    noise.append(std)
                     norm_all.append(norm)
                     
             else:
@@ -708,7 +718,7 @@ class ShotSensitivity(object):
                     noise.append(badval)
                     norm_all.append(1.0)
                     amp.append("000")
-                    nan_fib_mask = True
+                    nan_fib_mask.append(True)
                 else:
                     noise.append(badval*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
@@ -826,8 +836,19 @@ class ShotSensitivity(object):
             f50s[bad] = 1e-16
             fracdet = self.sinterp(flux, f50s, lambda_, sncut)
             #print(min(flux), max(flux), min(f50s), max(f50s))
-            fracdet[bad] = 0.0
-            f50s[bad] = 999.0
+
+            # check to see if we're passing multiple fluxes
+            # for one f50 value
+            if any(bad):
+                logger.debug("There are bad values here to mask")
+                if len(f50s) == 1:
+                    logger.debug("Just one ra/dec/wave passed.")
+                    fracdet[:] = 0.0
+                    f50s[:] = 999.0
+                else:
+                    fracdet[bad] = 0.0
+                    f50s[bad] = 999.0
+
         except IndexError as e:
             print("Interpolation failed!")
             print(min(flux), max(flux), min(f50s), max(f50s))
