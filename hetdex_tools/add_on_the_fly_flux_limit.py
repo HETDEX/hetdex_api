@@ -41,7 +41,7 @@ wave = table["wave"]
 s = ShotSensitivity(opts.datevshot, wavenpix=opts.wavenpix, 
                     rad=opts.aprad)
 sigmas, norm = s.get_f50(ra, dec, wave, 1.0, 
-                   direct_sigmas=True)
+                         direct_sigmas=True)
 
 #table_out = Table()
 #table_out["detectid"] = table["detectid"]

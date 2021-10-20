@@ -8,12 +8,13 @@ AUTHOR: Daniel Farrow
 
 """
 
+import logging 
 from os.path import isfile, join
 from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan, newaxis, ceil, nansum)
+                   isnan, newaxis, ceil, nansum, savetxt, transpose)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
@@ -30,6 +31,48 @@ from hetdex_api.flux_limits.generate_simulation_inputs import create_sensitivity
 from hetdex_api.mask import create_gal_ellipse, amp_flag_from_fiberid, meteor_flag_from_coords, create_dummy_wcs
 from hetdex_api.flux_limits.sensitivity_cube import WavelengthException 
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
+
+def bad_central_mask(weights, badmask, index, wmin = 0.1):
+    """
+    Karl Gebhardt's false positive cut. If any fiber
+    with a weight above wmin is flagged within the
+    central three wave bins of a source remove it.
+
+    Parameters
+    ----------
+    weights : array
+        the weights of the fibers
+    badmask : 2d numpy array (nfibers x nwaves)
+        True where data is bad
+    index : int
+        the wavelength index of the 
+    wmin : float (optional)
+        the minimum weight of fiber to
+        consider when looking for flagged
+        values
+
+    Returns
+    -------
+    maskval : boolean
+        False if bad, True if data is
+        good
+
+    """
+
+ 
+    # Weights of fibers at the source index
+    sel = weights[:, index] > wmin
+
+
+    #print(weights[:, index])
+    #print(badmask[sel, index - 1 : index + 2])
+
+    if any(badmask[sel, index - 1 : index + 2].ravel()):
+        return False
+    else:
+        return True
+
+
 
 class ShotSensitivity(object):
     """
@@ -84,7 +127,7 @@ class ShotSensitivity(object):
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
                  ffsky=False, wavenpix=3, d25scale=3.0, verbose=False,
-                 sclean_bad = True): 
+                 sclean_bad = True, log_level="WARNING"): 
 
         self.conf = HDRconfig()
         self.extractor = Extract()
@@ -93,17 +136,23 @@ class ShotSensitivity(object):
         self.rad = rad
         self.ffsky = ffsky
         self.wavenpix = wavenpix
-        self.verbose = verbose
         self.sclean_bad = sclean_bad
 
+        logger = logging.getLogger(name="ShotSensitivity")
+        logger.setLevel(log_level)
+
         if verbose:
-            print("shotid: ", self.shotid)
+            raise DeprecationWarning("Using verbose is deprecated, set log_level instead")    
+            logger.setLevel("DEBUG")        
+   
+        logger.info("shotid: {:d}".format(self.shotid))
  
         if not release:
             self.release = self.conf.LATEST_HDR_NAME
         else:
             self.release = release
-            
+           
+        logger.info("Data release: {:s}".format(self.release)) 
         self.survey = Survey(survey=self.release)
    
         # Set up flux limit model
@@ -121,14 +170,17 @@ class ShotSensitivity(object):
         self.tp = TangentPlane(self.shot_ra, self.shot_dec, rot)
     
         #Set up masking
+        logger.info("Using d25scale {:f}".format(d25scale))
         self.setup_mask(d25scale)
-        
+ 
+ 
         # Set up spectral extraction
         if release == "hdr1":
             fwhm = self.survey.fwhm_moffat[survey_sel][0]
         else:
             fwhm = self.survey.fwhm_virus[survey_sel][0]
 
+        logger.info("Using Moffat PSF with FWHM {:f}".format(fwhm))
         self.moffat = self.extractor.moffat_psf(fwhm, 3.*rad, 0.25)
         self.extractor.load_shot(self.shotid, fibers=True, survey=self.release)
         
@@ -157,25 +209,28 @@ class ShotSensitivity(object):
         d25scale : float
             Sets the multiplier for the galaxy masks
             applied (default 3.5)
-        """       
+        """      
+
+        logger = logging.getLogger(name="ShotSensitivity")
+ 
         # see if this is a bad shot
         #print("Bad shot from ", self.conf.badshot)
         badshot = loadtxt(self.conf.badshot, dtype=int)
         badtpshots = loadtxt(self.conf.lowtpshots, dtype=int)
         if (self.shotid in badshot) or (self.shotid in badtpshots):
-            print("Shot is in bad. Making mask zero everywhere")
+            logger.warn("Shot is in bad. Making mask zero everywhere")
             self.badshot = True
         else:
             self.badshot = False
         
         # set up bad amps
-        #print("Bad amps from ", self.conf.badamp)
+        logger.info("Bad amps from {:s}".format(self.conf.badamp))
         self.bad_amps = Table.read(self.conf.badamp)
         sel_shot = (self.bad_amps["shotid"] == self.shotid)
         self.bad_amps = self.bad_amps[sel_shot]
         
         # set up galaxy mask
-        #print("Galaxy mask from ", self.conf.rc3cat)
+        logger.info("Galaxy mask from {:s}".format(self.conf.rc3cat))
         galaxy_cat = Table.read(self.conf.rc3cat, format='ascii')
         gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
         shot_coords = SkyCoord(ra=self.shot_ra, dec=self.shot_dec,
@@ -191,6 +246,7 @@ class ShotSensitivity(object):
                 
         # set up meteor mask
         # check if there are any meteors in the shot:
+        logger.info("Meteors from {:s}".format(self.conf.meteor))
         self.met_tab = Table.read(self.conf.meteor, format="ascii")
         self.met_tab = self.met_tab[self.shotid == self.met_tab["shotid"]]
             
@@ -387,11 +443,6 @@ class ShotSensitivity(object):
      
                 tra = ra_sel[i*nmax : (i+1)*nmax]
                 tdec = dec_sel[i*nmax : (i+1)*nmax]
-
-                if self.verbose: 
-                    print("Split {:d}".format(i)) 
-                    print(tra)
-                    print("***") 
     
                 if wave_passed:
                     twave = wave_sel[i*nmax : (i+1)*nmax]
@@ -401,7 +452,7 @@ class ShotSensitivity(object):
                                                                   linewidth = linewidth)
                     else:
                         tamp = ["bad"]*len(tra)
-                        tf50s = [999.0]*len(tra)
+                        tf50s = [badval]*len(tra)
                         tnorm = [1.0]*len(tra)
                 else:
                     # if bad shot then the mask is all set to zero
@@ -491,6 +542,8 @@ class ShotSensitivity(object):
             for the closest fiber to each source 
         """
 
+        logger = logging.getLogger(name="ShotSensitivity")
+
         try:
             [x for x in ra]
         except TypeError:
@@ -520,13 +573,13 @@ class ShotSensitivity(object):
                                 ffsky=self.ffsky,
                                 return_fiber_info=True,
                                 fiber_lower_limit=2, 
-                                verbose=self.verbose
+                                verbose=False
                                 )
 
         id_, aseps, aifux, aifuy, axc, ayc, ara, adec, adata, aerror, afmask, afiberid, \
                     amultiframe = info_results
-        
-        
+               
+ 
         I = None
         fac = None
         norm_all = []
@@ -535,22 +588,33 @@ class ShotSensitivity(object):
         for i, c in enumerate(coords):
                 
             sel = (id_ == i)
-            
+
+            if type(wave) != type(None):
+                logger.debug("Running on source {:f} {:f} {:f}".format(ra[i], dec[i], wave[i]))
+            else:
+                logger.debug("Running on position {:f} {:f}".format(ra[i], dec[i]))
+
+            logger.debug("Found {:d} fibers".format(sum(sel)))
+
             if sum(sel) > 0:
-                    
+                
+                # fiber properties    
                 xc = axc[sel][0]
                 yc = ayc[sel][0]
                 ifux = aifux[sel]
                 ifuy = aifuy[sel]
-                ra = ara[sel]
-                dec = adec[sel]
                 data = adata[sel]
                 error = aerror[sel]
                 fmask = afmask[sel]
                 fiberid = afiberid[sel]
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
- 
+
+                # test if the data are all zero
+                zero_flag = True
+                if max((fmask*data).ravel()) < 1e-30:
+                    zero_flag = False
+
                 iclosest = argmin(seps)
 
                 amp.append(fiberid[iclosest])
@@ -564,10 +628,13 @@ class ShotSensitivity(object):
                 # XXX Could be faster - reloads the file every run
                 meteor_flag = meteor_flag_from_coords(c, self.shotid)
 
-                if not (amp_flag and meteor_flag):
+                if not (amp_flag and meteor_flag and zero_flag):
+                    logger.debug("The data here are bad, position is masked")
                     if wave_passed:
                         noise.append(badval)
                         norm_all.append(1.0)
+                        # value doesn't matter as in amp flag
+                        nan_fib_mask = True
                         continue
                     else:
                         mask[i] = False
@@ -576,23 +643,48 @@ class ShotSensitivity(object):
                                                                I=I, fac=fac, return_I_fac = True)
                 
 
-                # See Greg Zeimann's Remedy code
-                norm = sum(weights, axis=0) # is this apcor?
+                # (See Greg Zeimann's Remedy code)
+                # normalized in the fiber direction
+                weight_cut = 0.05
+                norm = sum(weights, axis=0) 
                 weights = weights/norm
 
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False,
-                                                     sclean_bad = self.sclean_bad)
+                                                     sclean_bad = self.sclean_bad,
+                                                     return_scleaned_mask = True)
                 
-                spectrum_aper, spectrum_aper_error = [res for res in result] 
+                spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
+
+
+                #for w, s in zip(wave_rect, spectrum_aper/norm):
+                #    print(w, s)
  
                 if wave_passed:
+                    
                     index = where(wave_rect >= wave[i])[0][0]
                     ilo = index - self.wavenpix
                     ihi = index + self.wavenpix + 1
 
-                    # Account for NaN spectral bins
-                    goodfrac = 1.0 - sum(isnan(spectrum_aper_error[ilo:ihi]))/(ihi - ilo)
+                    # Output lots of information for very detailed debugging
+                    if logger.getEffectiveLevel() == logging.DEBUG: 
+                        logger.debug("Table of fibers:")
+                        logger.debug("# fiberid    wave_index ifux ifuy  weight     noise")
+                        for fibidx, fid in enumerate(fiberid):
+                            for wi, (tw, tnoise) in enumerate(zip((weights*norm)[fibidx, ilo:ihi], 
+                                                              error[fibidx, ilo:ihi]), 
+                                                              ilo): 
+                                logger.debug("{:s} {:d} {:f} {:f} {:f} {:f}".format(fid, wi, ifux[fibidx], 
+                                                                                    ifuy[fibidx], tw, tnoise))
+
+
+                    # Mask source if bad values within the central 3 wavebins
+                    nan_fib_mask = bad_central_mask(weights*norm, scleaned, index)   
+ 
+                    # Account for NaN and masked spectral bins
+                    bad = isnan(spectrum_aper_error[ilo:ihi])
+                    goodfrac = 1.0 - sum(bad)/(ihi - ilo)
+
 
                     if all(isnan(spectrum_aper_error[ilo:ihi])):
                         sum_sq = badval
@@ -602,6 +694,7 @@ class ShotSensitivity(object):
 
 
                     norm_all.append(nansum(norm[ilo:ihi])/len(norm[ilo:ihi]))
+
                     noise.append(sum_sq)
                 else:
                     convolved_variance = convolve(convolution_filter,
@@ -615,13 +708,15 @@ class ShotSensitivity(object):
                     noise.append(badval)
                     norm_all.append(1.0)
                     amp.append("000")
+                    nan_fib_mask = True
                 else:
                     noise.append(badval*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
                     amp.append("000")
                     mask[i] = False
 
-                    
+
+                   
         # Apply the galaxy mask     
         gal_mask = ones(len(coords), dtype=int)
         for gal_region in self.gal_regions:
@@ -634,16 +729,18 @@ class ShotSensitivity(object):
         snoise = pixsize_aa*1e-17*noise
 
         if wave_passed:
-            bad = (gal_mask < 0.5) | (snoise > 998) | isnan(snoise)
+
+            bad = (gal_mask < 0.5) | (snoise > 998) | isnan(snoise) | invert(nan_fib_mask)
 
             normnoise = snoise/norm_all
-            normnoise[bad] = 999.
 
             if not direct_sigmas:
                 normnoise = self.f50_from_noise(normnoise, wave, sncut,
                                                 linewidth = linewidth)
 
             
+            normnoise[bad] = 999.
+
             return normnoise, amp, norm_all
 
         else:
@@ -654,12 +751,12 @@ class ShotSensitivity(object):
 
             bad = snoise > 998
             normnoise = snoise/norm_all
-            normnoise[bad] = 999
 
             if not direct_sigmas:
                 normnoise = self.f50_from_noise(normnoise, wave, sncut,
                                                 linewidth = linewidth)
 
+            normnoise[bad] = 999
 
             return normnoise, mask, amp, norm_all
 
