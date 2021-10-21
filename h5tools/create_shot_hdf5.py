@@ -479,7 +479,7 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/scratch/00115/gebhardt/detect",
+        default="/scratch/03946/hetdex/detect/dithall",        
     )
 
     parser.add_argument(
@@ -507,7 +507,7 @@ def main(argv=None):
     # Get the daterange over which reduced files will be collected
     files = get_files(args)
     datestr = "%sv%03d" % (args.date, int(args.observation))
-    filepath = "%s/%s/dithall.use" % (args.detect_path, datestr)
+    filepath = op.join(args.detect_path, "{}.dithall".format(datestr))
     shotid = int(str(args.date) + str(args.observation).zfill(3))
     badshotflag = False
     

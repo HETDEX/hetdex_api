@@ -175,7 +175,7 @@ def main(argv=None):
         "--shotlist",
         help="""Text file of DATE OBS list""",
         type=str,
-        default="../survey/hdr3.shotlist",
+        default="/scratch/03946/hetdex/hdr3/survey/hdr3.shotlist",
     )
    
     args = parser.parse_args(argv)
@@ -258,13 +258,16 @@ def main(argv=None):
 
     det_cols = fileh.root.Detections.colnames
 
-    shotlist = np.loadtxt(args.shotlist)
+    shottab = Table.read(args.shotlist, format='ascii.no_header')
+    shotlist = []
+    for row in shottab:
+        shotlist.append( int(str(row['col1']) + str(row['col2']).zfill(3)))
 
     for row in detectcat:
 
         if row['shotid'] not in shotlist:
             continue
-            
+
         rowMain = tableMain.row
 
         for col in det_cols:
