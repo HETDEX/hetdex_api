@@ -6,6 +6,7 @@ AUTHOR: Daniel Farrow
 
 """
 import pytest
+from numpy import ones, arange, ones, abs, isfinite, nanmax
 from hetdex_api.flux_limits.shot_sensitivity import ShotSensitivity
 from hetdex_api.extinction import get_2pt1_extinction_fix
 
@@ -110,6 +111,45 @@ def test_completeness(ra, dec, wave, flux, lw, exptd, flim_model):
                               linewidth=lw)
 
     assert pytest.approx(c, rel=0.005) == exptd
+
+@pytest.mark.parametrize("ra, dec, sclean",
+                          [
+                            (201.5498985, 51.82207577, True),
+                            (201.5498985, 51.82207577, False),
+                          ]                           
+                        )
+def test_wave_none_mode(ra, dec, sclean):
+    """ Compare passing wave=None to passing waves """
+
+    s = ShotSensitivity("20190209v024", 
+                        sclean_bad = sclean, 
+                        log_level="INFO")
+
+    all_sigmas, apcor1, mask  = s.get_f50(ra, dec, None, 5.0,
+                                          direct_sigmas = True)
+
+
+    print("All sigmas done!")
+
+    waves = s.extractor.get_wave()
+     
+    # If wave is an array ra/dec has to be as well
+    from_single_wave, apcor2 = s.get_f50(ra*ones(len(waves)), dec*ones(len(waves)), 
+                                         waves, 5.0, 
+                                         direct_sigmas=True)
+
+
+    
+    diff = (all_sigmas[0] - from_single_wave)/all_sigmas[0]
+    diff_apcor = (apcor1[0] - apcor2)/apcor1[0]
+
+    print(all_sigmas[0])
+    print(from_single_wave)
+    print(min(from_single_wave), max(from_single_wave))
+
+    # test if good to within 0.05%
+    assert nanmax(abs(diff_apcor)) < 5e-4
+    assert nanmax(abs(diff)) < 5e-4
 
 
 def test_chip_gap_mask():

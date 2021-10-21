@@ -13,13 +13,14 @@ from os.path import isfile, join
 from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
-                   convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan, newaxis, ceil, nansum, savetxt, transpose)
+                   repeat, loadtxt, where, argmin, invert, logical_not, isfinite,
+                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
+from astropy.convolution import convolve
 
 from pyhetdex.coordinates.tangent_projection import TangentPlane
 from pyhetdex.het.fplane import FPlane
@@ -37,6 +38,7 @@ def bad_central_mask(weights, badmask, index, wmin = 0.1):
     Karl Gebhardt's false positive cut. If any fiber
     with a weight above wmin is flagged within the
     central three wave bins of a source remove it.
+    Also remove sources where everything is flagged
 
     Parameters
     ----------
@@ -63,11 +65,13 @@ def bad_central_mask(weights, badmask, index, wmin = 0.1):
     # Weights of fibers at the source index
     sel = weights[:, index] > wmin
 
-
     #print(weights[:, index])
     #print(badmask[sel, index - 1 : index + 2])
 
-    if any(badmask[sel, index - 1 : index + 2].ravel()):
+    bad_test = any(badmask[sel, index - 1 : index + 2].ravel()) 
+    bad_test = bad_test| all(badmask[:, index - 1 : index + 2].ravel())
+
+    if bad_test:
         return False
     else:
         return True
@@ -558,11 +562,14 @@ class ShotSensitivity(object):
         # This will give 999 once the noise is scaled suitably
         badval = 999*1e17/pixsize_aa
 
+        # Size of window in wave elements
+        filter_len = 2*self.wavenpix + 1
+
         if type(wave) != type(None):
             wave_passed = True
         else:
             wave_passed = False
-            convolution_filter = ones(2*self.wavenpix + 1)        
+            convolution_filter = ones(filter_len)        
             mask = True*ones(len(coords), dtype=int)
             
         noise = []
@@ -611,10 +618,8 @@ class ShotSensitivity(object):
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
 
-                # test if the data are all zero
-                zero_flag = True
-                if max((fmask*data).ravel()) < 1e-30:
-                    zero_flag = False
+                # Flag the zero elements as bad
+                fmask[(abs(data) < 1e-30) | (abs(error) < 1e-30)] = False
 
                 iclosest = argmin(seps)
 
@@ -629,7 +634,7 @@ class ShotSensitivity(object):
                 # XXX Could be faster - reloads the file every run
                 meteor_flag = meteor_flag_from_coords(c, self.shotid)
 
-                if not (amp_flag and meteor_flag and zero_flag):
+                if not (amp_flag and meteor_flag):
                     logger.debug("The data here are bad, position is masked")
                     if wave_passed:
                         noise.append(badval)
@@ -655,10 +660,6 @@ class ShotSensitivity(object):
                                                      return_scleaned_mask = True)
                 
                 spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
-
-
-                #for w, s in zip(wave_rect, spectrum_aper/norm):
-                #    print(w, s)
  
                 if wave_passed:
                     
@@ -666,6 +667,13 @@ class ShotSensitivity(object):
                     ilo = index - self.wavenpix
                     ihi = index + self.wavenpix + 1
 
+                    # If lower index less than zero, truncate
+                    if ilo < 0:
+                        ilo = 0
+ 
+                    if ihi < 0:
+                        ihi = 0
+ 
                     # Output lots of information for very detailed debugging
                     if logger.getEffectiveLevel() == logging.DEBUG: 
                         logger.debug("Table of fibers:")
@@ -679,39 +687,55 @@ class ShotSensitivity(object):
 
 
                     # Mask source if bad values within the central 3 wavebins
-                    nan_fib = bad_central_mask(weights*norm, scleaned, index)   
+                    nan_fib = bad_central_mask(weights*norm, logical_not(fmask), 
+                                               index)   
                     nan_fib_mask.append(nan_fib)
 
                     # Account for NaN and masked spectral bins
                     bad = isnan(spectrum_aper_error[ilo:ihi])
-                    goodfrac = 1.0 - sum(bad)/(ihi - ilo)
+                    goodfrac = 1.0 - sum(bad)/len(bad)
 
 
                     if all(isnan(spectrum_aper_error[ilo:ihi])):
                         sum_sq = badval
                     else:
                         sum_sq = \
-                            sqrt(nansum(square(spectrum_aper_error[ilo:ihi]/goodfrac)))
+                            sqrt(nansum(square(spectrum_aper_error[ilo:ihi])/goodfrac))
 
-
-                    norm_all.append(nansum(norm[ilo:ihi])/len(norm[ilo:ihi]))
-
+                    norm_all.append(mean(norm[ilo:ihi]))
                     noise.append(sum_sq)
                 else:
-                    convolved_variance = convolve(convolution_filter,
-                                                  square(spectrum_aper_error),
-                                                  mode='same')
+                    logger.debug("Convolving with window to get flux limits versus wave")
+
+                    # Use astropy convolution so NaNs are ignored
+                    convolved_variance = convolve(square(spectrum_aper_error),
+                                                  convolution_filter, 
+                                                  normalize_kernel=False)
                     std = sqrt(convolved_variance)
 
-                    # XXX This will be slow might be able to speed up
+                    # Also need to convolve aperture corrections to get
+                    # a total apcor across the wavelength window
+                    convolved_norm = convolve(norm,
+                                              convolution_filter, 
+                                              normalize_kernel=True)
+
+
+                    # To get mean account for the edges in
+                    # the convolution
+                    for iend in range(self.wavenpix):
+                        fac = filter_len/(filter_len + iend - self.wavenpix)
+                        convolved_norm[iend] *= fac
+                        convolved_norm[-iend - 1] *= fac
+ 
                     # Mask wavelengths with too many bad pixels
+                    # equivalent to nan_fib in the wave != None mode
                     wunorm = weights*norm
                     for index in range(len(convolved_variance)):
-                        if not bad_central_mask(wunorm, scleaned, index):
+                        if not bad_central_mask(wunorm, logical_not(fmask), index):
                             std[index] = badval
 
                     noise.append(std)
-                    norm_all.append(norm)
+                    norm_all.append(convolved_norm)
                     
             else:
                 if wave_passed:
@@ -759,7 +783,7 @@ class ShotSensitivity(object):
             if self.badshot:
                 mask[:] = False
 
-            bad = snoise > 998
+            bad = (snoise > 998) | logical_not(isfinite(snoise))
             normnoise = snoise/norm_all
 
             if not direct_sigmas:
