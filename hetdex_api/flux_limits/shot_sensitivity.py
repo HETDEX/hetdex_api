@@ -839,6 +839,8 @@ class ShotSensitivity(object):
             VIRUS range
         """
 
+        logger = logging.getLogger(name="ShotSensitivity")
+
         try: 
             if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
 
