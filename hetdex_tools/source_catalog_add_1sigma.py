@@ -20,9 +20,9 @@ from multiprocessing import Pool
 version = '2.1.3'
 
 config = HDRconfig()
-#catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
+catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 #catfile = '/work2/05350/ecooper/stampede2/redshift-tests/source_catalog_2.1.3.fits'
-catfile = '/scratch/05350/ecooper/catalogs/source_catalog_2.1.3.fits'
+#catfile = '/scratch/05350/ecooper/catalogs/source_catalog_2.1.3.fits'
 source_table = Table.read(catfile)
 
 print('Source catalog was found at {}'.format(catfile))
@@ -109,7 +109,7 @@ def get_flim_sig_erin(detectid=None, coord=None, wave=None, datevobs=None, shoti
         E.close()
 
         # XXX divide by apcor .... 
-        return flim_1sigma/apcor
+        return flim_1sigma/apcor, apcor
     except:
         return 999
 
@@ -124,15 +124,15 @@ def get_noise_1sigma(shot):
     detectid = source_table['detectid']
     
     try:
-        shot_sens_v1 = ShotSensitivity(datevobs, flim_model="v2", verbose=False)
+        shot_sens_v1 = ShotSensitivity(datevobs, flim_model="v2", log_level="INFO", verbose=False)
 
         ra = source_table['ra'][sel_shot]
         dec = source_table['dec'][sel_shot]
         wave = source_table['wave'][sel_shot]
         
-        f_1sigma = shot_sens_v1.get_f50(ra, dec, wave, sncut, direct_sigmas=True)
+        f_1sigma, apcor = shot_sens_v1.get_f50(ra, dec, wave, sncut, direct_sigmas=True)
         
-        return np.array(detectid[sel_shot]), f_1sigma*10**17
+        return np.array(detectid[sel_shot]), f_1sigma*10**17, apcor
     except:
         print('Failed to get sensitivity value for {}'.format(datevobs))
 
@@ -149,14 +149,16 @@ np.shape(res)
 
 dets = []
 noise_1sigma = []
+apcor = []
 for r in res:
     if r is None:
         continue
     else:
         dets.extend(r[0])
         noise_1sigma.extend(r[1])
+        apcor.extend(r[2])
 
-new = Table([dets, noise_1sigma], names=['detectid','flux_noise_1sigma_obs'])
+new = Table([dets, noise_1sigma, apcor], names=['detectid','flux_noise_1sigma_obs', 'apcor_api'])
 
 bad = np.where(new['flux_noise_1sigma_obs'] > 990)[0]
 
@@ -164,12 +166,10 @@ for bad_i in bad:
     f1sigma = get_flim_sig_erin(new['detectid'][bad_i])
     if f1sigma == 0.0:
         f1sigma = 999
-        print('yep')
+        print('Bad: {}'.format(new['detectid'][bad_i]))
     new['flux_noise_1sigma_obs'][bad_i] = f1sigma
 
-
 join_new = join(source_table, new, join_type='left')
-
 
 print(len(join_new), len(source_table))
 
@@ -190,7 +190,8 @@ deredden = 10**(0.4*np.array(ext))
 join_new['flux_noise_1sigma'] = deredden * join_new['flux_noise_1sigma_obs']
 join_new['flux_noise_1sigma'] = join_new['flux_noise_1sigma'].filled(999)
 join_new['flux_noise_1sigma_obs'] = join_new['flux_noise_1sigma_obs'].filled(999)
+join_new['apcor_api'] = join_new['apcor'].filled(0.0)
 
 print(len(source_table), len(join_new))
 
-join_new.write('source_catalog_2.1.3.fits', overwrite=True)
+join_new.write('source_catalog_2.1.4.fits', overwrite=True)
