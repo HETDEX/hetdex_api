@@ -8,17 +8,19 @@ AUTHOR: Daniel Farrow
 
 """
 
+import logging 
 from os.path import isfile, join
 from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
-                   convolve, repeat, loadtxt, where, argmin, invert, logical_not,
-                   isnan, newaxis, ceil, nansum)
+                   repeat, loadtxt, where, argmin, invert, logical_not, isfinite,
+                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
+from astropy.convolution import convolve
 
 from pyhetdex.coordinates.tangent_projection import TangentPlane
 from pyhetdex.het.fplane import FPlane
@@ -30,6 +32,51 @@ from hetdex_api.flux_limits.generate_simulation_inputs import create_sensitivity
 from hetdex_api.mask import create_gal_ellipse, amp_flag_from_fiberid, meteor_flag_from_coords, create_dummy_wcs
 from hetdex_api.flux_limits.sensitivity_cube import WavelengthException 
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
+
+def bad_central_mask(weights, badmask, index, wmin = 0.1):
+    """
+    Karl Gebhardt's false positive cut. If any fiber
+    with a weight above wmin is flagged within the
+    central three wave bins of a source remove it.
+    Also remove sources where everything is flagged
+
+    Parameters
+    ----------
+    weights : array
+        the weights of the fibers
+    badmask : 2d numpy array (nfibers x nwaves)
+        True where data is bad
+    index : int
+        the wavelength index of the 
+    wmin : float (optional)
+        the minimum weight of fiber to
+        consider when looking for flagged
+        values
+
+    Returns
+    -------
+    maskval : boolean
+        False if bad, True if data is
+        good
+
+    """
+
+ 
+    # Weights of fibers at the source index
+    sel = weights[:, index] > wmin
+
+    #print(weights[:, index])
+    #print(badmask[sel, index - 1 : index + 2])
+
+    bad_test = any(badmask[sel, index - 1 : index + 2].ravel()) 
+    bad_test = bad_test| all(badmask[:, index - 1 : index + 2].ravel())
+
+    if bad_test:
+        return False
+    else:
+        return True
+
+
 
 class ShotSensitivity(object):
     """
@@ -84,7 +131,7 @@ class ShotSensitivity(object):
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
                  ffsky=False, wavenpix=3, d25scale=3.0, verbose=False,
-                 sclean_bad = True): 
+                 sclean_bad = True, log_level="WARNING"): 
 
         self.conf = HDRconfig()
         self.extractor = Extract()
@@ -93,17 +140,23 @@ class ShotSensitivity(object):
         self.rad = rad
         self.ffsky = ffsky
         self.wavenpix = wavenpix
-        self.verbose = verbose
         self.sclean_bad = sclean_bad
 
+        logger = logging.getLogger(name="ShotSensitivity")
+        logger.setLevel(log_level)
+
         if verbose:
-            print("shotid: ", self.shotid)
+            raise DeprecationWarning("Using verbose is deprecated, set log_level instead")    
+            logger.setLevel("DEBUG")        
+   
+        logger.info("shotid: {:d}".format(self.shotid))
  
         if not release:
             self.release = self.conf.LATEST_HDR_NAME
         else:
             self.release = release
-            
+           
+        logger.info("Data release: {:s}".format(self.release)) 
         self.survey = Survey(survey=self.release)
    
         # Set up flux limit model
@@ -121,14 +174,17 @@ class ShotSensitivity(object):
         self.tp = TangentPlane(self.shot_ra, self.shot_dec, rot)
     
         #Set up masking
+        logger.info("Using d25scale {:f}".format(d25scale))
         self.setup_mask(d25scale)
-        
+ 
+ 
         # Set up spectral extraction
         if release == "hdr1":
             fwhm = self.survey.fwhm_moffat[survey_sel][0]
         else:
             fwhm = self.survey.fwhm_virus[survey_sel][0]
 
+        logger.info("Using Moffat PSF with FWHM {:f}".format(fwhm))
         self.moffat = self.extractor.moffat_psf(fwhm, 3.*rad, 0.25)
         self.extractor.load_shot(self.shotid, fibers=True, survey=self.release)
         
@@ -157,25 +213,28 @@ class ShotSensitivity(object):
         d25scale : float
             Sets the multiplier for the galaxy masks
             applied (default 3.5)
-        """       
+        """      
+
+        logger = logging.getLogger(name="ShotSensitivity")
+ 
         # see if this is a bad shot
         #print("Bad shot from ", self.conf.badshot)
         badshot = loadtxt(self.conf.badshot, dtype=int)
         badtpshots = loadtxt(self.conf.lowtpshots, dtype=int)
         if (self.shotid in badshot) or (self.shotid in badtpshots):
-            print("Shot is in bad. Making mask zero everywhere")
+            logger.warn("Shot is in bad. Making mask zero everywhere")
             self.badshot = True
         else:
             self.badshot = False
         
         # set up bad amps
-        #print("Bad amps from ", self.conf.badamp)
+        logger.info("Bad amps from {:s}".format(self.conf.badamp))
         self.bad_amps = Table.read(self.conf.badamp)
         sel_shot = (self.bad_amps["shotid"] == self.shotid)
         self.bad_amps = self.bad_amps[sel_shot]
         
         # set up galaxy mask
-        #print("Galaxy mask from ", self.conf.rc3cat)
+        logger.info("Galaxy mask from {:s}".format(self.conf.rc3cat))
         galaxy_cat = Table.read(self.conf.rc3cat, format='ascii')
         gal_coords = SkyCoord(galaxy_cat['Coords'], frame='icrs')
         shot_coords = SkyCoord(ra=self.shot_ra, dec=self.shot_dec,
@@ -191,6 +250,7 @@ class ShotSensitivity(object):
                 
         # set up meteor mask
         # check if there are any meteors in the shot:
+        logger.info("Meteors from {:s}".format(self.conf.meteor))
         self.met_tab = Table.read(self.conf.meteor, format="ascii")
         self.met_tab = self.met_tab[self.shotid == self.met_tab["shotid"]]
             
@@ -251,8 +311,8 @@ class ShotSensitivity(object):
 
             all_ra, all_dec, junk = scube.wcs.all_pix2world(ix.ravel(), iy.ravel(), 
                                                             [500.], 0)
-            noises, mask = self.get_f50(all_ra, all_dec, None, 1.0, 
-                                        direct_sigmas = True)
+            noises, norm, mask = self.get_f50(all_ra, all_dec, None, 1.0, 
+                                              direct_sigmas = True)
             sigmas = noises.ravel(order="F").reshape(nz, ny, nx)
 
             mask = logical_not(mask.reshape(ny, nx))
@@ -368,6 +428,7 @@ class ShotSensitivity(object):
         f50s_sel = []
         mask_sel = []
         amp_sel = []
+        norm_sel = []
 
         wave_rect = self.extractor.get_wave()
         pixsize_aa = wave_rect[1] - wave_rect[0]
@@ -378,6 +439,7 @@ class ShotSensitivity(object):
         # Arrays to store full output
         f50s = badval*ones(nsrc)
         mask = ones(nsrc)
+        norm = ones(nsrc)
         amp = array(["notinshot"]*nsrc)
 
         if nsel > 0:
@@ -385,24 +447,20 @@ class ShotSensitivity(object):
      
                 tra = ra_sel[i*nmax : (i+1)*nmax]
                 tdec = dec_sel[i*nmax : (i+1)*nmax]
-
-                if self.verbose: 
-                    print("Split {:d}".format(i)) 
-                    print(tra)
-                    print("***") 
     
                 if wave_passed:
                     twave = wave_sel[i*nmax : (i+1)*nmax]
                     if not self.badshot:
-                        tf50s, tamp = self._get_f50_worker(tra, tdec, twave, sncut, 
-                                                           direct_sigmas = direct_sigmas,
-                                                           linewidth = linewidth)
+                        tf50s, tamp, tnorm = self._get_f50_worker(tra, tdec, twave, sncut, 
+                                                                  direct_sigmas = direct_sigmas,
+                                                                  linewidth = linewidth)
                     else:
                         tamp = ["bad"]*len(tra)
-                        tf50s = [999.0]*len(tra)
+                        tf50s = [badval]*len(tra)
+                        tnorm = [1.0]*len(tra)
                 else:
                     # if bad shot then the mask is all set to zero
-                    tf50s, tmask, tamp = \
+                    tf50s, tmask, tamp, tnorm = \
                                       self._get_f50_worker(tra, tdec, None, sncut, 
                                                           direct_sigmas = direct_sigmas,
                                                           linewidth = linewidth) 
@@ -411,6 +469,8 @@ class ShotSensitivity(object):
           
                 f50s_sel.extend(tf50s)
                 amp_sel.extend(tamp)
+                norm_sel.extend(tnorm)
+                 
 
         if return_amp:
             if wave_passed:
@@ -418,16 +478,19 @@ class ShotSensitivity(object):
                 # copy to output
                 f50s[sel] = f50s_sel
                 amp[sel] = amp_sel
+                norm[sel] = norm_sel
 
-                return f50s, amp        
+                return f50s, norm, amp       
             else:
-                return array(f50s_sel), array(mask_sel), array(amp_sel)
+                return array(f50s_sel), array(norm_sel), array(mask_sel), array(amp_sel)
         else:
             if wave_passed:
                 f50s[sel] = f50s_sel
-                return f50s        
+                norm[sel] = norm_sel
+
+                return f50s, norm
             else:
-                return array(f50s_sel), array(mask_sel)
+                return array(f50s_sel), array(norm_sel), array(mask_sel)
  
 
     def _get_f50_worker(self, ra, dec, wave, sncut, 
@@ -470,6 +533,8 @@ class ShotSensitivity(object):
             was passed for wave this is 
             a 2D array of ra, dec and
             all wavelengths
+        norm_all : array
+            the aperture corrections
         mask : array
             Only returned if `wave=None`. This
             mask is True where the ra/dec
@@ -480,7 +545,9 @@ class ShotSensitivity(object):
             it's an array of amplifier information
             for the closest fiber to each source 
         """
- 
+
+        logger = logging.getLogger(name="ShotSensitivity")
+
         try:
             [x for x in ra]
         except TypeError:
@@ -495,11 +562,14 @@ class ShotSensitivity(object):
         # This will give 999 once the noise is scaled suitably
         badval = 999*1e17/pixsize_aa
 
+        # Size of window in wave elements
+        filter_len = 2*self.wavenpix + 1
+
         if type(wave) != type(None):
             wave_passed = True
         else:
             wave_passed = False
-            convolution_filter = ones(2*self.wavenpix + 1)        
+            convolution_filter = ones(filter_len)        
             mask = True*ones(len(coords), dtype=int)
             
         noise = []
@@ -510,37 +580,47 @@ class ShotSensitivity(object):
                                 ffsky=self.ffsky,
                                 return_fiber_info=True,
                                 fiber_lower_limit=2, 
-                                verbose=self.verbose
+                                verbose=False
                                 )
 
         id_, aseps, aifux, aifuy, axc, ayc, ara, adec, adata, aerror, afmask, afiberid, \
                     amultiframe = info_results
-        
-        
+               
+ 
         I = None
         fac = None
         norm_all = []
         amp = []       
- 
+        nan_fib_mask = []
+
         for i, c in enumerate(coords):
                 
             sel = (id_ == i)
-            
+
+            if type(wave) != type(None):
+                logger.debug("Running on source {:f} {:f} {:f}".format(ra[i], dec[i], wave[i]))
+            else:
+                logger.debug("Running on position {:f} {:f}".format(ra[i], dec[i]))
+
+            logger.debug("Found {:d} fibers".format(sum(sel)))
+
             if sum(sel) > 0:
-                    
+                
+                # fiber properties    
                 xc = axc[sel][0]
                 yc = ayc[sel][0]
                 ifux = aifux[sel]
                 ifuy = aifuy[sel]
-                ra = ara[sel]
-                dec = adec[sel]
                 data = adata[sel]
                 error = aerror[sel]
                 fmask = afmask[sel]
                 fiberid = afiberid[sel]
                 multiframe = amultiframe[sel]
                 seps = aseps[sel]
- 
+
+                # Flag the zero elements as bad
+                fmask[(abs(data) < 1e-30) | (abs(error) < 1e-30)] = False
+
                 iclosest = argmin(seps)
 
                 amp.append(fiberid[iclosest])
@@ -555,9 +635,12 @@ class ShotSensitivity(object):
                 meteor_flag = meteor_flag_from_coords(c, self.shotid)
 
                 if not (amp_flag and meteor_flag):
+                    logger.debug("The data here are bad, position is masked")
                     if wave_passed:
                         noise.append(badval)
                         norm_all.append(1.0)
+                        # value doesn't matter as in amp flag
+                        nan_fib_mask.append(True)
                         continue
                     else:
                         mask[i] = False
@@ -566,52 +649,108 @@ class ShotSensitivity(object):
                                                                I=I, fac=fac, return_I_fac = True)
                 
 
-                # See Greg Zeimann's Remedy code
-                norm = sum(weights, axis=0)
+                # (See Greg Zeimann's Remedy code)
+                # normalized in the fiber direction
+                norm = sum(weights, axis=0) 
                 weights = weights/norm
 
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False,
-                                                     sclean_bad = self.sclean_bad)
+                                                     sclean_bad = self.sclean_bad,
+                                                     return_scleaned_mask = True)
                 
-                spectrum_aper, spectrum_aper_error = [res for res in result] 
+                spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
  
                 if wave_passed:
+                    
                     index = where(wave_rect >= wave[i])[0][0]
                     ilo = index - self.wavenpix
                     ihi = index + self.wavenpix + 1
 
-                    # Account for NaN spectral bins
-                    goodfrac = 1.0 - sum(isnan(spectrum_aper_error[ilo:ihi]))/(ihi - ilo)
+                    # If lower index less than zero, truncate
+                    if ilo < 0:
+                        ilo = 0
+ 
+                    if ihi < 0:
+                        ihi = 0
+ 
+                    # Output lots of information for very detailed debugging
+                    if logger.getEffectiveLevel() == logging.DEBUG: 
+                        logger.debug("Table of fibers:")
+                        logger.debug("# fiberid    wave_index ifux ifuy  weight     noise")
+                        for fibidx, fid in enumerate(fiberid):
+                            for wi, (tw, tnoise) in enumerate(zip((weights*norm)[fibidx, ilo:ihi], 
+                                                              error[fibidx, ilo:ihi]), 
+                                                              ilo): 
+                                logger.debug("{:s} {:d} {:f} {:f} {:f} {:f}".format(fid, wi, ifux[fibidx], 
+                                                                                    ifuy[fibidx], tw, tnoise))
+
+
+                    # Mask source if bad values within the central 3 wavebins
+                    nan_fib = bad_central_mask(weights*norm, logical_not(fmask), 
+                                               index)   
+                    nan_fib_mask.append(nan_fib)
+
+                    # Account for NaN and masked spectral bins
+                    bad = isnan(spectrum_aper_error[ilo:ihi])
+                    goodfrac = 1.0 - sum(bad)/len(bad)
+
 
                     if all(isnan(spectrum_aper_error[ilo:ihi])):
                         sum_sq = badval
                     else:
                         sum_sq = \
-                            sqrt(nansum(square(spectrum_aper_error[ilo:ihi]/goodfrac)))
+                            sqrt(nansum(square(spectrum_aper_error[ilo:ihi])/goodfrac))
 
-
-                    norm_all.append(nansum(norm[ilo:ihi])/len(norm[ilo:ihi]))
+                    norm_all.append(mean(norm[ilo:ihi]))
                     noise.append(sum_sq)
                 else:
-                    convolved_variance = convolve(convolution_filter,
-                                                  square(spectrum_aper_error),
-                                                  mode='same')
-                    noise.append(sqrt(convolved_variance))
-                    norm_all.append(norm)
+                    logger.debug("Convolving with window to get flux limits versus wave")
+
+                    # Use astropy convolution so NaNs are ignored
+                    convolved_variance = convolve(square(spectrum_aper_error),
+                                                  convolution_filter, 
+                                                  normalize_kernel=False)
+                    std = sqrt(convolved_variance)
+
+                    # Also need to convolve aperture corrections to get
+                    # a total apcor across the wavelength window
+                    convolved_norm = convolve(norm,
+                                              convolution_filter, 
+                                              normalize_kernel=True)
+
+
+                    # To get mean account for the edges in
+                    # the convolution
+                    for iend in range(self.wavenpix):
+                        fac = filter_len/(filter_len + iend - self.wavenpix)
+                        convolved_norm[iend] *= fac
+                        convolved_norm[-iend - 1] *= fac
+ 
+                    # Mask wavelengths with too many bad pixels
+                    # equivalent to nan_fib in the wave != None mode
+                    wunorm = weights*norm
+                    for index in range(len(convolved_variance)):
+                        if not bad_central_mask(wunorm, logical_not(fmask), index):
+                            std[index] = badval
+
+                    noise.append(std)
+                    norm_all.append(convolved_norm)
                     
             else:
                 if wave_passed:
                     noise.append(badval)
                     norm_all.append(1.0)
                     amp.append("000")
+                    nan_fib_mask.append(True)
                 else:
                     noise.append(badval*ones(len(wave_rect)))
                     norm_all.append(ones(len(wave_rect)))
                     amp.append("000")
                     mask[i] = False
 
-                    
+
+                   
         # Apply the galaxy mask     
         gal_mask = ones(len(coords), dtype=int)
         for gal_region in self.gal_regions:
@@ -624,17 +763,19 @@ class ShotSensitivity(object):
         snoise = pixsize_aa*1e-17*noise
 
         if wave_passed:
-            bad = (gal_mask < 0.5) | (snoise > 998) | isnan(snoise)
+
+            bad = (gal_mask < 0.5) | (snoise > 998) | isnan(snoise) | invert(nan_fib_mask)
 
             normnoise = snoise/norm_all
-            normnoise[bad] = 999.
 
             if not direct_sigmas:
                 normnoise = self.f50_from_noise(normnoise, wave, sncut,
                                                 linewidth = linewidth)
 
             
-            return normnoise, amp
+            normnoise[bad] = 999.
+
+            return normnoise, amp, norm_all
 
         else:
             mask[gal_mask < 0.5] = False
@@ -642,16 +783,16 @@ class ShotSensitivity(object):
             if self.badshot:
                 mask[:] = False
 
-            bad = snoise > 998
+            bad = (snoise > 998) | logical_not(isfinite(snoise))
             normnoise = snoise/norm_all
-            normnoise[bad] = 999
 
             if not direct_sigmas:
                 normnoise = self.f50_from_noise(normnoise, wave, sncut,
                                                 linewidth = linewidth)
 
+            normnoise[bad] = 999
 
-            return normnoise, mask, amp
+            return normnoise, mask, amp, norm_all
 
     def return_completeness(self, flux, ra, dec, lambda_, sncut, f50s=None,
                             linewidth = None):
@@ -698,6 +839,8 @@ class ShotSensitivity(object):
             VIRUS range
         """
 
+        logger = logging.getLogger(name="ShotSensitivity")
+
         try: 
             if lambda_[0] < 3000.0 or lambda_[0] > 6000.0:
 
@@ -711,15 +854,27 @@ class ShotSensitivity(object):
         
 
         if type(f50s) == type(None):
-            f50s = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
+            f50s, norm = self.get_f50(ra, dec, lambda_, sncut, linewidth = linewidth)
 
         try:
             # to stop bad values breaking interpolation
             bad = (f50s > 998)
             f50s[bad] = 1e-16
             fracdet = self.sinterp(flux, f50s, lambda_, sncut)
-            fracdet[bad] = 0.0
-            f50s[bad] = 999.0
+            #print(min(flux), max(flux), min(f50s), max(f50s))
+
+            # check to see if we're passing multiple fluxes
+            # for one f50 value
+            if any(bad):
+                logger.debug("There are bad values here to mask")
+                if len(f50s) == 1:
+                    logger.debug("Just one ra/dec/wave passed.")
+                    fracdet[:] = 0.0
+                    f50s[:] = 999.0
+                else:
+                    fracdet[bad] = 0.0
+                    f50s[bad] = 999.0
+
         except IndexError as e:
             print("Interpolation failed!")
             print(min(flux), max(flux), min(f50s), max(f50s))

@@ -80,13 +80,13 @@ def sclean(waves, fiber_data, fiber_error, mask,
     fiber_data_out = np.copy(fiber_data)
     fiber_error_out = np.copy(fiber_error)
 
-    bad = (abs(fiber_data) < 1e-40) | (abs(fiber_error) < 1e-40)
+    bad = (abs(fiber_data) < 1e-40) | (abs(fiber_error) < 1e-40) | np.logical_not(mask)
     good = np.logical_not(bad)
     good_indices = np.arange(len(waves))[good]
  
     # If it's all bad, give up!
     if all(bad):
-        return fiber_data_out, fiber_error_out, mask
+        return fiber_data_out, fiber_error_out, mask, bad
 
     for idx in np.arange(len(waves))[bad]:
         mask[idx] = True
@@ -96,7 +96,7 @@ def sclean(waves, fiber_data, fiber_error, mask,
         #print(np.mean(arr[arr > 0]), idx, any(np.isnan(arr)), len(arr[arr > 0]))
         fiber_error_out[idx] = error_scale*fiber_error[jnear]        
 
-    return fiber_data_out, fiber_error_out, mask
+    return fiber_data_out, fiber_error_out, mask, bad
 
 
 class Extract:
@@ -1178,10 +1178,11 @@ class Extract:
         SY = np.tile(ifuy, len(self.wave)).reshape(len(self.wave), len(ifuy)).T
         ADRx3D = np.repeat(self.ADRx, len(ifux)).reshape(len(self.wave), len(ifux)).T
         ADRy3D = np.repeat(self.ADRy, len(ifuy)).reshape(len(self.wave), len(ifuy)).T
+
         SX = SX - ADRx3D - xc
         SY = SY - ADRy3D - yc
         weights = fac*I(SX, SY)
-   
+  
         if not return_I_fac:
             return weights
         else:
@@ -1227,7 +1228,7 @@ class Extract:
         return weights
 
     def get_spectrum(self, data, error, mask, weights, remove_low_weights = True,
-                     sclean_bad = True):
+                     sclean_bad = True, return_scleaned_mask = False):
         """
         Weighted spectral extraction
         
@@ -1250,19 +1251,28 @@ class Extract:
             replace bad data in the
             way described by Karl Gebhardt and
             implemented in his `fitradecsp` code
-       
+        return_scleaned_mask : bool
+            if true return a mask the same shape
+            as the data if any of the        
+
         Returns
         -------
         spectrum: numpy 1d array
             Flux calibrated extracted spectrum
         spectrum_error: numpy 1d array
             Error for the flux calibrated extracted spectrum
+        scleaned : numpy 2d array
+            Only returned if `return_scleaned_mask` is true.
+            A mask which is 1 in elements where sclean replaced
+            bad data
         """
+
+        scleaned = np.zeros_like(data)
 
         # Replace bad data with an average
         if sclean_bad:
             for i in range(data.shape[0]):
-                data[i, :], error[i, :], mask[i, :] = sclean(self.wave, data[i,:], error[i,:], mask[i, :])
+                data[i, :], error[i, :], mask[i, :], scleaned[i, :] = sclean(self.wave, data[i,:], error[i,:], mask[i, :])
 
         spectrum = np.sum(data * mask * weights, axis=0) / np.sum(
             mask * weights ** 2, axis=0
@@ -1275,12 +1285,14 @@ class Extract:
         # Only use wavelengths with enough weight to avoid large noise spikes
         if remove_low_weights:
             w = np.sum(mask * weights ** 2, axis=0)
-            #sel = w < np.median(w) * 0.1
             sel = w < 0.05
             spectrum[sel] = np.nan
             spectrum_error[sel] = np.nan
 
-        return spectrum, spectrum_error
+        if return_scleaned_mask:   
+            return spectrum, spectrum_error, scleaned
+        else:
+            return spectrum, spectrum_error
 
     def close(self):
         """
