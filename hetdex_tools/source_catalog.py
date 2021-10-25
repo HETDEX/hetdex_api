@@ -45,7 +45,29 @@ wavelya = 1215.67
 waveoii = 3727.8
 
 deth5 = None
+conth5 = None
 
+
+def return_fiber_ratio(det, det_type):
+
+    global deth5, conth5
+
+    if deth5 is None:
+        deth5 = tb.open_file(config.detecth5, 'r')
+    if conth5 is None:
+        conth5 = tb.open_file(config.contsourceh5, 'r')
+    
+    if det_type == 'line':
+        fiber_tab = deth5.root.Fibers.read_where("detectid == det")
+        weights = np.sort(fiber_tab["weight"])
+        fiber_ratio = weights[-1] / weights[-2]
+    else:
+        fiber_tab = conth5.root.Fibers.read_where("detectid == det")
+        weights = np.sort(fiber_tab["weight"])
+        fiber_ratio = weights[-1] / weights[-2]
+    return fiber_ratio
+
+                                                                        
 def add_elixer_cat_info(det_table, version):
 
     global config
@@ -346,6 +368,18 @@ def create_source_catalog(
     detect_table = unique(
         vstack([detects_broad_table, detects_cont_table, detects_line_table]),
         keys='detectid')
+
+    # add fiber_ratio
+    fiber_ratio = []
+    for row in detect_table:
+        det = row['detectid']
+        det_type = row['det_type']
+        try:
+            fiber_ratio.append( return_fiber_ratio(det, det_type))
+        except:
+            fiber_ratio.append(np.nan)
+            print('fiber_ratio failed for {}'.format(det))
+    detect_table['fiber_ratio'] = fiber_ratio
 
     detect_table.write('test.fits', overwrite=True)
 

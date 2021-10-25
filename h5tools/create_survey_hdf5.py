@@ -38,7 +38,7 @@ def define_field(objname):
 
     if re.match("par", str(objname)):
         field = "parallel"
-    elif re.match("COS|cos|DEXcos", str(objname)):
+    elif re.match("COS|cos|DEXcos|DEXcs", str(objname)):
         field = "cosmos"
     elif re.match("EGS|DEXeg", str(objname)):
         field = "egs"
@@ -62,7 +62,7 @@ def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
     parser = ap.ArgumentParser(
-        description="""Create HDF5 Astrometry file.""", add_help=True
+        description="""Create HDF5 Survey file.""", add_help=True
     )
 
     parser.add_argument(
@@ -78,7 +78,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/data/05350/ecooper/hdr2.1/reduction/data",
+        default="/scratch/03946/hetdex/hdr3/reduction/data",
     )
 
     parser.add_argument(
@@ -134,7 +134,7 @@ def main(argv=None):
     for shotrow in shotlist:
         datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
 
-        try:
+        if True:
             args.log.info('Ingesting ' + datevshot)
             file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
 
@@ -145,13 +145,13 @@ def main(argv=None):
 
             survey = vstack([survey, shottable])
             file_obs.close()
-        except:
+        else:#except:
             args.log.error("Could not ingest %s" % datevshot)
     
     tableMain = fileh.create_table(fileh.root, "Survey", obj=survey.as_array())
 
     tableMain.flush()
     fileh.close()
-    
+
 if __name__ == "__main__":
     main()

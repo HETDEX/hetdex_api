@@ -23,19 +23,9 @@ from hetdex_api.survey import Survey, FiberIndex
 
 try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-    HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
-    HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
-    HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
-    HETDEX_DETECT_HDF5_HANDLE = None
-    CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
-    CONT_H5_HANDLE = None
-    FIBINDEX = FiberIndex(LATEST_HDR_NAME)
-    AMPFLAG_TABLE = Table.read(HETDEX_API_CONFIG.badamp)
-
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
-
 
 class AmpWidget:
     def __init__(
@@ -51,9 +41,6 @@ class AmpWidget:
         expnum=1,
     ):
 
-        global LATEST_HDR_NAME, HETDEX_DETECT_HDF5_FN, HETDEX_DETECT_HDF5_HANDLE
-        global AMPFLAG_TABLE
-
         self.survey = survey.lower()
         self.detectid = detectid
         self.shotid = shotid
@@ -64,16 +51,16 @@ class AmpWidget:
         self.radius = radius
         self.wave = wave
 
-        s = Survey(self.survey)
-        gs = s.remove_shots()
+        self.survey_class = Survey(self.survey)
 
-        self.survey_class = s[gs]
-
+        # populate hetdex_api config with path files
+        self.update_hdr_config()
+        
         # initialize the image widget from astrowidgets
         self.imw = ImageWidget()  # image_width=600, image_height=600)
 
         self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2.1"],
+            options=["HDR1", "HDR2.1", "HDR3"],
             value=self.survey.upper(),
             layout=Layout(width="10%"),
         )
@@ -92,7 +79,7 @@ class AmpWidget:
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
-            max=3000000000,
+            max=4000000000,
             step=1,
             description="DetectID:",
             disabled=False,
@@ -463,6 +450,17 @@ class AmpWidget:
 
         self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
+
+    def update_hetdex_config(self):
+        LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+        HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
+        HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
+        HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
+        HETDEX_DETECT_HDF5_HANDLE = None
+        CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
+        CONT_H5_HANDLE = None
+        FIBINDEX = FiberIndex(LATEST_HDR_NAME)
+        AMPFLAG_TABLE = Table.read(HETDEX_API_CONFIG.badamp)
 
     def get_ra_dec_wave(self, b):
         with self.bottombox:

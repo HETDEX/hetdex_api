@@ -183,7 +183,7 @@ def get_source_spectra(shotid, args):
 
     E = Extract()
 
-    FibIndex = FiberIndex(args.survey)
+    FibIndex = FiberIndex(survey=args.survey)
     
     source_dict = {}
 
@@ -333,7 +333,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
 
 
     E = Extract()
-    FibIndex = FiberIndex(args.survey)
+    FibIndex = FiberIndex(survey=args.survey)
 
     if args.survey == "hdr1":
         source_num_switch = 20
@@ -1076,6 +1076,8 @@ def get_spectra(
         args.log.setLevel(logging.WARNING)
     elif loglevel == 'DEBUG':
         args.log.setLevel(logging.DEBUG)
+    elif loglevel == "NOTSET":
+        args.log.setLevel(logging.NOTSET)
     else:
         args.log.WARNING('No loglevel set, using INFO')
         args.log.setLevel(logging.INFO)

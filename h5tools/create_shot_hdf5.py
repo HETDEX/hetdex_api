@@ -25,8 +25,7 @@ from hetdex_api.config import HDRconfig
 # hard coded variable to initialize 'rms', 'chi' arrays
 # and remove 'twi_spectrum' for all realeases past hdr1
 global hdr_survey
-hdr_survey = "hdr2.1"
-
+hdr_survey = "hdr3"
 
 def build_path(reduction_folder, instr, date, obsid, expn):
     folder = op.join(
@@ -70,7 +69,7 @@ def get_files(args):
 def define_field(objname):
     if re.match("par", str(objname)):
         field = "parallel"
-    elif re.match("COS|cos|DEXcos", str(objname)):
+    elif re.match("COS|cos|DEXcos|DEXcs", str(objname)):
         field = "cosmos"
     elif re.match("EGS", str(objname)):
         field = "egs"
@@ -130,11 +129,10 @@ class VIRUSFiber(tb.IsDescription):
     trace = tb.Float32Col((1032,))
     sky_subtracted = tb.Float32Col((1032,))
     sky_spectrum = tb.Float32Col((1032,))
-    error1Dfib = tb.Float32Col((1032,))
+    error1D = tb.Float32Col((1032,))
     calfib = tb.Float32Col((1036,))
     calfibe = tb.Float32Col((1036,))
-    spec_fullsky_sub = tb.Float32Col((1036,))
-    Throughput = tb.Float32Col((1036,))
+    calfib_ffsky = tb.Float32Col((1036,))
     ifuslot = tb.StringCol(3)
     ifuid = tb.StringCol(3)
     specid = tb.StringCol(3)
@@ -299,11 +297,10 @@ def append_fibers_to_table(fibindex, fib, im, fn, cnt, T, args):
             "sky_spectrum",
             "sky_subtracted",
             "trace",
-            "error1Dfib",
+            "error1D",
             "calfib",
             "calfibe",
             "Amp2Amp",
-            "Throughput",
             "chi2",
             "rms",
         ]
@@ -457,7 +454,7 @@ def main(argv=None):
         "--rootdir",
         help="""Root Directory for Reductions""",
         type=str,
-        default="/data/05350/ecooper/",
+        default="/scratch/00115/gebhardt/red1/reductions",
     )
 
     parser.add_argument(
@@ -482,11 +479,11 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-#        default="/work/00115/gebhardt/maverick/detect",
-        default="/data/00115/gebhardt/detect")
+        default="/scratch/03946/hetdex/detect/dithall",        
+    )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1}""", type=str, default="hdr2.1"
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""", type=str, default="hdr3"
     )
 
     parser.add_argument(
@@ -510,7 +507,7 @@ def main(argv=None):
     # Get the daterange over which reduced files will be collected
     files = get_files(args)
     datestr = "%sv%03d" % (args.date, int(args.observation))
-    filepath = "%s/%s/dithall.use" % (args.detect_path, datestr)
+    filepath = op.join(args.detect_path, "{}.dithall".format(datestr))
     shotid = int(str(args.date) + str(args.observation).zfill(3))
     badshotflag = False
     

@@ -340,7 +340,10 @@ class Extract:
         dec = table_here["dec"]
            
         if ffsky:
-            spec = table_here["spec_fullsky_sub"] / 2.0
+            if self.survey == 'hdr2.1':
+                spec = table_here["spec_fullsky_sub"] / 2.0
+            else:
+                spec = table_here["calfib_ffsky"] / 2.0
         else:
             spec = table_here["calfib"] / 2.0
 
@@ -468,7 +471,10 @@ class Extract:
             dec = self.fibers.table.read_coordinates(idx, "dec")
 
             if ffsky:
-                spec = self.fibers.table.read_coordinates(idx, "spec_fullsky_sub") / 2.0
+                if self.survey == 'hdr2.1':
+                    spec = self.fibers.table.read_coordinates(idx, "spec_fullsky_sub") / 2.0
+                else:
+                    spec = self.fibers.table.read_coordinates(idx, "calfib_ffsky") / 2.0
             else:
                 spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
 
@@ -501,9 +507,12 @@ class Extract:
             ifux = fib_table["ifux"]
             ifuy = fib_table["ifuy"]
             ra = fib_table["ra"]
-            dec = fib_table["dec"]
+            dec = fib_table["dec"] 
             if ffsky:
-                spec = fib_table["spec_fullsky_sub"] / 2.0
+                if self.survey == 'hdr2.1':
+                    spec = fib_table["spec_fullsky_sub"] / 2.0
+                else:
+                    spec = fib_table["calfib_ffsky"] / 2.0
             else:
                 spec = fib_table["calfib"] / 2.0
             spece = fib_table["calfibe"] / 2.0
