@@ -534,7 +534,7 @@ def return_astropy_table(Source_dict,
     output.add_column(Column(wave_arr, unit=u.AA, name="wavelength"))
     output.add_column(Column(spec_arr, unit=fluxden_u, name="spec"))
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
-    output.add_column(Column(weights_arr), name="weights")
+    output.add_column(Column(weights_arr), name="apcor")
     output.add_column(Column(flag_arr, name='flag', dtype=int))
     output.add_column(Column(gal_flag_arr, name='gal_flag', dtype=int))
     output.add_column(Column(amp_flag_arr, name='amp_flag', dtype=int))

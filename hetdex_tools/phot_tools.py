@@ -183,6 +183,7 @@ def get_flux_for_source(
     linewidth=None,
     plot=False,
     convolve_image=False,
+    return_hdu=False
 ):
 
     global deth5, conth5
@@ -251,7 +252,10 @@ def get_flux_for_source(
             hdu=hdu, coords=coords_obj,
             radius=radius, annulus=annulus, plot=False
         )
-    return flux.value, flux_err.value, bkg_stddev.value, apcor
+    if return_hdu:
+        return flux.value, flux_err.value, bkg_stddev.value, apcor, hdu
+    else:
+        return flux.value, flux_err.value, bkg_stddev.value, apcor
 
 
 def plot_friends(friendid, friend_cat, cutout, k=3.5, ax=None, label=True):
