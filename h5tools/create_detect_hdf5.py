@@ -720,6 +720,7 @@ def main(argv=None):
     # to make queries against that column much faster
     if args.append:
         args.log.info("Reindexing the detectid column")
+        tableMain.cols.shotid.reindex()
         tableMain.cols.detectid.reindex()
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()
@@ -727,6 +728,7 @@ def main(argv=None):
         tableSpectra.flush()
         tableMain.flush()
     else:
+        tableMain.cols.shotid.create_csindex()
         tableMain.cols.detectid.create_csindex()
         tableFibers.cols.detectid.create_csindex()
         tableSpectra.cols.detectid.create_csindex()
