@@ -24,8 +24,16 @@ from hetdex_api.config import HDRconfig
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-    
-def open_shot_file(shotid, survey="hdr2.1"):
+try:
+    from hetdex_api.config import HDRconfig
+
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
+
+
+def open_shot_file(shotid, survey=LATEST_HDR_NAME):
     """
     Open the H5 file for a shot. This is a global function that allows you
     to open an H5 file based on its shotid and data release. 
@@ -67,7 +75,7 @@ def open_shot_file(shotid, survey="hdr2.1"):
 
 
 class Fibers:
-    def __init__(self, shot, survey="hdr2.1"):
+    def __init__(self, shot, survey=LATEST_HDR_NAME):
         """
         Initialize Fibers Class
 
@@ -150,7 +158,7 @@ class Fibers:
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
-    def query_region(self, coords, radius=3.5*u.arcsec):
+    def query_region(self, coords, radius=3.5 * u.arcsec):
         """
         Returns an indexed fiber table for a defined aperture.
 
@@ -416,14 +424,19 @@ class Fibers:
         """
         table = Table()
         for name in self.hdfile.root.Data.Fibers.colnames:
-            if hasattr(self,name):
+            if hasattr(self, name):
                 table[name] = getattr(self, name)
 
         return table
 
 
 def get_fibers_table(
-    shot, coords=None, radius=3.0 * u.arcsec, survey="hdr2.1", astropy=True
+    shot,
+    coords=None,
+    radius=3.0 * u.arcsec,
+    survey=LATEST_HDR_NAME,
+    astropy=True,
+    verbose=True,
 ):
     """
     Returns fiber specta for a given shot.
@@ -440,6 +453,8 @@ def get_fibers_table(
         flag to make it an astropy table
     survey
         data release you want to access
+    verbose
+        print out warnings. Default is True.
 
     Returns
     -------
@@ -447,8 +462,11 @@ def get_fibers_table(
     object if astropy=True is set
 
     """
+    if verbose:
+        print(
+            "Fiber spectra returned in /2AA bins. Please use get_fiberinfo_for_coord(s) from Extract class in hetdex_api.extract"
+        )
 
-    print("Fiber spectra returned in /2AA bins. Please use get_fiberinfo_for_coord(s) from Extract class in hetdex_api.extract")
     fileh = open_shot_file(shot, survey=survey.lower())
 
     try:
@@ -468,7 +486,9 @@ def get_fibers_table(
     if survey == "hdr1":
         # search first along ra
 
-        ra_table = fileh.root.Data.Fibers.read_where("sqrt((ra - ra_in)**2) < (rad_in + 2./3600)")
+        ra_table = fileh.root.Data.Fibers.read_where(
+            "sqrt((ra - ra_in)**2) < (rad_in + 2./3600)"
+        )
 
         if any(ra_table):
             coords_table = SkyCoord(
@@ -492,7 +512,7 @@ def get_fibers_table(
         fiberindex = Fibers(shot, survey=survey)
 
         fibers_table = fiberindex.query_region(coords, radius=rad_in)
-        
+
         if np.size(fibers_table) > 0:
             if astropy:
                 fibers_table = Table(fibers_table)
@@ -504,7 +524,13 @@ def get_fibers_table(
 
 
 def get_image2D_cutout(
-    shot, coords, wave_obj, width=40, height=40, imtype="clean_image", survey="hdr2.1"
+    shot,
+    coords,
+    wave_obj,
+    width=40,
+    height=40,
+    imtype="clean_image",
+    survey=LATEST_HDR_NAME,
 ):
     """
     Returns an image from the 2D data based on
@@ -546,8 +572,8 @@ def get_image2D_cutout(
     )
 
     return im0[imtype][0][
-        x - int(np.floor(height / 2)): x + int(np.ceil(height / 2)),
-        y - int(np.floor(width / 2)): y + int(np.ceil(width / 2)),
+        x - int(np.floor(height / 2)) : x + int(np.ceil(height / 2)),
+        y - int(np.floor(width / 2)) : y + int(np.ceil(width / 2)),
     ]
 
 
@@ -559,7 +585,7 @@ def get_image2D_amp(
     ifuslot=None,
     imtype="clean_image",
     expnum=1,
-    survey="hdr2.1",
+    survey=LATEST_HDR_NAME,
 ):
     """
     Returns an image from the 2D data based on
