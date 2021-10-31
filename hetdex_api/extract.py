@@ -498,7 +498,7 @@ class Extract:
         else:
 
             fib_table = get_fibers_table(
-                self.shot, coord, survey=self.survey, radius=radius*u.arcsec,
+                self.shot, coord, survey=self.survey, radius=radius*u.arcsec, verbose=False,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
