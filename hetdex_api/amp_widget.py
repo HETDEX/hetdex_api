@@ -51,22 +51,17 @@ class AmpWidget:
         self.radius = radius
         self.wave = wave
 
-        self.survey_class = Survey(self.survey)
+        self.survey_widget = widgets.Dropdown(
+                        options=["HDR1", "HDR2.1", "HDR3"],
+                        value=self.survey.upper(),
+                        layout=Layout(width="10%"),
+                    )
 
         # populate hetdex_api config with path files
         self.update_hdr_config()
-       
+
         # initialize the image widget from astrowidgets
         self.imw = ImageWidget()  # image_width=600, image_height=600)
-
-        self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2.1", "HDR3"],
-            value=self.survey.upper(),
-            layout=Layout(width="10%"),
-        )
-
-        #        monthlist = np.unique(np.array(s[gs].date/100).astype(int))
-        shotlist = np.unique(np.array(s[gs].shotid))
 
         #        self.month_widget = widgets.Dropdown(
         #            options=monthlist,
@@ -128,11 +123,11 @@ class AmpWidget:
         )
 
         self.shotid_widget = widgets.Dropdown(
-            description="ShotID", options=shotlist, value=self.shotid,
+            description="ShotID", options=self.survey_class.shotid, value=self.shotid,
         )
 
         if self.shotid is not None:
-            self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
+#            self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
             sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
             mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
             self.multiframe_widget = widgets.Dropdown(
@@ -226,13 +221,15 @@ class AmpWidget:
             multiframe=self.multiframe,
             imtype=self.imtype,
             expnum=self.expnum,
+            survey=self.survey,
         )
         
         self.imw.load_array(self.im)
 
         display( widgets.VBox([self.topbox, self.midbox, self.bottombox]))
 
-        # plot region for detection
+        # action calls
+        self.survey_widget.observe(self.survey_widget_change)
         self.multiframe_widget.observe(self.im_widget_change)
         self.expnum_widget.observe(self.im_widget_change)
         self.imtype_widget.observe(self.im_widget_change)
@@ -241,13 +238,18 @@ class AmpWidget:
         self.show_button.on_click(self.show_region)
         self.det_button.on_click(self.on_det_go)
         self.get_cursor_button.on_click(self.get_ra_dec_wave)
+
+    def survey_widget_change(self, b):
+        self.update_hdr_config()
+        self.shotid_widget.options = self.survey_class.shotid
+        self.update_amp_image()
         
     def im_widget_change(self, b):
         self.update_amp_image()
 
     def shotid_widget_change(self, b):
         self.bottombox.clear_output()
-        self.shoth5.close()
+        #self.shoth5.close()
         self.coords = None
         self.detectid = None
         self.im_ra.value = 0.0
@@ -256,8 +258,8 @@ class AmpWidget:
         self.shotid = self.shotid_widget.value
         self.multiframe = self.multiframe_widget.value
         
-        self.shoth5 = open_shot_file(self.shotid_widget.value,
-                                     survey=self.survey)
+        #self.shoth5 = open_shot_file(self.shotid_widget.value,
+        #                             survey=self.survey)
         
         sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
         mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
@@ -329,6 +331,7 @@ class AmpWidget:
                 multiframe=self.multiframe_widget.value,
                 imtype=self.imtype_widget.value,
                 expnum=self.expnum_widget.value,
+                survey=self.survey,
             )
         
             self.imw.load_array(self.im)
@@ -383,16 +386,16 @@ class AmpWidget:
             )
             
             if self.shotid != det_row["shotid"]:
-                try:
-                    self.shoth5.close()
-                except:
-                    pass
+                #try:
+                #    self.shoth5.close()
+                #except:
+                #    pass
                 self.shotid = det_row['shotid']
                 
             self.shotid_widget.value = self.shotid
             
             # get MF array for shot
-            self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
+            #self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
             sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
             mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
             self.multiframe_widget.options = mflist
@@ -452,16 +455,24 @@ class AmpWidget:
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def update_hdr_config(self):
-        LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-        HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
-        HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
+        global HETDEX_API_CONFIG, HETDEX_DETECT_HDF5_FN, HETDEX_DETECT_HDF5_HANDLE
+        global CONT_H5_FN, CONT_H5_HANDLE
+        global AMPFLAG_TABLE
+
+        self.survey = self.survey_widget.value.lower()
+        
+        HETDEX_API_CONFIG = HDRconfig( survey=self.survey)
         HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
         HETDEX_DETECT_HDF5_HANDLE = None
         CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
         CONT_H5_HANDLE = None
-        FIBINDEX = FiberIndex(LATEST_HDR_NAME)
+        self.FIBINDEX = FiberIndex(self.survey)
         AMPFLAG_TABLE = Table.read(HETDEX_API_CONFIG.badamp)
+        # update survey class and shot list
+   
+        self.survey_class = Survey(self.survey)
 
+            
     def get_ra_dec_wave(self, b):
         with self.bottombox:
             print('This is not functioning yet')
