@@ -55,7 +55,7 @@ class AmpWidget:
 
         # populate hetdex_api config with path files
         self.update_hdr_config()
-        
+       
         # initialize the image widget from astrowidgets
         self.imw = ImageWidget()  # image_width=600, image_height=600)
 
@@ -451,7 +451,7 @@ class AmpWidget:
         self.imw.marker = {"color": "green", "radius": 10, "type": "circle"}
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
-    def update_hetdex_config(self):
+    def update_hdr_config(self):
         LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
         HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
         HDR_BASEPATH = HETDEX_API_CONFIG.hdr_dir[LATEST_HDR_NAME]
