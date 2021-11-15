@@ -23,9 +23,15 @@ from hetdex_api.survey import Survey, FiberIndex
 
 try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    CONFIG_HDR2 = HDRconfig('hdr2.1')
+    CONFIG_HDR3 = HDRconfig('hdr3')
+    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
+
+OPEN_DET_FILE = None
+DET_HANDLE = None
 
 class AmpWidget:
     def __init__(
@@ -50,9 +56,10 @@ class AmpWidget:
         self.coords = coords
         self.radius = radius
         self.wave = wave
-
+        self.detfile = None
+        
         self.survey_widget = widgets.Dropdown(
-                        options=["HDR1", "HDR2.1", "HDR3"],
+                        options=["HDR1","HDR2.1", "HDR3"],
                         value=self.survey.upper(),
                         layout=Layout(width="10%"),
                     )
@@ -128,13 +135,13 @@ class AmpWidget:
 
         if self.shotid is not None:
 #            self.shoth5 = open_shot_file(self.shotid, survey=self.survey)
-            sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-            mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+            sel_shot = self.ampflag_table["shotid"] == self.shotid
+            mflist = np.unique(self.ampflag_table["multiframe"][sel_shot])
             self.multiframe_widget = widgets.Dropdown(
                 description="MultiframeID", options=mflist, value=mflist[0]
             )
         else:
-            mflist = np.unique(AMPFLAG_TABLE["multiframe"])
+            mflist = np.unique(self.ampflag_table["multiframe"])
             self.multiframe_widget = widgets.Dropdown(
                 description="MultiframeID", options=mflist, value=mflist[0]
             )
@@ -201,7 +208,7 @@ class AmpWidget:
                 
                 self.shotid = None
                 
-                fiber_table_region = FIBINDEX.query_region(
+                fiber_table_region = self.FibIndex.query_region(
                     self.coords, radius=self.radius * u.arcsec, shotid=self.shotid
                 )
                 shotlist = np.unique(fiber_table_region["shotid"])
@@ -242,6 +249,8 @@ class AmpWidget:
     def survey_widget_change(self, b):
         self.update_hdr_config()
         self.shotid_widget.options = self.survey_class.shotid
+        self.shotid_widget.value = self.shotid
+        self.multiframe_widget.value = self.multiframe
         self.update_amp_image()
         
     def im_widget_change(self, b):
@@ -261,23 +270,23 @@ class AmpWidget:
         #self.shoth5 = open_shot_file(self.shotid_widget.value,
         #                             survey=self.survey)
         
-        sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-        mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+        sel_shot = self.ampflag_table["shotid"] == self.shotid
+        mflist = np.unique(self.ampflag_table["multiframe"][sel_shot])
 
         self.multiframe_widget.options = mflist
         
         try:
-            sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
-                AMPFLAG_TABLE["multiframe"] == self.multiframe
+            sel = (self.ampflag_table["shotid"] == self.shotid) * (
+                self.ampflag_table["multiframe"] == self.multiframe
             )
-            flag = AMPFLAG_TABLE["flag"][sel][0]
+            flag = self.ampflag_table["flag"][sel][0]
         except:
             self.multiframe = mflist[0]
             self.multiframe_widget.value = mflist[0]
-            sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
-                AMPFLAG_TABLE["multiframe"] == self.multiframe
+            sel = (self.ampflag_table["shotid"] == self.shotid) * (
+                self.ampflag_table["multiframe"] == self.multiframe
             )
-            flag = AMPFLAG_TABLE["flag"][sel][0]
+            flag = self.ampflag_table["flag"][sel][0]
 
         if flag:
             self.midbox.layout = Layout()
@@ -304,10 +313,10 @@ class AmpWidget:
         self.multiframe = self.multiframe_widget.value
         self.expnum = self.expnum_widget.value
         try:
-            sel = (AMPFLAG_TABLE["shotid"] == self.shotid) * (
-                AMPFLAG_TABLE["multiframe"] == self.multiframe
+            sel = (self.ampflag_table["shotid"] == self.shotid) * (
+                self.ampflag_table["multiframe"] == self.multiframe
             )
-            flag = AMPFLAG_TABLE["flag"][sel][0]
+            flag = self.ampflag_table["flag"][sel][0]
         except Exception:
             with self.bottombox:
                 print("Could not find amp in amp flag table")
@@ -350,32 +359,38 @@ class AmpWidget:
         
     def get_amp_info_from_det(self):
 
-        global CONT_H5_HANDLE, HETDEX_DETECT_HDF5_HANDLE
-        global CONT_H5_FN, HETDEX_DETECT_HDF5_FN
-        
-        if self.detectid >= 2190000000:
-            if CONT_H5_HANDLE is None:
-                try:
-                    CONT_H5_HANDLE = tb.open_file(CONT_H5_FN, "r")
-                except Exception:
-                    with self.bottombox:
-                        print("Could not open continuum database")
-            det_handle = CONT_H5_HANDLE
+        global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
-        elif self.detectid >= 2100000000:
-            if HETDEX_DETECT_HDF5_HANDLE is None:
+        if (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.detecth5
+        elif (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+        elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
+            self.det_file = CONFIG_HDR3.detecth5
+        elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+
+        if OPEN_DET_FILE is None:
+
+            OPEN_DET_FILE = self.det_file
+            DET_HANDLE = tb.open_file(self.det_file, 'r')
+
+        else:
+            if self.det_file == OPEN_DET_FILE:
+                pass
+            else:
+                DET_HANDLE.close()
+                OPEN_DET_FILE = self.det_file
                 try:
-                    HETDEX_DETECT_HDF5_HANDLE = tb.open_file(
-                        HETDEX_DETECT_HDF5_FN, "r")
+                    DET_HANDLE = tb.open_file(self.det_file, 'r')
                 except Exception:
                     with self.bottombox:
-                        print("Could not open detections database")
-            det_handle = HETDEX_DETECT_HDF5_HANDLE
-        
+                        print("Could not open {}".format(self.det_file))
+
         detectid_obj = self.detectid
 
         try:
-            det_row = det_handle.root.Detections.read_where("detectid == detectid_obj")[0]
+            det_row = DET_HANDLE.root.Detections.read_where("detectid == detectid_obj")[0]
             self.im_ra.value = det_row["ra"]
             self.im_dec.value = det_row["dec"]
             
@@ -386,18 +401,14 @@ class AmpWidget:
             )
             
             if self.shotid != det_row["shotid"]:
-                #try:
-                #    self.shoth5.close()
-                #except:
-                #    pass
                 self.shotid = det_row['shotid']
                 
             self.shotid_widget.value = self.shotid
             
             # get MF array for shot
-            #self.shoth5 = open_shot_file(self.shotid_widget.value, survey=self.survey)
-            sel_shot = AMPFLAG_TABLE["shotid"] == self.shotid
-            mflist = np.unique(AMPFLAG_TABLE["multiframe"][sel_shot])
+
+            sel_shot = self.ampflag_table["shotid"] == self.shotid
+            mflist = np.unique(self.ampflag_table["multiframe"][sel_shot])
             self.multiframe_widget.options = mflist
             self.multiframe = det_row["multiframe"].decode()
             self.multiframe_widget.value = self.multiframe
@@ -455,19 +466,11 @@ class AmpWidget:
         self.imw.add_markers(Table([[x - 1], [y - 1]], names=["x", "y"]))
 
     def update_hdr_config(self):
-        global HETDEX_API_CONFIG, HETDEX_DETECT_HDF5_FN, HETDEX_DETECT_HDF5_HANDLE
-        global CONT_H5_FN, CONT_H5_HANDLE
-        global AMPFLAG_TABLE
-
         self.survey = self.survey_widget.value.lower()
+        self.hetdex_api_config = HDRconfig( survey=self.survey)
         
-        HETDEX_API_CONFIG = HDRconfig( survey=self.survey)
-        HETDEX_DETECT_HDF5_FN = HETDEX_API_CONFIG.detecth5
-        HETDEX_DETECT_HDF5_HANDLE = None
-        CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
-        CONT_H5_HANDLE = None
-        self.FIBINDEX = FiberIndex(self.survey)
-        AMPFLAG_TABLE = Table.read(HETDEX_API_CONFIG.badamp)
+        self.FibIndex = FiberIndex(self.survey)
+        self.ampflag_table = Table.read(self.hetdex_api_config.badamp)
         # update survey class and shot list
    
         self.survey_class = Survey(self.survey)
