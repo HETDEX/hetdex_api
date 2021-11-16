@@ -949,7 +949,8 @@ class Detections:
         table.add_column(Column(self.field), index=4, name="field")
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
         try:
-            table.add_column(Column(self.apcor), name="apcor")
+            if self.survey == 'hdr2.1':
+                table.add_column(Column(self.apcor), name="apcor")
         except AttributeError:
             pass
         
