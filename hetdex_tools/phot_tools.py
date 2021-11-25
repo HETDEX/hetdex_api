@@ -352,6 +352,7 @@ def get_line_image(
     imsize=imsize,
     wave_range=None,
     return_coords=False,
+    ffsky=False,
 ):
 
     if detectid is not None:
@@ -403,6 +404,7 @@ def get_line_image(
                 subcont=subcont,
                 convolve_image=convolve_image,
                 include_error=True,
+                ffsky=ffsky,
             )
 
         except Exception:
@@ -444,6 +446,7 @@ def get_line_image(
                 subcont=subcont,
                 convolve_image=convolve_image,
                 include_error=True,
+                ffsky=ffsky,
             )
         except:
             print("Could not make narrowband image for {}".format(friendid))
@@ -476,6 +479,7 @@ def get_line_image(
             subcont=subcont,
             convolve_image=convolve_image,
             include_error=True,
+            ffsky=ffsky,
         )
     else:
         print("You must provide a detectid, friendid or coords/wave_range/shotid")
