@@ -187,7 +187,8 @@ def get_flux_for_source(
 ):
 
     global deth5, conth5
-    
+
+    detectid_obj = None
     if detectid is not None:
         detectid_obj = detectid
         
