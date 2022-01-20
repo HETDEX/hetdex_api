@@ -30,6 +30,7 @@ def make_narrowband_image(
     subcont=False,
     dcont=50.,
     include_error=False,
+    survey=LATEST_HDR_NAME,
 ):
 
     """
@@ -116,7 +117,7 @@ def make_narrowband_image(
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     E = Extract()
-    E.load_shot(shotid_obj, fibers=False)
+    E.load_shot(shotid_obj, fibers=False, survey=LATEST_HDR_NAME)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
@@ -243,6 +244,7 @@ def make_data_cube(
     convolve_image=True,
     ffsky=True,
     subcont=False,
+    survey=LATEST_HDR_NAME,
 ):
 
     """
@@ -311,7 +313,7 @@ def make_data_cube(
             print("Provide a detectid or both a coords and shotid")
 
     E = Extract()
-    E.load_shot(shotid, fibers=False)
+    E.load_shot(shotid, fibers=False, survey=survey)
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
