@@ -183,7 +183,8 @@ def get_flux_for_source(
     linewidth=None,
     plot=False,
     convolve_image=False,
-    return_hdu=False
+    return_hdu=False,
+    survey=LATEST_HDR_NAME,
 ):
 
     global deth5, conth5
@@ -230,6 +231,7 @@ def get_flux_for_source(
             wave_range=[wave_obj - 2.0 * linewidth_obj, wave_obj + 2.0 * linewidth_obj],
             subcont=True,
             include_error=True,
+            survey=survey,
         )
     except:
         print('Could not make narrowband image for {}'.format(detectid_obj))
@@ -354,6 +356,7 @@ def get_line_image(
     wave_range=None,
     return_coords=False,
     ffsky=False,
+    survey=LATEST_HDR_NAME,
 ):
 
     if detectid is not None:
