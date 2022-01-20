@@ -70,7 +70,7 @@ class Detections(tb.IsDescription):
     obsid = tb.Int32Col(pos=6)
     detectid = tb.Int64Col(pos=0)
     fiber_id = tb.StringCol((38))
-    detectname = tb.StringCol((40))
+    #detectname = tb.StringCol((40))
     ra = tb.Float32Col(pos=3)
     dec = tb.Float32Col(pos=4)
     wave = tb.Float32Col(pos=7)
@@ -417,7 +417,7 @@ def main(argv=None):
             sys.exit()
 
         catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
-
+        
         det_cols = fileh.root.Detections.colnames
 
         amplist = []
@@ -462,8 +462,9 @@ def main(argv=None):
 #                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
                 selchi2fib = (detectcatall['chi2fib'] < 5)
                 selcat = selSN * selLW * selchi2fib
-
-            detectcat = detectcatall[selcat]
+            # removing down selection 2021-11-18
+            
+            detectcat = detectcatall  #[selcat]
 
             nsel_file = np.sum(selcat)
 
@@ -504,7 +505,7 @@ def main(argv=None):
             for row in detectcat:
             
                 inputid_i = amp_i + '_' + str(row['src_index']).zfill(3)
-
+                
                 rowMain = tableMain.row
 
                 rowMain['detectid'] = detectidx
@@ -527,18 +528,18 @@ def main(argv=None):
                 if multiframe in ['multi_032_094_028_RU']:
                     if (row['wave'] > 3530) and (row['wave'] < 3545):
                         continue
-                        
-                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                ampflag = amp_stats['flag'][selamp]
                 
+                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                ampflag = bool(amp_stats['flag'][selamp])
+               
                 if np.size(ampflag) == 0:
                     args.log.error('No ampflag for '
                                    + str(rowMain['shotid'])
                                    + ' ' + multiframe)
-                    
-                if ampflag == False:
-                    continue
-
+                # no longer removing bad amps
+#                if ampflag == False:
+#                    continue
+                
                 # check if Karl stored the same fiber as me:
                 fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][4:5]) \
                                 + "_" + multiframe + "_" \
@@ -552,8 +553,8 @@ def main(argv=None):
                         rowMain[col] = row[col]
                     except:
                         pass
-
-                rowMain['detectname'] = get_detectname(row['ra'], row['dec'])
+                
+#                rowMain['detectname'] = get_detectname(row['ra'], row['dec'])
                         
                 selspec = spec_table['src_index'] == row['src_index']
                 
@@ -596,31 +597,31 @@ def main(argv=None):
 
                     mf_array.append( multiname[0:20])
                     weight_array.append( datafiber["col14"][ifiber])
+                    
+                #isort = np.flipud(np.argsort(weight_array) )
 
-                isort = np.flipud(np.argsort(weight_array) )
-
-                sort_mf = np.array(mf_array)[isort]
+                #sort_mf = np.array(mf_array)[isort]
+                #
+                #for multiframe in sort_mf[0:5]:
+                #    
+                #    if args.date and args.observation:
+                #        ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe][0]
+                #        
+                #    elif args.month:
+                #        selamp = (amp_stats['shotid'] == rowMain['shotid']) & (amp_stats['multiframe'] == multiframe)
+                #        ampflag = amp_stats['flag'][selamp]
+                #    
+                #    if np.size(ampflag) == 0:
+                #        args.log.error('No ampflag for '
+                #                       + str(rowMain['shotid'])
+                #                       + ' ' + multiframe)
+                #    print(ampflag)
+                #    if ampflag == False:
+                #        break
                 
-                for multiframe in sort_mf[0:5]:
-                    
-                    if args.date and args.observation:
-                        ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe][0]
-                        
-                    elif args.month:
-                        selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                        ampflag = amp_stats['flag'][selamp]
-                    
-                    if np.size(ampflag) == 0:
-                        args.log.error('No ampflag for '
-                                       + str(rowMain['shotid'])
-                                       + ' ' + multiframe)
-                        
-                    if ampflag==False:
-                        break
-
                 # skip appending source to Fibers and Spectra table
-                if ampflag == False:
-                    continue
+                #if ampflag == False:
+                #    continue
                 
                 for ifiber in np.arange(np.size(datafiber)):
                     rowfiber = tableFibers.row
@@ -695,10 +696,10 @@ def main(argv=None):
                 rowMain["x_ifu"] = datafiber["col3"][ifiber]
                 rowMain["y_ifu"] = datafiber["col4"][ifiber]
                 rowMain["weight"] = datafiber["col14"][ifiber]
-
+                
                 rowMain.append()
                 rowspectra.append()
-
+                
                 detectidx += 1
                 
             
