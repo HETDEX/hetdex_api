@@ -117,8 +117,8 @@ def make_narrowband_image(
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     E = Extract()
-    E.load_shot(shotid_obj, fibers=False, survey=LATEST_HDR_NAME)
-
+    E.load_shot(shotid_obj, fibers=False, survey=survey)
+    print(E.survey)
     # get spatial dims:
     ndim = int(imsize / pixscale)
     center = int(ndim / 2)
