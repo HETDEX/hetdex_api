@@ -329,7 +329,6 @@ def plot_friends(friendid, friend_cat, cutout, k=3.5, ax=None, label=True):
 
 
 def get_line_image(
-    friendid=None,
     detectid=None,
     coords=None,
     shotid=None,
@@ -342,33 +341,37 @@ def get_line_image(
     ffsky=False,
     survey=LATEST_HDR_NAME,
 ):
+    global config, det_handle, current_hdr, current_deth5
 
+    detectid_obj = None
+    
     if detectid is not None:
-
-        global deth5
-
         detectid_obj = detectid
-
-        if detectid_obj <= 2190000000:
-            det_info = deth5.root.Detections.read_where("detectid == detectid_obj")[0]
-            linewidth = det_info["linewidth"]
-            wave_obj = det_info["wave"]
-            redshift = wave_obj / (1216) - 1
-        else:
-            det_info = conth5.root.Detections.read_where("detectid == detectid_obj")[0]
-            redshift = 0
-            wave_obj = 4500
-
+        
+        deth5 = get_handle_for_detectid(detectid)
+        
+        if current_deth5 is None:
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
+            
+        if deth5 != current_deth5:
+            det_handle.close()
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
+                
+        det_info = det_handle.root.Detections.read_where('detectid == detectid_obj')[0]
+        linewidth = det_info['linewidth']
+        wave_obj = det_info['wave']
+        coords_obj = SkyCoord(det_info['ra'], det_info['dec'], unit='deg')
+        shotid_obj = det_info['shotid']
         coords_obj = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 
-        shotid_obj = det_info["shotid"]
-        fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
         amp = det_info["multiframe"]
 
         if wave_range is not None:
             wave_range_obj = wave_range
         else:
-            if detectid_obj <= 2190000000:
+            if wave_obj > 0:
                 wave_range_obj = [wave_obj - 2 * linewidth, wave_obj + 2 * linewidth]
             else:
                 wave_range_obj = [4100, 4200]
@@ -382,64 +385,6 @@ def get_line_image(
                 "fwhm_virus"
             ][0]
 
-        try:
-            hdu = make_narrowband_image(
-                coords=coords_obj,
-                shotid=shotid_obj,
-                wave_range=wave_range_obj,
-                imsize=imsize * u.arcsec,
-                pixscale=pixscale * u.arcsec,
-                subcont=subcont,
-                convolve_image=convolve_image,
-                include_error=True,
-                ffsky=ffsky,
-            )
-
-        except Exception:
-            print("Could not make narrowband image for {}".format(detectid))
-            return None
-
-    elif friendid is not None:
-
-        global friend_cat
-
-        sel = friend_cat["friendid"] == friendid
-        group = friend_cat[sel]
-        coords_obj = SkyCoord(ra=group["icx"][0] * u.deg, dec=group["icy"][0] * u.deg)
-        wave_obj = group["icz"][0]
-        redshift = wave_obj / (1216) - 1
-        linewidth = group["linewidth"][0]
-        shotid_obj = group["shotid"][0]
-        fwhm = group["fwhm"][0]
-        amp = group["multiframe"][0]
-
-        if wave_range is not None:
-            wave_range_obj = wave_range
-        else:
-            wave_range_obj = [wave_obj - 2 * linewidth, wave_obj + 2 * linewidth]
-
-        if shotid is not None:
-            shotid_obj = shotid
-            fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")[
-                "fwhm_virus"
-            ][0]
-
-        try:
-            hdu = make_narrowband_image(
-                coords=coords_obj,
-                shotid=shotid_obj,
-                wave_range=wave_range_obj,
-                imsize=imsize * u.arcsec,
-                pixscale=pixscale * u.arcsec,
-                subcont=subcont,
-                convolve_image=convolve_image,
-                include_error=True,
-                ffsky=ffsky,
-            )
-        except:
-            print("Could not make narrowband image for {}".format(friendid))
-            return None
-
     elif coords is not None:
         coords_obj = coords
 
@@ -449,7 +394,6 @@ def get_line_image(
             print(
                 "You need to supply wave_range=[wave_start, wave_end] for collapsed image"
             )
-
         if shotid is not None:
             shotid_obj = shotid
             fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")[
@@ -457,21 +401,24 @@ def get_line_image(
             ][0]
         else:
             print("Enter the shotid to use (eg. 20200123003)")
-
-        hdu = make_narrowband_image(
-            coords=coords_obj,
-            shotid=shotid_obj,
-            wave_range=wave_range_obj,
-            imsize=imsize * u.arcsec,
-            pixscale=pixscale * u.arcsec,
-            subcont=subcont,
-            convolve_image=convolve_image,
-            include_error=True,
-            ffsky=ffsky,
-        )
+            
     else:
         print("You must provide a detectid, friendid or coords/wave_range/shotid")
         return None
+
+    hdu = make_narrowband_image(
+        coords=coords_obj,
+        shotid=shotid_obj,
+        wave_range=wave_range_obj,
+        imsize=imsize * u.arcsec,
+        pixscale=pixscale * u.arcsec,
+        subcont=subcont,
+        convolve_image=convolve_image,
+        include_error=True,
+        ffsky=ffsky,
+        survey=survey,
+    )
+
     if return_coords:
         return hdu, coords_obj
     else:
@@ -548,26 +495,40 @@ def fit_ellipse_for_source(
     wave_range=None,
     survey=LATEST_HDR_NAME,
 ):
-
+    
+    global config, det_handle, current_hdr, surveyh5, current_deth5
+    
+    if survey != current_hdr:
+        config = HDRconfig(survey)
+        current_hdr = survey
+        surveyh5.close()
+        surveyh5 = tb.open_file(config.surveyh5, 'r')
+        
+    detectid_obj = None
+    
     if detectid is not None:
-
-        global deth5
-
         detectid_obj = detectid
+        deth5 = get_handle_for_detectid(detectid)
 
-        deth5 = get_det_handle(detectid)
-        if detectid_obj <= 2190000000:
-            det_info = deth5.root.Detections.read_where("detectid == detectid_obj")[0]
-            linewidth = det_info["linewidth"]
-            wave_obj = det_info["wave"]
-            redshift = wave_obj / (1216) - 1
-        else:
-            det_info = conth5.root.Detections.read_where("detectid == detectid_obj")[0]
-            redshift = 0
-            wave_obj = 4500
+        if current_deth5 is None:
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
+        
+        if deth5 != current_deth5:
+            det_handle.close()
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
+
+        det_info = det_handle.root.Detections.read_where('detectid == detectid_obj')[0]
+        linewidth = det_info['linewidth']
+        wave_obj = det_info['wave']
+        coords_obj = SkyCoord(det_info['ra'], det_info['dec'], unit='deg')
+        shotid_obj = det_info['shotid']
+        
+        redshift = wave_obj / (1216) - 1
 
         coords_obj = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
-
+    
         shotid_obj = det_info["shotid"]
         fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
         amp = det_info["multiframe"]
@@ -575,11 +536,8 @@ def fit_ellipse_for_source(
         if wave_range is not None:
             wave_range_obj = wave_range
         else:
-            if detectid_obj <= 2190000000:
-                wave_range_obj = [wave_obj - 2 * linewidth, wave_obj + 2 * linewidth]
-            else:
-                wave_range_obj = [4100, 4200]
-
+            wave_range_obj = [wave_obj - 2 * linewidth, wave_obj + 2 * linewidth]
+        
         if coords is not None:
             coords_obj = coords
 
@@ -599,6 +557,7 @@ def fit_ellipse_for_source(
                 subcont=subcont,
                 convolve_image=convolve_image,
                 include_error=True,
+                survey=survey,
             )
 
         except:
