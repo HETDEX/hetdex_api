@@ -118,7 +118,7 @@ def make_narrowband_image(
 
     E = Extract()
     E.load_shot(shotid_obj, fibers=False, survey=survey)
-    print(E.survey)
+
     # get spatial dims:
     ndim = int(imsize / pixscale)
     center = int(ndim / 2)
