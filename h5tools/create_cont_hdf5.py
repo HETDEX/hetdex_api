@@ -263,17 +263,22 @@ def main(argv=None):
         for file in files:
             
             args.log.info("Appending detect H5 file: %s" % file)
-            
-            fileh_i = tb.open_file(file, "r")
-            
-            tableMain_i = fileh_i.root.Detections.read()
+
+            try:
+                fileh_i = tb.open_file(file, "r")
+                tableMain_i = fileh_i.root.Detections.read()
     
-            if np.size(tableMain_i) == 0:
-                args.log.error('No detections for %s' % file)
+                if np.size(tableMain_i) == 0:
+                    args.log.error('No detections for %s' % file)
+                    continue
+                
+                tableFibers_i = fileh_i.root.Fibers.read()
+                tableSpectra_i = fileh_i.root.Spectra.read()
+
+            except Exception:
+                args.log.error('Could not append {}'.format(file))
                 continue
                 
-            tableFibers_i = fileh_i.root.Fibers.read()
-            tableSpectra_i = fileh_i.root.Spectra.read()
             tableMain_i["detectid"] += detectid_max
             tableFibers_i["detectid"] += detectid_max
             tableSpectra_i["detectid"] += detectid_max
@@ -317,40 +322,48 @@ def main(argv=None):
     elif args.month and args.merge:
         outfilename = 'cont_month_' + str(args.month) + '.h5'
     else:
-        outfilename = 'cont_'+ str(args.date) + str(args.observation).zfill(3) + '.h5'
+        outfilename = 'cont_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '.h5'
 
-    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+#    contfiles = np.loadtxt('complete_cont_h5list', dtype=str)
+#    if outfilename in contfiles:
+#        sys.exit('{} already complete'.format(outfilename))
 
-    # open up datevobs tarball with ingestion data
-        
+    # open up datevobs tarball with ingestion data      
     spectar = tarfile.open(spectarfile)
-    
+
     if not os.path.exists('./spec'):
         os.makedirs('./spec')
-        
+       
     spectar.extractall('./spec')
     spectar.close()
 
-    detectcat = Table.read('./spec/{}.rcs'.format(datevobs), format="ascii.no_header")
-    detectcat.remove_columns(
-        [
-            "col1",
-            "col4",
-            "col5",
-            "col6",
-            "col9",
-            "col10",
-            "col11",
-            "col12",
-            "col13",
-            "col14",
-        ]
-    )
+    try:
+        detectcat = Table.read('./spec/{}.rcs'.format(datevobs), format="ascii.no_header")
+        detectcat.remove_columns(
+            [
+                "col1",
+                "col4",
+                "col5",
+                "col6",
+                "col9",
+                "col10",
+                "col11",
+                "col12",
+                "col13",
+                "col14",
+            ]
+        )
+    except:
+        args.log.error("Could not read {}.rcs".format(datevobs))
+        sys.exit()
+        
     detectcat["col2"].name = "ra"
     detectcat["col3"].name = "dec"
     detectcat["col7"].name = "obnum"
     detectcat["col8"].name = "datevshot"
 
+    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+        
     tableMain = fileh.create_table(
         fileh.root,
         "Detections",
