@@ -175,12 +175,11 @@ def get_flux_for_source(
         
         deth5 = get_handle_for_detectid(detectid)
 
-        if deth5 == current_deth5:
-            if det_handle is None:
-                det_handle = tb.open_file(deth5, 'r')
-            else:
-                pass
-        else:
+        if current_deth5 is None:
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
+
+        if deth5 != current_deth5:
             det_handle.close()
             det_handle = tb.open_file(deth5, 'r')
             current_deth5 = deth5
