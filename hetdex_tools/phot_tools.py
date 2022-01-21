@@ -44,15 +44,35 @@ plt.style.use("fivethirtyeight")
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
-config = HDRconfig()
-surveyh5 = tb.open_file(config.surveyh5, "r")
-deth5 = tb.open_file(config.detecth5, "r")
-conth5 = tb.open_file(config.contsourceh5, "r")
+det_handle = None
+current_deth5 = None
+
+current_hdr = LATEST_HDR_NAME
+config = HDRconfig(LATEST_HDR_NAME)
+surveyh5 = tb.open_file(config.surveyh5, 'r')
 
 pixscale = 0.25
 imsize = 40.0
 
 
+def get_handle_for_detectid(detectid):
+
+    global config
+
+    if detectid in range(2100000000, 2190000000):
+        deth5 = op.join(config.host_dir, 'hdr2.1', 'detect', 'detect_hdr2.1.h5')
+    elif detectid in range(2190000000, 2200000000):
+        deth5 = op.join(config.host_dir, 'hdr2.1', 'detect', 'continuum_sources.h5')
+    elif detectid in range(3000000000, 3090000000):
+        deth5 = op.join(config.host_dir, 'hdr3', 'detect', 'detect_hdr3.h5')
+    elif detectid in range(3090000000, 3100000000):
+        deth5 = op.join(config.host_dir, 'hdr3', 'detect', 'continuum_sources.h5')
+    else:
+        print('Could not locate H5 file for {}. Are you sure you typed the correct detectid?'.format(detectid))
+        
+    return deth5
+
+    
 def FitCircularAperture(
     hdu=None,
     coords=None,
@@ -125,54 +145,6 @@ def FitCircularAperture(
     return flux, flux_err, bkg_stddev * u.Unit("10^-17 erg cm-2 s-1"), apcor
 
 
-def get_flux_for_index(index, plot=True, convolve_image=True):
-    global table
-    "For a table with RA/DEC/WAVE/LINEWIDTH/SHOTID Info"
-    det_info = table[index]
-    det_obj = det_info["detectid"]
-    coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
-    wave_obj = det_info["wave"]
-    linewidth = det_info["linewidth"]
-    shot_det = det_info["shotid"]
-    shotid_obj = det_info["shotid_obs"]
-    fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
-
-    try:
-        hdu = make_narrowband_image(
-            coords=coords,
-            shotid=shotid_obj,
-            imsize=20 * u.arcsec,
-            pixscale=0.25 * u.arcsec,
-            convolve_image=convolve_image,
-            wave_range=[wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth],
-            subcont=True,
-            dcont=50,
-            include_error=True,
-        )
-    except:
-        return np.nan, np.nan, np.nan, np.nan
-
-    if plot:
-        plt.figure()
-        plottitle = "d={} s={} s_i={}".format(det_obj, shot_det, shotid_obj)
-        flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
-            hdu=hdu, coords=coords, plot=True, plottitle=plottitle
-        )
-        plt.text(
-            2,
-            2,
-            "S/N={:3.2f}".format(flux.value / bkg_stddev.value),
-            size=18,
-            color="w",
-        )
-        plt.savefig("im_2sigma/{}_{}.png".format(det_obj, shotid_obj))
-    else:
-        flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
-            hdu=hdu, coords=coords, plot=False
-        )
-    return flux.value, flux_err.value, bkg_stddev.value, apcor
-
-
 def get_flux_for_source(
     detectid,
     coords=None,
@@ -187,22 +159,35 @@ def get_flux_for_source(
     survey=LATEST_HDR_NAME,
 ):
 
-    global deth5, conth5
+    global config, det_handle, current_hdr, surveyh5, current_deth5
 
+    if survey != current_hdr:
+        config = HDRconfig(survey)
+        current_hdr = survey
+        surveyh5.close()
+        surveyh5 = tb.open_file(config.surveyh5, 'r')
+        
     detectid_obj = None
+
     if detectid is not None:
+    
         detectid_obj = detectid
         
-        if detectid_obj <= 2190000000:
-            det_info = deth5.root.Detections.read_where('detectid == detectid_obj')[0]
-            linewidth = det_info['linewidth']
-            wave_obj = det_info['wave']
-            redshift = wave_obj/(1216) - 1
+        deth5 = get_handle_for_detectid(detectid)
+
+        if deth5 == current_deth5:
+            if det_handle is None:
+                det_handle = tb.open_file(deth5, 'r')
+            else:
+                pass
         else:
-            det_info = conth5.root.Detections.read_where('detectid == detectid_obj')[0]
-            redshift = 0
-            wave_obj = 4500
+            det_handle.close()
+            det_handle = tb.open_file(deth5, 'r')
+            current_deth5 = deth5
             
+        det_info = det_handle.root.Detections.read_where('detectid == detectid_obj')[0]
+        linewidth = det_info['linewidth']
+        wave_obj = det_info['wave']
         coords_obj = SkyCoord(det_info['ra'], det_info['dec'], unit='deg')
         shotid_obj = det_info['shotid']
 
@@ -562,6 +547,7 @@ def fit_ellipse_for_source(
     pixscale=pixscale,
     imsize=imsize,
     wave_range=None,
+    survey=LATEST_HDR_NAME,
 ):
 
     if detectid is not None:
@@ -570,6 +556,7 @@ def fit_ellipse_for_source(
 
         detectid_obj = detectid
 
+        deth5 = get_det_handle(detectid)
         if detectid_obj <= 2190000000:
             det_info = deth5.root.Detections.read_where("detectid == detectid_obj")[0]
             linewidth = det_info["linewidth"]
@@ -654,6 +641,7 @@ def fit_ellipse_for_source(
                 subcont=subcont,
                 convolve_image=convolve_image,
                 include_error=True,
+                survey=survey,
             )
         except:
             print("Could not make narrowband image for {}".format(friendid))
@@ -686,6 +674,7 @@ def fit_ellipse_for_source(
             subcont=subcont,
             convolve_image=convolve_image,
             include_error=True,
+            survey=survey,
         )
     else:
         print("You must provide a detectid, friendid or coords/wave_range/shotid")
@@ -952,7 +941,7 @@ def fit_ellipse_for_source(
     #             color='blue', label='PSF seeing:{:3.2f}'.format(fwhm))
 
     E = Extract()
-    E.load_shot(shotid_obj)
+    E.load_shot(shotid_obj, survey=survey)
     moffat_psf = E.moffat_psf(seeing=fwhm, boxsize=imsize, scale=pixscale)
     moffat_shape = np.shape(moffat_psf)
     xcen = int(moffat_shape[1] / 2)
