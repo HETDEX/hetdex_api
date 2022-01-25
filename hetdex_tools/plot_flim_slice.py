@@ -56,7 +56,7 @@ hdfcont_hdr2 = SensitivityCubeHDF5Container(filename=hdf_filename_hdr2pt1, aper_
 #sel_shot = detects.shotid == shotid
 #detects_shot = detects[sel_shot]
 
-version = '2.1.3'
+version = '2.1.4'
 
 config = HDRconfig()
 catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
@@ -79,7 +79,7 @@ ifu_dec = []
 sncut=6
 
 for ifu_name, tscube in hdfcont_hdr2.itercubes():
-    slice_ = tscube.f50_from_noise(tscube.sigmas[sel_slice, :, :], sncut)
+    slice_ = tscube.f50_from_noise(tscube.sigmas[sel_slice, :, :], wave, sncut=sncut)
     hdus.append( fits.PrimaryHDU( slice_*1e17, header=tscube.wcs.celestial.to_header()))
     hdus_mask.append( fits.PrimaryHDU( slice_.mask.astype(int), header=tscube.wcs.celestial.to_header()))
 
