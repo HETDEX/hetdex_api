@@ -39,8 +39,9 @@ def main(argv=None):
                         type=str, default=None)
 
     parser.add_argument("-r", "--rootdir",
-                        help='''Root Directory for Shifts''',
-                        type=str, default='/data/00115/gebhardt/skysub/skys/')
+                        help='''Root Directory for SkySub''',
+                        type=str,
+                        default='/scratch/00115/gebhardt/alldet/output/')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5

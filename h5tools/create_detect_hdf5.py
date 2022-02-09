@@ -70,7 +70,7 @@ class Detections(tb.IsDescription):
     obsid = tb.Int32Col(pos=6)
     detectid = tb.Int64Col(pos=0)
     fiber_id = tb.StringCol((38))
-    detectname = tb.StringCol((40))
+    #detectname = tb.StringCol((40))
     ra = tb.Float32Col(pos=3)
     dec = tb.Float32Col(pos=4)
     wave = tb.Float32Col(pos=7)
@@ -100,6 +100,11 @@ class Detections(tb.IsDescription):
     amp = tb.StringCol((2))
     expnum = tb.Int32Col()
     chi2fib = tb.Float32Col()
+    apcor = tb.Float32Col()
+    sn_cen = tb.Float32Col()
+    flux_noise_1sigma = tb.Float32Col()
+    sn_3fib = tb.Float32Col()
+    sn_3fib_cen = tb.Float32Col()
 
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -114,6 +119,7 @@ class Spectra(tb.IsDescription):
     spec1d_nc_err = tb.Float32Col(1036)
     apcor = tb.Float32Col(1036)
     flag_pix = tb.Float32Col(1036)
+    spec1d_ffsky = tb.Float32Col(1036)
 
 class Fibers(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
@@ -188,7 +194,7 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/data/00115/gebhardt/alldet/output",
+        default="/scratch/00115/gebhardt/alldet/detect_out",
     )
 
     parser.add_argument(
@@ -235,13 +241,19 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+        type=str,
+        default="hdr3"
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
     #check if shotid is in badlist
-#    config = HDRconfig(args.survey)
-#    badshots = np.loadtxt(config.badshot, dtype=int)
-
+    config = HDRconfig(args.survey)
+    badshots = np.loadtxt(config.badshot, dtype=int)
+    
     if args.outfilename:
         outfilename = args.outfilename
     elif args.month and args.merge:
@@ -253,19 +265,19 @@ def main(argv=None):
     # does not already exist.
     
     if args.append:
-        fileh = tb.open_file(args.outfilename, "a", "HDR2.1 Detections Database")
+        fileh = tb.open_file(args.outfilename, "a", "HDR3 Detections Database")
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
 
         if args.broad:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Broad Detections Database")
-            index_buff = 2160000000
+            fileh = tb.open_file(outfilename, "w", "HDR3 Broad Detections Database")
+            index_buff = 3160000000
 #        elif args.continuum:
-#            fileh = tb.open_file(outfilename, "w", "HDR2.1 Continuum Source Database")
+#            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
-            fileh = tb.open_file(outfilename, "w", "HDR2.1 Detections Database")
-            index_buff = 2100000000
+            fileh = tb.open_file(outfilename, "w", "HDR3 Detections Database")
+            index_buff = 3000000000
 
         detectidx = index_buff
 
@@ -383,14 +395,13 @@ def main(argv=None):
                 "1D Spectra for each Line Detection"
             )
 
-        
-        amp_stats = Table.read('/data/05350/ecooper/hdr2.1/survey/amp_flag.fits')
-    
+        amp_stats = Table.read(config.badamp)
+   
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
-                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight']
-
+                    'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight',
+                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen']
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
@@ -406,7 +417,7 @@ def main(argv=None):
             sys.exit()
 
         catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
-
+        
         det_cols = fileh.root.Detections.colnames
 
         amplist = []
@@ -417,12 +428,6 @@ def main(argv=None):
             
             amp_i = catfile[-27:-3]
 
-            if args.ifu:
-                # Fudge to add in V038 for 201701 to 20180915 only
-                date_i = int(amp_i[0:8])
-                if date_i > 20180915:
-                    break
-            
             amplist.append(amp_i)
 
             args.log.info('Ingesting Amp: '+ amp_i)
@@ -457,15 +462,32 @@ def main(argv=None):
 #                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
                 selchi2fib = (detectcatall['chi2fib'] < 5)
                 selcat = selSN * selLW * selchi2fib
-
-            detectcat = detectcatall[selcat]
+            # removing down selection 2021-11-18
+            
+            detectcat = detectcatall  #[selcat]
 
             nsel_file = np.sum(selcat)
 
             try:
                 specfile = op.join(args.detect_path, amp_i + ".spec")
-                spectable= Table.read(specfile, format="ascii.no_header")
-            except:
+                spec_table = Table(
+                    np.loadtxt(specfile),
+                    names=[
+                        "wave1d",
+                        "spec1d_nc",
+                        "spec1d_nc_err",
+                        "counts1d",
+                        "counts1d_err",
+                        "apsum_counts",
+                        "apsum_counts_err",
+                        "dummy",
+                        "apcor",
+                        "flag_pix",
+                        "src_index",
+                        "spec1d_nc_ffsky",
+                    ],
+                )
+            except Exception:
                 args.log.warning('Could not ingest ' + specfile)
                 ndet_sel.append( 0)
                 continue
@@ -473,7 +495,7 @@ def main(argv=None):
             try:
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
                 fibertable = Table.read(filefiberinfo, format="ascii.no_header")
-            except:
+            except Exception:
                 args.log.warning('Could not ingest ' + filefiberinfo)
                 ndet_sel.append( 0)
                 continue
@@ -483,7 +505,7 @@ def main(argv=None):
             for row in detectcat:
             
                 inputid_i = amp_i + '_' + str(row['src_index']).zfill(3)
-
+                
                 rowMain = tableMain.row
 
                 rowMain['detectid'] = detectidx
@@ -506,18 +528,18 @@ def main(argv=None):
                 if multiframe in ['multi_032_094_028_RU']:
                     if (row['wave'] > 3530) and (row['wave'] < 3545):
                         continue
-                        
-                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                ampflag = amp_stats['flag'][selamp]
                 
+                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+                ampflag = bool(amp_stats['flag'][selamp])
+               
                 if np.size(ampflag) == 0:
                     args.log.error('No ampflag for '
                                    + str(rowMain['shotid'])
                                    + ' ' + multiframe)
-                    
-                if ampflag==False:
-                    continue
-
+                # no longer removing bad amps
+#                if ampflag == False:
+#                    continue
+                
                 # check if Karl stored the same fiber as me:
                 fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][4:5]) \
                                 + "_" + multiframe + "_" \
@@ -531,32 +553,32 @@ def main(argv=None):
                         rowMain[col] = row[col]
                     except:
                         pass
-
-                rowMain['detectname'] = get_detectname(row['ra'], row['dec'])
+                
+#                rowMain['detectname'] = get_detectname(row['ra'], row['dec'])
                         
-                selspec = spectable['col11'] == row['src_index']
+                selspec = spec_table['src_index'] == row['src_index']
                 
                 rowspectra = tableSpectra.row
 
                 rowspectra["detectid"] = detectidx
 
-                dataspec = spectable[selspec]
-                
-                rowspectra["spec1d"] = dataspec["col2"] / dataspec["col9"]
-                rowspectra["spec1d_err"] = dataspec["col3"] / dataspec["col9"]
-                rowspectra["wave1d"] = dataspec["col1"]
-                rowspectra["spec1d_nc"] = dataspec["col2"]
-                rowspectra["spec1d_nc_err"] = dataspec["col3"]
-                rowspectra["counts1d"] = dataspec["col4"]
-                rowspectra["counts1d_err"] = dataspec["col5"]
-                rowspectra["apsum_counts"] = dataspec["col6"]
-                rowspectra["apsum_counts_err"] = dataspec["col7"]
-                rowspectra["apcor"] = dataspec["col9"]
-                rowspectra["flag_pix"] = dataspec["col10"]
+                dataspec = spec_table[selspec]
 
+                rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
+                rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
+                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+                rowspectra["wave1d"] = dataspec["wave1d"]
+                rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
+                rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
+                rowspectra["counts1d"] = dataspec["counts1d"]
+                rowspectra["counts1d_err"] = dataspec["counts1d_err"]
+                rowspectra["apsum_counts"] = dataspec["apsum_counts"]
+                rowspectra["apsum_counts_err"] = dataspec["apsum_counts_err"]
+                rowspectra["apcor"] = dataspec["apcor"]
+                rowspectra["flag_pix"] = dataspec["flag_pix"]
+                
                 #rowspectra.append()
                 
-
                 # add fiber info for each detection
 
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
@@ -575,31 +597,31 @@ def main(argv=None):
 
                     mf_array.append( multiname[0:20])
                     weight_array.append( datafiber["col14"][ifiber])
+                    
+                #isort = np.flipud(np.argsort(weight_array) )
 
-                isort = np.flipud(np.argsort(weight_array) )
-
-                sort_mf = np.array(mf_array)[isort]
+                #sort_mf = np.array(mf_array)[isort]
+                #
+                #for multiframe in sort_mf[0:5]:
+                #    
+                #    if args.date and args.observation:
+                #        ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe][0]
+                #        
+                #    elif args.month:
+                #        selamp = (amp_stats['shotid'] == rowMain['shotid']) & (amp_stats['multiframe'] == multiframe)
+                #        ampflag = amp_stats['flag'][selamp]
+                #    
+                #    if np.size(ampflag) == 0:
+                #        args.log.error('No ampflag for '
+                #                       + str(rowMain['shotid'])
+                #                       + ' ' + multiframe)
+                #    print(ampflag)
+                #    if ampflag == False:
+                #        break
                 
-                for multiframe in sort_mf[0:5]:
-                    
-                    if args.date and args.observation:
-                        ampflag = amp_stats['flag'][amp_stats['multiframe'] == multiframe][0]
-                        
-                    elif args.month:
-                        selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                        ampflag = amp_stats['flag'][selamp]
-                    
-                    if np.size(ampflag) == 0:
-                        args.log.error('No ampflag for '
-                                       + str(rowMain['shotid'])
-                                       + ' ' + multiframe)
-                        
-                    if ampflag==False:
-                        break
-
                 # skip appending source to Fibers and Spectra table
-                if ampflag == False:
-                    continue
+                #if ampflag == False:
+                #    continue
                 
                 for ifiber in np.arange(np.size(datafiber)):
                     rowfiber = tableFibers.row
@@ -674,10 +696,10 @@ def main(argv=None):
                 rowMain["x_ifu"] = datafiber["col3"][ifiber]
                 rowMain["y_ifu"] = datafiber["col4"][ifiber]
                 rowMain["weight"] = datafiber["col14"][ifiber]
-
+                
                 rowMain.append()
                 rowspectra.append()
-
+                
                 detectidx += 1
                 
             
@@ -699,6 +721,7 @@ def main(argv=None):
     # to make queries against that column much faster
     if args.append:
         args.log.info("Reindexing the detectid column")
+        tableMain.cols.shotid.reindex()
         tableMain.cols.detectid.reindex()
         tableFibers.cols.detectid.reindex()
         tableSpectra.cols.detectid.reindex()
@@ -706,6 +729,7 @@ def main(argv=None):
         tableSpectra.flush()
         tableMain.flush()
     else:
+        tableMain.cols.shotid.create_csindex()
         tableMain.cols.detectid.create_csindex()
         tableFibers.cols.detectid.create_csindex()
         tableSpectra.cols.detectid.create_csindex()

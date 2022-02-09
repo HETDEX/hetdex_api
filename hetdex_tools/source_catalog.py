@@ -26,9 +26,6 @@ from hetdex_api.survey import Survey
 from hetdex_api.detections import Detections
 import hetdex_tools.fof_kdtree as fof
 
-from hetdex_api.elixer_widget_cls import ElixerWidget
-from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container
-
 from elixer import catalogs
 
 from hetdex_api.extinction import *
@@ -45,12 +42,34 @@ wavelya = 1215.67
 waveoii = 3727.8
 
 deth5 = None
+conth5 = None
 
+
+def return_fiber_ratio(det, det_type):
+
+    global deth5, conth5
+
+    if deth5 is None:
+        deth5 = tb.open_file(config.detecth5, 'r')
+    if conth5 is None:
+        conth5 = tb.open_file(config.contsourceh5, 'r')
+    
+    if det_type == 'line':
+        fiber_tab = deth5.root.Fibers.read_where("detectid == det")
+        weights = np.sort(fiber_tab["weight"])
+        fiber_ratio = weights[-1] / weights[-2]
+    else:
+        fiber_tab = conth5.root.Fibers.read_where("detectid == det")
+        weights = np.sort(fiber_tab["weight"])
+        fiber_ratio = weights[-1] / weights[-2]
+    return fiber_ratio
+
+                                                                        
 def add_elixer_cat_info(det_table, version):
 
     global config
 
-    elixer_file = op.join(config.detect_dir, "catalogs", "elixer_{}_cat.h5".format(version))
+    elixer_file = op.join(config.detect_dir, "catalogs", "elixer_2.1.3_cat.h5".format(version))
     elixer_cat = tb.open_file(elixer_file, "r")
 
     elixer_cont_file =  '/scratch/03261/polonius/hdr2.1.3/work/c2/c2no/elixer_merged_cat.h5'
@@ -275,6 +294,62 @@ def add_elixer_cat_info(det_table, version):
 
     return det_table
 
+    
+def merge_wave_groups(wid):
+    global expand_table
+    
+    sel_wid = expand_table['wave_group_id'] == wid
+    grp = expand_table[sel_wid]
+    sid, ns = np.unique(grp['source_id'], return_counts=True)
+    sid_main = np.min(sid)
+    
+    for sid_i in sid:
+        sel_sid = expand_table['source_id'] == sid_i
+        expand_table['source_id'][sel_sid] = sid_main
+        
+    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
+        
+    # now find any other wave groups and their associated source_id info to merge
+    other_wids = np.unique(expand_table['wave_group_id'][sid_ind])
+        
+    for wid_i in other_wids:
+        if wid_i == 0:
+            continue
+        elif wid_i == wid:
+            continue
+                
+        sel_wid_i = expand_table['wave_group_id'] == wid_i
+        grp = expand_table[sel_wid_i]
+        sid, ns = np.unique(grp['source_id'], return_counts=True)
+                
+        for sid_i in sid:
+            if sid_i == sid_main:
+                continue
+            sel_sid = expand_table['source_id'] == sid_i
+            expand_table['source_id'][sel_sid] = sid_main
+                    
+    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
+                    
+    res_tab = fof.process_group_list(
+        sid_ind,
+        expand_table["detectid"],
+        expand_table["ra"],
+        expand_table["dec"],
+        0.0* expand_table["wave"],
+        expand_table['flux_g'])
+        
+    for col in res_tab.colnames:
+        if col in ['id', 'members']:
+            continue
+        expand_table[col][sid_ind] = res_tab[col]
+
+    wids_done = list( np.unique( expand_table['wave_group_id'][sid_ind]))
+
+    if 0 in wids_done:
+        wids_done.remove(0)
+
+    return wids_done
+
 
 def create_source_catalog(
         version="2.1.3",
@@ -347,6 +422,18 @@ def create_source_catalog(
         vstack([detects_broad_table, detects_cont_table, detects_line_table]),
         keys='detectid')
 
+    # add fiber_ratio
+    fiber_ratio = []
+    for row in detect_table:
+        det = row['detectid']
+        det_type = row['det_type']
+        try:
+            fiber_ratio.append( return_fiber_ratio(det, det_type))
+        except:
+            fiber_ratio.append(np.nan)
+            print('fiber_ratio failed for {}'.format(det))
+    detect_table['fiber_ratio'] = fiber_ratio
+
     detect_table.write('test.fits', overwrite=True)
 
     del detects_cont_table, detects_broad_table
@@ -382,13 +469,13 @@ def create_source_catalog(
     
     detect_table.write('test2.fits', overwrite=True)
 
-    print("Performing FOF in 3D space with linking length=6 arcsec")
+    print("Performing FOF in 3D space with linking length=8 arcsec")
 
     # get fluxes to derive flux-weighted distribution of group
     
     detect_table["gmag"][np.isnan(detect_table["gmag"])] = 27
     gmag = detect_table["gmag"] * u.AB
-    flux = gmag.to(u.Jy).value
+    detect_table['flux_g'] = gmag.to(u.Jy).value
 
     sel_line = detect_table['det_type'] == 'line' # remove continuum sources
 
@@ -431,7 +518,7 @@ def create_source_catalog(
 
     wdetfriend_all = join(wdetfriend_tab, wfriend_table, keys="id")
 
-    wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 213000000
+    wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 214000000
 
     wdetfriend_all.rename_column('size', 'wave_group_size')
     wdetfriend_all.rename_column('a', 'wave_group_a')
@@ -473,7 +560,7 @@ def create_source_catalog(
                 detect_table["ra"],
                 detect_table["dec"],
                 0.0 * detect_table["wave"],
-                flux,
+                detect_table['flux_g'],
             )
  
     print("Generating combined table \n")
@@ -501,8 +588,8 @@ def create_source_catalog(
     spatial_id = grp_by_id.groups.keys
     spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    # also match if a group member is brighter than gmag=21 (testing this)
-    sel_bright = detect_table['gmag'] < 21
+    # also match if a group member is brighter than gmag=22 (testing this)
+    sel_bright = detect_table['gmag'] < 22
     gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
     spatial_id_to_keep2 = gmag_join['id']
 
@@ -517,7 +604,7 @@ def create_source_catalog(
         if det in detfriend_1['detectid']:
             keep_row[i] = 0
 
-    print("Performing FOF in 2D space with dlink=1.0 arcsec")
+    print("Performing FOF in 2D space with dlink=2.0 arcsec")
 
     kdtree, r = fof.mktree(
         detect_table["ra"][keep_row],
@@ -539,7 +626,7 @@ def create_source_catalog(
             detect_table["ra"][keep_row],
             detect_table["dec"][keep_row],
             0.0 * detect_table["wave"][keep_row],
-            flux[keep_row],
+            detect_table['flux_g'][keep_row],
         )
 
     print("Generating combined table \n")
@@ -571,23 +658,36 @@ def create_source_catalog(
     detfriend_2.remove_column("id")
 
     detfriend_all = vstack([detfriend_1, detfriend_2])
+
+    global expand_table
+    
     expand_table = join(detfriend_all, detect_table, keys="detectid")
     expand_table['wave_group_id'] = expand_table['wave_group_id'].filled(0)
-    expand_table.remove_column('detectname')
+
+    try:
+        expand_table.remove_column('detectname')
+    except:
+        pass
+        
     expand_table.write('test3.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
+    # update source properties
 
+    print('Combining nearby wavegroups and detections')
+
+    t0 = time.time()
     sel = expand_table['wave_group_id'] > 0
-    s_by_id = expand_table[sel].group_by('wave_group_id')
+    wid_list = np.unique(expand_table['wave_group_id'][sel])
 
-    for grp in s_by_id.groups:
-        sid, ns = np.unique(grp['source_id'], return_counts=True)
-        wid = grp['wave_group_id'][0]
-        if np.size(sid) > 1:
-            sel_wid = expand_table['wave_group_id'] == wid
-            expand_table['source_id'][sel_wid] = sid[0]
-
+    wid_done = []
+    for wid in wid_list:
+        if wid not in wid_done:
+            wid_return = merge_wave_groups(wid)
+            wid_done.extend(wid_return)
+    t1 = time.time()
+    print('Done combining wavegroups in {:4.2f} min'.format( (t1-t0)/60))
+    
     del detfriend_all, detect_table, friend_table
 
     gaia_stars = Table.read(config.gaiacat)
@@ -599,7 +699,7 @@ def create_source_catalog(
 
     idx, d2d, d3d = src_coords.match_to_catalog_sky(gaia_coords)
 
-    sel = d2d < 5.0 * u.arcsec
+    sel = d2d < 1.5 * u.arcsec
 
     gaia_match_name = np.zeros_like(expand_table["source_id"], dtype=int)
     gaia_match_name[sel] = gaia_stars["source_id"][idx][sel]
@@ -613,6 +713,17 @@ def create_source_catalog(
     expand_table.rename_column("size", "n_members")
     expand_table.rename_column("icx", "ra_mean")
     expand_table.rename_column("icy", "dec_mean")
+
+    source_name = []
+
+    for row in expand_table:
+        source_name.append(get_source_name(row["ra_mean"], row["dec_mean"]))
+    try:
+        expand_table.add_column(source_name,
+                                name="source_name",
+                                index=1)
+    except Exception:
+        print('messed up source name again')
 
     expand_table.sort("source_id")
 
@@ -883,18 +994,6 @@ def main(argv=None):
     print(args.dsky, args.version)
 
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
-#    source_table.write('source_cat_tmp.fits', overwrite=True)
-#    source_table = Table.read('source_cat_tmp.fits')
-    # add source name
-    source_name = []
-    for row in source_table:
-        source_name.append(get_source_name(row["ra_mean"], row["dec_mean"]))
-    try:
-        source_table.add_column(source_name,
-                                name="source_name",
-                                index=1)
-    except:
-        print('messed up source name again')
 
     # match to SDSS
     source_table_coords = SkyCoord(source_table['ra_mean'],
@@ -917,7 +1016,7 @@ def main(argv=None):
     
     matched_catalog = hstack([source_table, catalog_matches])
 
-    sel_remove = matched_catalog['sdss_dist'] > 5
+    sel_remove = matched_catalog['sdss_dist'] > 1.5
 
     matched_catalog['ra_sdss'][sel_remove] = np.nan
     matched_catalog['dec_sdss'][sel_remove] = np.nan
@@ -956,12 +1055,12 @@ def main(argv=None):
     matched_catalog['flux_w1'] = w1
     matched_catalog['flux_w2'] = w2
     matched_catalog.remove_column('wise_fluxes')
-    sel_close = matched_catalog['wise_dist'] < 5 #arcsec
+    sel_close = matched_catalog['wise_dist'] < 1.5 #arcsec
     
     print('There are {} wise matches'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
     # remove column info for WISE matches more than 5 arcsec away
 
-    sel_remove = matched_catalog['wise_dist'] > 5 #arcsec
+    sel_remove = matched_catalog['wise_dist'] > 1.5 #arcsec
 
     matched_catalog['ra_wise'][sel_remove] = np.nan
     matched_catalog['dec_wise'][sel_remove] = np.nan
@@ -1046,11 +1145,11 @@ def main(argv=None):
 
     matched_catalog = hstack([source_table, catalog_matches])
 
-    sel_close = matched_catalog['zspec_dist'] < 5 #u.arcsec
+    sel_close = matched_catalog['zspec_dist'] < 1.5 #u.arcsec
 
     print('There are {} zspec matches within 5 arcsec'.format(np.size(np.unique(matched_catalog['source_id'][sel_close]))))
 
-    sel_remove = matched_catalog['zspec_dist'] > 5 #u.arcsec
+    sel_remove = matched_catalog['zspec_dist'] > 1.5 #u.arcsec
 
     matched_catalog['zspec'][sel_remove] = np.nan
     matched_catalog['ra_zspec'][sel_remove] = np.nan
@@ -1060,14 +1159,14 @@ def main(argv=None):
 
     #add desi confirmed redshifts
 
-    dtab = Table.read('catalogs/desi-hetdex.fits')
+    dtab = Table.read('catalogs/desi-hetdex-v1.0.fits')
 
-    sel_good_hetdex = (dtab['artifact_flag'] == 0) * (dtab['wave'] >= 3610 )
-    sel_good_desi = (dtab['FIBERSTATUS'] == 0)
+    sel_good_hetdex = (dtab['wave'] >= 3640 )
+    sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)
     sel_sample = sel_good_desi*sel_good_hetdex
-    sel_conf = dtab['VI_quality'] >= 1
-   
-    hetdex_coords = SkyCoord(ra=dtab['ra'], dec=dtab['dec'], unit='deg')
+    sel_conf = dtab['VI_quality'] >= 3
+
+    hetdex_coords = SkyCoord(ra=dtab['RA_HETDEX'], dec=dtab['DEC_HETDEX'], unit='deg')
     desi_coords = SkyCoord(ra=dtab['TARGET_RA'], dec=dtab['TARGET_DEC'], unit='deg')
     dtab['zspec_dist'] = hetdex_coords.separation(desi_coords).arcsec
 
@@ -1137,7 +1236,10 @@ def main(argv=None):
     #remove nonsense metadata
     source_table.meta = {}
     source_table.write("source_catalog_{}.fits".format(args.version),
-                    overwrite=True)
+                       overwrite=True)
+    source_table.write("source_catalog_{}.tab".format(args.version),
+                       overwrite=True, format='ascii')
 
+ 
 if __name__ == "__main__":
     main()

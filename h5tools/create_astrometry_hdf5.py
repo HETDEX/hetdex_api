@@ -30,6 +30,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.io import ascii
+from astropy.table import Table
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.config import HDRconfig
 
@@ -83,7 +84,7 @@ def main(argv=None):
 
     parser.add_argument("-r", "--rootdir",
                         help='''Root Directory for Shifts''',
-                        type=str, default='/data/00115/gebhardt/vdrp/shifts')
+                        type=str, default='/scratch/00115/gebhardt/vdrp/shifts')
 
     parser.add_argument('-of', '--outfilename', type=str,
                         help='''Relative or absolute path for output HDF5
@@ -96,11 +97,16 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/data/00115/gebhardt/detect')
+                        default='/scratch/00115/gebhardt/detect')
 
+    parser.add_argument("-detdir", "--detectdir",
+                        help='''Directory for Detect Info''',
+                        type=str,
+                        default='/scratch/03946/hetdex/detect')
+    
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1}""",
-                        type=str, default="hdr2.1")
+                        help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+                        type=str, default="hdr3")
     
     
     args = parser.parse_args(argv)
@@ -203,11 +209,10 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % fileallmch)
 
-        
-    filenorm = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                       'norm.dat')
+    filenorm = op.join(args.detectdir, 'norm.all')
+
     try:
-        norm = ascii.read(filenorm)
+        norm = Table.read(filenorm, format='ascii.no_header')
     except:
         args.log.warning('Could not include %s' % filenorm)
 
@@ -227,14 +232,15 @@ def main(argv=None):
             args.log.warning('Could not include %s' % radecfile)
 
         try:
+            sel_datevobs = norm['col1'] == str(args.date) + 'v' + str(args.observation).zfill(3)
             if idx == 0:
-                rowNV['relflux_virus'] = norm['col1']
+                rowNV['relflux_virus'] = norm['col2'][sel_datevobs]
             elif idx == 1:
-                rowNV['relflux_virus'] = norm['col2']
+                rowNV['relflux_virus'] = norm['col3'][sel_datevobs]
             elif idx == 2:
-                rowNV['relflux_virus'] = norm['col3']
-        except:
-            args.log.warning('Could not include norm.dat')
+                rowNV['relflux_virus'] = norm['col4'][sel_datevobs]
+        except Exception:
+            args.log.warning('Could not include norm.all')
         
         try:
             rowNV['x_dither_pos'] = allmch['col3'][idx]
@@ -262,7 +268,7 @@ def main(argv=None):
 
         matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
                            'match_' + expn + '.pdf')
-        matchpng = 'match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
+        matchpng = 'match_pngs/match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
         if op.exists(matchpdf):
             os.system('convert ' + matchpdf + ' ' + matchpng)  

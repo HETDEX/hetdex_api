@@ -10,17 +10,11 @@ catalog
 Examples
 --------
 
-To run continuum sources one month at a time:
+To run continuum sources:
 
->>> python3 create_cont_hdf5.py -d 20200523 -o 012 
+>>> python3 create_cont_hdf5.py -dp /data/00115/gebhardt/cs/spec /
+-cs /data/00115/gebhardt/cs/rext2 -of continuum_sources.h5
 
-To merge into one month
-
->> python3 create_cont_hdf5.py --merge -m 201901 
-
-To merge into one file:
-
->> python3 create_cont_hdf5py --merge -of continuum_sources.h5  
 """
 from __future__ import print_function
 
@@ -33,7 +27,6 @@ import glob
 import subprocess
 import numpy as np
 import tables as tb
-import tarfile
 
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
@@ -145,31 +138,11 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
 
     parser.add_argument(
-        "-m", "--month", help="""Month to run: 201901""", type=str, default=None
-    )
-
-    parser.add_argument(
-        "-d",
-        "--date",
-        help="""Date, e.g., 20170321, YYYYMMDD""",
-        type=str,
-        default=None,
-    )
-    
-    parser.add_argument(
-        "-o",
-        "--observation",
-        help='''Observation number, "00000007" or "7"''',
-        type=str,
-        default=None,
-    )
-    
-    parser.add_argument(
         "-cs",
         "--contsource",
         help="""Path to Karls rext catalog""",
         type=str,
-        default='/scratch/00115/gebhardt/cs/rcs0',
+        default=None,
     )
 
     parser.add_argument(
@@ -177,7 +150,7 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/scratch/00115/gebhardt/cs/spec",
+        default="/data/00115/gebhardt/alldet/output",
     )
 
     parser.add_argument(
@@ -204,179 +177,49 @@ def main(argv=None):
         type=str,
         default="/scratch/03946/hetdex/hdr3/survey/hdr3.shotlist",
     )
-
-    parser.add_argument(
-        "--merge",
-        "-merge",
-        help="""Boolean trigger to merge all cont_2*.fits files in cwd""",
-        default=False,
-        required=False,
-        action="store_true",
-    )
-
-    parser.add_argument(
-        "-md",
-        "--mergedir",
-        help="""Merge all HDF5 files in the defined merge
-        directory. Can append to existing file using --append option""",
-        type=str,
-        default=os.getcwd(),
-    )
-
-    
+   
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
+    outfilename = args.outfilename
+
+    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
     index_buff = 3090000000
     detectidx = index_buff
-    
-    if args.merge:
-        n_size = 300000
-        
-        fileh = tb.open_file(args.outfilename, "w", "HDR3 Continuum Source Database")
 
-        tableMain = fileh.create_table(
-            fileh.root,
-            "Detections",
-            Detections,
-            "HETDEX Continuum Source Catalog",
-            expectedrows= n_size,
-        )
-        tableFibers = fileh.create_table(
-            fileh.root,
-            "Fibers",
-            Fibers,
-            "Fiber info for each source",
-            expectedrows= n_size,
-        )
-        tableSpectra = fileh.create_table(
-            fileh.root,
-            "Spectra",
-            Spectra,
-            "1D Spectra for each Line Detection",
-            expectedrows=15 * n_size,
-        )
-        files = sorted(glob.glob(op.join(args.mergedir, "cont_2*.h5")))
-
-        detectid_max = 0
-
-        for file in files:
-            
-            args.log.info("Appending detect H5 file: %s" % file)
-
-            try:
-                fileh_i = tb.open_file(file, "r")
-                tableMain_i = fileh_i.root.Detections.read()
-    
-                if np.size(tableMain_i) == 0:
-                    args.log.error('No detections for %s' % file)
-                    continue
-                
-                tableFibers_i = fileh_i.root.Fibers.read()
-                tableSpectra_i = fileh_i.root.Spectra.read()
-
-            except Exception:
-                args.log.error('Could not append {}'.format(file))
-                continue
-                
-            tableMain_i["detectid"] += detectid_max
-            tableFibers_i["detectid"] += detectid_max
-            tableSpectra_i["detectid"] += detectid_max
-            
-            # after first table be sure to add one to the index
-            
-            detectid_max = 1
-            
-            tableMain.append(tableMain_i)
-            tableFibers.append(tableFibers_i)
-            tableSpectra.append(tableSpectra_i)
-            
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
-
-            fileh_i.close()
-            tableFibers.flush()  # just to be safe
-            tableSpectra.flush()
-            tableMain.flush()
-
-        tableMain.cols.shotid.create_csindex()
-        tableMain.cols.detectid.create_csindex()
-        tableFibers.cols.detectid.create_csindex()
-        tableSpectra.cols.detectid.create_csindex()
-        tableFibers.flush()  # just to be safe
-        tableSpectra.flush()
-        tableMain.flush()
-        args.log.info("File finished: %s" % args.outfilename)
-        sys.exit()
-    # open up datevobs tarball with ingestion data
-
-    datevobs = str(args.date) + 'v' + str(args.observation).zfill(3)
-    
-    spectarfile = op.join(args.detect_path, "{}cs.tar".format(datevobs))
-    
-    if not op.exists(spectarfile):
-        args.log.error("Could not find {}".format(spectarfile))
-        sys.exit()
-    
-    if args.outfilename:
-        outfilename = args.outfilename
-    elif args.month and args.merge:
-        outfilename = 'cont_month_' + str(args.month) + '.h5'
-    else:
-        outfilename = 'cont_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '.h5'
-
-#    contfiles = np.loadtxt('complete_cont_h5list', dtype=str)
-#    if outfilename in contfiles:
-#        sys.exit('{} already complete'.format(outfilename))
-
-    # open up datevobs tarball with ingestion data      
-    spectar = tarfile.open(spectarfile)
-
-    if not os.path.exists('./spec'):
-        os.makedirs('./spec')
-       
-    spectar.extractall('./spec')
-    spectar.close()
-
-    try:
-        detectcat = Table.read('./spec/{}.rcs'.format(datevobs), format="ascii.no_header")
-        detectcat.remove_columns(
-            [
-                "col1",
-                "col4",
-                "col5",
-                "col6",
-                "col9",
-                "col10",
-                "col11",
-                "col12",
-                "col13",
-                "col14",
-            ]
-        )
-    except:
-        args.log.error("Could not read {}.rcs".format(datevobs))
-        sys.exit()
-        
+    detectcat = Table.read(args.contsource, format="ascii.no_header")
+    detectcat.remove_columns(
+        [
+            "col1",
+            "col4",
+            "col5",
+            "col6",
+            "col9",
+            "col10",
+            "col11",
+            "col12",
+            "col13",
+            "col14",
+        ]
+    )
     detectcat["col2"].name = "ra"
     detectcat["col3"].name = "dec"
     detectcat["col7"].name = "obnum"
     detectcat["col8"].name = "datevshot"
 
-    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
-        
     tableMain = fileh.create_table(
         fileh.root,
         "Detections",
         Detections,
         "HETDEX Continuum Source Catalog",
-        expectedrows= np.size(detectcat),
+        expectedrows=np.size(detectcat),
     )
     tableFibers = fileh.create_table(
         fileh.root,
         "Fibers",
         Fibers,
         "Fiber info for each source",
-        expectedrows= np.size(detectcat),
+        expectedrows=np.size(detectcat),
     )
     tableSpectra = fileh.create_table(
         fileh.root,
@@ -437,10 +280,13 @@ def main(argv=None):
 
     tableMain.flush()
 
+    # add spectra for each detectid in the detections table
+
     for row in tableMain:
         try:
+
             inputid_i = row["inputid"].decode()
-            specfile = "./spec/{}.spec".format(inputid_i)
+            specfile = op.join(args.detect_path, inputid_i + ".spec")
             dataspec = Table(
                 np.loadtxt(specfile),
                 names=[
@@ -484,7 +330,7 @@ def main(argv=None):
     for row in tableMain:
         inputid_i = row["inputid"].decode()
 
-        filefiberinfo = "./spec/{}.list".format(inputid_i)
+        filefiberinfo = op.join(args.detect_path, inputid_i + ".list")
 
         try:
             datafiber = Table.read(filefiberinfo, format="ascii.no_header")
@@ -566,18 +412,9 @@ def main(argv=None):
     tableFibers.flush()  # just to be safe
     tableSpectra.flush()
     tableMain.flush()
-    args.log.info("File finished: {}".format(outfilename))
+    args.log.info("File finished: %s" % args.outfilename)
     fileh.close()
 
-    # remove untarred files
 
-    tarfiles = glob.glob('./spec/{}*'.format(datevobs))
-
-    for f in tarfiles:
-        try:
-            os.remove(f)
-        except OSError as e:
-            print("Error: %s : %s" % (f, e.strerror))
-                         
 if __name__ == "__main__":
     main()
