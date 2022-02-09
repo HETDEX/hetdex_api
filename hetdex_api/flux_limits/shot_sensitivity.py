@@ -677,13 +677,14 @@ class ShotSensitivity(object):
                     # Output lots of information for very detailed debugging
                     if logger.getEffectiveLevel() == logging.DEBUG: 
                         logger.debug("Table of fibers:")
-                        logger.debug("# fiberid    wave_index ifux ifuy  weight     noise")
+                        logger.debug("# fiberid    wave_index ifux ifuy  weight  noise  mask")
                         for fibidx, fid in enumerate(fiberid):
-                            for wi, (tw, tnoise) in enumerate(zip((weights*norm)[fibidx, ilo:ihi], 
-                                                              error[fibidx, ilo:ihi]), 
+                            for wi, (tw, tnoise, tmask) in enumerate(zip((weights*norm)[fibidx, ilo:ihi], 
+                                                              error[fibidx, ilo:ihi], fmask[fibidx, ilo:ihi]), 
                                                               ilo): 
-                                logger.debug("{:s} {:d} {:f} {:f} {:f} {:f}".format(fid, wi, ifux[fibidx], 
-                                                                                    ifuy[fibidx], tw, tnoise))
+                                logger.debug("{:s} {:d} {:f} {:f} {:f} {:f} {:s}".format(fid, wi, ifux[fibidx], 
+                                                                                    ifuy[fibidx], tw, tnoise, 
+                                                                                    str(tmask)))
 
 
                     # Mask source if bad values within the central 3 wavebins
