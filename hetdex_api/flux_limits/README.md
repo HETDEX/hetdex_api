@@ -1,26 +1,18 @@
 # Sensitivity Cubes
 
-## Overview 
+## The `ShotSensitivity` class
 
-The flux limits in HETDEX are stored in ra, dec, wavelength datacubes ("sensitivity cubes"). The 
-value stored is the inverse of the PSF weighted 1-sigma noise, which can be used to
-compute flux limits. This is how we can store the flux limit as a function of position and wavelength.
+The noise values are computed by extracting noise in apertures
+from the HETDEX data on the fly at the user's request. The interface to 
+this in the API is the `ShotSensitivity` class. These noise values
+can be converted to a completeness using the flux limit models. 
 
+## The flux limit models
 
-## The old, deprecated flux limit models
-
-In the old, deprecated models (hdr1, hdr2pt1), to characterise the fraction of sources detected as a function 
-of flux, a parameterisation from [Fleming et al 1995](http://adsabs.harvard.edu/abs/1995AJ....109.1044F) is used. 
-One input to this parameterisation are the flux limits stored in the datacubes. The second and final parameter 
-in this function controls how quickly the detection rate falls off with flux. This was set to a fixed 
-value, calibrated from simulations. This wasn't used in the end as we developed a more sophisticated method.
-
-## The new flux limit models
-
-The new models store the wavelength dependent shape of the completeness versus flux for different S/N cuts 
+The models store the wavelength dependent shape of the completeness versus flux for different S/N cuts 
 in a series of files. The existing models and a description of them is given below. The "Curve Version" column gives
 different versions of the completeness versus flux files (the `sn.use` files). These `sn.use` files also contain 50% 
-completeness values, which some models use to derive the scaling between noise in the sensitivity cubes and 
+completeness values, which some models use to derive the scaling between noise and 
 the flux at 50% completeness. This scaling is needed to rescale the curves from the `sn.use` files as a function
 of position and wavelength. Most users should just use the latest version that's usable for the data release 
 they are using, the "Notes" column is mainly for the reference of the developers.
@@ -40,11 +32,32 @@ These are the different flux versus completeness curve versions (the `sn.use` fi
 |      v0       | check.f bug didn't apply cuts to sims properly  |
 |      v1       | check.f bug fixed                               |
 
-## Command line tools
+### Getting the flux limit in Python - the python API
+
+To access the flux limit an application programming interface (API) is provided for
+use in Python. An iPython notebook is provided in this repository which demonstrates
+how to do this [here](../notebooks/api-notebooks/16-Getting_Flux_Limits_From_The_API.ipynb)
+
+## The old deprecated flux limit cubes 
+
+The flux limits were stored in ra, dec, wavelength datacubes ("sensitivity cubes"). The 
+value stored is the inverse of the PSF weighted 1-sigma noise, which can be used to
+compute flux limits. This is how we can store the flux limit as a function of position and wavelength.
+
+
+## The old deprecated flux limit models
+
+In the old, deprecated models (hdr1, hdr2pt1), to characterise the fraction of sources detected as a function 
+of flux, a parameterisation from [Fleming et al 1995](http://adsabs.harvard.edu/abs/1995AJ....109.1044F) is used. 
+One input to this parameterisation are the flux limits stored in the datacubes. The second and final parameter 
+in this function controls how quickly the detection rate falls off with flux. This was set to a fixed 
+value, calibrated from simulations. This wasn't used in the end as we developed a more sophisticated method.
+
+## Deprecated command line tools
 
 This package contains multiple command line tools. Two of the most important
-deal with adding and extracting sensitivity cubes. To add a FITS file sensitivity cube(s)
-to a HDF5 file, one can use the `add_sensitivity_cube_to_hdf5` command, like so
+deal with adding and extracting (the deprecated) sensitivity cubes. To add a FITS file sensitivity cube(s)
+to an HDF5 file, one can use the `add_sensitivity_cube_to_hdf5` command, like so
 
 ```
 add_sensitivity_cube_to_hdf5 20181203v013_multi_*.fits 20181203v013_sensitivity_cubes.h5
@@ -74,11 +87,3 @@ biweight_fluxlims_hdf5 20181203v013_sensitivity_cubes.h5
 
 using the ``--wl`` flag you can specify what wavelength you want. It is also possible to output these limits
 to a file, use the ``-h`` option on this command for details.
-
-### Getting the flux limit in Python - the python API
-
-To access the flux limit an application programming interface (API) is provided for
-use in Python. An iPython notebook is provided in this repository which demonstrates
-how to do this [here](../../notebooks/04-Getting_Flux_Limits_from_the_HDF5_Files.ipynb)
-
-
