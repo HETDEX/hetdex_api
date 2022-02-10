@@ -36,7 +36,7 @@ These are the different flux versus completeness curve versions (the `sn.use` fi
 
 To access the flux limit an application programming interface (API) is provided for
 use in Python. An iPython notebook is provided in this repository which demonstrates
-how to do this [here](../notebooks/api-notebooks/16-Getting_Flux_Limits_From_The_API.ipynb)
+how to do this [here](../../notebooks/api-notebooks/16-Getting_Flux_Limits_From_The_API.ipynb)
 
 ## The old deprecated flux limit cubes 
 
