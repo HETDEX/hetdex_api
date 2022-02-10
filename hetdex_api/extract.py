@@ -363,7 +363,7 @@ class Extract:
             mask = table_here["Amp2Amp"]
             mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
         else:
-            mask = self.fibers.table.read_coordinates(idx_all, "calfibe")
+            mask = self.fibers.table.read_coordinates(indices_original[idx_all], "calfibe")
             mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
 
         expn = np.array(
