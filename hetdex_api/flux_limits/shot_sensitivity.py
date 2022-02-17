@@ -440,7 +440,7 @@ class ShotSensitivity(object):
         f50s = badval*ones(nsrc)
         mask = ones(nsrc)
         norm = ones(nsrc)
-        amp = array(["notinshot"]*nsrc)
+        amp = array(["notinshot00_0_multi_00_000_000_00_000"]*nsrc)
 
         if nsel > 0:
             for i in range(nsplit):  
