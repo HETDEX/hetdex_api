@@ -19,5 +19,9 @@ print('Copying Astrometry group from hdr2.1 for {}'.format(shotfile2))
 
 fileh1.copy_node('/Astrometry', newparent=fileh2.root, recursive=True, overwrite=True)
 
+print('Copying Shot group from hdr2.1 for {}'.format(shotfile2))
+
+fileh1.copy_node('/Shot', newparent=fileh2.root, recursive=True, overwrite=True)
+
 fileh1.close()
 fileh2.close()
