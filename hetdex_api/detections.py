@@ -844,7 +844,7 @@ class Detections:
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
         if add_apcor:
-            data["apcor"] = Column(spectra_table['apcor'))
+            data["apcor"] = Column(spectra_table['apcor'][0])
         # convert from 2AA binning to 1AA binning:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
