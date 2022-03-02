@@ -179,6 +179,54 @@ elif version == "2.1.3":
 
     det_table = detects[sel_cat].return_astropy_table()
 
+elif version == "2.1.4":
+
+    # get updated chi2fib values (see work in stampede2/notebooks/fiber_chi2_check.ipynb:
+    chi2table = Table.read('chi2fib_all.tab', format='ascii.no_header', names=['detectid', 'chi2fib'])
+    
+    det = Table([detects.detectid],names=['detectid'])
+    det_join = join(det, chi2table)
+    
+    detectid2 = np.array(det_join['detectid'])
+    detects.chi2fib = np.array(det_join['chi2fib'])
+    
+    if np.sum(detects.detectid - detectid2) != 0:
+        print('Something went wrong with appending updated chi2fib')
+        
+    sel_cut1 = np.logical_not(detects.gmag < 19) * (detects.sn >= 7) * (detects.chi2 <= 2.5) * (detects.chi2 > 1.2) * (detects.continuum < 7.5)
+    sel_cut2 = (detects.sn >= 4.8) * (detects.chi2 <= 1.2)
+
+    sel_cont = detects.continuum > -3
+    
+    selchi2fib1 = detects.chi2fib < 4.5
+    selchi2fib2 = np.invert((detects.chi2fib > 3) * (detects.continuum < 0.5))
+    sel_chi2fib = selchi2fib1 * selchi2fib2
+    
+    sel_tp = detects.throughput >= 0.08
+    
+    sel = sel_field * sel_cont * sel_chi2fib * sel_tp * (sel_cut1 | sel_cut2)
+    
+    sel_wave = (detects.wave >= 3550) * (detects.wave <= 5460)
+    sel_lw = (detects.linewidth <= 14) * (detects.linewidth > 6) * (detects.sn >= 6.5)
+    
+    sel1 = sel * sel_wave * sel_lw
+    
+    sel_wave = (detects.wave >= 3510) * (detects.wave <= 5490)
+    sel_lw = detects.linewidth <= 6
+    
+    sel2 = sel * sel_wave * sel_lw
+    
+    sel_cat = sel1 | sel2
+    
+    det_table = detects[sel_cat].return_astropy_table()
+
+else:
+    print("Provide a version : eg. 2.1.2")
+
+    sys.exit()
+
+# add elixer update
+if True:
     elixer_file = op.join(config.detect_dir, "catalogs", "elixer_2.1.3_cat.h5")
     elixer_cat = tb.open_file(elixer_file, "r")
 
@@ -328,9 +376,9 @@ elif version == "2.1.3":
     det_table.add_column(fixed_catalog_name, name="forced_catalog_name")
     det_table.add_column(fixed_filter_name, name="forced_filter_name")
     det_table.add_column(fixed_radius, name="forced_radius")
-else:
-    print("Provide a version : eg. 2.1.2")
-    sys.exit()
+#else:
+#    print("Provide a version : eg. 2.1.2")
+# sys.exit()
 
 fiber_table = detects.hdfile.root.Fibers
 

@@ -32,12 +32,15 @@ from hetdex_tools.get_spec import get_spectra
 
 try:
     from hetdex_api.config import HDRconfig
-
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    CONFIG_HDR2 = HDRconfig('hdr2.1')
+    CONFIG_HDR3 = HDRconfig('hdr3')
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
-
+    CONFIG_HDR2 = None
+    CONFIG_HDR3 = None
 
 HDR_NAME_DICT = {10: "hdr1", 20: "hdr2", 21: "hdr2.1"}
 
@@ -64,8 +67,9 @@ except Exception as e:
 
     HETDEX_DETECT_HDF5_HANDLE = None
     ELIXER_H5 = None
+    
+OPEN_DET_FILE = None
 elix_dir = None
-det_handle = None    
 
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
@@ -1201,34 +1205,39 @@ class ElixerWidget:
         pass
 
     def get_det_info(self):
-
-        global HETDEX_DETECT_HDF5_HANDLE
-        global CONT_H5_HANDLE
-        global det_handle
+        global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
         detid = self.detectbox.value
-        if detid >= 2190000000:
-            if CONT_H5_HANDLE is None:
-                try:
-                    CONT_H5_HANDLE = tables.open_file(CONT_H5_FN, "r")
-                except:
-                    print("Could not open continuum database")
-            det_handle = CONT_H5_HANDLE
-        else:
-            if (HETDEX_DETECT_HDF5_HANDLE is None) and (HETDEX_DETECT_HDF5_FN is not None):
-                try:
-                    HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, "r")
-                except Exception as e:
-                    self.status_box.value = str(e) + "\n" + traceback.format_exc()
-                    # pass
-                    # print(f"Could not open {HETDEX_DETECT_HDF5_FN}")
-            det_handle = HETDEX_DETECT_HDF5_HANDLE
 
-        if det_handle is not None:
+        if (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.detecth5
+        elif (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+        elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
+            self.det_file = CONFIG_HDR3.detecth5
+        elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+
+        if OPEN_DET_FILE is None:
+            OPEN_DET_FILE = self.det_file
+            DET_HANDLE = tb.open_file(self.det_file, 'r')
+        else:
+            if self.det_file == OPEN_DET_FILE:
+                pass
+            else:
+                DET_HANDLE.close()
+                OPEN_DET_FILE = self.det_file
+                try:
+                    DET_HANDLE = tb.open_file(self.det_file, 'r')
+                except Exception:
+                    with self.bottombox:
+                        print("Could not open {}".format(self.det_file))
+
+        if DET_HANDLE is not None:
             detid = self.detectbox.value
             try:
                 self.det_row = Table(
-                    det_handle.root.Detections.read_where(
+                    DET_HANDLE.root.Detections.read_where(
                         "detectid == detid"
                     )
                 )

@@ -827,7 +827,8 @@ class Detections:
 
     def get_spectrum(self, detectid_i,
                      deredden=False,
-                     apply_extinction_fix=True):
+                     apply_extinction_fix=True,
+                     add_apcor=False):
         """
         Grabs the 1D spectrum used to measure fitted parameters.
         """
@@ -842,7 +843,8 @@ class Detections:
         data["spec1d_err"] = Column(
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
-
+        if add_apcor:
+            data["apcor"] = Column(spectra_table['apcor'][0])
         # convert from 2AA binning to 1AA binning:
         data["spec1d"] /= 2.0
         data["spec1d_err"] /= 2.0
