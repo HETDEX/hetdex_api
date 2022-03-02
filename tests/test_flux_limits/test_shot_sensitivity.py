@@ -112,10 +112,13 @@ def test_completeness(ra, dec, wave, flux, lw, exptd, flim_model):
 
     assert pytest.approx(c, rel=0.005) == exptd
 
+
+
 @pytest.mark.parametrize("ra, dec, sclean",
                           [
                             (201.5498985, 51.82207577, True),
                             (201.5498985, 51.82207577, False),
+
                           ]                           
                         )
 def test_wave_none_mode(ra, dec, sclean):
@@ -138,7 +141,6 @@ def test_wave_none_mode(ra, dec, sclean):
                                          waves, 5.0, 
                                          direct_sigmas=True)
 
-
     
     diff = (all_sigmas[0] - from_single_wave)/all_sigmas[0]
     diff_apcor = (apcor1[0] - apcor2)/apcor1[0]
@@ -150,6 +152,45 @@ def test_wave_none_mode(ra, dec, sclean):
     # test if good to within 0.05%
     assert nanmax(abs(diff_apcor)) < 5e-4
     assert nanmax(abs(diff)) < 5e-4
+
+
+@pytest.mark.parametrize("ras, decs",
+                         [
+                          (
+                           [229.95960512542143, 229.74236696267425],
+                           [53.8360578364009, 54.0562276323938]
+                          )
+                         ]
+                        )
+def test_wave_none_array(ras, decs):
+    """ 
+    As test_wave_none_mode but multiple 
+    ra/dec at once
+
+    """
+    s = ShotSensitivity("20200423v019")
+    
+    # All at once
+    f50_arr, apcor_arr, mask = s.get_f50(ras, decs, None, 1.0,
+                                         direct_sigmas = True)
+
+    waves = s.extractor.get_wave()
+
+    for i, (r, d) in enumerate(zip(ras, decs), 0):
+
+        f50, apcor = s.get_f50(r*ones(len(waves)), d*ones(len(waves)), 
+                               waves, 1.0,
+                               direct_sigmas = True)
+
+        diff = (f50 - f50_arr[i, :])/f50_arr[i, :]
+        diff_apcor = (apcor - apcor_arr[i, :])/apcor_arr[i, :]
+        
+        print(apcor)
+        print(apcor_arr[i, :])
+
+        # test if good to within 0.05%
+        assert nanmax(abs(diff_apcor)) < 5e-4
+        assert nanmax(abs(diff)) < 5e-4
 
 
 def test_chip_gap_mask():
