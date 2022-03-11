@@ -98,7 +98,11 @@ class Detections:
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            self.survey = "hdr" + curated_version[0:3]
+            if curated_version[0] == '3':
+                # for now I'm assuming we don't have to do hdr3.0
+                self.survey = 'hdr3'
+            else:
+                self.survey = "hdr" + curated_version[0:3]
         else:
             self.version = None
             self.survey = survey
