@@ -125,10 +125,18 @@ class Detections:
         
         if self.version is not None:
 
-            try:
-                catfile = op.join(
-                    self.config.detect_dir, "catalogs", "detect_hdr" + self.version + ".fits"
-                )
+            if True:
+
+                if self.survey == 'hdr2.1':
+                    catfile = op.join(
+                        self.config.detect_dir, "catalogs", "detect_hdr{}.fits".format(self.version)
+                    )
+                else:
+
+                    catfile = op.join(
+                        self.config.hdr_dir[self.survey], "catalogs", "detect_hdr{}.fits".format(self.version)
+                    )
+
                 det_table = Table.read(catfile)
 
                 for col in det_table.colnames:
@@ -138,8 +146,8 @@ class Detections:
                         setattr(self, col, np.array(det_table[col]))
 
                 self.vis_class = -1 * np.ones(np.size(self.detectid))
-
-            except:
+            else:
+#            except:
                 print("Could not open curated catalog version: " + self.version)
                 return None
 
