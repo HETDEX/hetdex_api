@@ -34,6 +34,9 @@ from astropy.table import Table
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.config import HDRconfig
 
+import warnings
+from astropy.utils.exceptions import AstropyWarning
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 class QualityAssessment(tb.IsDescription):
     expnum = tb.Int32Col(pos=0)
@@ -68,6 +71,18 @@ class Dithall(tb.IsDescription):
     exposure = tb.StringCol((5))
 
 
+class StarCatalog(tb.IsDescription):
+    ignore = tb.Int64Col(pos=0)
+    star_ID = tb.StringCol((28), pos=1)
+    ra_cat = tb.Float64Col(pos=2)
+    dec_cat = tb.Float64Col(pos=3)
+    u = tb.Float64Col(pos=4)
+    g = tb.Float64Col(pos=5)
+    r = tb.Float64Col(pos=6)
+    i = tb.Float64Col(pos=7)
+    z = tb.Float64Col(pos=8)
+    
+    
 def main(argv=None):
     ''' Main Function '''
     # Call initial parser from init_utils
@@ -97,7 +112,7 @@ def main(argv=None):
     parser.add_argument("-tp", "--tpdir",
                         help='''Directory for Throughput Info''',
                         type=str,
-                        default='/scratch/00115/gebhardt/detect')
+                       default='/scratch/00115/gebhardt/detect')
 
     parser.add_argument("-detdir", "--detectdir",
                         help='''Directory for Detect Info''',
@@ -154,8 +169,8 @@ def main(argv=None):
     
     # store shuffle.cfg and DATEvOBS.log files
 
-    fileshuffle = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                          'shuffle.cfg')
+    shiftsdir = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3))
+    fileshuffle = op.join(shiftsdir, 'shuffle.cfg')
     try:
         f = open(fileshuffle, 'r')
         shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read().encode())
@@ -166,8 +181,7 @@ def main(argv=None):
 
     # store fplane table
 
-    filefplane = op.join(args.tpdir, str(args.date) + "v" + str(args.observation).zfill(3),
-                         'coords','fplane.txt')    
+    filefplane = op.join(shiftsdir, 'fplane.txt')
     try:
         f = ascii.read(filefplane, names=['ifuslot', 'fpx', 'fpy', 'specid',
                                           'specslot', 'ifuid', 'ifurot', 'platesc'])
@@ -178,12 +192,26 @@ def main(argv=None):
 
     # store catalogs of stars used in astrometric fit
 
-    file_stars = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                         str(args.date) + 'v' + str(args.observation).zfill(3) + '.ifu')    
+    file_stars = op.join(shiftsdir, 'shout.ifustars')
+
     try:
-        f_stars = ascii.read(file_stars, names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
-                                                'u', 'g', 'r', 'i', 'z'])
-        starstable = fileh.create_table(groupAstrometry, 'StarCatalog', f_stars.as_array())
+        f_stars = Table.read(file_stars,
+                             names=['ignore', 'star_ID', 'ra_cat', 'dec_cat',
+                                    'u', 'g', 'r', 'i', 'z'], format='ascii')
+
+        starstable = fileh.create_table(groupAstrometry, 'StarCatalog', StarCatalog, 'StarCatalog')
+
+        for row in f_stars:
+            if row['g'] > 22:
+                continue
+            starrow = starstable.row
+            
+            starrow['star_ID'] = row['star_ID']
+            for col in ['ignore','ra_cat', 'dec_cat', 'u', 'g', 'r', 'i', 'z']:
+                starrow[col] = row[col]
+            starrow.append()
+            
+        
         starstable.set_attr('filename', 'DATEvOBS.ifu')
         if any(f_stars['z'] > 0):
             starstable.set_attr('catalog', 'SDSS')
@@ -192,7 +220,7 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % file_stars)
     
-    pngfiles = glob.glob(op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), '*.png'))
+    pngfiles = glob.glob(op.join(shiftsdir, '*.png'))
     pngnum = 1
 
     for pngfile in pngfiles:
@@ -202,14 +230,13 @@ def main(argv=None):
         pngim.attrs['filename'] = pngfile
         pngnum += 1
 
-    fileallmch = op.join(args.tpdir, str(args.date) + 'v' + str(args.observation).zfill(3),
-                         'coords', 'all.mch')
+    fileallmch = op.join(shiftsdir, 'all.mch')
     try:
         allmch = ascii.read(fileallmch)
     except:
         args.log.warning('Could not include %s' % fileallmch)
 
-    filenorm = op.join(args.detectdir, 'norm.all')
+    filenorm = op.join(shiftsdir, 'norm.dat')
 
     try:
         norm = Table.read(filenorm, format='ascii.no_header')
@@ -219,8 +246,7 @@ def main(argv=None):
     # index over dithers to gather diher specific info    
     for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
 
-        radecfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3), 
-                             'radec2_' + expn + '.dat')
+        radecfile = op.join(shiftsdir, 'radec2_' + expn + '.dat')
         rowNV = tableNV.row
         try:
             radec = ascii.read(radecfile)
@@ -232,15 +258,15 @@ def main(argv=None):
             args.log.warning('Could not include %s' % radecfile)
 
         try:
-            sel_datevobs = norm['col1'] == str(args.date) + 'v' + str(args.observation).zfill(3)
+#            sel_datevobs = norm['col1'] == str(args.date) + 'v' + str(args.observation).zfill(3)
             if idx == 0:
-                rowNV['relflux_virus'] = norm['col2'][sel_datevobs]
+                rowNV['relflux_virus'] = norm['col1'][0]
             elif idx == 1:
-                rowNV['relflux_virus'] = norm['col3'][sel_datevobs]
+                rowNV['relflux_virus'] = norm['col2'][0]
             elif idx == 2:
-                rowNV['relflux_virus'] = norm['col4'][sel_datevobs]
+                rowNV['relflux_virus'] = norm['col3'][0]
         except Exception:
-            args.log.warning('Could not include norm.all')
+            args.log.warning('Could not include norm.dat')
         
         try:
             rowNV['x_dither_pos'] = allmch['col3'][idx]
@@ -251,7 +277,7 @@ def main(argv=None):
         
         rowNV.append()
 
-        fitsfile = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+        fitsfile = op.join(shiftsdir,
                            str(args.date) + 'v' + str(args.observation).zfill(3)
                            + 'fp_' + expn + '.fits')
 
@@ -266,7 +292,7 @@ def main(argv=None):
             F.close()
 
 
-        matchpdf = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+        matchpdf = op.join(shiftsdir,
                            'match_' + expn + '.pdf')
         matchpng = 'match_pngs/match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
@@ -280,7 +306,7 @@ def main(argv=None):
             args.log.warning('Count not include %s' % matchpdf)
 
         # populate offset info for catalog matches
-        file_getoff = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+        file_getoff = op.join(shiftsdir,
                               'getoff_' + expn + '.out')
 
         try:
@@ -293,7 +319,7 @@ def main(argv=None):
             args.log.warning('Could not include %s' % file_getoff)
             
         # populate fiber astrometry data
-        file_dith = op.join(args.rootdir, str(args.date) + 'v' + str(args.observation).zfill(3),
+        file_dith = op.join(shiftsdir,
                             'dith_' + expn + '.all')    
         try:
             f_dith = ascii.read(file_dith)
@@ -321,8 +347,7 @@ def main(argv=None):
             
         # populate median and rms in offsets for quality assessment purposes
 
-        file_getoff2 = op.join(args.rootdir, str(args.date) + 'v'
-                               + str(args.observation).zfill(3), 'getoff2_' + expn + '.out')
+        file_getoff2 = op.join(shiftsdir, 'getoff2_' + expn + '.out')
         try:
             f_getoff2 = ascii.read(file_getoff2)
             row = tableQA.row
@@ -338,12 +363,11 @@ def main(argv=None):
             args.log.warning('Could not include %s' % file_getoff2)
         
         
-        file_xy = op.join(args.rootdir, str(args.date) + 'v'
-                          + str(args.observation).zfill(3), 'xy_' + expn + '.dat')
+        file_xy = op.join(shiftsdir, 'xy_' + expn + '.dat')
         try:
             xy_table = ascii.read(file_xy)
             tableXY = fileh.create_table(groupMatches, expn, xy_table.as_array())
-            tableXY.set_attr('filename','xy_exp??.dat')
+            tableXY.set_attr('filename', 'xy_exp??.dat')
         except:
             args.log.warning('Could not include %s' % file_xy)
             
@@ -358,9 +382,7 @@ def main(argv=None):
     tableNV = fileh.root.Astrometry.NominalVals
 
     try:
-        radecfinalfile = op.join(args.tpdir,
-                                 str(args.date) + 'v' + str(args.observation).zfill(3),
-                                 'coords', 'radec2.dat')
+        radecfinalfile = op.join(shiftsdir, 'radec2_final.dat')
         radectab = ascii.read(radecfinalfile, names=['ra','dec','pa'])
 
     except:
