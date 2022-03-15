@@ -3,7 +3,6 @@ import numpy.ma as ma
 import time
 import argparse as ap
 import os.path as op
-
 import tables as tb
 
 from astropy.table import Table, unique, vstack, join, Column, hstack
@@ -433,7 +432,7 @@ def create_source_catalog(
             fiber_ratio.append(np.nan)
             print('fiber_ratio failed for {}'.format(det))
     detect_table['fiber_ratio'] = fiber_ratio
-
+    
     detect_table.write('test.fits', overwrite=True)
 
     del detects_cont_table, detects_broad_table
@@ -995,41 +994,12 @@ def main(argv=None):
 
     source_table = create_source_catalog(version=args.version, dsky=args.dsky)
 
-    # match to SDSS
-    source_table_coords = SkyCoord(source_table['ra_mean'],
-                                   source_table['dec_mean'],
-                                   unit='deg')
-    sdssfile = op.join( config.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
-    sdsstab = Table.read(sdssfile)
-    sdsstab = Table.read( sdssfile)
-    sdss_coords = SkyCoord(ra=sdsstab['PLUG_RA'], dec=sdsstab['PLUG_DEC'], unit='deg')
-    idx, d2d, d3d = source_table_coords.match_to_catalog_sky(sdss_coords)
-    
-    catalog_matches = sdsstab[idx]
-    catalog_matches['sdss_dist'] = d2d.to_value(u.arcsec)
-
-    catalog_matches.rename_column('PLUG_RA', 'ra_sdss')
-    catalog_matches.rename_column('PLUG_DEC', 'dec_sdss')
-    catalog_matches.rename_column('CLASS', 'sdss_class')
-    catalog_matches.rename_column('Z', 'z_sdss')
-    catalog_matches.rename_column('Z_ERR', 'z_sdss_err')
-    
-    matched_catalog = hstack([source_table, catalog_matches])
-
-    sel_remove = matched_catalog['sdss_dist'] > 1.5
-
-    matched_catalog['ra_sdss'][sel_remove] = np.nan
-    matched_catalog['dec_sdss'][sel_remove] = np.nan
-    matched_catalog['sdss_dist'][sel_remove] = np.nan
-    matched_catalog['sdss_class'][sel_remove] = ''
-    matched_catalog['z_sdss'][sel_remove] = np.nan
-    matched_catalog['z_sdss_err'][sel_remove] = np.nan
-
-    source_table = matched_catalog
-                             
     # match band-merged WISE catalog
 
-    wise_catalog = Table.read('wise-hetdexoverlap.fits')
+    wise_catalog = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'wise-hetdexoverlap.fits'))
     source_table_coords = SkyCoord(source_table['ra_mean'],
                                    source_table['dec_mean'],
                                    unit='deg')
@@ -1072,37 +1042,76 @@ def main(argv=None):
     
     source_table = matched_catalog
 
-    # add z_spec from other catlogs if it exists:
-    goods_z = Table.read('catalogs/goods_n_specz_1018_no_header.txt',
+    # add z_spec from other catlogs if it exists
+    # from Steve F.
+    goods_z = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'goods_n_specz_1018_no_header.txt'),
                          names=['ra_zspec','dec_zspec','zspec',
                                 'z_quality','zspec_catalog','Symbol'],
                          format='ascii.no_header')
-
+    # remove z_quality = 1,2, low quality zspec
+    sel_bad1 = (goods_z['z_quality'] == '1')
+    sel_bad2 = (goods_z['z_quality'] == '2')
+    sel_good_goods = np.invert(sel_bad1 | sel_bad2)
+    goods_z = goods_z[sel_good_goods]
+    
     #DEIMOS 10k (Hasinger et al. 2018) z_spec up to ~6
     #https://cosmos.astro.caltech.edu/news/65
-    deimos = Table.read('catalogs/deimos_redshifts.tbl', format='ascii')
+    #Secure if comprehensive quality flag (Q) = 2
+    deimos = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'deimos_redshifts.tbl'), format='ascii')
     deimos.rename_column('Ra', 'ra_zspec')
     deimos.rename_column('Dec', 'dec_zspec')
     deimos['zspec_catalog'] = 'CosmosDeimos'
-
+    sel_good_deimos = deimos['Q'] == 2
+    deimos = deimos[sel_good_deimos]
+                         
     #Kriek et al. (2015)
     #http://mosdef.astro.berkeley.edu/for-scientists/data-releases/
-    mosdef = Table.read('catalogs/mosdef_zcat.final_slitap.fits')
+    #5: Redshift is based on single emission feature detected with 2<=S/N<3,
+    #and is within 95% confidence interval of photo-z or within delta(z)=0.05
+    #of pre-MOSFIRE spec-z (if it exists)
+    mosdef = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'mosdef_zcat.final_slitap.fits'))
     mosdef.rename_column('RA','ra_zspec')
     mosdef.rename_column('DEC','dec_zspec')
     mosdef.rename_column('Z_MOSFIRE', 'zspec')
     mosdef['zspec_catalog'] = 'MOSFIRE'
-
+    sel_good_mosdef = mosdef['Z_MOSFIRE_ZQUAL'] >= 5
+    mosdef = mosdef[sel_good_mosdef]
+    
     #VUDS (Tasca et al. 2017), z_spec up to ~6
     #http://cesam.lam.fr/vuds/DR1/
-    zcosbright = Table.read('catalogs/cesam_zcosbrightspec20k_dr3_catalog_1616073679.txt', format='ascii')
+    # zCOSMOS Spectroscopic Redshift Survey 2009ApJS..184..218L
+    #https://www.eso.org/qi/catalog/show/65
+
+    #Flag 4’s, 3’s, 2.5, 2.4, 1.5, 9.5, 9.4, 9.3 are considered secure.
+    zcosbright = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'cesam_zcosbrightspec20k_dr3_catalog_1616073679.txt'), format='ascii')
     zcosbright.rename_column('zpec','zspec')
     zcosbright.rename_column('ra','ra_zspec')
     zcosbright.rename_column('dec','dec_zspec')
     zcosbright['zspec_catalog'] = 'zCosmosBright'
+    sel_zcos_good1 = zcosbright['cc']>= 9.3
+    sel_zcos_good2 = (zcosbright['cc'] >= 3.0 ) & (zcosbright['cc'] < 5)
+    sel_zcos_good3 = zcosbright['cc'] == 1.5
+    sel_zcos_good4 = (zcosbright['cc'] >= 2.4) & (zcosbright['cc'] <= 2.5)
+    sel_zcos_good = sel_zcos_good1 | sel_zcos_good2 | sel_zcos_good3 | sel_zcos_good4
+    zcosbright = zcosbright[sel_zcos_good]
 
-    deep_specz = Table.read('catalogs/DEEP_zcosmos_spectroscopy_one_v2.6_data.cat',
-                            format='ascii', data_start=100)
+    deep_specz = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'DEEP_zcosmos_spectroscopy_one_v2.6_data+header.cat'),
+        format='ascii', data_start=100)
     deep_specz.rename_column('col1','zCOSMOS-deepID')
     deep_specz.rename_column('col2','zspec')
     deep_specz.rename_column('col3','flag')
@@ -1110,10 +1119,19 @@ def main(argv=None):
     deep_specz.rename_column('col5','ra_zspec')
     deep_specz.rename_column('col6','dec_zspec')
     deep_specz['zspec_catalog'] = 'DEEP_zcosmos'
+    sel_deepcos_good1 = deep_specz['flag']>= 9.3
+    sel_deepcos_good2 = (deep_specz['flag'] >= 3.0 ) & (deep_specz['flag'] < 5)
+    sel_deepcos_good3 = deep_specz['flag'] == 1.5
+    sel_deepcos_good4 = (deep_specz['flag'] >= 2.4) & (deep_specz['flag'] <= 2.5)
+    sel_deepcos_good = sel_deepcos_good1 | sel_deepcos_good2 | sel_deepcos_good3 | sel_deepcos_good4
+    deep_specz = deep_specz[sel_deepcos_good]
 
-    sdssfile = op.join( config.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
+    sdssfile = op.join( config.imaging_dir, 'sdss', 'specObj-dr16.fits')
 
     sdss_specz = Table.read(sdssfile)
+    sel_good_sdss = sdss_specz['ZWARNING'] == 0
+    sdss_specz = sdss_specz[sel_good_sdss]
+
     sdss_specz.rename_column('PLUG_RA', 'ra_zspec')
     sdss_specz.rename_column('PLUG_DEC', 'dec_zspec')
     sdss_specz.rename_column('CLASS', 'sdss_class')
@@ -1159,7 +1177,10 @@ def main(argv=None):
 
     #add desi confirmed redshifts
 
-    dtab = Table.read('catalogs/desi-hetdex-v1.0.fits')
+    dtab = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'desi-hetdex-v1.0.fits'))
 
     sel_good_hetdex = (dtab['wave'] >= 3640 )
     sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)

@@ -440,7 +440,7 @@ class ShotSensitivity(object):
         f50s = badval*ones(nsrc)
         mask = ones(nsrc)
         norm = ones(nsrc)
-        amp = array(["notinshot"]*nsrc)
+        amp = array(["notinshot00_0_multi_00_000_000_00_000"]*nsrc)
 
         if nsel > 0:
             for i in range(nsplit):  
@@ -647,12 +647,12 @@ class ShotSensitivity(object):
                         
                 weights, I, fac = self.extractor.build_weights(xc, yc, ifux, ifuy, self.moffat, 
                                                                I=I, fac=fac, return_I_fac = True)
-                
-
+ 
                 # (See Greg Zeimann's Remedy code)
                 # normalized in the fiber direction
                 norm = sum(weights, axis=0) 
                 weights = weights/norm
+
 
                 result = self.extractor.get_spectrum(data, error, fmask, weights,
                                                      remove_low_weights = False,
@@ -708,6 +708,7 @@ class ShotSensitivity(object):
                 else:
                     logger.debug("Convolving with window to get flux limits versus wave")
 
+
                     # Use astropy convolution so NaNs are ignored
                     convolved_variance = convolve(square(spectrum_aper_error),
                                                   convolution_filter, 
@@ -720,14 +721,14 @@ class ShotSensitivity(object):
                                               convolution_filter, 
                                               normalize_kernel=True)
 
-
                     # To get mean account for the edges in
                     # the convolution
                     for iend in range(self.wavenpix):
-                        fac = filter_len/(filter_len + iend - self.wavenpix)
-                        convolved_norm[iend] *= fac
-                        convolved_norm[-iend - 1] *= fac
- 
+                        edge_fac = filter_len/(filter_len + iend - self.wavenpix)
+                        convolved_norm[iend] *= edge_fac
+                        convolved_norm[-iend - 1] *= edge_fac
+
+
                     # Mask wavelengths with too many bad pixels
                     # equivalent to nan_fib in the wave != None mode
                     wunorm = weights*norm
