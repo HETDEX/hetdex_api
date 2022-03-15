@@ -341,10 +341,19 @@ def get_line_image(
     ffsky=False,
     survey=LATEST_HDR_NAME,
 ):
-    global config, det_handle, current_hdr, current_deth5
+    global config, det_handle, current_hdr, current_deth5, surveyh5
 
     detectid_obj = None
-    
+
+    if survey != current_hdr:
+        config = HDRconfig(survey)
+        current_hdr = survey
+        try:
+            surveyh5.close() #just in case it does not exist yet
+        except:
+            pass
+        surveyh5 = tb.open_file(config.surveyh5, 'r')
+
     if detectid is not None:
         detectid_obj = detectid
         
