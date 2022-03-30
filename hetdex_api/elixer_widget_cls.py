@@ -1209,13 +1209,13 @@ class ElixerWidget:
 
         detid = self.detectbox.value
 
-        if (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+        if (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.detecth5
-        elif (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+        elif (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.contsourceh5
-        elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
+        elif (detid >= 3000000000) & (detid < 3090000000):
             self.det_file = CONFIG_HDR3.detecth5
-        elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
+        elif (detid >= 3090000000) & (detid < 3100000000):
             self.det_file = CONFIG_HDR2.contsourceh5
 
         if OPEN_DET_FILE is None:
