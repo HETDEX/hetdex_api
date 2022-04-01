@@ -28,9 +28,9 @@ from pyhetdex.het.fplane import FPlane
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
-from hetdex_api.flux_limits.generate_simulation_inputs import create_sensitivity_cube_from_astrom
+
 from hetdex_api.mask import create_gal_ellipse, amp_flag_from_fiberid, meteor_flag_from_coords, create_dummy_wcs
-from hetdex_api.flux_limits.sensitivity_cube import WavelengthException 
+from hetdex_api.flux_limits.sensitivity_cube import WavelengthException, create_sensitivity_cube_from_astrom 
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
 
 def bad_central_mask(weights, badmask, index, wmin = 0.1):
@@ -321,6 +321,28 @@ class ShotSensitivity(object):
         
         return scube
        
+
+
+    def itercubes(self, **kwargs):
+        """
+        Iterate over the cubes in this shot
+  
+        Parameters
+        ----------
+        See `extract_ifu_sensitivity_cube`
+
+        Yields
+        ------
+        ifuslot : str
+            the IFU slot
+        scube : SensitivityCube
+            a sensitivity cube
+            object
+        """
+        for ifuslot in self.fplane.ifuslots:
+            yield ifuslot, self.extract_ifu_sensitivity_cube(ifuslot, 
+                                                             **kwargs)
+
 
     def get_f50(self, ra, dec, wave, sncut, direct_sigmas = False, 
                 nmax = 5000, return_amp = False, linewidth=None):

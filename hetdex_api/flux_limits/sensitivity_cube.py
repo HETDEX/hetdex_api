@@ -28,13 +28,17 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 from numpy import (rint, array, around, multiply, isnan, meshgrid, mean, isfinite,
                    median, sqrt, divide, linspace, ones, log10, loadtxt, polyval, inf,
-                   repeat, newaxis, logical_not, arange, tile, nan, dstack)
+                   repeat, newaxis, logical_not, arange, tile, nan, dstack, deg2rad,
+                   cos, sin, zeros)
 from numpy.ma import filled
 from numpy.ma import array as maskedarray
 from numpy.random import normal
 from numpy import any as nany
 from scipy.interpolate import interp1d, RegularGridInterpolator
+
+import astropy.units as u
 import astropy.io.fits as fits
+from astropy.io.fits import Header
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from hetdex_api.flux_limits.flim_models import return_flux_limit_model
@@ -99,6 +103,71 @@ def read_cube(fn, datascale=1e-17):
     header = hdus[0].header
 
     return f50s, header
+
+def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize, 
+                                        wrange=[3470.0, 5542.0], **kwargs): 
+    """
+    Return an (empty) sensitivity cube object to fill
+    with data from simulations later
+
+    Parameters
+    ----------
+    racen, deccen : float
+        the central coordinates of the IFU
+    pa : float
+        the IFU rotation
+    nx, ny, nz : int
+        the dimensions of the cube in ra, dec, wave
+    ifusize : float
+        the length of an IFU side in arcsec
+    wrange : array (optional)
+        the lower and upper wavelength
+        limits in Angstrom
+    ***kwargs : 
+        arguments to pass to SensitivityCube
+    """
+
+    cards = {}
+    cards["NAXIS"] = 3  
+    cards["NAXIS1"] = nx
+    cards["NAXIS2"] = ny
+    cards["NAXIS3"] = nz
+    cards["CTYPE1"] = "RA---TAN" 
+    cards["CTYPE2"] = "DEC--TAN"
+    cards["CTYPE3"] = "Wave "
+    cards["CUNIT1"] = "deg " 
+    cards["CUNIT2"] = "deg "
+
+    cards["CRPIX1"] = nx/2. + 0.5
+    cards["CRPIX2"] = ny/2. + 0.5
+    cards["CRPIX3"] = 1.0
+   
+    coord = SkyCoord(racen*u.deg, deccen*u.deg)
+    cards["CRVAL1"] = racen #deg
+    cards["CRVAL2"] = deccen #deg
+    cards["CRVAL3"] = wrange[0] #AA
+
+    deltapix = (float(ifusize)/nx/3600.0)
+ 
+    # this is rotation in focal plane, maybe not the IFU
+    rot = deg2rad(pa)
+    cards["CROTA2"] = pa
+    cards["CD1_1"] = deltapix*cos(rot)
+    cards["CD1_2"] = deltapix*sin(rot)
+    cards["CD1_3"] = 0.0
+    cards["CD2_1"] = -1.0*deltapix*sin(rot)
+    cards["CD2_2"] = deltapix*cos(rot)
+    cards["CD2_3"] = 0.0
+    cards["CD3_1"] = 0.0
+    cards["CD3_2"] = 0.0
+    cards["CD3_3"] = (wrange[1] - wrange[0])/nz
+
+    header = Header(cards=cards)
+    sigmas = zeros((nz, ny, nx))
+    alphas = zeros((nz, ny, nx))
+
+    return SensitivityCube(sigmas, header, None, alphas, aper_corr=1.0, 
+                           nsigma=1.0, **kwargs)
 
 
 

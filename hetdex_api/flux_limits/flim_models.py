@@ -44,7 +44,8 @@ class ModelInfo(object):
     """
     def __init__(self, snfile_version, snpoly, wavepoly,
                  interp_sigmas, dont_interp_to_zero, 
-                 snlow=4.8, snhigh=7.0, lw_scaling = None):
+                 snlow=4.8, snhigh=7.0, lw_scaling=None,
+                 wl_collapse=False):
 
         self.snfile_version = snfile_version
         self.snpoly = snpoly
@@ -54,6 +55,7 @@ class ModelInfo(object):
         self.snhigh = snhigh
         self.dont_interp_to_zero = dont_interp_to_zero
         self.lw_scaling = lw_scaling
+        self.wl_collapse = wl_collapse
 
 class NoSNFilesException(Exception):
     pass
@@ -387,8 +389,10 @@ class SingleSNSimulationInterpolator(object):
         c_all = array(c_all)
 
         # Make a combined model
-        if self._wl_collapse:
-            cmean = mean(c_all, axis=0)
+        if self._wl_collapse: 
+            # Don't use first two wavebins as
+            # big scatter
+            cmean = mean(c_all[2:], axis=0)
         
             completeness_model = interp1d(fluxes_f50_units, cmean, 
                                           fill_value=(0.0, cmean[-1]), 
@@ -527,10 +531,18 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
                                [-1.59395767e-14, 3.10388106e-10, 
                                 -2.26855051e-06,  7.38507004e-03, 
                                 -8.06953973e+00], False, True,
-                                lw_scaling = linewidth_f50_scaling_v1)
+                                lw_scaling = linewidth_f50_scaling_v1),
+              "v3" : ModelInfo("curves_v1",
+                                [-0.04162407, 0.80167981, -4.11209695, 9.95753597],
+                                [1.46963918e-15, -6.68766843e-11,  7.56849155e-07, -3.28661164e-03,
+                                 5.95152597e+00],
+                                False, True,
+                                lw_scaling = linewidth_f50_scaling_v1,
+                                wl_collapse = True)
              }
 
-    default = "v2"    
+
+    default = "v3" 
 
     if not flim_model:
         flim_model = default
@@ -546,7 +558,8 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         fdir = conf.flim_sim_completeness 
         fdir = join(fdir, model.snfile_version)
         sinterp = SimulationInterpolator(fdir, model.dont_interp_to_zero, 
-                                         snmode=False, verbose=verbose)
+                                         snmode=False, verbose=verbose,
+                                         wl_collapse=model.wl_collapse)
 
     # save model in cache
     if cache_sim_interp:

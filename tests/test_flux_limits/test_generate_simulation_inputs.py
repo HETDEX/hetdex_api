@@ -7,8 +7,7 @@ AUTHOR: Daniel Farrow (MPE)
 import pytest
 from hetdex_api.survey import Survey
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
-from hetdex_api.flux_limits.generate_simulation_inputs import (create_sensitivity_cube_from_astrom,
-                                                               generate_sencube_hdf)
+from hetdex_api.flux_limits.generate_simulation_inputs import generate_sencube_hdf
 
 
 

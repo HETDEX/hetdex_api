@@ -13,17 +13,17 @@ AUTHOR: Daniel Farrow (MPE; 2020)
 from os.path import basename, dirname, join, isfile
 from six import iteritems
 from argparse import ArgumentParser
-from numpy import (log10, power, unique, isfinite, logical_not, cos, 
-                   sin, deg2rad, zeros, ceil, sqrt, square, transpose, savetxt)
+from numpy import (log10, power, unique, isfinite, logical_not,  
+                   zeros, ceil, sqrt, square, transpose, savetxt)
 from numpy.random import uniform, seed
 import astropy.units as u
-from astropy.io.fits import Header
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, vstack
 from pyhetdex.coordinates.tangent_projection import TangentPlane
 from pyhetdex.het.fplane import FPlane
 from hetdex_api.survey import Survey 
 from hetdex_api.mask_tools.generate_sky_masks import get_fplane    
+from hetdex_api.flux_limits.shot_sensitivity import ShotSensitivity, create_sensitivity_cube_from_astrom
 from hetdex_api.flux_limits.hdf5_sensitivity_cubes import SensitivityCubeHDF5Container
 from hetdex_api.flux_limits.sensitivity_cube import SensitivityCube
 
@@ -148,74 +148,9 @@ def generate_sencube_hdf(datevshot, ra, dec, pa, fplane_output_dir,
 
     return hdfcont
 
-def create_sensitivity_cube_from_astrom(racen, deccen, pa, nx, ny, nz, ifusize, 
-                                        wrange=[3470.0, 5542.0], **kwargs): 
-    """
-    Return an (empty) sensitivity cube object to fill
-    with data from simulations later
 
-    Parameters
-    ----------
-    racen, deccen : float
-        the central coordinates of the IFU
-    pa : float
-        the IFU rotation
-    nx, ny, nz : int
-        the dimensions of the cube in ra, dec, wave
-    ifusize : float
-        the length of an IFU side in arcsec
-    wrange : array (optional)
-        the lower and upper wavelength
-        limits in Angstrom
-    ***kwargs : 
-        arguments to pass to SensitivityCube
-    """
-
-    cards = {}
-    cards["NAXIS"] = 3  
-    cards["NAXIS1"] = nx
-    cards["NAXIS2"] = ny
-    cards["NAXIS3"] = nz
-    cards["CTYPE1"] = "RA---TAN" 
-    cards["CTYPE2"] = "DEC--TAN"
-    cards["CTYPE3"] = "Wave "
-    cards["CUNIT1"] = "deg " 
-    cards["CUNIT2"] = "deg "
-
-    cards["CRPIX1"] = nx/2. + 0.5
-    cards["CRPIX2"] = ny/2. + 0.5
-    cards["CRPIX3"] = 1.0
-   
-    coord = SkyCoord(racen*u.deg, deccen*u.deg)
-    cards["CRVAL1"] = racen #deg
-    cards["CRVAL2"] = deccen #deg
-    cards["CRVAL3"] = wrange[0] #AA
-
-    deltapix = (float(ifusize)/nx/3600.0)
- 
-    # this is rotation in focal plane, maybe not the IFU
-    rot = deg2rad(pa)
-    cards["CROTA2"] = pa
-    cards["CD1_1"] = deltapix*cos(rot)
-    cards["CD1_2"] = deltapix*sin(rot)
-    cards["CD1_3"] = 0.0
-    cards["CD2_1"] = -1.0*deltapix*sin(rot)
-    cards["CD2_2"] = deltapix*cos(rot)
-    cards["CD2_3"] = 0.0
-    cards["CD3_1"] = 0.0
-    cards["CD3_2"] = 0.0
-    cards["CD3_3"] = (wrange[1] - wrange[0])/nz
-
-    header = Header(cards=cards)
-    sigmas = zeros((nz, ny, nx))
-    alphas = zeros((nz, ny, nx))
-
-    return SensitivityCube(sigmas, header, None, alphas, aper_corr=1.0, 
-                           nsigma=1.0, **kwargs)
-
-
-def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000, 
-                            add_flim=False, sncut=6.0, logspaced=False):
+def rdz_flux_from_hdf_cubes(ssens, minflux=1e-17, maxflux=2.0e-16, nperifu=1000, 
+                            sncut=6.0, logspaced=False, ifusize=62):
     """
     Generate ra, dec, redshift and
     flux from a sensivity cube, distribute
@@ -223,64 +158,54 @@ def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000,
 
     Parameters
     ----------
-    hdfcont :  SensitivityCubeHDF5Container
-        sensitivity cubes for the shot to simulate
-    minfrac, maxfrac : float
-        the minimum and maximum fraction
-        of the flux limit used to define 
-        a range of fluxes
+    ssens :  ShotSensitivity
+         for the shot to simulate
+    minflux, maxflux : float
+        the minimum and maximum fluxes
+        to generate
     nperifu : int (optional)
         number of sources per IFU
     sncut : float
         the cut on SNR to pass to the flux
-        limits API if add_flim=True
+        limits API
+    ifusize : float
+        length of side of IFU box to
+        generate sources in 
+        (default 62 arcsec)
     """
 
     ra = []
     dec = []
     wave = []
     flux = []
-    flims = []
     ifuslots = []
     tables = []
     ifu_ra = []
     ifu_dec = []
 
-    for ifuslot, scube in hdfcont.itercubes():
+    for ifuslot, scube in ssens.itercubes(generate_sigma_array=False,
+                                          ifusize=ifusize):
  
-        #if not "086" in ifuslot:
-        #    continue
-
         # Generate randoms in pixel space then transform
         xsize = scube.sigmas.shape[2] 
         ysize = scube.sigmas.shape[1]
-        zsize = scube.sigmas.shape[0]
+
         # Pixels centers start at 0.0 end at xsize - 1
         x = uniform(-0.5, xsize + 0.5, size=nperifu)
         y = uniform(-0.5, ysize + 0.5, size=nperifu)
-        # Not redshift!
-        z = uniform(0, zsize - 1, size=nperifu)
-        r, d, l = scube.wcs.all_pix2world(x, y, z, 0)
-
-        if add_flim:
-            flim = scube.get_f50(r, d, l, sncut)
-            flim[flim < 1e-30] = 100
-            flim[logical_not(isfinite(flim))] = 100
-            flims.extend(flim)
-        else:
-            # fixed value to generate fluxes around
-            flim = 5e-17
+        wl = uniform(3500, 5500, size=nperifu)
+        r, d, junk = scube.wcs.all_pix2world(x, y, 0*y + 4500., 0)
         
         if logspaced: 
-            logf = uniform(log10(flim*minfrac), log10(flim*maxfrac), size=nperifu)
+            logf = uniform(log10(minflux), log10(maxflux), size=nperifu)
             f = power(10, logf)
         else:
-            sqrtf = uniform(sqrt(flim*minfrac), sqrt(flim*maxfrac), size=nperifu)
+            sqrtf = uniform(sqrt(minflux), sqrt(maxflux), size=nperifu)
             f = square(sqrtf)
 
         ra.extend(r)
         dec.extend(d)
-        wave.extend(l)
+        wave.extend(wl)
         flux.extend(f)
         ifuslots.extend([ifuslot]*nperifu)
         ifra, ifdec, l = scube.wcs.all_pix2world(xsize/2 - 0.5, ysize/2. - 0.5, 0, 0)
@@ -292,8 +217,17 @@ def rdz_flux_from_hdf_cubes(hdfcont, minfrac=0.2, maxfrac=2.0, nperifu=1000,
     table = Table([ra, dec, wave, flux, ifuslots, ifu_ra, ifu_dec], 
                   names=["ra", "dec", "wave", "flux", "ifuslot", "ifu_ra", "ifu_dec"])
 
-    if add_flim:
-        table["flim"] = flim
+
+    flux_noises, apcors = ssens.get_f50(ra, dec, wave, sncut,
+                                        direct_sigmas=True) 
+    flim  = ssens.f50_from_noise(flux_noises, wave, sncut)
+
+    flim[flim < 1e-30] = 100
+    flim[logical_not(isfinite(flim))] = 100
+ 
+    table["flim"] = flim
+    table["apcor"] = apcors
+    table["flux_noise_1sigma"] = flux_noises
 
     print("Generated {:d} sources".format(len(ra)))
 
@@ -447,43 +381,37 @@ def generate_sources_to_simulate(args = None):
 
     parser = ArgumentParser(description="Generate inputs for source simulations, uniform in x,y,z datacube coords")
     parser.add_argument("--nsplit-start", default=0, type=int, help="What number to start the file split labeling at")
+    parser.add_argument("--input-split", help="Split into input files", action="store_true")
+    parser.add_argument("--seed", help="Seed for RNG", type=int, default=None)
     parser.add_argument("--ifusize", help="Size of IFU, in arcsec", default=52.)
     parser.add_argument("--nperifu", help="Number of sources to add per IFU", default=1000, type=int)
     parser.add_argument("--flimcut", help="Don't simulate source above this", type=float, default=1e-15)
     parser.add_argument("--fix-flux", help="If not None, set all sources to this flux value", default=None, type=float)
-    parser.add_argument("--frac-range", default=[0.2, 2.0], nargs=2, type=float, help="The range in flux as a fraction of flim")
+    parser.add_argument("--flux-range", default=[1e-17, 2.0e-16], nargs=2, type=float, help="The range in flux to generate")
     parser.add_argument("--nsplit", default=1, help="Number of jobs per line in .run file")
     parser.add_argument("--nmax", default=1000, help="Maximum number of sources in one sim", type=int)
     parser.add_argument("filelist", help="Ascii file with list of sensitivity HDF5 files or date shots")
-    parser.add_argument("outdir", help="Directory for output files")
+    parser.add_argument("outdir", help="Directory for output files, and root for full catalogue output")
     opts = parser.parse_args(args=args) 
 
-    survey_obj = None
+    seed(opts.seed)
+ 
     tables = []
     with open(opts.filelist, "r") as fp:
         for line in fp:
             input_ = line.strip()
             if ".h5" in input_:
                 print("Assuming {:s} is an HDF5 file".format(input_))
-                field = filename.strip("_sensitivity_cube.h5")
-                sencube_hdf = SensitivityCubeHDF5Container(filename)
-                add_flim = True
+                field = input_.strip("_sensitivity_cube.h5")
+                sencube_hdf = SensitivityCubeHDF5Container(input_)
             else:
                 print("Assuming {:s} is date shot".format(input_))
                 field = input_        
-                add_flim = False
+                sencube_hdf = ShotSensitivity(field)
 
-                if type(survey_obj) == type(None):
-                    survey_obj = Survey("hdr2")
-
-                shot = survey_obj[survey_obj.datevobs == field]
-                sencube_hdf = generate_sencube_hdf(shot.datevobs[0], shot.ra[0], 
-                                                   shot.dec[0], shot.pa[0], opts.outdir,
-                                                   31, 31, 1036, 
-                                                   opts.ifusize)
-
-        ttable = rdz_flux_from_hdf_cubes(sencube_hdf, add_flim=add_flim, minfrac=opts.frac_range[0], 
-                                         maxfrac=opts.frac_range[1], nperifu=opts.nperifu)		 
+        ttable = rdz_flux_from_hdf_cubes(sencube_hdf, minflux=opts.flux_range[0], 
+                                         maxflux=opts.flux_range[1], nperifu=opts.nperifu,
+                                         ifusize=opts.ifusize)		 
         ttable["field"] = field
         tables.append(ttable)
  
@@ -495,23 +423,23 @@ def generate_sources_to_simulate(args = None):
         table["flux"] = opts.fix_flux
 
 
-    if add_flim:
-        table = table[table["flim"] < opts.flimcut]
-        print("After flimcut left with {:d} sources!".format(len(table)))
+    table = table[table["flim"] < opts.flimcut]
+    print("After flimcut left with {:d} sources!".format(len(table)))
 
-    #table.write("full_input_{:d}.txt".format(opts.nsplit_start), format="ascii.commented_header")
+    table.write("{:s}_full_input_{:d}.fits".format(opts.outdir,
+                                                   opts.nsplit_start))
 
-    # Split into IFUS and fields
-    unique_ifus = unique(table["ifuslot"])
-    unique_fields = unique(table["field"])
- 
-    # Second part of the filename
-    fn2s = []
-    split_into_ifus(table, unique_fields, unique_ifus,
-                    opts.outdir, NMAX=opts.nmax, 
-                    nsplit_start=opts.nsplit_start,
-                    nsplit=opts.nsplit)
-
+    if opts.input_split:
+        # Split into IFUS and fields
+        unique_ifus = unique(table["ifuslot"])
+        unique_fields = unique(table["field"])
+     
+        # Second part of the filename
+        split_into_ifus(table, unique_fields, unique_ifus,
+                        opts.outdir, NMAX=opts.nmax, 
+                        nsplit_start=opts.nsplit_start,
+                        nsplit=opts.nsplit)
+    
 
 if __name__ == "__main__":
     generate_sources_to_simulate()

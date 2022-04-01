@@ -50,7 +50,8 @@ sigmas, norm = s.get_f50(ra, dec, wave, 1.0,
 
 # use this if no detecid
 table["sigma_{:d}_{:2.1f}".format(opts.wavenpix, opts.aprad)] = sigmas
-table["norm__{:d}_{:2.1f}".format(opts.wavenpix, opts.aprad)] = norm
+table["norm_{:d}_{:2.1f}".format(opts.wavenpix, opts.aprad)] = norm
+table["datevshot"] = opts.datevshot
 table.write(opts.output)
 
 
