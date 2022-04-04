@@ -352,33 +352,59 @@ def merge_wave_groups(wid):
 
 def create_source_catalog(
         version="3.0.0",
-        make_continuum=True,
+        make_cont=True,
         save=True,
-        dsky=4.0):
+        dsky=4.0,
+        make_detects=True):
 
     global config
 
-    detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
-#    detects = Detections(curated_version=version)
-#    detects_line_table = detects.return_astropy_table()
-
-#    detects_line_table.write('test.tab', format='ascii')
+    if make_detects:
+        detects_hdr3 = Detections(survey='hdr3')
+        sel_cut1 = (detects_hdr3.sn >= 7) & (detects_hdr3.chi2 <= 2.5)
+        sel_cut2 = (detects_hdr3.sn >= 4.8) & (detects_hdr3.sn < 7) * (detects_hdr3.chi2 <= 1.2)
+        
+        sel_cont = detects_hdr3.continuum > -3
+        sel_chi2fib = detects_hdr3.chi2fib < 4.5
+        sel_tp = detects_hdr3.throughput >= 0.08
+        
+        sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2) #*sel_field
+    
+        sel_wave = (detects_hdr3.wave >= 3550) & (detects_hdr3.wave <= 5460)
+        sel_lw = (detects_hdr3.linewidth <= 14) & (detects_hdr3.linewidth > 6) * (detects_hdr3.sn >= 6.5)
+        
+        sel1 = sel * sel_wave * sel_lw
+        
+        sel_wave = (detects_hdr3.wave >= 3510) & (detects_hdr3.wave <= 5490)
+        sel_lw = (detects_hdr3.linewidth <= 6) & (detects_hdr3.linewidth>= 1.6)
+        
+        sel2 = sel * sel_wave * sel_lw
+        
+        sel_cat = sel1 | sel2
+        
+        detects_line_table = detects_hdr3[sel_cat].refine().return_astropy_table()
+        
+        detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
+        detects_line_table.write('detect_hdr{}.tab'.format(version), overwrite=True)
+    else:
+        detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
+        
     detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
 
-    detects_cont = Detections(catalog_type="continuum")
-
-    sel1 = detects_cont.remove_bad_amps()
-    sel2 = detects_cont.remove_meteors()
-    sel3 = detects_cont.remove_shots()
-    sel4 = detects_cont.remove_bad_detects()
-    sel5 = detects_cont.remove_large_gal()
-
-    sel6 = detects_cont.throughput > 0.08
-
-    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6].return_astropy_table()
-    detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
-
-    if make_continuum:
+    if make_cont:
+        detects_cont = Detections(catalog_type="continuum")
+        
+        sel1 = detects_cont.remove_bad_amps()
+        sel2 = detects_cont.remove_meteors()
+        sel3 = detects_cont.remove_shots()
+        sel4 = detects_cont.remove_bad_detects()
+        sel5 = detects_cont.remove_large_gal()
+        
+        sel6 = detects_cont.throughput > 0.08
+        
+        detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6].return_astropy_table()
+        detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
+        
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
         detects_cont_table.write("continuum_" + version + ".tab", overwrite=True, format='ascii')
 
