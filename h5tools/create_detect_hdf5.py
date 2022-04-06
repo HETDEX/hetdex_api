@@ -224,6 +224,15 @@ def main(argv=None):
     )
 
     parser.add_argument(
+        "--reindex",
+        "-reindex",
+        help="""Boolean to reindex an append""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+        
+    parser.add_argument(
         "--mergemonth",
         "-mm",
         help=""" Boolean trigger to merge all detect_month*.h5 files""",
@@ -271,8 +280,8 @@ def main(argv=None):
 
         if args.broad:
             fileh = tb.open_file(outfilename, "w", "HDR3 Broad Detections Database")
-            index_buff = 3160000000
-#        elif args.continuum:
+            index_buff = 3960000000
+#        elif args.continuum: (doing continuum separately for HDR3)
 #            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
@@ -720,11 +729,12 @@ def main(argv=None):
     # create completely sorted index on the detectid
     # to make queries against that column much faster
     if args.append:
-        args.log.info("Reindexing the detectid column")
-        tableMain.cols.shotid.reindex()
-        tableMain.cols.detectid.reindex()
-        tableFibers.cols.detectid.reindex()
-        tableSpectra.cols.detectid.reindex()
+        if args.reindex:
+            args.log.info("Reindexing the detectid column")
+            tableMain.cols.shotid.reindex()
+            tableMain.cols.detectid.reindex()
+            tableFibers.cols.detectid.reindex()
+            tableSpectra.cols.detectid.reindex()
         tableFibers.flush()  # just to be safe
         tableSpectra.flush()
         tableMain.flush()
