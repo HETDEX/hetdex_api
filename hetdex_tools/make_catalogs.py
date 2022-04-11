@@ -5,6 +5,7 @@ import time
 import argparse as ap
 import os.path as op
 import tables as tb
+import gc
 
 from astropy.table import Table, unique, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
@@ -188,7 +189,9 @@ def add_elixer_cat_info(detect_table, det_type='line'):
     eo_tab.rename_column('dist_baryctr', 'counterpart_dist')
     eo_tab.rename_column('catalog_name','counterpart_catalog_name')
     eo_tab.rename_column('filter_name', 'counterpart_filter_name')
-
+    eo_tab.remove_column('flux_cts')
+    eo_tab.remove_column('flux_err')
+    
     catalog2 = join(catalog, eo_tab, keys='detectid', join_type='left')
 
     elixer_cat.close()
@@ -205,69 +208,56 @@ def add_elixer_cat_info(detect_table, det_type='line'):
 
 
 def merge_wave_groups(wid):
+
     global expand_table
     
-    sel_wid = expand_table['wave_group_id'] == wid
-    grp = expand_table[sel_wid]
-    sid, ns = np.unique(grp['source_id'], return_counts=True)
-    sid_main = np.min(sid)
-    
-    for sid_i in sid:
-        sel_sid = expand_table['source_id'] == sid_i
-        expand_table['source_id'][sel_sid] = sid_main
-        
-    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
-        
-    # now find any other wave groups and their associated source_id info to merge
-    other_wids = np.unique(expand_table['wave_group_id'][sid_ind])
-        
-    for wid_i in other_wids:
-        if wid_i == 0:
-            continue
-        elif wid_i == wid:
-            continue
-                
-        sel_wid_i = expand_table['wave_group_id'] == wid_i
-        grp = expand_table[sel_wid_i]
+    try:
+        sel_wid = expand_table['wave_group_id'] == wid
+        grp = expand_table[sel_wid]
         sid, ns = np.unique(grp['source_id'], return_counts=True)
-                
-        for sid_i in sid:
-            if sid_i == sid_main:
-                continue
-            sel_sid = expand_table['source_id'] == sid_i
-            expand_table['source_id'][sel_sid] = sid_main
-                    
-    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
-                    
-    res_tab = fof.process_group_list(
-        sid_ind,
-        expand_table["detectid"],
-        expand_table["ra"],
-        expand_table["dec"],
-        0.0* expand_table["wave"],
-        expand_table['flux_g'])
         
-    for col in res_tab.colnames:
-        if col in ['id', 'members']:
-            continue
-        expand_table[col][sid_ind] = res_tab[col]
-
-    wids_done = list( np.unique( expand_table['wave_group_id'][sid_ind]))
-
-    if 0 in wids_done:
-        wids_done.remove(0)
-
-    return wids_done
-
+        sid_main = np.min(sid)
+        
+        sid_ind = []
+        for sid_i in sid:
+            for ind in np.where( expand_table['source_id'] == sid_i)[0]:
+                sid_ind.append(ind)
+        
+        # now find any other wave groups and their associated source_id info to merge
+        other_wids = np.unique(expand_table['wave_group_id'][sid_ind])
+        
+        for wid_i in other_wids:
+            if wid_i == 0:
+                continue
+            elif wid_i == wid:
+                continue
+                
+            sel_wid_i = expand_table['wave_group_id'] == wid_i
+            grp = expand_table[sel_wid_i]
+            sid, ns = np.unique(grp['source_id'], return_counts=True)
+            
+            for sid_i in sid:
+                if sid_i == sid_main:
+                    continue
+                for ind in np.where( expand_table['source_id'] == sid_i)[0]:
+                    sid_ind.append(ind)
+                    
+        if np.size( np.unique( expand_table['source_id'][sid_ind])) > 1:
+            return sid_ind
+        else:
+            return None
+    except Exception:
+        print('Merge wave group failed for {}'.format(wid))
+        return None
+        
 
 def create_source_catalog(
         version="3.0.0",
-        make_cont=False,
-        make_detects=False):
+        update=False):
 
     global config
 
-    if make_detects:
+    if update:
 
         print('Creating curated detection catalog version={}'.format(version))
         D = Detections(survey='hdr3')
@@ -294,9 +284,9 @@ def create_source_catalog(
         
         detects_line_table = D[sel_cat].refine().return_astropy_table()
         detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
-        
+        print(len(detects_line_table))
         detects_line_table = add_elixer_cat_info(detects_line_table, det_type='line')
-    
+        print(len(detects_line_table))
         detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
         detects_line_table.write('detect_hdr{}.tab'.format(version),
                                  format='ascii',
@@ -305,7 +295,7 @@ def create_source_catalog(
     else:
         detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
 
-    if make_cont:
+    if update:
         detects_cont = Detections(catalog_type="continuum", survey='hdr3')
         
         sel1 = detects_cont.remove_bad_amps()
@@ -318,15 +308,18 @@ def create_source_catalog(
         
         detects_cont_table = detects_cont[sel1 & sel2 & sel3 & sel4 & sel5 & sel6].return_astropy_table()
         detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
-
+        print(len(detects_cont_table))
         detects_cont_table = add_elixer_cat_info(detects_cont_table, det_type='cont')
-
+        print(len(detects_cont_table))
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
         detects_cont_table.write("continuum_" + version + ".tab", overwrite=True, format='ascii')
         detects_cont.close()
     else:
         detects_cont_table = Table.read("continuum_" + version + ".fits")
 
+    if update:
+        return
+        
     global detect_table
 
     detect_table = unique(
@@ -349,6 +342,8 @@ def create_source_catalog(
 
     del detects_cont_table, detects_line_table
 
+    gc.collect()
+    
     # calculate ebv and av for every detections
     all_coords = SkyCoord(ra=detect_table['ra'], dec=detect_table['dec'], unit='deg')
     sfd = SFDQuery()
@@ -444,8 +439,6 @@ def create_source_catalog(
     
     # match detectids at large linking length if a wave group exists
     joinfriend = join(detfriend_all, w_keep, keys='detectid', join_type='left')
-    detfriend_all.write('test3.fits', overwrite=True)
-    joinfriend.write('test4.fits', overwrite=True)
 
     if False:# will hopefully remove all this soon
         grp_by_id = joinfriend.group_by('id')
@@ -534,26 +527,49 @@ def create_source_catalog(
         expand_table.remove_column('detectname')
     except:
         pass
-        
-    expand_table.write('test5.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
     # update source properties
 
-    if False:
-        print('Combining nearby wavegroups and detections')
+    print('Combining nearby wavegroups and detections')
+    
+    t0 = time.time()
+    sel = expand_table['wave_group_id'] > 0
+    wid_list = np.unique(expand_table['wave_group_id'][sel])
+    p = Pool(32)
+    res = p.map(merge_wave_groups, wid_list)
+    p.close()
+    t1 = time.time()
+    ind_list = []
+    
+    for r in res:
+        if r is None:
+            continue
+        else:
+            r.sort()
+            if r in ind_list:# skip if indices are a duplicate
+                continue
+            else:
+                ind_list.append(r)
 
-        t0 = time.time()
-        sel = expand_table['wave_group_id'] > 0
-        wid_list = np.unique(expand_table['wave_group_id'][sel])
-        
-        wid_done = []
-        for wid in wid_list:
-            if wid not in wid_done:
-                wid_return = merge_wave_groups(wid)
-                wid_done.extend(wid_return)
-        t1 = time.time()
-        print('Done combining wavegroups in {:4.2f} min'.format( (t1-t0)/60))
+    res_tab = fof.process_group_list(
+            ind_list,
+            expand_table["detectid"],
+            expand_table["ra"],
+            expand_table["dec"],
+            0.0* expand_table["wave"],
+            expand_table['flux_g'])
+
+    for ind in ind_list:
+        sid_main = np.min(expand_table['source_id'])
+        expand_table['source_id'][ind] = sid_main
+
+        for col in res_tab.colnames:
+            if col in ['id', 'members']:
+                continue
+            expand_table[col][ind] = res_tab[col]
+                                                                
+    print('Done combining wavegroups in {:4.2f} min'.format( (t1-t0)/60))
     
     del detfriend_all, detect_table
 
@@ -885,9 +901,12 @@ def main(argv=None):
     dsky_3D = args.dsky_3D
     dwave = args.dwave
 
-    source_table = create_source_catalog(version=args.version,
-                                         make_cont=args.update,
-                                         make_detects=args.update)
+    if args.update:
+        source_table = create_source_catalog(version=args.version,
+                                             update=args.update)
+        sys.exit('Done updating det and cont catalogs. Re-run without --update')
+        
+    source_table = create_source_catalog(version=args.version)
 
     # match band-merged WISE catalog
 
