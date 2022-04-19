@@ -1,9 +1,11 @@
+import sys
 import numpy as np
 import numpy.ma as ma
 import time
 import argparse as ap
 import os.path as op
 import tables as tb
+import gc
 
 from astropy.table import Table, unique, vstack, join, Column, hstack
 from astropy.coordinates import SkyCoord
@@ -31,17 +33,98 @@ from hetdex_api.extinction import *
 import extinction
 
 catlib = catalogs.CatalogLibrary()
-config = HDRconfig()
-
-agn_tab = None
-cont_gals = None
-cont_stars = None
+config = HDRconfig('hdr3')
 
 wavelya = 1215.67
 waveoii = 3727.8
 
 deth5 = None
 conth5 = None
+
+
+def make_friend_table_for_shot(shotid):
+
+    global detect_table, dsky_2D
+    sel_shot = detect_table['shotid'] == shotid
+    kdtree, r = fof.mktree(
+        detect_table["ra"][sel_shot],
+        detect_table["dec"][sel_shot],
+        np.zeros_like(detect_table["ra"][sel_shot]),
+        dsky=dsky_2D,
+    )
+    friend_lst = fof.frinds_of_friends(kdtree, r, Nmin=1)
+ 
+    friend_table = fof.process_group_list(
+        friend_lst,
+        detect_table["detectid"][sel_shot],
+        detect_table["ra"][sel_shot],
+        detect_table["dec"][sel_shot],
+        0.0 * detect_table["wave"][sel_shot],
+        detect_table['flux_g'][sel_shot],
+    )
+  
+    memberlist = []
+    friendlist = []
+    for row in friend_table:
+        friendid = row["id"]
+        members = np.array(row["members"])
+        friendlist.extend(friendid * np.ones_like(members))
+        memberlist.extend(members)
+
+    friend_table.remove_column("members")
+        
+    detfriend_tab = Table()
+    detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+    detfriend_tab.add_column(Column(memberlist, name="detectid"))
+    
+    detfriend_shot = join(detfriend_tab, friend_table, keys="id")
+
+    return detfriend_shot
+
+    
+def make_wfriend_table_for_shot(shotid):
+
+    global detect_table, dsky_3D, dwave
+    
+    sel_shot = (detect_table['shotid'] == shotid) & (detect_table['det_type'] == 'line')
+    kdtree, r = fof.mktree(
+        detect_table["ra"][sel_shot],
+        detect_table["dec"][sel_shot],
+        detect_table["wave"][sel_shot],
+        dsky=dsky_3D, dwave=dwave)
+    
+    wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
+
+    if len(wfriend_lst) > 0:
+        
+        wfriend_table = fof.process_group_list(
+            wfriend_lst,
+            detect_table["detectid"][sel_shot],
+            detect_table["ra"][sel_shot],
+            detect_table["dec"][sel_shot],
+            detect_table["wave"][sel_shot],
+            detect_table['flux'][sel_shot],
+        )
+        
+        memberlist = []
+        friendlist = []
+        for row in wfriend_table:
+            friendid = row["id"]
+            members = np.array(row["members"])
+            friendlist.extend(friendid * np.ones_like(members))
+            memberlist.extend(members)
+
+        wfriend_table.remove_column("members")
+            
+        wdetfriend_tab = Table()
+        wdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+        wdetfriend_tab.add_column(Column(memberlist, name="detectid"))
+        
+        wdetfriend_shot = join(wdetfriend_tab, wfriend_table, keys="id")
+#        wdetfriend_shot.write('wfriend/detfriend_{}.tab'.format(shotid), format='ascii.no_header')
+        return wdetfriend_shot
+    else:
+        return None
 
 
 def return_fiber_ratio(det, det_type):
@@ -64,379 +147,203 @@ def return_fiber_ratio(det, det_type):
     return fiber_ratio
 
                                                                         
-def add_elixer_cat_info(det_table, version):
+def add_elixer_cat_info(detect_table, det_type='line'):
 
     global config
 
-    elixer_file = op.join(config.detect_dir, "catalogs", "elixer_2.1.3_cat.h5".format(version))
-    elixer_cat = tb.open_file(elixer_file, "r")
-
-    elixer_cont_file =  '/scratch/03261/polonius/hdr2.1.3/work/c2/c2no/elixer_merged_cat.h5'
-
-    if op.exists(elixer_cont_file):
-        elixer_cont = tb.open_file(elixer_cont_file, 'r')
+    if det_type == 'line':
+        elixer_file = op.join(config.detect_dir, "elixer_hdr3_emis_cat.h5")
+        elixer_cat = tb.open_file(elixer_file, "r")
     else:
-        elixer_cont = None
-        
-    cls = []
-    mlname = []
-    mlz = []
-    mlprob = []
-    best_z = []
-    best_pz = []
-    flags = []
+        elixer_file = op.join(config.detect_dir, 'elixer_hdr3_cont_cat.h5')
+        elixer_cat = tb.open_file(elixer_file, 'r')
+
+    elix_tab = Table(elixer_cat.root.Detections.read())
+
+    sel_det_col = ['detectid',
+                   'mag_g_wide',
+                   'plya_classification',
+                   'best_z',
+                   'best_pz',
+                   'combined_plae',
+                   'combined_plae_lo',
+                   'combined_plae_hi'
+    ]
+
+    catalog = join(detect_table, elix_tab[sel_det_col],  keys='detectid', join_type='left')
+
+    catalog.rename_column('mag_g_wide', 'gmag')
+
+    extracted_objects = Table(elixer_cat.root.ExtractedObjects.read())
+    selected1 = (extracted_objects['selected'] == True) & (extracted_objects['filter_name'] == b'r')
+    selected2 = (extracted_objects['catalog_name'] == b'HSC-DEX') \
+                | (extracted_objects['catalog_name'] == b'HSC-SSP')
+    selected = selected1 & selected2
+
+    eo_tab = unique( extracted_objects[selected], keys='detectid')
     
-    counterpart_mag = []
-    counterpart_mag_err = []
-    counterpart_dist = []
-    counterpart_catalog_name = []
-    counterpart_filter_name = []
+    eo_tab.rename_column('ra', 'counterpart_ra')
+    eo_tab.rename_column('dec', 'counterpart_dec')
+    eo_tab.rename_column('mag', 'counterpart_mag')
+    eo_tab.rename_column('mag_err', 'counterpart_mag_err')
+    eo_tab.rename_column('dist_baryctr', 'counterpart_dist')
+    eo_tab.rename_column('catalog_name','counterpart_catalog_name')
+    eo_tab.rename_column('filter_name', 'counterpart_filter_name')
+    eo_tab.remove_column('flux_cts')
+    eo_tab.remove_column('flux_err')
     
-    fixed_mag = []
-    fixed_mag_err = []
-    fixed_catalog_name = []
-    fixed_filter_name = []
-    fixed_radius = []
+    catalog2 = join(catalog, eo_tab, keys='detectid', join_type='left')
 
-    for row in det_table:
-        detectid_obj = row["detectid"]
+    elixer_cat.close()
 
-        if row['det_type'] == 'line':
-            try:
-                elix_row = elixer_cat.root.Detections.read_where("detectid == detectid_obj")
-                row["plae_classification"] = elix_row["plae_classification"]
-                row["combined_plae"] = elix_row["combined_plae"]
-                row["combined_plae_err"] = elix_row["combined_plae_err"]
-                mlname.append(elix_row["multiline_name"][0].decode())
-                cls.append(elix_row["classification_labels"][0].decode())
-                mlz.append(elix_row["multiline_z"][0])
-                mlprob.append(elix_row["multiline_prob"][0])
-                best_z.append(elix_row['best_z'][0])
-                best_pz.append(elix_row['best_pz'][0])
-                flags.append(elix_row['flags'][0])
-            
-            except Exception:
-                mlname.append("")
-                cls.append("")
-                mlz.append(False)
-                mlprob.append(np.nan)
-                best_z.append(np.nan)
-                best_pz.append(np.nan)
-                flags.append(np.nan)
-                
-        elif row['det_type'] == 'cont' and elixer_cont is not None:
-            try:
-                elix_row = elixer_cont.root.Detections.read_where("detectid == detectid_obj")
-                row["plae_classification"] = elix_row["plae_classification"]
-                row["combined_plae"] = elix_row["combined_plae"]
-                row["combined_plae_err"] = elix_row["combined_plae_err"]
-                mlname.append(elix_row["multiline_name"][0].decode())
-                cls.append(elix_row["classification_labels"][0].decode())
-                mlz.append(elix_row["multiline_z"][0])
-                mlprob.append(elix_row["multiline_prob"][0])
-                best_z.append(elix_row['best_z'][0])
-                best_pz.append(elix_row['best_pz'][0])
-                flags.append(elix_row['flags'][0])
-                
-            except Exception:
-                mlname.append("")
-                cls.append("")
-                mlz.append(False)
-                mlprob.append(np.nan)
-                best_z.append(np.nan)
-                best_pz.append(np.nan)
-                flags.append(np.nan)
-        else:
-            mlname.append("")
-            cls.append("")
-            mlz.append(False)
-            mlprob.append(np.nan)
-            best_z.append(np.nan)
-            best_pz.append(np.nan)
-            flags.append(np.nan)
-
-        # append nearest source extracted neighbour match
+    # fill mask values with nans
+    for col in catalog2.columns:
         try:
-        
-            elix_row = elixer_cat.root.ExtractedObjects.read_where(
-                "(detectid == detectid_obj) & (selected == True)"
-            )
-            
-            if np.size(elix_row) == 0:
-                elix_row = elixer_cat.root.ExtractedObjects.read_where(
-                    "detectid == detectid_obj"
-                )
-            if np.size(elix_row) > 1:
-                sel_r = elix_row["filter_name"] == b"r"
-                if np.sum(sel_r) == 1:
-                    counterpart_mag.append(elix_row["mag"][sel_r][0])
-                    counterpart_mag_err.append(elix_row["mag_err"][sel_r][0])
-                    counterpart_dist.append(elix_row["dist_baryctr"][sel_r][0])
-                    counterpart_catalog_name.append(
-                        elix_row["catalog_name"][sel_r][0].decode()
-                    )
-                    counterpart_filter_name.append(
-                        elix_row["filter_name"][sel_r][0].decode()
-                    )
-                else:
-                    counterpart_mag.append(elix_row["mag"][0])
-                    counterpart_mag_err.append(elix_row["mag_err"][0])
-                    counterpart_dist.append(elix_row["dist_baryctr"][0])
-                    counterpart_catalog_name.append(
-                        elix_row["catalog_name"][0].decode()
-                    )
-                    counterpart_filter_name.append(elix_row["filter_name"][0].decode())
-            elif np.size(elix_row) == 1:
-                counterpart_mag.append(elix_row["mag"][0])
-                counterpart_mag_err.append(elix_row["mag_err"][0])
-                counterpart_dist.append(elix_row["dist_baryctr"][0])
-                counterpart_catalog_name.append(elix_row["catalog_name"][0].decode())
-                counterpart_filter_name.append(elix_row["filter_name"][0].decode())
-            else:
-                counterpart_mag.append(np.nan)
-                counterpart_mag_err.append(np.nan)
-                counterpart_dist.append(np.nan)
-                counterpart_catalog_name.append("")
-                counterpart_filter_name.append("")
+            catalog2[col] = catalog2[col].filled(np.nan)
+            print('Replacing masked values with np.nan for {}'.format(col))
         except:
-            counterpart_mag.append(np.nan)
-            counterpart_mag_err.append(np.nan)
-            counterpart_dist.append(np.nan)
-            counterpart_catalog_name.append("")
-            counterpart_filter_name.append("")
+            pass
+            #print('no', col)   
+    return catalog2
 
-        # append fixed aperture mag
-        try:
-            elix_tab = elixer_cat.root.ElixerApertures.read_where(
-                ("detectid == detectid_obj")
-            )
-            sel_r = elix_tab["filter_name"] == b"r"
-            sel_g = elix_tab["filter_name"] == b"g"
-            
-            if np.any(sel_r):
-                elix_r = elix_tab[sel_r]
-                fixed_mag.append(elix_r["mag"][-1])
-                fixed_mag_err.append(elix_r["mag_err"][-1])
-                fixed_catalog_name.append(elix_r["catalog_name"][-1].decode())
-                fixed_filter_name.append(elix_r["filter_name"][-1].decode())
-                fixed_radius.append(elix_r["radius"][-1])
-            elif np.any(sel_g):
-                elix_g = elix_tab[sel_g]
-                fixed_mag.append(elix_g["mag"][-1])
-                fixed_mag_err.append(elix_g["mag_err"][-1])
-                fixed_catalog_name.append(elix_g["catalog_name"][-1].decode())
-                fixed_filter_name.append(elix_g["filter_name"][-1].decode())
-                fixed_radius.append(elix_g["radius"][-1])
-            else:
-                sel = elix_tab["radius"] < 3
-                elix_sel = elix_tab[sel]
-                fixed_mag.append(elix_sel["mag"][-1])
-                fixed_mag_err.append(elix_sel["mag_err"][-1])
-                fixed_catalog_name.append(elix_sel["catalog_name"][-1].decode())
-                fixed_filter_name.append(elix_sel["filter_name"][-1].decode())
-                fixed_radius.append(elix_sel["radius"][-1])
-        except:
-            fixed_mag.append(np.nan)
-            fixed_mag_err.append(np.nan)
-            fixed_catalog_name.append("")
-            fixed_filter_name.append("")
-            fixed_radius.append(np.nan)
 
-    try:
-        det_table.add_column(best_z, name='best_z')
-        det_table.add_column(best_pz, name='best_pz')
-        det_table.add_column(flags, name='flags_elixer')
-        det_table.add_column(mlname, name="multiline_name")
-        det_table.add_column(cls, name="classification_labels")
-        det_table.add_column(counterpart_mag, name="counterpart_mag")
-        det_table.add_column(counterpart_mag_err, name="counterpart_mag_err")
-        det_table.add_column(counterpart_dist, name="counterpart_dist")
-        det_table.add_column(counterpart_catalog_name, name="counterpart_catalog_name")
-        det_table.add_column(counterpart_filter_name, name="counterpart_filter_name")
-        det_table.add_column(fixed_mag, name="forced_mag")
-        det_table.add_column(fixed_mag_err, name="forced_mag_err")
-        det_table.add_column(fixed_catalog_name, name="forced_catalog_name")
-        det_table.add_column(fixed_filter_name, name="forced_filter_name")
-        det_table.add_column(fixed_radius, name="forced_radius")
-    except:
-        det_table.remove_column('best_z')
-        det_table.remove_column('best_pz')
-        det_table.remove_column('flags_elixer')
-        det_table.remove_column("multiline_name")
-        det_table.remove_column("classification_labels")
-        det_table.remove_column("counterpart_mag")
-        det_table.remove_column("counterpart_mag_err")
-        det_table.remove_column("counterpart_dist")
-        det_table.remove_column("counterpart_catalog_name")
-        det_table.remove_column("counterpart_filter_name")
-        det_table.remove_column("forced_mag")
-        det_table.remove_column("forced_mag_err")
-        det_table.remove_column("forced_catalog_name")
-        det_table.remove_column("forced_filter_name")
-        det_table.remove_column("forced_radius")
-        
-        det_table.add_column(best_z, name='best_z')
-        det_table.add_column(best_pz, name='best_pz')
-        det_table.add_column(flags, name='flags_elixer')
-        det_table.add_column(mlname, name="multiline_name")
-        det_table.add_column(cls, name="classification_labels")
-        det_table.add_column(counterpart_mag, name="counterpart_mag")
-        det_table.add_column(counterpart_mag_err, name="counterpart_mag_err")
-        det_table.add_column(counterpart_dist, name="counterpart_dist")
-        det_table.add_column(counterpart_catalog_name, name="counterpart_catalog_name")
-        det_table.add_column(counterpart_filter_name, name="counterpart_filter_name")
-        det_table.add_column(fixed_mag, name="forced_mag")
-        det_table.add_column(fixed_mag_err, name="forced_mag_err")
-        det_table.add_column(fixed_catalog_name, name="forced_catalog_name")
-        det_table.add_column(fixed_filter_name, name="forced_filter_name")
-        det_table.add_column(fixed_radius, name="forced_radius")
-
-    return det_table
-
-    
 def merge_wave_groups(wid):
+
     global expand_table
     
-    sel_wid = expand_table['wave_group_id'] == wid
-    grp = expand_table[sel_wid]
-    sid, ns = np.unique(grp['source_id'], return_counts=True)
-    sid_main = np.min(sid)
-    
-    for sid_i in sid:
-        sel_sid = expand_table['source_id'] == sid_i
-        expand_table['source_id'][sel_sid] = sid_main
-        
-    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
-        
-    # now find any other wave groups and their associated source_id info to merge
-    other_wids = np.unique(expand_table['wave_group_id'][sid_ind])
-        
-    for wid_i in other_wids:
-        if wid_i == 0:
-            continue
-        elif wid_i == wid:
-            continue
-                
-        sel_wid_i = expand_table['wave_group_id'] == wid_i
-        grp = expand_table[sel_wid_i]
+    try:
+        sel_wid = expand_table['wave_group_id'] == wid
+        grp = expand_table[sel_wid]
         sid, ns = np.unique(grp['source_id'], return_counts=True)
-                
-        for sid_i in sid:
-            if sid_i == sid_main:
-                continue
-            sel_sid = expand_table['source_id'] == sid_i
-            expand_table['source_id'][sel_sid] = sid_main
-                    
-    sid_ind = list( np.where( expand_table['source_id'] == sid_main))
-                    
-    res_tab = fof.process_group_list(
-        sid_ind,
-        expand_table["detectid"],
-        expand_table["ra"],
-        expand_table["dec"],
-        0.0* expand_table["wave"],
-        expand_table['flux_g'])
         
-    for col in res_tab.colnames:
-        if col in ['id', 'members']:
-            continue
-        expand_table[col][sid_ind] = res_tab[col]
-
-    wids_done = list( np.unique( expand_table['wave_group_id'][sid_ind]))
-
-    if 0 in wids_done:
-        wids_done.remove(0)
-
-    return wids_done
-
+        sid_main = np.min(sid)
+        
+        sid_ind = []
+        for sid_i in sid:
+            for ind in np.where( expand_table['source_id'] == sid_i)[0]:
+                sid_ind.append(ind)
+        
+        # now find any other wave groups and their associated source_id info to merge
+        other_wids = np.unique(expand_table['wave_group_id'][sid_ind])
+        
+        for wid_i in other_wids:
+            if wid_i == 0:
+                continue
+            elif wid_i == wid:
+                continue
+                
+            sel_wid_i = expand_table['wave_group_id'] == wid_i
+            grp = expand_table[sel_wid_i]
+            sid, ns = np.unique(grp['source_id'], return_counts=True)
+            
+            for sid_i in sid:
+                if sid_i == sid_main:
+                    continue
+                for ind in np.where( expand_table['source_id'] == sid_i)[0]:
+                    sid_ind.append(ind)
+                    
+        if np.size( np.unique( expand_table['source_id'][sid_ind])) > 1:
+            return sid_ind
+        else:
+            return None
+    except Exception:
+        print('Merge wave group failed for {}'.format(wid))
+        return None
+        
 
 def create_source_catalog(
-        version="2.1.3",
-        make_continuum=True,
-        save=True,
-        dsky=4.0):
+        version="3.0.0",
+        update=False):
 
     global config
 
-    detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
-#    detects = Detections(curated_version=version)
-#    detects_line_table = detects.return_astropy_table()
+    if update:
 
-#    detects_line_table.write('test.tab', format='ascii')
-    detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+        print('Creating curated detection catalog version={}'.format(version))
+        D = Detections(survey='hdr3')
+        sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
+        sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
+        
+        sel_cont = D.continuum > -3
+        sel_chi2fib = D.chi2fib < 4.5
+        sel_tp = D.throughput >= 0.08
+        
+        sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2) #&sel_field
+    
+        sel_wave = (D.wave >= 3550) & (D.wave <= 5460)
+        sel_lw = (D.linewidth <= 14) & (D.linewidth > 6) & (D.sn >= 6.5)
+        
+        sel1 = sel & sel_wave & sel_lw
+        
+        sel_wave = (D.wave >= 3510) & (D.wave <= 5490)
+        sel_lw = (D.linewidth <= 6) & (D.linewidth>= 1.6)
+        
+        sel2 = sel & sel_wave & sel_lw
+        
+        sel_cat = sel1 | sel2
+        
+        detects_line_table = D[sel_cat].refine().return_astropy_table()
+        detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+        print(len(detects_line_table))
+        detects_line_table = add_elixer_cat_info(detects_line_table, det_type='line')
+        print(len(detects_line_table))
+        detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
+        detects_line_table.write('detect_hdr{}.tab'.format(version),
+                                 format='ascii',
+                                 overwrite=True)
+        D.close()
+    else:
+        detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
 
-    detects_cont = Detections(catalog_type="continuum")
-
-    sel1 = detects_cont.remove_bad_amps()
-    sel2 = detects_cont.remove_meteors()
-    sel3 = detects_cont.remove_shots()
-    sel4 = detects_cont.remove_bad_detects()
-    sel5 = detects_cont.remove_large_gal()
-
-    sel6 = detects_cont.throughput > 0.08
-
-    sel_field = (
-        (detects_cont.field == "cosmos")
-        | (detects_cont.field == "dex-fall")
-        | (detects_cont.field == "dex-spring")
-        | (detects_cont.field == "egs")
-        | (detects_cont.field == "goods-n")
-    )
-    detects_cont_table = detects_cont[sel1 * sel2 * sel3 * sel4 * sel5 * sel6 * sel_field].return_astropy_table()
-    detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
-
-    if make_continuum:
+    if update:
+        detects_cont = Detections(catalog_type="continuum", survey='hdr3')
+        
+        sel1 = detects_cont.remove_bad_amps()
+        sel2 = detects_cont.remove_meteors()
+        sel3 = detects_cont.remove_shots()
+        sel4 = detects_cont.remove_bad_detects()
+        sel5 = detects_cont.remove_large_gal()
+        
+        sel6 = detects_cont.throughput > 0.08
+        
+        detects_cont_table = detects_cont[sel1 & sel2 & sel3 & sel4 & sel5 & sel6].return_astropy_table()
+        detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
+        print(len(detects_cont_table))
+        detects_cont_table = add_elixer_cat_info(detects_cont_table, det_type='cont')
+        print(len(detects_cont_table))
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
         detects_cont_table.write("continuum_" + version + ".tab", overwrite=True, format='ascii')
+        detects_cont.close()
+    else:
+        detects_cont_table = Table.read("continuum_" + version + ".fits")
 
-    dets_all = Detections().refine()
-    sel_tp = dets_all.throughput > 0.08
-    sel_field = (
-            (dets_all.field == "cosmos")
-            | (dets_all.field == "dex-fall")
-            | (dets_all.field == "dex-spring")
-            | (dets_all.field == "egs")
-            | (dets_all.field == "goods-n")
-        )
-    
-    dets_all_table = dets_all[sel_tp*sel_field].return_astropy_table()
-    dets_all_table.add_column(Column(str("line"), name="det_type", dtype=str))
-    agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','flux_LyA'])
-
-    # add in continuum sources to match to Chenxu's combined catalog
-    #detects_cont_table_orig = detects_cont[sel1 * sel2 * sel3].return_astropy_table()
-    
-    dets_all_table = vstack([dets_all_table, detects_cont_table])
-
-    detects_broad_table = join(
-        agn_tab, dets_all_table, join_type="inner", keys=["detectid"]
-    )
-   
-    dets_all.close()
-    del dets_all_table
-
+    if update:
+        return
+        
     global detect_table
 
     detect_table = unique(
-        vstack([detects_broad_table, detects_cont_table, detects_line_table]),
+        vstack([detects_cont_table, detects_line_table]),
         keys='detectid')
 
-    # add fiber_ratio
-    fiber_ratio = []
-    for row in detect_table:
-        det = row['detectid']
-        det_type = row['det_type']
-        try:
-            fiber_ratio.append( return_fiber_ratio(det, det_type))
-        except:
-            fiber_ratio.append(np.nan)
-            print('fiber_ratio failed for {}'.format(det))
-    detect_table['fiber_ratio'] = fiber_ratio
+    append_fiber_ratio = False
+    if append_fiber_ratio:
+        # add fiber_ratio
+        fiber_ratio = []
+        for row in detect_table:
+            det = row['detectid']
+            det_type = row['det_type']
+            try:
+                fiber_ratio.append( return_fiber_ratio(det, det_type))
+            except:
+                fiber_ratio.append(np.nan)
+                print('fiber_ratio failed for {}'.format(det))
+        detect_table['fiber_ratio'] = fiber_ratio
+
+    del detects_cont_table, detects_line_table
+
+    gc.collect()
     
-    detect_table.write('test.fits', overwrite=True)
-
-    del detects_cont_table, detects_broad_table
-
     # calculate ebv and av for every detections
     all_coords = SkyCoord(ra=detect_table['ra'], dec=detect_table['dec'], unit='deg')
     sfd = SFDQuery()
@@ -449,26 +356,6 @@ def create_source_catalog(
 
     detect_table['Av'] = Av
     detect_table['ebv'] = ebv
-    
-    detect_table = add_elixer_cat_info(detect_table, version)
-    
-    #print('Adding 1sigma noise from flux limits')
-    #p = Pool(24)
-    #res = p.map(get_flux_noise_1sigma, detect_table['detectid'])
-    #p.close()
-
-    #flim = []
-    #flim_update = []
-    #for r in res:
-    #    flim.append(r[0])
-    #    flim_update.append(r[1])
-        
-    #detect_table['flux_noise_1sigma'] = flim_update
-    #detect_table['flux_noise_1sigma_orig'] = flim
-    
-    detect_table.write('test2.fits', overwrite=True)
-
-    print("Performing FOF in 3D space with linking length=8 arcsec")
 
     # get fluxes to derive flux-weighted distribution of group
     
@@ -476,49 +363,34 @@ def create_source_catalog(
     gmag = detect_table["gmag"] * u.AB
     detect_table['flux_g'] = gmag.to(u.Jy).value
 
-    sel_line = detect_table['det_type'] == 'line' # remove continuum sources
-
     # first cluster in positional/wavelegnth space in a larger
     # linking length
 
-    kdtree, r = fof.mktree(
-                detect_table["ra"][sel_line],
-                detect_table["dec"][sel_line],
-                detect_table["wave"][sel_line],
-                dsky=6.0, dwave=8.0)
+    shotlist = np.unique(detect_table['shotid'])
 
+    print("Performing FOF in 3D space wiht dlink={} and dwave={}".format(dsky_3D, dwave))
     t0 = time.time()
-    print("starting fof ...")
-    wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
-    t1 = time.time()
-
-    wfriend_table = fof.process_group_list(
-        wfriend_lst,
-        detect_table["detectid"][sel_line],
-        detect_table["ra"][sel_line],
-        detect_table["dec"][sel_line],
-        detect_table["wave"][sel_line],
-        detect_table['flux'][sel_line],
-    )
-    print("Generating combined table \n")
-        
-    memberlist = []
-    friendlist = []
-    for row in wfriend_table:
-        friendid = row["id"]
-        members = np.array(row["members"])
-        friendlist.extend(friendid * np.ones_like(members))
-        memberlist.extend(members)
-    wfriend_table.remove_column("members")
+    P = Pool(24)
+    res = P.map(make_wfriend_table_for_shot, shotlist)
+    P.close()
     
-    wdetfriend_tab = Table()
-    wdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
-    wdetfriend_tab.add_column(Column(memberlist, name="detectid"))
+    wstart = 300000000
+    wdetfriend_all = Table()
 
-    wdetfriend_all = join(wdetfriend_tab, wfriend_table, keys="id")
+    firstid = True
+    for r in res:
 
-    wdetfriend_all['wave_group_id'] = wdetfriend_all['id'] + 214000000
-
+        if r is None:
+            continue
+        else:
+            if firstid:
+                r['id'] = r['id'] + wstart
+                firstid = False
+            else:
+                r['id'] = r['id'] + np.max(wdetfriend_all['id']) + 1
+        wdetfriend_all = vstack([wdetfriend_all, r])
+        
+    wdetfriend_all.rename_column('id','wave_group_id')
     wdetfriend_all.rename_column('size', 'wave_group_size')
     wdetfriend_all.rename_column('a', 'wave_group_a')
     wdetfriend_all.rename_column('b', 'wave_group_b')
@@ -527,6 +399,7 @@ def create_source_catalog(
     wdetfriend_all.rename_column('icy', 'wave_group_dec')
     wdetfriend_all.rename_column('icz', 'wave_group_wave')
 
+    
     w_keep = wdetfriend_all['detectid',
                             'wave_group_id',
                             'wave_group_a',
@@ -536,90 +409,76 @@ def create_source_catalog(
                             'wave_group_dec',
                             'wave_group_wave']
 
+    w_keep.write('test2.fits', overwrite=True)
+    t1 = time.time()
+    
     print("3D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
 
-    print("Performing FOF in 2D space with dlink=3.5 arcsec")
+    print("Performing FOF in 2D space with dlink={}".format(dsky_2D))
 
-    kdtree, r = fof.mktree(
-        detect_table["ra"],
-        detect_table["dec"],
-        np.zeros_like(detect_table["ra"]),
-        dsky=3.5,
-    )
     t0 = time.time()
-    print("starting fof ...")
-    friend_lst = fof.frinds_of_friends(kdtree, r, Nmin=1)
+    P = Pool(24)
+    res = P.map(make_friend_table_for_shot, shotlist)
+    P.close()
+
+    sid_start = int(version.replace('.', '', 2))*10**10
+
+    firstid = True
+    detfriend_all = Table()
+    for r in res:
+
+        if firstid:
+            r['id'] = r['id'] + sid_start
+            firstid = False
+        else:
+            r['id'] = r['id'] + np.max(detfriend_all['id']) + 1
+        detfriend_all = vstack([detfriend_all, r])
+
     t1 = time.time()
-
-    print("FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
-
-    friend_table = fof.process_group_list(
-                friend_lst,
-                detect_table["detectid"],
-                detect_table["ra"],
-                detect_table["dec"],
-                0.0 * detect_table["wave"],
-                detect_table['flux_g'],
-            )
- 
-    print("Generating combined table \n")
-    memberlist = []
-    friendlist = []
-    for row in friend_table:
-        friendid = row["id"]
-        members = np.array(row["members"])
-        friendlist.extend(friendid * np.ones_like(members))
-        memberlist.extend(members)
-    friend_table.remove_column("members")
-
-    detfriend_tab = Table()
-    detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
-    detfriend_tab.add_column(Column(memberlist, name="detectid"))
-
-    detfriend_all = join(detfriend_tab, friend_table, keys="id")
-
-    del detfriend_tab
-
+    print("2D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
+    
     # match detectids at large linking length if a wave group exists
     joinfriend = join(detfriend_all, w_keep, keys='detectid', join_type='left')
-    grp_by_id = joinfriend.group_by('id')
-    sum_grp = grp_by_id.groups.aggregate(np.sum)
-    spatial_id = grp_by_id.groups.keys
-    spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
 
-    # also match if a group member is brighter than gmag=22 (testing this)
-    sel_bright = detect_table['gmag'] < 22
-    gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
-    spatial_id_to_keep2 = gmag_join['id']
-
-    spatial_id_to_keep = vstack([spatial_id_to_keep1, spatial_id_to_keep2])
-    detfriend_1 = join(unique(spatial_id_to_keep), joinfriend)
-
-    # link the rest of the detectids with smaller linking length
-
-    keep_row = np.ones(np.size(detect_table), dtype=bool)
-
-    for i, det in enumerate(detect_table['detectid']):
-        if det in detfriend_1['detectid']:
-            keep_row[i] = 0
-
-    print("Performing FOF in 2D space with dlink=2.0 arcsec")
-
-    kdtree, r = fof.mktree(
-        detect_table["ra"][keep_row],
-        detect_table["dec"][keep_row],
-        np.zeros_like(detect_table["ra"][keep_row]),
-        dsky=1.0,
-    )
+    if False:# will hopefully remove all this soon
+        grp_by_id = joinfriend.group_by('id')
+        sum_grp = grp_by_id.groups.aggregate(np.sum)
+        spatial_id = grp_by_id.groups.keys
+        spatial_id_to_keep1 = spatial_id[np.isfinite(sum_grp['wave_group_id'])]
         
-    t0 = time.time()
-    print("starting fof ...")
-    friend_lst = fof.frinds_of_friends(kdtree, r, Nmin=1)
-    t1 = time.time()
+        # also match if a group member is brighter than gmag=22 (testing this)
+        sel_bright = detect_table['gmag'] < 22
+        gmag_join = join( joinfriend, detect_table['detectid','gmag'][sel_bright])
+        spatial_id_to_keep2 = gmag_join['id']
+        
+        spatial_id_to_keep = vstack([spatial_id_to_keep1, spatial_id_to_keep2])
+        detfriend_1 = join(unique(spatial_id_to_keep), joinfriend)
+        
+        # link the rest of the detectids with smaller linking length
+        
+        keep_row = np.ones(np.size(detect_table), dtype=bool)
+        
+        for i, det in enumerate(detect_table['detectid']):
+            if det in detfriend_1['detectid']:
+                keep_row[i] = 0
 
-    print("Final FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
+        print("Performing FOF in 2D space with dlink=2.0 arcsec")
 
-    friend_table = fof.process_group_list(
+        kdtree, r = fof.mktree(
+            detect_table["ra"][keep_row],
+            detect_table["dec"][keep_row],
+            np.zeros_like(detect_table["ra"][keep_row]),
+            dsky=1.0,
+        )
+        
+        t0 = time.time()
+        print("starting fof ...")
+        friend_lst = fof.frinds_of_friends(kdtree, r, Nmin=1)
+        t1 = time.time()
+
+        print("Final FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
+
+        friend_table = fof.process_group_list(
             friend_lst,
             detect_table["detectid"][keep_row],
             detect_table["ra"][keep_row],
@@ -628,66 +487,91 @@ def create_source_catalog(
             detect_table['flux_g'][keep_row],
         )
 
-    print("Generating combined table \n")
-    memberlist = []
-    friendlist = []
-
-    for row in friend_table:
-        friendid = row["id"]
-        members = np.array(row["members"])
-        friendlist.extend(friendid * np.ones_like(members))
-        memberlist.extend(members)
-    friend_table.remove_column("members")
-
-    detfriend_tab = Table()
-    detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
-    detfriend_tab.add_column(Column(memberlist, name="detectid"))
+        print("Generating combined table \n")
+        memberlist = []
+        friendlist = []
+        
+        for row in friend_table:
+            friendid = row["id"]
+            members = np.array(row["members"])
+            friendlist.extend(friendid * np.ones_like(members))
+            memberlist.extend(members)
+            friend_table.remove_column("members")
+            
+        detfriend_tab = Table()
+        detfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+        detfriend_tab.add_column(Column(memberlist, name="detectid"))
      
-    detfriend_2 = join(detfriend_tab, friend_table, keys="id")
+        detfriend_2 = join(detfriend_tab, friend_table, keys="id")
      
-    starting_id_1 = int(version.replace('.', '', 2))*10**10
-    starting_id_2 = starting_id_1 + 10**8
-    detfriend_1.add_column(
-        Column(detfriend_1["id"] + starting_id_1, name="source_id"), index=0
-    )
-    detfriend_2.add_column(
-        Column(detfriend_2["id"] + starting_id_2, name="source_id"), index=0
-    )
-    detfriend_1.remove_column("id")
-    detfriend_2.remove_column("id")
+        starting_id_1 = int(version.replace('.', '', 2))*10**10
+        starting_id_2 = starting_id_1 + 10**8
+        detfriend_1.add_column(
+            Column(detfriend_1["id"] + starting_id_1, name="source_id"), index=0
+        )
+        detfriend_2.add_column(
+            Column(detfriend_2["id"] + starting_id_2, name="source_id"), index=0
+        )
+        detfriend_1.remove_column("id")
+        detfriend_2.remove_column("id")
 
-    detfriend_all = vstack([detfriend_1, detfriend_2])
+        detfriend_all = vstack([detfriend_1, detfriend_2])
 
     global expand_table
     
-    expand_table = join(detfriend_all, detect_table, keys="detectid")
+    expand_table = join(joinfriend, detect_table, keys="detectid")
     expand_table['wave_group_id'] = expand_table['wave_group_id'].filled(0)
-
+    expand_table.rename_column('id','source_id')
+    
     try:
         expand_table.remove_column('detectname')
     except:
         pass
-        
-    expand_table.write('test3.fits', overwrite=True)
 
     # combine common wavegroups to the same source_id
     # update source properties
 
     print('Combining nearby wavegroups and detections')
-
+    
     t0 = time.time()
     sel = expand_table['wave_group_id'] > 0
     wid_list = np.unique(expand_table['wave_group_id'][sel])
-
-    wid_done = []
-    for wid in wid_list:
-        if wid not in wid_done:
-            wid_return = merge_wave_groups(wid)
-            wid_done.extend(wid_return)
+    p = Pool(32)
+    res = p.map(merge_wave_groups, wid_list)
+    p.close()
     t1 = time.time()
+    ind_list = []
+    
+    for r in res:
+        if r is None:
+            continue
+        else:
+            r.sort()
+            if r in ind_list:# skip if indices are a duplicate
+                continue
+            else:
+                ind_list.append(r)
+
+    res_tab = fof.process_group_list(
+            ind_list,
+            expand_table["detectid"],
+            expand_table["ra"],
+            expand_table["dec"],
+            0.0* expand_table["wave"],
+            expand_table['flux_g'])
+
+    for ind in ind_list:
+        sid_main = np.min(expand_table['source_id'])
+        expand_table['source_id'][ind] = sid_main
+
+        for col in res_tab.colnames:
+            if col in ['id', 'members']:
+                continue
+            expand_table[col][ind] = res_tab[col]
+                                                                
     print('Done combining wavegroups in {:4.2f} min'.format( (t1-t0)/60))
     
-    del detfriend_all, detect_table, friend_table
+    del detfriend_all, detect_table
 
     gaia_stars = Table.read(config.gaiacat)
 
@@ -708,7 +592,7 @@ def create_source_catalog(
     
     expand_table["gaia_match_id"] = gaia_match_name
     expand_table["gaia_match_dist"] = gaia_match_dist
-    
+        
     expand_table.rename_column("size", "n_members")
     expand_table.rename_column("icx", "ra_mean")
     expand_table.rename_column("icy", "dec_mean")
@@ -961,13 +845,37 @@ def get_parser():
     )
 
     parser.add_argument(
-        "-dsky",
-        "--dsky",
+        "-dsky_3D",
+        "--dsky_3D",
         type=float,
         help="""Spatial linking length in arcsec""",
         default=4.0,
     )
 
+    parser.add_argument(
+        "-dsky_2D",
+        "--dsky_2D",
+        type=float,
+        help="""Spatial linking length in arcsec""",
+        default=2.0,
+    )
+    
+    parser.add_argument(
+        "-dwave",
+        "--dwave",
+        type=float,
+        help="""Wavelength linking length in A""",
+        default=8.0,
+    )
+
+    parser.add_argument(
+        "--update",
+        "-u",
+        help="""Trigger to update detect and continuum catalogs""",
+        default=False,
+        required=False,
+        action="store_true",
+        )
     return parser
 
 
@@ -988,11 +896,17 @@ def main(argv=None):
     parser = get_parser()
     args = parser.parse_args(argv)
 
-    print('Combining catalogs')
-    global source_table
-    print(args.dsky, args.version)
+    global source_table, dsky_2D, dsky_3D, dwave
+    dsky_2D = args.dsky_2D
+    dsky_3D = args.dsky_3D
+    dwave = args.dwave
 
-    source_table = create_source_catalog(version=args.version, dsky=args.dsky)
+    if args.update:
+        source_table = create_source_catalog(version=args.version,
+                                             update=args.update)
+        sys.exit('Done updating det and cont catalogs. Re-run without --update')
+        
+    source_table = create_source_catalog(version=args.version)
 
     # match band-merged WISE catalog
 

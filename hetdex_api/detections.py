@@ -98,21 +98,25 @@ class Detections:
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            self.survey = "hdr" + curated_version[0:3]
+            if curated_version[0] == '3':
+                # for now I'm assuming we don't have to do hdr3.0
+                self.survey = 'hdr3'
+            else:
+                self.survey = "hdr" + curated_version[0:3]
         else:
             self.version = None
             self.survey = survey
             self.loadtable = loadtable
-        
-        config = HDRconfig(survey=self.survey)
+      
+        self.config = HDRconfig(survey=self.survey)
 
         if catalog_type == "lines":
-            self.filename = config.detecth5
+            self.filename = self.config.detecth5
         elif catalog_type == "continuum":
-            self.filename = config.contsourceh5
+            self.filename = self.config.contsourceh5
         elif catalog_type == "broad":
             try:
-                self.filename = config.detectbroadh5
+                self.filename = self.config.detectbroadh5
             except:
                 print("Could not locate broad line catalog")
 
@@ -121,10 +125,18 @@ class Detections:
         
         if self.version is not None:
 
-            try:
-                catfile = op.join(
-                    config.detect_dir, "catalogs", "detect_hdr" + self.version + ".fits"
-                )
+            if True:
+
+                if self.survey == 'hdr2.1':
+                    catfile = op.join(
+                        self.config.detect_dir, "catalogs", "detect_hdr{}.fits".format(self.version)
+                    )
+                else:
+
+                    catfile = op.join(
+                        self.config.hdr_dir[self.survey], "catalogs", "detect_hdr{}.fits".format(self.version)
+                    )
+
                 det_table = Table.read(catfile)
 
                 for col in det_table.colnames:
@@ -134,8 +146,8 @@ class Detections:
                         setattr(self, col, np.array(det_table[col]))
 
                 self.vis_class = -1 * np.ones(np.size(self.detectid))
-
-            except:
+            else:
+#            except:
                 print("Could not open curated catalog version: " + self.version)
                 return None
 
@@ -212,7 +224,7 @@ class Detections:
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
 
-                self.hdfile_elix = tb.open_file(config.elixerh5, mode="r")
+                self.hdfile_elix = tb.open_file(self.config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
                 for name2 in colnames2:
                     if name2 == "detectid":
@@ -316,17 +328,17 @@ class Detections:
             self.vis_class = -1 * np.ones(np.size(self.detectid))
 
             if self.survey == "hdr1":
-                self.add_hetdex_gmag(loadpickle=True, picklefile=config.gmags)
+                self.add_hetdex_gmag(loadpickle=True, picklefile=self.config.gmags)
 
             if self.survey == "hdr1":
                 if PYTHON_MAJOR_VERSION < 3:
                     self.plae_poii_hetdex_gmag = np.array(
-                        pickle.load(open(config.plae_poii_hetdex_gmag, "rb"))
+                        pickle.load(open(self.config.plae_poii_hetdex_gmag, "rb"))
                     )
                 else:
                     self.plae_poii_hetdex_gmag = np.array(
                         pickle.load(
-                            open(config.plae_poii_hetdex_gmag, "rb"), encoding="bytes"
+                            open(self.config.plae_poii_hetdex_gmag, "rb"), encoding="bytes"
                         )
                     )
 
@@ -571,11 +583,11 @@ class Detections:
         Don't use for machine learning or other
         classifying algorithms tests.
         """
-        global config
+
         # set an empty mask to start
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
-        baddetects = np.loadtxt(config.baddetect, dtype=int)
+        baddetects = np.loadtxt(self.config.baddetect, dtype=int)
 
         for baddet in baddetects:
             maskdet = self.detectid == baddet
@@ -590,18 +602,18 @@ class Detections:
         It will also assign a 0 to signify an artifact
         in vis_class
         """
-        global config
+
         # set an empty mask to start
 
         mask = np.zeros(np.size(self.detectid), dtype=bool)
 
         if self.survey == "hdr1":
             badamps1 = ascii.read(
-                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+                self.config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
             )
 
             badamps2 = ascii.read(
-                config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
+                self.config.badamp, names=["ifuslot", "amp", "date_start", "date_end"]
             )
 
             badamps = vstack([badamps1, badamps2])
@@ -630,8 +642,8 @@ class Detections:
         else:
 
             # first read in amp_flag.fits file
-            badamps = Table.read(config.badamp)
-
+            badamps = Table.read(self.config.badamp)
+            
             det_table = self.return_astropy_table()
 
             join_tab = join(
@@ -644,22 +656,25 @@ class Detections:
 
             del det_table, join_tab
 
-            # add in any newly found badamps that haven't made it into the
-            # amp_flag.fits file yet
+            if False:
+                # add in any newly found badamps that haven't made it into the
+                # amp_flag.fits file yet
 
-            mask2 = np.zeros(np.size(self.detectid), dtype=bool)
+                mask2 = np.zeros(np.size(self.detectid), dtype=bool)
+                
+                badamps2 = Table.read(self.config.badamp2, format="ascii")
+                
+                for row in badamps2:
+                    selmf = self.multiframe == row["multiframe"]
+                    seldate = (self.date >= row["date_start"]) * (
+                        self.date <= row["date_end"]
+                    )
+                    mask2 = np.logical_or(mask2, selmf * seldate)
 
-            badamps2 = Table.read(config.badamp2, format="ascii")
-
-            for row in badamps2:
-                selmf = self.multiframe == row["multiframe"]
-                seldate = (self.date >= row["date_start"]) * (
-                    self.date <= row["date_end"]
-                )
-                mask2 = np.logical_or(mask2, selmf * seldate)
-
-            mask = mask1 * np.logical_not(mask2)
-
+                    mask = mask1 * np.logical_not(mask2)
+            else:
+                mask = mask1
+                
             return mask
 
     def remove_bad_pix(self):
@@ -688,7 +703,7 @@ class Detections:
 
         if True:
             badpixlist = ascii.read(
-                config.badpix, names=["multiframe", "x1", "x2", "y1", "y2"]
+                self.config.badpix, names=["multiframe", "x1", "x2", "y1", "y2"]
             )
 
             mask = np.zeros(np.size(self.detectid), dtype=bool)
@@ -716,9 +731,9 @@ class Detections:
         to detections in these shots so they are not used 
         in any MLing analysis
         """
-        global config
+
         mask = np.zeros(np.size(self.detectid), dtype=bool)
-        badshots = np.loadtxt(config.badshot, dtype=int)
+        badshots = np.loadtxt(self.config.badshot, dtype=int)
 
         for shot in badshots:
             maskshot = self.shotid == shot
@@ -780,9 +795,7 @@ class Detections:
         streaks masked. Use np.invert(mask) to find meteors
         """
 
-        global config
-
-        met_tab = Table.read(config.meteor, format="ascii")
+        met_tab = Table.read(self.config.meteor, format="ascii")
 
         mask = np.ones_like(self.detectid, dtype=bool)
 
@@ -802,9 +815,7 @@ class Detections:
         written by John Feldmeier
         """
 
-        global config
-
-        galaxy_cat = Table.read(config.rc3cat, format="ascii")
+        galaxy_cat = Table.read(self.config.rc3cat, format="ascii")
 
         mask = np.ones_like(self.detectid, dtype=bool)
 

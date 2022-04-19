@@ -17,18 +17,17 @@ from multiprocessing import Pool
 
 # Enter the catalog version
 
-version = '2.1.3'
+version = '2.1.4'
 
 config = HDRconfig()
 #catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
-catfile = 'source_catalog_2.1.4_orig.fits'
+catfile = 'source_catalog_2.1.4.fits'
 source_table = Table.read(catfile)
 
 #fudging this for now
-sel = source_table['source_id'] < 2140000000000
-
-source_table['source_id'][sel] = source_table['source_id'][sel] + 10000000000
+#sel = source_table['source_id'] < 2140000000000
+#source_table['source_id'][sel] = source_table['source_id'][sel] + 10000000000
 
 agn_tab = Table.read(config.agncat, format='ascii')
 print('Source catalog was found at {}'.format(catfile))
@@ -49,10 +48,33 @@ try:
                 "agn_flag",
                 "z_diagnose",
                 "cls_diagnose",
-                "stellartype"]:
+                "stellartype",
+                "selected_det"]:
         source_table.remove_column(col)
 except:
+    print('Could not remove existing redshift and classification info')
     pass
+
+try:
+    print('removing resolved oii values')
+    for col in ['ra_aper',
+                'dec_aper',
+                'mag_aper',
+                'mag_aper_err',
+                'dist_aper',
+                'catalog_name_aper',
+                'filter_name_aper',
+                'flux_aper',
+                'flux_aper_err',
+                'bkg_median_aper',
+                'bkg_stddev_aper',
+                'lum_lya',
+                'lum_lya_err',
+                'lum_oii',
+                'lum_oii_err']:
+        source_table.remove_column(col)
+except:
+    print('could not remove resolved oii values')
 
 if True:
 
@@ -62,6 +84,23 @@ if True:
     
     combined = join( source_table, diagnose_tab['detectid', 'z_diagnose', 'cls_diagnose', 'stellartype'], join_type='left', keys=['detectid'])
     source_table = combined.copy()
+
+#update with Dustin's latest run (only did this once)
+
+if False:
+    import tables as tb
+    elix_update = tb.open_file('elixer_17k_cat.h5', 'r')
+    elix_tab = elix_update.root.Detections
+    
+    print('adding new elixer values')
+    i = 0
+    for row in elix_tab:
+        sel_det = source_table['detectid'] == row['detectid']
+        source_table['best_z'][sel_det] = row['best_z']
+        source_table['best_pz'][sel_det] = row['best_pz']
+        source_table['plae_classification'][sel_det] = row['plya_classification']
+        i = i + 1
+    print('done adding {} rows'.format(i))
 
 uniq_table = unique(source_table, keys='source_id')
 
@@ -389,20 +428,22 @@ for zid in np.unique( zdetfriend_all['id']):
         source_table['z_hetdex'][sid_ind] = res_tab['icz']
 
 # fix for DAR apcor issue
-source_table['flux_2.1.3'] = source_table['flux'].copy()
-source_table['flux_err_2.1.3'] = source_table['flux_err'].copy()
-source_table['continuum_2.1.3'] = source_table['continuum'].copy()
-source_table['continuum_err_2.1.3'] = source_table['continuum_err'].copy()
 
-source_table['flux'] = source_table['flux_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
-source_table['flux_err'] = source_table['flux_err_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
-source_table['continuum'] = source_table['continuum_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
-source_table['continuum_err'] = source_table['continuum_err_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
+if True:
+    source_table['flux_2.1.3'] = source_table['flux'].copy()
+    source_table['flux_err_2.1.3'] = source_table['flux_err'].copy()
+    source_table['continuum_2.1.3'] = source_table['continuum'].copy()
+    source_table['continuum_err_2.1.3'] = source_table['continuum_err'].copy()
+    
+    source_table['flux'] = source_table['flux_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
+    source_table['flux_err'] = source_table['flux_err_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
+    source_table['continuum'] = source_table['continuum_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
+    source_table['continuum_err'] = source_table['continuum_err_2.1.3'] * source_table['apcor'] / source_table['apcor_api']
 
-source_table.rename_column('apcor', 'apcor_2.1.3')
-source_table.rename_column('apcor_api', 'apcor')
+    source_table.rename_column('apcor', 'apcor_2.1.3')
+    source_table.rename_column('apcor_api', 'apcor')
 
-source_table.sort('source_id', 'gmag')
+    source_table.sort('source_id', 'gmag')
 
 im_info = unique( Table.read('/work/05350/ecooper/stampede2/oii/im_info.txt', format='ascii'), keys='detectid')
 
@@ -438,11 +479,10 @@ im_info.rename_column('mag_err','mag_aper_err')
 im_info.rename_column('dist_baryctr','dist_aper')
 im_info.rename_column('catalog_name','catalog_name_aper')
 im_info.rename_column('filter_name', 'filter_name_aper')
-im_info.rename_column('im_flux', 'flux_aper')
-im_info.rename_column('im_flux_err','flux_aper_err')
+im_info.rename_column('im_flux', 'flux_aper_obs')
+im_info.rename_column('im_flux_err','flux_aper_obs_err')
 im_info.rename_column('bkg_median', 'bkg_median_aper')
 im_info.rename_column('bkg_stddev', 'bkg_stddev_aper')
-
 
 oii_to_keep = join( uniq_oii_table['detectid', 'source_id'], im_info,
                    keys='detectid',
@@ -459,6 +499,34 @@ print(len(uniq_oii_table), len(oii_to_keep) )
 source_table_oii = join(source_table, oii_to_keep, keys=['detectid'], join_type='left')
 print(len(source_table_oii))
 source_table = source_table_oii.copy()
+
+# get intrinsic flux_aper by dereddening
+
+import extinction
+
+print('applying extinction to aperture fluxes')
+
+Rv = 3.1
+ext = []
+
+sel_aper = source_table['flux_aper_obs'] > 0
+
+for index in np.arange( np.size(source_table['detectid'])):
+    if source_table['flux_aper_obs'][index] > 0:
+        oii_wave = np.array([np.double( waveoii * ( 1. + source_table['z_hetdex'][index]))])
+        ext_i = extinction.fitzpatrick99(oii_wave, source_table['Av'][index], Rv)[0]
+        ext.append(ext_i)
+    else:
+        ext.append(np.nan)
+        
+deredden = 10**(0.4*np.array(ext))
+
+source_table['flux_aper'] = np.nan
+source_table['flux_aper_err'] = np.nan
+
+source_table['flux_aper'][sel_aper] = deredden[sel_aper] * source_table['flux_aper_obs'][sel_aper]
+source_table['flux_aper_err'][sel_aper] = deredden[sel_aper] * source_table['flux_aper_obs_err'][sel_aper]
+                    
 print(len(source_table))
 
 sel_to_switch = (source_table['source_type'] == 'lzg') & (source_table['flux_aper'] > 0)
@@ -493,7 +561,6 @@ for det in det_lae_selected:
     sel_det = source_table['detectid'] == det
     source_table['selected_det'][sel_det] = True
 
-
 # now assign brightest detectid to star, agn, lzg groups
 
 sel_rest = (source_table['source_type'] != 'lae') * (source_table['source_type'] != 'oii')
@@ -517,22 +584,30 @@ source_table.add_column(Column(name='lum_oii_err', length=len(source_table)))
 
 # oii lum comes from flux_aper unless flux_aper is negative
 
-sel_oii = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] > 0)
+sel_oii_aper = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] > 0) & (source_table['major'] >= 2)
 
-lum_dist = cosmo.luminosity_distance(source_table['z_hetdex'][sel_oii]).to(u.cm)
+source_table['flag_aper'] = -1
+
+lum_dist = cosmo.luminosity_distance(source_table['z_hetdex'][sel_oii_aper]).to(u.cm)
 fac = 10**(-17) * 4.* np.pi * lum_dist**2
 
-source_table['lum_oii'][sel_oii] = source_table['flux_aper'][sel_oii]*fac
-source_table['lum_oii_err'][sel_oii] = source_table['flux_aper_err'][sel_oii]*fac
+source_table['lum_oii'][sel_oii_aper] = source_table['flux_aper'][sel_oii_aper]*fac
+source_table['lum_oii_err'][sel_oii_aper] = source_table['flux_aper_err'][sel_oii_aper]*fac
+source_table['flag_aper'][sel_oii_aper] = 1
 
-
-sel_oii = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] <= 0)
+sel_oii_1 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] <= 0)
+sel_oii_2 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['major'] <= 2)
+sel_oii = sel_oii_1 | sel_oii_2
+source_table['flag_aper'][sel_oii] = 0
 
 lum_dist = cosmo.luminosity_distance(source_table['z_hetdex'][sel_oii]).to(u.cm)
 fac = 10**(-17) * 4.* np.pi * lum_dist**2
 
 source_table['lum_oii'][sel_oii] = source_table['flux'][sel_oii]*fac
 source_table['lum_oii_err'][sel_oii] = source_table['flux_err'][sel_oii]*fac
+
+print('Number of OII assigned detections')
+print(np.sum(sel_oii), np.sum(sel_oii_aper), np.sum( (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii')))
 
 sel_lae = (source_table['selected_det'] == True) & (source_table['source_type'] == 'lae')
 
@@ -562,8 +637,8 @@ for col in source_table.columns:
         source_table[col] = source_table[col].astype(np.float32)
 
 source_table.sort('source_id')
-source_table.write('source_catalog_2.1.4.fits', overwrite=True)
-source_table.write('source_catalog_2.1.4.tab', format='ascii', overwrite=True)
+source_table.write('source_catalog_2.1.4_20220218.fits', overwrite=True)
+source_table.write('source_catalog_2.1.4_20220218.tab', format='ascii', overwrite=True)
 
 #uniq_table = unique(source_table, keys='source_id')
 #uniq_table.write('source_unique_2.1.4.tab', format='ascii', overwrite=True)

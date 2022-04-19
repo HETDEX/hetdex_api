@@ -17,7 +17,7 @@ from hetdex_api.flux_limits.shot_sensitivity import ShotSensitivity
 from multiprocessing import Pool
 
 
-version = '2.1.3'
+version = '2.1.4'
 
 config = HDRconfig()
 #catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')

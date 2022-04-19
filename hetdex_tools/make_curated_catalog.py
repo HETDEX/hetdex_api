@@ -182,7 +182,7 @@ elif version == "2.1.3":
 elif version == "2.1.4":
 
     # get updated chi2fib values (see work in stampede2/notebooks/fiber_chi2_check.ipynb:
-    chi2table = Table.read('chi2fib_all.tab', format='ascii.no_header', names=['detectid', 'chi2fib'])
+    chi2table = Table.read('/work/05350/ecooper/stampede2/notebooks/chi2fib_all.tab', format='ascii.no_header', names=['detectid', 'chi2fib'])
     
     det = Table([detects.detectid],names=['detectid'])
     det_join = join(det, chi2table)
@@ -203,7 +203,7 @@ elif version == "2.1.4":
     sel_chi2fib = selchi2fib1 * selchi2fib2
     
     sel_tp = detects.throughput >= 0.08
-    
+
     sel = sel_field * sel_cont * sel_chi2fib * sel_tp * (sel_cut1 | sel_cut2)
     
     sel_wave = (detects.wave >= 3550) * (detects.wave <= 5460)

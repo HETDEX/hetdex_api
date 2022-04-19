@@ -12,6 +12,7 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+current_hdr = LATEST_HDR_NAME
 
 config = HDRconfig()
 surveyh5 = tb.open_file(config.surveyh5, "r")
@@ -87,7 +88,16 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, detecth5, surveyh5
+    global config, detecth5, surveyh5, current_hdr
+
+    if survey != current_hdr:
+        config = HDRconfig(survey)
+        current_hdr = survey
+        try:
+            surveyh5.close() #just in case it does not exist yet
+        except:
+            pass
+        surveyh5 = tb.open_file(config.surveyh5, 'r')
 
     if detectid is not None:
         

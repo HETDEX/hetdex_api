@@ -8,8 +8,8 @@ import os.path as op
 
 class HDRconfig:
 
-    LATEST_HDR_NAME = 'hdr2.1'
-    
+    LATEST_HDR_NAME = 'hdr3'#'hdr2.1'
+
     def __init__(self, survey=LATEST_HDR_NAME):
         # Check stampede2 first
         if op.exists("/scratch/03946/hetdex"):
@@ -63,7 +63,10 @@ class HDRconfig:
             )
         except:
             pass
-        self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
+        if survey == 'hdr2.1':
+            self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
+        elif survey == 'hdr3':
+            self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer_hdr3_emis_cat.h5")
         self.imaging_dir = op.join(self.host_dir, "imaging")
         self.contsourceh5 = op.join(
             self.hdr_dir[survey], "detect", "continuum_sources.h5"
@@ -106,14 +109,14 @@ class HDRconfig:
 
         if survey in ["hdr2.1",'hdr3']:
             if op.exists("/home/jovyan/software/hetdex_api"):
-                self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr2.1"
-            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"):
-                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/hdr2.1/hdr2.1_issues"
-            elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"):
-                self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/hdr2.1"
+                self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
+            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)):
+                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)
+            elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)):
+                self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)
             else:
                 self.bad_dir = (
-                    "/work/05350/ecooper/stampede2/hetdex_api/known_issues/hdr2.1"
+                    "/work/05350/ecooper/stampede2/hetdex_api/known_issues/{}".format(survey)
                 )
 
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
