@@ -32,10 +32,13 @@ try:
     shotid = int(opts.datevshot.replace("v", ""))
     table = table[table["shotid"] == shotid]
 except KeyError as e:
-    print("Couldn't find datevobs in catalogue, running on all")
+    try:
+        table = table[table["datevobs"] == opts.datevshot]
+    except KeyError as e:
+        print("Couldn't find datevobs in catalogue, running on all")
 
-ra = table["ra"]
-dec = table["dec"]
+ra = table["RA_in"]
+dec = table["DEC_in"]
 wave = table["wave"]
 
 s = ShotSensitivity(opts.datevshot, wavenpix=opts.wavenpix, 
@@ -53,6 +56,3 @@ table["sigma_{:d}_{:2.1f}".format(opts.wavenpix, opts.aprad)] = sigmas
 table["norm_{:d}_{:2.1f}".format(opts.wavenpix, opts.aprad)] = norm
 table["datevshot"] = opts.datevshot
 table.write(opts.output)
-
-
-
