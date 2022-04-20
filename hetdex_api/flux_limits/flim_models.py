@@ -24,6 +24,9 @@ from hetdex_api.flux_limits import flim_models_old, flim_model_cache
 class NoLineWidthModel(Exception):
     pass
 
+class FlimOptionNotSupported(Exception):
+    pass
+
 class ModelInfo(object):
     """
     Store information about the flux
@@ -45,7 +48,7 @@ class ModelInfo(object):
     def __init__(self, snfile_version, snpoly, wavepoly,
                  interp_sigmas, dont_interp_to_zero, 
                  snlow=4.8, snhigh=7.0, lw_scaling=None,
-                 wl_collapse=False):
+                 wl_collapse=False, single_snfile=False):
 
         self.snfile_version = snfile_version
         self.snpoly = snpoly
@@ -56,6 +59,7 @@ class ModelInfo(object):
         self.dont_interp_to_zero = dont_interp_to_zero
         self.lw_scaling = lw_scaling
         self.wl_collapse = wl_collapse
+        self.single_snfile = single_snfile
 
 class NoSNFilesException(Exception):
     pass
@@ -197,14 +201,33 @@ class SimulationInterpolator(object):
         A directory of sn?.?.use files,
         containing Karl's simulation 
         results
+    single_snfile : bool
+        Use the same file of completeness
+        curves for all S/N cuts
     **kwargs : 
         passed to SingleSNSimulationInterpolator
     """
 
     def __init__(self, fdir, dont_interp_to_zero, 
+                 single_snfile=False,
                  snmode=False, verbose=False, **kwargs):
 
-        if snmode:
+        if single_snfile:
+            if snmode:
+                raise FlimOptionNotSupported("Using single_snfile and ",
+                                              "snmode at same time ", 
+                                              "not supported")
+            if dont_interp_to_zero:
+                raise FlimOptionNotSupported("Using dont_interp_to_zero ",
+                                              "and single_snfile at same time ",
+                                              "not supported")
+ 
+
+        if single_snfile:
+            if verbose:
+                print("Using a single S/N file for everything!")
+            snfiles = glob(fdir + "/sn_all.use")
+        elif snmode:
             snfiles = glob(fdir + "/sn_based_?.?.dat")
         else: 
             snfiles = glob(fdir + "/sn?.?.use")
@@ -218,7 +241,11 @@ class SimulationInterpolator(object):
                 print(snfile)
             self.sninterpolators.append(SingleSNSimulationInterpolator(snfile, dont_interp_to_zero,
                                                                        snmode=snmode, **kwargs))
-            sns.append(float(snfile[-7:-4]))
+            if single_snfile:
+                # value doesn't matter
+                sns.append(5.5)
+            else:
+                sns.append(float(snfile[-7:-4]))
 
         if len(sns) == 0:
             raise NoSNFilesException("Could not find any simulation files! ")
@@ -296,11 +323,6 @@ class SingleSNSimulationInterpolator(object):
     completeness_model : callable
         model of completeness given 
         flux, wavelength and noise
-    f50_interpolator : callable
-        given wavelength, return
-        50% completeness from the
-        simulation files
-
     """
     def __init__(self, filename, dont_interp_to_zero, wl_collapse = False, 
                  cmax = None, snmode = False):
@@ -332,7 +354,6 @@ class SingleSNSimulationInterpolator(object):
                  self.compl_curves[i, :] *= cmax
 
         self.completeness_model = self.interpolated_model()
-        self.f50_interpolator = interp1d(self.waves, 1e-17*self.f50) 
 
 
     def interpolated_model(self, plot=False):
@@ -389,10 +410,14 @@ class SingleSNSimulationInterpolator(object):
         c_all = array(c_all)
 
         # Make a combined model
-        if self._wl_collapse: 
-            # Don't use first two wavebins as
-            # big scatter
-            cmean = mean(c_all[2:], axis=0)
+        if self._wl_collapse or (len(self.waves) == 1): 
+
+            if len(self.waves) == 1:
+                cmean = c_all[0]
+            else:
+                # Don't use first two wavebins as
+                # big scatter
+                cmean = mean(c_all[2:], axis=0)
         
             completeness_model = interp1d(fluxes_f50_units, cmean, 
                                           fill_value=(0.0, cmean[-1]), 
@@ -457,7 +482,7 @@ class SingleSNSimulationInterpolator(object):
 
         if self._snmode:
             return self.completeness_model(f50, flux/f50)
-        elif self._wl_collapse:
+        elif self._wl_collapse or (len(self.waves) == 1):
             return self.completeness_model(flux/f50)
         else:
             return self.completeness_model(wave.flatten(), (flux/f50).flatten())
@@ -503,12 +528,12 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
 
     models = {
               "one_sigma_nearest_pixel" : ModelInfo("curves_v1", 
-                                              [1.0], 
+                                              [1.0, 0.0], 
                                               None, 
                                               False, False, 
                                               snlow=0.999999, snhigh=1.000001),
               "one_sigma_interpolate" : ModelInfo("curves_v1", 
-                                                  [1.0], 
+                                                  [1.0, 0.0], 
                                                   None, 
                                                   True, False, 
                                                   snlow=0.999999, snhigh=1.000001), 
@@ -531,18 +556,24 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
                                [-1.59395767e-14, 3.10388106e-10, 
                                 -2.26855051e-06,  7.38507004e-03, 
                                 -8.06953973e+00], False, True,
-                                lw_scaling = linewidth_f50_scaling_v1),
+                                lw_scaling=linewidth_f50_scaling_v1),
               "v3" : ModelInfo("curves_v1",
                                 [-0.04162407, 0.80167981, -4.11209695, 9.95753597],
                                 [1.46963918e-15, -6.68766843e-11,  7.56849155e-07, -3.28661164e-03,
                                  5.95152597e+00],
                                 False, True,
-                                lw_scaling = linewidth_f50_scaling_v1,
-                                wl_collapse = True)
+                                lw_scaling=linewidth_f50_scaling_v1,
+                                wl_collapse=True),
+              "v4" : ModelInfo("curves_v2",
+                                [1.0, 0.0],
+                                [-4.10848216e-11, 6.68571465e-07, 
+                                 -3.55515621e-03,  6.99466106e+00],
+                                False, False,
+                                lw_scaling=linewidth_f50_scaling_v1,
+                                single_snfile=True)
              }
 
-
-    default = "v3" 
+    default = "v4" 
 
     if not flim_model:
         flim_model = default
@@ -559,7 +590,8 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
         fdir = join(fdir, model.snfile_version)
         sinterp = SimulationInterpolator(fdir, model.dont_interp_to_zero, 
                                          snmode=False, verbose=verbose,
-                                         wl_collapse=model.wl_collapse)
+                                         wl_collapse=model.wl_collapse,
+                                         single_snfile=model.single_snfile)
 
     # save model in cache
     if cache_sim_interp:
