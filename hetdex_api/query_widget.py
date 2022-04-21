@@ -377,7 +377,7 @@ class QueryWidget:
                                opacity=0.25,
                                line={'dash'},
                                name=str(row["shotid"]) + ' (poor data)',
-                               line_shape="linear")
+                               line_shape="linear"))
 
         fig.update_traces(hoverinfo="text+name", mode="lines")
         fig.update_layout(
