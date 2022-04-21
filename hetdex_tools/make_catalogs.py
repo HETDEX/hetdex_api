@@ -409,7 +409,6 @@ def create_source_catalog(
                             'wave_group_dec',
                             'wave_group_wave']
 
-    w_keep.write('test2.fits', overwrite=True)
     t1 = time.time()
     
     print("3D FOF analysis complete in {:3.2f} minutes \n".format((t1 - t0) / 60))
@@ -539,9 +538,8 @@ def create_source_catalog(
     p = Pool(32)
     res = p.map(merge_wave_groups, wid_list)
     p.close()
-    t1 = time.time()
+
     ind_list = []
-    
     for r in res:
         if r is None:
             continue
@@ -560,17 +558,18 @@ def create_source_catalog(
             0.0* expand_table["wave"],
             expand_table['flux_g'])
 
-    for ind in ind_list:
-        sid_main = np.min(expand_table['source_id'])
+    for i, ind in enumerate(ind_list):
+        sid_main = np.min(expand_table['source_id'][ind])
         expand_table['source_id'][ind] = sid_main
 
         for col in res_tab.colnames:
             if col in ['id', 'members']:
                 continue
-            expand_table[col][ind] = res_tab[col]
-                                                                
+            expand_table[col][ind] = res_tab[col][i]
+
+    t1 = time.time()                                               
     print('Done combining wavegroups in {:4.2f} min'.format( (t1-t0)/60))
-    
+
     del detfriend_all, detect_table
 
     gaia_stars = Table.read(config.gaiacat)
@@ -1053,12 +1052,28 @@ def main(argv=None):
     sdss_specz.rename_column('Z_ERR', 'z_sdss_err')
     sdss_specz['zspec_catalog'] = 'sdss-dr16'
 
+    dtab = Table.read(op.join(
+        config.imaging_dir,
+        'catalogs',
+        'desi-hetdex-v1.0.fits'))
+
+    sel_good_hetdex = (dtab['wave'] >= 3640 )
+    sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)
+    sel_sample = sel_good_desi*sel_good_hetdex
+    sel_conf = dtab['VI_quality'] >= 3
+    dtab = dtab[sel_conf&sel_sample]                    
+    dtab.rename_column('TARGET_RA','ra_zspec')
+    dtab.rename_column('TARGET_DEC','dec_zspec')
+    dtab['zspec_catalog'] = 'DESI'
+    dtab.rename_column('VI_z', 'zspec')
+
     specz_catalogs = vstack([goods_z['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              deimos['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              mosdef['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              zcosbright['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              deep_specz['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              sdss_specz['zspec','ra_zspec','dec_zspec','zspec_catalog'],
+                             dtab['zspec','ra_zspec','dec_zspec','zspec_catalog'],
                              ])
     sel=specz_catalogs['zspec'] >= 0
     specz_catalogs = specz_catalogs[sel]
@@ -1089,53 +1104,54 @@ def main(argv=None):
     matched_catalog['zspec_dist'][sel_remove] = np.nan
     matched_catalog['zspec_catalog'][sel_remove] = ''
 
-    #add desi confirmed redshifts
+    if False:#doing above because we need to cross-match by coordinates for HDR3
+        #add desi confirmed redshifts
 
-    dtab = Table.read(op.join(
-        config.imaging_dir,
-        'catalogs',
-        'desi-hetdex-v1.0.fits'))
+        dtab = Table.read(op.join(
+            config.imaging_dir,
+            'catalogs',
+            'desi-hetdex-v1.0.fits'))
 
-    sel_good_hetdex = (dtab['wave'] >= 3640 )
-    sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)
-    sel_sample = sel_good_desi*sel_good_hetdex
-    sel_conf = dtab['VI_quality'] >= 3
+        sel_good_hetdex = (dtab['wave'] >= 3640 )
+        sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)
+        sel_sample = sel_good_desi*sel_good_hetdex
+        sel_conf = dtab['VI_quality'] >= 3
 
-    hetdex_coords = SkyCoord(ra=dtab['RA_HETDEX'], dec=dtab['DEC_HETDEX'], unit='deg')
-    desi_coords = SkyCoord(ra=dtab['TARGET_RA'], dec=dtab['TARGET_DEC'], unit='deg')
-    dtab['zspec_dist'] = hetdex_coords.separation(desi_coords).arcsec
+        hetdex_coords = SkyCoord(ra=dtab['RA_HETDEX'], dec=dtab['DEC_HETDEX'], unit='deg')
+        desi_coords = SkyCoord(ra=dtab['TARGET_RA'], dec=dtab['TARGET_DEC'], unit='deg')
+        dtab['zspec_dist'] = hetdex_coords.separation(desi_coords).arcsec
 
-    zspec = []
-    zspec_dist = []
+        zspec = []
+        zspec_dist = []
 
-    desi_matches = dtab['detectid'][sel_sample*sel_conf]
-    for row in dtab[sel_sample*sel_conf]:
-        if row['VI_z'] > 1.9:
-            wave_z = (1 + row['VI_z'])*wavelya
-            if (np.abs(wave_z - row['wave']) < 10):
-                zspec.append(row['VI_z'])
-                zspec_dist.append(row['zspec_dist'])
+        desi_matches = dtab['detectid'][sel_sample*sel_conf]
+        for row in dtab[sel_sample*sel_conf]:
+            if row['VI_z'] > 1.9:
+                wave_z = (1 + row['VI_z'])*wavelya
+                if (np.abs(wave_z - row['wave']) < 10):
+                    zspec.append(row['VI_z'])
+                    zspec_dist.append(row['zspec_dist'])
+                else:
+                    zspec.append(np.nan)
+                    zspec_dist.append(np.nan)
+
+            elif row['VI_z'] < 0.5:
+                wave_z = (1 + row['VI_z'])*waveoii
+                if (np.abs(wave_z - row['wave']) < 10):
+                    zspec.append(row['VI_z'])
+                    zspec_dist.append(row['zspec_dist'])
+                else:
+                    zspec.append(np.nan)
+                    zspec_dist.append(np.nan)
             else:
                 zspec.append(np.nan)
                 zspec_dist.append(np.nan)
 
-        elif row['VI_z'] < 0.5:
-            wave_z = (1 + row['VI_z'])*waveoii
-            if (np.abs(wave_z - row['wave']) < 10):
-                zspec.append(row['VI_z'])
-                zspec_dist.append(row['zspec_dist'])
-            else:
-                zspec.append(np.nan)
-                zspec_dist.append(np.nan)
-        else:
-            zspec.append(np.nan)
-            zspec_dist.append(np.nan)
-
-    for i in np.arange(len(desi_matches)):
-        sel_det = matched_catalog['detectid'] == desi_matches[i]
-        matched_catalog['zspec'][sel_det] = zspec[i]
-        matched_catalog['zspec_dist'][sel_det] = zspec_dist[i]
-        matched_catalog['zspec_catalog'][sel_det] = 'DESI'
+        for i in np.arange(len(desi_matches)):
+            sel_det = matched_catalog['detectid'] == desi_matches[i]
+            matched_catalog['zspec'][sel_det] = zspec[i]
+            matched_catalog['zspec_dist'][sel_det] = zspec_dist[i]
+            matched_catalog['zspec_catalog'][sel_det] = 'DESI'
 
     source_table = matched_catalog
 
@@ -1170,11 +1186,36 @@ def main(argv=None):
             #print('no', col)
     #remove nonsense metadata
     source_table.meta = {}
+
+    # Apply dust corretion to flux, continuum, flux_1sigma
+
+    source_table['flux_obs'] = source_table['flux'].copy()
+    source_table['flux_err_obs'] = source_table['flux_err'].copy()
+    source_table['continuum_obs'] = source_table['continuum'].copy()
+    source_table['continuum_err_obs'] = source_table['continuum_err'].copy()
+    source_table['flux_noise_1sigma_obs'] = source_table['flux_noise_1sigma'].copy()
+
+    Rv = 3.1
+    ext = []
+
+    for index in np.arange( np.size(source_table['detectid'])):
+        src_wave = np.array([np.double(source_table['wave'][index])])
+        ext_i = extinction.fitzpatrick99(src_wave, source_table['Av'][index], Rv)[0]
+        ext.append(ext_i)
+       
+    deredden = 10**(0.4*np.array(ext))
+    deredden[np.isnan(deredden)] = 0
+    source_table['flux'] = deredden * source_table['flux_obs']
+    source_table['flux_err'] = deredden * source_table['flux_err_obs']
+    source_table['continuum'] = deredden * source_table['continuum_obs']
+    source_table['continuum_err'] = deredden * source_table['continuum_err_obs']
+    source_table['flux_noise_1sigma'] = deredden * source_table['flux_noise_1sigma_obs']
+
     source_table.write("source_catalog_{}.fits".format(args.version),
                        overwrite=True)
     source_table.write("source_catalog_{}.tab".format(args.version),
                        overwrite=True, format='ascii')
 
- 
+
 if __name__ == "__main__":
     main()
