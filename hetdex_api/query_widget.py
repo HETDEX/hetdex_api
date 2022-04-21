@@ -37,13 +37,24 @@ from hetdex_tools.get_spec import get_spectra
 from astroquery.sdss import SDSS
 from elixer import catalogs
 
+try:  # using HDRconfig
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    CONFIG_HDR2 = HDRconfig('hdr2.1')
+    CONFIG_HDR3 = HDRconfig('hdr3')
+    
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr2.1"
+
+OPEN_DET_FILE = None
+DET_HANDLE = None
 
 class QueryWidget:
     def __init__(
         self,
         coords=None,
         detectid=None,
-        survey="hdr2.1",
+        survey=LATEST_HDR_NAME,
         aperture=3.0 * u.arcsec,
         cutout_size=5.0 * u.arcmin,
         zoom=3,
@@ -58,7 +69,6 @@ class QueryWidget:
 
         config = HDRconfig(survey=survey)
 
-        self.fileh5dets = tb.open_file(config.detecth5, "r")
         self.catlib = catalogs.CatalogLibrary()
 
         if coords:
@@ -75,7 +85,7 @@ class QueryWidget:
         self.imw = ImageWidget(image_width=600, image_height=600)
 
         self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2", "HDR2.1"],
+            options=["HDR1", "HDR2", "HDR2.1", "HDR3"],
             value=self.survey.upper(),
             layout=Layout(width="10%"),
         )
@@ -83,7 +93,7 @@ class QueryWidget:
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=1000000000,
-            max=3000000000,
+            max=4000000000,
             step=1,
             description="DetectID:",
             disabled=False,
@@ -167,8 +177,6 @@ class QueryWidget:
 
     def on_survey_change(self, b):
         self.survey = self.survey_widget.value.lower()
-        self.fileh5dets.close()
-        self.fileh5dets = tb.open_file(config.detecth5, "r")
 
     def update_coords(self):
         self.coords = SkyCoord(
@@ -184,18 +192,53 @@ class QueryWidget:
 
     def update_det_coords(self):
         detectid_i = self.detectid
+        
+        global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
-        det_row = self.fileh5dets.root.Detections.read_where("detectid == detectid_i")
-        if np.size(det_row) > 0:
-            self.coords = SkyCoord(det_row["ra"][0] * u.deg, det_row["dec"][0] * u.deg)
+        if (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.detecth5
+        elif (self.detectid >= 2100000000) * (self.detectid < 2190000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+        elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
+            self.det_file = CONFIG_HDR3.detecth5
+        elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
+            self.det_file = CONFIG_HDR2.contsourceh5
+
+        if OPEN_DET_FILE is None:
+            OPEN_DET_FILE = self.det_file
+            DET_HANDLE = tb.open_file(self.det_file, 'r')
+
         else:
+            if self.det_file == OPEN_DET_FILE:
+                pass
+            else:
+                DET_HANDLE.close()
+                OPEN_DET_FILE = self.det_file
+                try:
+                    DET_HANDLE = tb.open_file(self.det_file, 'r')
+                except Exception:
+                    with self.bottombox:
+                        print("Could not open {}".format(self.det_file))
+        try:
+            det_row = DET_HANDLE.root.Detections.read_where("detectid == detectid_i")
+
+            if np.size(det_row) > 0:
+                self.coords = SkyCoord(det_row["ra"][0] * u.deg, det_row["dec"][0] * u.deg)
+            else:
+                with self.bottombox:
+                    print(
+                        "{} is not in the {} detect database".format(
+                            detectid_i, self.survey
+                        )
+                    )
+        except:
             with self.bottombox:
                 print(
                     "{} is not in the {} detect database".format(
                         detectid_i, self.survey
                     )
                 )
-
+                
     def pan_to_coords_click(self, b):
         self.bottombox.clear_output()
         self.update_coords()
