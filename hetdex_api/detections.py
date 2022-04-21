@@ -282,7 +282,8 @@ class Detections:
                     self.gmag = self.mag_sdss_g
                     self.gmag_err = self.mag_sdss_g
                 except:
-                    print("No Elixer table found")
+                    pass
+                    #print("No Elixer table found")
 
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12, unicode=True)
