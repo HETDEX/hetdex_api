@@ -223,6 +223,14 @@ def main(argv=None):
         default=os.getcwd(),
     )
 
+    parser.add_argument(
+        "--reindex",
+        "-reindex",
+        help="""Boolean to reindex an append""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
     
     args = parser.parse_args(argv)
     args.log = setup_logging()
@@ -362,29 +370,36 @@ def main(argv=None):
     detectcat["col7"].name = "obnum"
     detectcat["col8"].name = "datevshot"
 
-    fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+    if args.append:
+        fileh = tb.open_file(outfilename, "a", "HDR3 Continuum Source Database")
+        tableMain = fileh.root.Detections
+        tableSpectra = fileh.root.Spectra
+        tableFibers = fileh.root.Fibers
+
+    else:
+        fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
         
-    tableMain = fileh.create_table(
-        fileh.root,
-        "Detections",
-        Detections,
-        "HETDEX Continuum Source Catalog",
-        expectedrows= np.size(detectcat),
-    )
-    tableFibers = fileh.create_table(
-        fileh.root,
-        "Fibers",
-        Fibers,
-        "Fiber info for each source",
-        expectedrows= np.size(detectcat),
-    )
-    tableSpectra = fileh.create_table(
-        fileh.root,
-        "Spectra",
-        Spectra,
-        "1D Spectra for each Line Detection",
-        expectedrows=15 * np.size(detectcat),
-    )
+        tableMain = fileh.create_table(
+            fileh.root,
+            "Detections",
+            Detections,
+            "HETDEX Continuum Source Catalog",
+            expectedrows= np.size(detectcat),
+        )
+        tableFibers = fileh.create_table(
+            fileh.root,
+            "Fibers",
+            Fibers,
+            "Fiber info for each source",
+            expectedrows= np.size(detectcat),
+        )
+        tableSpectra = fileh.create_table(
+            fileh.root,
+            "Spectra",
+            Spectra,
+            "1D Spectra for each Line Detection",
+            expectedrows=15 * np.size(detectcat),
+        )
 
     shotid = []
     date = []
@@ -392,8 +407,11 @@ def main(argv=None):
     inputid = []
     detectid = []
 
-    detectid_i = detectidx
-
+    if args.append:
+        detectid_i = np.max(tableMain.cols.detectid[:]) + 1
+    else:
+        detectid_i = detectidx
+    print(detectid_i)
     for row in detectcat:
         p = re.compile("v")
         shotid_i = int(p.sub("", row["datevshot"]))
@@ -433,13 +451,8 @@ def main(argv=None):
             except:
                 rowMain[col] = 0.0
 
-        rowMain.append()
-
-    tableMain.flush()
-
-    for row in tableMain:
         try:
-            inputid_i = row["inputid"].decode()
+            inputid_i = row["inputid"]
             specfile = "./spec/{}.spec".format(inputid_i)
             dataspec = Table(
                 np.loadtxt(specfile),
@@ -477,16 +490,12 @@ def main(argv=None):
         except Exception:
             args.log.error("Could not ingest %s" % specfile)
 
-    tableSpectra.flush()
 
-    # add fiber info for each detection
-
-    for row in tableMain:
-        inputid_i = row["inputid"].decode()
-
+        # add fiber data
+        inputid_i = row["inputid"]
         filefiberinfo = "./spec/{}.list".format(inputid_i)
 
-        try:
+        if True:#try:
             datafiber = Table.read(filefiberinfo, format="ascii.no_header")
 
             for ifiber in np.arange(np.size(datafiber)):
@@ -527,45 +536,58 @@ def main(argv=None):
                 rowfiber.append()
 
             # Now append brightest fiber info to Detections table:
-            ifiber = 0  # np.argmax(datafiber["col14"])
+            ifiber = np.argmax(datafiber["col14"])
             multiname = datafiber["col5"][ifiber]
             multiframe = multiname[0:20]
-            row["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
+            rowMain["expnum"] = int(str(datafiber["col6"][ifiber])[3:5])
             fiber_id_i = (
-                str(row["shotid"])
+                str(rowMain["shotid"])
                 + "_"
-                + str(row["expnum"])
+                + str(rowMain["expnum"])
                 + "_"
                 + multiframe
                 + "_"
                 + str(int(multiname[21:24])).zfill(3)
             )
-            row["fiber_id"] = fiber_id_i
-            row["multiframe"] = multiframe
-            row["specid"] = multiframe[6:9]
-            row["ifuslot"] = multiframe[10:13]
-            row["ifuid"] = multiframe[14:17]
-            row["amp"] = multiframe[18:20]
-            row["fibnum"] = int(multiname[21:24])
-            row["x_raw"] = datafiber["col12"][ifiber]
-            row["y_raw"] = datafiber["col13"][ifiber]
-            row["x_ifu"] = datafiber["col3"][ifiber]
-            row["y_ifu"] = datafiber["col4"][ifiber]
-            row["expnum"] = str(datafiber["col6"][ifiber])[3:5]
-            row["weight"] = datafiber["col14"][ifiber]
-            row.update()
-
-        except Exception:
+            rowMain["fiber_id"] = fiber_id_i
+            rowMain["multiframe"] = multiframe
+            rowMain["specid"] = multiframe[6:9]
+            rowMain["ifuslot"] = multiframe[10:13]
+            rowMain["ifuid"] = multiframe[14:17]
+            rowMain["amp"] = multiframe[18:20]
+            rowMain["fibnum"] = int(multiname[21:24])
+            rowMain["x_raw"] = datafiber["col12"][ifiber]
+            rowMain["y_raw"] = datafiber["col13"][ifiber]
+            rowMain["x_ifu"] = datafiber["col3"][ifiber]
+            rowMain["y_ifu"] = datafiber["col4"][ifiber]
+            rowMain["expnum"] = str(datafiber["col6"][ifiber])[3:5]
+            rowMain["weight"] = datafiber["col14"][ifiber]
+            rowMain.append()
+        else:#except Exception:
             args.log.error("Could not ingest %s" % filefiberinfo)
 
+        tableMain.flush()
+        tableSpectra.flush()
         tableFibers.flush()
 
-    tableMain.cols.detectid.create_csindex()
-    tableFibers.cols.detectid.create_csindex()
-    tableSpectra.cols.detectid.create_csindex()
-    tableFibers.flush()  # just to be safe
-    tableSpectra.flush()
-    tableMain.flush()
+    if args.append:
+        if args.reindex:
+            args.log.info("Reindexing the detectid column")
+            tableMain.cols.detectid.reindex()
+            tableFibers.cols.detectid.reindex()
+            tableSpectra.cols.detectid.reindex()
+        tableFibers.flush()  # just to be safe
+        tableSpectra.flush()
+        tableMain.flush()
+    else:
+        args.log.info("Indexing the detectid column")
+        tableMain.cols.detectid.create_csindex()
+        tableFibers.cols.detectid.create_csindex()
+        tableSpectra.cols.detectid.create_csindex()
+        tableFibers.flush()  # just to be safe
+        tableSpectra.flush()
+        tableMain.flush()
+        
     args.log.info("File finished: {}".format(outfilename))
     fileh.close()
 
