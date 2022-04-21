@@ -367,15 +367,17 @@ class QueryWidget:
             y = row["spec"]
             if row['flag'] == 1:
                 fig.add_trace(
-                    go.Scatter(x=x, y=y, name=str(row["shotid"]), line_shape="linear")
+                    go.Scatter(x=x, y=y, line={'solid'}, name=str(row["shotid"]),
+                               template='simply_white',
+                               line_shape="linear")
                 )
             else:
                 fig.add_trace(
                     go.Scatter(x=x, y=y,
                                opacity=0.25,
-                               line={'dash': 'dot'},
+                               line={'dash'},
                                name=str(row["shotid"]) + ' (poor data)',
-                               line_shape="linear",)
+                               line_shape="linear"
                 )
 
         fig.update_traces(hoverinfo="text+name", mode="lines+markers")
@@ -389,7 +391,7 @@ class QueryWidget:
                           autosize=True,
                           height=300,
                           width=500,
-                          font_size=10)
+                          font_size=10, range_x=[3540, 5510])
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
