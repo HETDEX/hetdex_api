@@ -16,13 +16,25 @@ parser.add_argument("--wavenpix", default=3, type=int,
 parser.add_argument("--aprad", default=3.5, type=float, 
                     help="Aperture radius in arcseconds")
 parser.add_argument("--ascii", action="store_true")
+parser.add_argument("--header", help="Header for the ascii file. "
+                                     "col1: anything col2: column " 
+                                     "name")
 parser.add_argument("datevshot")
 parser.add_argument("input")
 parser.add_argument("output")
 opts = parser.parse_args()
 
 
-if opts.ascii:
+if opts.header:
+    names = [] 
+    with open(opts.header, 'r') as fp: 
+        for line in fp: 
+            names.append(line.strip().split()[1]) 
+
+    table = Table.read(opts.input, format="ascii", 
+                       names=names)
+
+elif opts.ascii:
     table = Table.read(opts.input, format="ascii")
 else:
     table = Table.read(opts.input)
