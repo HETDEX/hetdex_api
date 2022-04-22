@@ -11,13 +11,22 @@ from astropy.table import Table
 from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
 
-LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+
+try:  # using HDRconfig
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig(LATEST_HDR_NAME)
+    CONFIG_HDR2 = HDRconfig('hdr2.1')
+    CONFIG_HDR3 = HDRconfig('hdr3')
+
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr3"
+    
+OPEN_DET_FILE = None
+DET_HANDLE = None
+DET_FILE = None
+
 current_hdr = LATEST_HDR_NAME
-
-config = HDRconfig()
-surveyh5 = tb.open_file(config.surveyh5, "r")
-detecth5 = tb.open_file(config.detecth5, "r")
-
 
 def make_narrowband_image(
     detectid=None,
@@ -88,8 +97,10 @@ def make_narrowband_image(
                                     shotid=20190524021,
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
-    global config, detecth5, surveyh5, current_hdr
-
+    global config, current_hdr, surveyh5
+    global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
+    global DET_FILE
+            
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
@@ -98,11 +109,35 @@ def make_narrowband_image(
         except:
             pass
         surveyh5 = tb.open_file(config.surveyh5, 'r')
-
-    if detectid is not None:
         
+    if detectid is not None:
+    
+        if (detectid >= 2100000000) * (detectid < 2190000000):
+            DET_FILE = CONFIG_HDR2.detecth5
+        elif (detectid >= 2100000000) * (detectid < 2190000000):
+            DET_FILE = CONFIG_HDR2.contsourceh5
+        elif (detectid >= 3000000000) * (detectid < 3090000000):
+            DET_FILE = CONFIG_HDR3.detecth5
+        elif (detectid >= 3090000000) * (detectid < 3100000000):
+            DET_FILE = CONFIG_HDR2.contsourceh5
+        
+        if OPEN_DET_FILE is None:
+            
+            DET_HANDLE = tb.open_file(DET_FILE, 'r')
+            OPEN_DET_FILE = DET_FILE
+        else:
+            if DET_FILE == OPEN_DET_FILE:
+                pass
+            else:
+                DET_HANDLE.close()
+                OPEN_DET_FILE = DET_FILE
+                try:
+                    DET_HANDLE = tb.open_file(self.DET_FILE, 'r')
+                except:
+                    print("Could not open {}".format(self.det_file))
+
         detectid_obj = detectid
-        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
+        det_info = DET_HANDLE.root.Detections.read_where('detectid == detectid_obj')[0]
         
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
@@ -311,16 +346,55 @@ def make_data_cube(
     >>> hdu.writeto( 'star.fits', overwrite=True)
     
     """
-    global config, detecth5, surveyh5
+    global config, current_hdr, surveyh5
+    global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
+    global DET_FILE
+
+    if survey != current_hdr:
+        config = HDRconfig(survey)
+        current_hdr = survey
+        try:
+            surveyh5.close() #just in case it does not exist yet
+        except:
+            pass
+            
+    surveyh5 = tb.open_file(config.surveyh5, 'r')
 
     if detectid is not None:
+
+        if (detectid >= 2100000000) * (detectid < 2190000000):
+            DET_FILE = CONFIG_HDR2.detecth5
+        elif (detectid >= 2100000000) * (detectid < 2190000000):
+            DET_FILE = CONFIG_HDR2.contsourceh5
+        elif (detectid >= 3000000000) * (detectid < 3090000000):
+            DET_FILE = CONFIG_HDR3.detecth5
+        elif (detectid >= 3090000000) * (detectid < 3100000000):
+            DET_FILE = CONFIG_HDR2.contsourceh5
+
+        if OPEN_DET_FILE is None:
+
+            OPEN_DET_FILE = DET_FILE
+            DET_HANDLE = tb.open_file(DET_FILE, 'r')
+    
+        else:
+            if DET_FILE == OPEN_DET_FILE:
+                pass
+            else:
+                DET_HANDLE.close()
+                OPEN_DET_FILE = DET_FILE
+                try:
+                    DET_HANDLE = tb.open_file(DET_FILE, 'r')
+                except Exception:
+                    print("Could not open {}".format(DET_FILE))
+                
         detectid_obj = detectid
-        det_info = detecth5.root.Detections.read_where('detectid == detectid_obj')[0]
+        det_info = DET_HANDLE.root.Detections.read_where('detectid == detectid_obj')[0]
+
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
 
-        if coords is None or shotid is None:
-            print("Provide a detectid or both a coords and shotid")
+    if coords is None or shotid is None:
+        print("Provide a detectid or both a coords and shotid")
 
     E = Extract()
     E.load_shot(shotid, fibers=False, survey=survey)
