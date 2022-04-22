@@ -27,15 +27,12 @@ from nwaylib.logger import NormalLogger, NullOutputLogger
 from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
 
+from hetdex_api.extinction import get_2pt1_extinction_fix
 try:
     from hetdex_api.config import HDRconfig
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-    config = HDRconfig()
-
-    if LATEST_HDR_NAME == 'hdr2.1':
-        from hetdex_api.extinction import get_2pt1_extinction_fix
-    
+    config = HDRconfig()    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
