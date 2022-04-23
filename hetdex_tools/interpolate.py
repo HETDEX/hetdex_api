@@ -27,6 +27,7 @@ DET_HANDLE = None
 DET_FILE = None
 
 current_hdr = LATEST_HDR_NAME
+surveyh5 = tb.open_file(config.surveyh5, "r")
 
 def make_narrowband_image(
     detectid=None,
@@ -106,9 +107,9 @@ def make_narrowband_image(
         current_hdr = survey
         try:
             surveyh5.close() #just in case it does not exist yet
+            surveyh5 = tb.open_file(config.surveyh5, 'r')
         except:
             pass
-        surveyh5 = tb.open_file(config.surveyh5, 'r')
         
     if detectid is not None:
     
@@ -355,10 +356,9 @@ def make_data_cube(
         current_hdr = survey
         try:
             surveyh5.close() #just in case it does not exist yet
+            surveyh5 = tb.open_file(config.surveyh5, 'r')
         except:
             pass
-            
-    surveyh5 = tb.open_file(config.surveyh5, 'r')
 
     if detectid is not None:
 
