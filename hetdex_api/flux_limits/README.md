@@ -24,6 +24,8 @@ they are using, the "Notes" column is mainly for the reference of the developers
 |    v1      |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)            | Doesn't interpolate `sn.use` if completeness in lower bin is zero |
 |    v1.1    |       v1      |      2.1.1-onwards  |  KG derived scaling (`snlist` file)             | v1 with interpolated sens. cubes |
 |    v2      |       v1      |      2.1.1-onwards  |  KG's new scaling with wavelength     | (f50=x8\*xf50/fcor0) model with linewidth dependence|
+|    v3      |       v1      |      2.1.1-onwards  |  DJF scaling with wavelength          |                                                      |
+|    v4      |       v2      |      3.0.0-onwards  | KG scaling with wavelength            |   Preliminary model from subset of HDR3 sims         |
 
 These are the different flux versus completeness curve versions (the `sn.use` files)
 
@@ -31,6 +33,7 @@ These are the different flux versus completeness curve versions (the `sn.use` fi
 | ------------- | ----------------------------------------------  |
 |      v0       | check.f bug didn't apply cuts to sims properly  |
 |      v1       | check.f bug fixed                               |
+|      v2       | HDR3 simulations, bug fixes, single curve for all wavelengths and S/N cuts    |
 
 ### Getting the flux limit in Python - the python API
 

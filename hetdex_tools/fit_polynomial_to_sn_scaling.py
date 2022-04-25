@@ -5,6 +5,10 @@ noise multipliers
 
 """
 import matplotlib.pyplot as plt
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.size'] = 10.0
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
 from numpy import polyfit, polyval, array
 
 
@@ -53,6 +57,9 @@ def fit_karl_wavelength_dependence():
     Fit 1/f_w, the wavelength dependence
     derived from Karl's simulations
 
+
+    *old version (v2)*
+
     3500 1.105
     3700 1.073
     3950 1.046
@@ -63,26 +70,44 @@ def fit_karl_wavelength_dependence():
     5300 1.022
     5500 1.020
 
+    *new version (v4)*
+    April 13 2022
+    Note: definition changed was
+    1/ this value before
+
+    3500 0.98
+    3957 0.85
+    4229 0.81
+    4500 0.79
+    4771 0.79
+    5043 0.80
+    5500 0.83
+
     """
 
-    lambda_ = array([3500, 3700, 3950, 4200, 4500, 4750, 5050, 5300, 5500])
-    f_w = array([1.105, 1.073, 1.046, 1.032, 1.032, 1.023, 1.020, 1.022, 1.020])
+    lambda_ = array([3500, 3957, 4229, 4500, 4771, 5043, 5500])
+    f_karl = array([0.98, 0.85, 0.81, 0.79, 0.79, 0.80, 0.83])
 
-    p = polyfit(lambda_, 1.0/f_w, 4)
+    p = polyfit(lambda_, f_karl, 3)
+    print(f"Resulting polynomial terms {p}")
 
-    print(p)
-    for w, f in zip(lambda_, f_w):
-        print("{:2.1f} {:4.3f} {:4.3f} {:4.3f}".format(w, f, 1.0/polyval(p, w), f*polyval(p, w)))
+    for w, f in zip(lambda_, f_karl):
+        print("{:2.1f} {:4.3f} {:4.3f} {:4.3f}".format(w, f, polyval(p, w), f/polyval(p, w)))
     
-    
-    plt.plot(lambda_, f_w, "k*")
-    plt.plot(lambda_, 1./polyval(p, lambda_), "r--")
-    plt.ylabel("f$_{w}$ (Noise scaling)$^{-1}$")
-    plt.xlabel("Wavelength [A]")
+    # f_karl is f_lambda
+    scale = 1.5
+    plt.figure(figsize=(3.5*scale,3*scale))
+    plt.plot(lambda_, f_karl, "k*", 
+             label="Source Simulations")
+    plt.plot(lambda_, polyval(p, lambda_), "r--",
+             label="Polynomial fit")
+    plt.ylabel("$F_{\lambda}(\lambda)$", fontsize=10.0)
+    plt.xlabel("Wavelength $\lambda$ (Angstrom)", fontsize=10.0)
+    plt.legend(frameon=False)
     plt.tight_layout()
     plt.show()
 
 
 if __name__ == '__main__':
-    #fit_karl_wavelength_dependence()
-    fit_karls_old_scaling_v1()
+    fit_karl_wavelength_dependence()
+    #fit_karls_old_scaling_v1()

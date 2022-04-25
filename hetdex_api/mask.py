@@ -286,7 +286,7 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     ra_cen = coords.ra.deg
     dec_cen = coords.dec.deg
     
-    ndim = np.int(2 * gridsize / gridstep + 1)
+    ndim = int(2 * gridsize / gridstep + 1)
     center = ndim / 2
     w = wcs.WCS(naxis=2)
     w.wcs.crval = [ra_cen, dec_cen]
