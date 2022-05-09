@@ -40,7 +40,6 @@ from hetdex_api.extract import Extract
 
 from elixer import catalogs
 
-plt.style.use("fivethirtyeight")
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
@@ -157,6 +156,7 @@ def get_flux_for_source(
     convolve_image=False,
     return_hdu=False,
     survey=LATEST_HDR_NAME,
+    extract_class=None,
 ):
 
     global config, det_handle, current_hdr, surveyh5, current_deth5
@@ -216,6 +216,7 @@ def get_flux_for_source(
             subcont=True,
             include_error=True,
             survey=survey,
+            extract_class=extract_class
         )
     except:
         print('Could not make narrowband image for {}'.format(detectid_obj))
@@ -340,6 +341,7 @@ def get_line_image(
     return_coords=False,
     ffsky=False,
     survey=LATEST_HDR_NAME,
+    extract_class=None,
 ):
     global config, det_handle, current_hdr, current_deth5, surveyh5
 
@@ -426,6 +428,7 @@ def get_line_image(
         include_error=True,
         ffsky=ffsky,
         survey=survey,
+        extract_class=extract_class,
     )
 
     if return_coords:
