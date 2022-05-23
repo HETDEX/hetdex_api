@@ -595,6 +595,12 @@ source_table['lum_oii'][sel_oii_aper] = source_table['flux_aper'][sel_oii_aper]*
 source_table['lum_oii_err'][sel_oii_aper] = source_table['flux_aper_err'][sel_oii_aper]*fac
 source_table['flag_aper'][sel_oii_aper] = 1
 
+# updated after the fact with this for 2.1.4 in 
+#sel_oii_1 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] <= 0)
+#sel_oii_2 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'].mask)
+#sel_oii_3 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['major'] <= 2)
+#sel_oii = sel_oii_1 | sel_oii_2 | sel_oii_3
+
 sel_oii_1 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['flux_aper'] <= 0)
 sel_oii_2 = (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii') & (source_table['major'] <= 2)
 sel_oii = sel_oii_1 | sel_oii_2
