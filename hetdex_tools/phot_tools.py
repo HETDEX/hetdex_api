@@ -72,7 +72,7 @@ def get_handle_for_detectid(detectid):
     return deth5
 
     
-def FitCircularAperture(
+def fit_circular_aperture(
     hdu=None,
     coords=None,
     radius=1.5 * u.arcsec,
