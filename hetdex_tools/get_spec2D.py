@@ -38,6 +38,7 @@ from astropy.visualization import ZScaleInterval
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.shot import Fibers
 from hetdex_api.detections import Detections
+from hetdex_tools.phot_tools import get_line_image
 from elixer import catalogs
 
 
@@ -52,6 +53,12 @@ class Spec1D(tb.IsDescription):
     spec1D = tb.Float32Col((1036,))
     spec1D_err = tb.Float32Col((1036,))
 
+
+class LineImage(tb.IsDescription):
+    detectid = tb.Int64Col(pos=0)
+    im_line = tb.Float32Col((80, 80), pos=4)
+    im_line_hdr = tb.StringCol(2880)
+    
 
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
 
@@ -199,7 +206,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr2.1",
+        default="hdr3",
     )
 
     parser.add_argument(
@@ -239,11 +246,11 @@ def get_parser():
     )
 
     parser.add_argument(
-        "-dx", "--width", type=int, help="""Width of image in wavelength dim in pix"""
+        "-dx", "--width", default=100, type=int, help="""Width of image in wavelength dim in pix"""
     )
 
     parser.add_argument(
-        "-dy", "--height", type=int, help="""Height of fiber image in pixels"""
+        "-dy", "--height", default=9, type=int, help="""Height of fiber image in pixels"""
     )
 
     parser.add_argument(
@@ -287,44 +294,52 @@ def main(argv=None):
         im_array = tb.Float32Col((4, args.height, args.width), pos=3)
 
     if args.merge:
-        fileh = tb.open_file("merged_im2D.h5", "w")
         
+        fileh = tb.open_file("merged_im2D.h5", "w")
+
         fibim2D_table = fileh.create_table(
             fileh.root, "FiberImages", FiberImage2D,
-            "Fiber Cutout Images", expectedrows=1000000)
+            "Fiber Cutout Images", expectedrows=1500000)
         phot_table = fileh.create_table(
             fileh.root, "PhotImages", PhotImage,
-            "Photometric Images", expectedrows=1000000)
+            "Photometric Images", expectedrows=1500000)
         spec_table = fileh.create_table(
             fileh.root, "Spec1D", Spec1D,
-            "Aperture Summed Spectrum", expectedrows=1000000)
-                        
+            "Aperture Summed Spectrum", expectedrows=1500000)
+#        line_im_table = fileh.create_table(
+#            fileh.root, "LineImages", LineImage,
+#            "Line Emission Map Image", expectedrows=1000000)
+        
         files = sorted(glob.glob("im2D*.h5"))
-
+        
         for file in files:
             args.log.info('Ingesting %s' % file)
             fileh_i = tb.open_file(file, "r")
             fibim2D_table_i = fileh_i.root.FiberImages.read()
             phot_table_i = fileh_i.root.PhotImages.read()
             spec_table_i = fileh_i.root.Spec1D.read()
-
+            #line_im_table_i = fileh_i.root.LineImages.read()
+            
             fibim2D_table.append(fibim2D_table_i)
             phot_table.append(phot_table_i)
             spec_table.append(spec_table_i)
-
+            #line_im_table.append(line_im_table_i)
             fileh_i.close()
 
         fibim2D_table.flush()
         phot_table.flush()
         spec_table.flush()
+        #line_im_table.flush()
 
         fibim2D_table.cols.detectid.create_csindex()
         phot_table.cols.detectid.create_csindex()
         spec_table.cols.detectid.create_csindex()
+        #line_im_table.cols.detectid.create_csindex()
 
         fibim2D_table.flush()
         phot_table.flush()
         spec_table.flush()
+        #line_im_table.flush()
 
         fileh.close()
         sys.exit("Merged h5 files in current directory. Exiting")
@@ -380,9 +395,12 @@ def main(argv=None):
         spec_table = fileh.create_table(
             fileh.root, "Spec1D", Spec1D, "Aperture Summed Spectrum"
         )
+        #line_im_table = fileh.create_table(
+        #    fileh.root, "LineImages", LineImage, "Line Emission Map Image"
+        #)
 
         for detectid_i in detectlist:
-
+            args.log.info('Working on {}'.format(detectid_i))
             # add data to HDF5 file
             row = fibim2D_table.row
             row["detectid"] = detectid_i
@@ -434,36 +452,47 @@ def main(argv=None):
 
             row_phot["detectid"] = detectid_i
 
-            # ignore the Fall data for now
-            if coord.dec.value > 10:
-                try:
-                    cutout = catlib.get_cutouts(
-                        position=coord,
-                        radius=5,
-                        aperture=None,
-                        dynamic=False,
-                        filter="r",
-                        first=True,
-                    )[0]
-                    if cutout["instrument"] == "HSC":
-                        # get shape to ensure slicing on cropped images
-                        phot = np.shape(cutout["cutout"].data)
-                        
-                        row_phot["im_phot"] = cutout["cutout"].data            
-                        header = cutout["cutout"].wcs.to_header()
-                        row_phot["im_phot_hdr"] = header.tostring()
+            try:
+                cutout = catlib.get_cutouts(
+                    position=coord,
+                    radius=5,
+                    aperture=None,
+                    dynamic=False,
+                    filter="r",
+                    first=True,
+                )[0]
 
-                except:
-                    pass
-                    #args.log.warning("No imaging available for source")
-            else:
+                if cutout["instrument"] in ['HSC', 'HSC SSP']:
+                    # get shape to ensure slicing on cropped images
+                    phot = np.shape(cutout["cutout"].data)
+                    
+                    row_phot["im_phot"] = cutout["cutout"].data            
+                    header = cutout["cutout"].wcs.to_header()
+                    row_phot["im_phot_hdr"] = header.tostring()
+
+            except:
                 pass
+                #args.log.warning("No imaging available for source")
 
             row_phot.append()
 
+            #row_line_im = line_im_table.row
+            
+            #try:
+            #    row_line_im['detectid'] = detectid_i
+
+            #   hdu = get_line_image(detectid=detectid_i, imsize=20.0)
+            #    row_line_im["im_line"] = hdu[0].data
+            #    row_line_im['im_line_hdr'] = hdu[0].header.tostring()
+            #except:
+            #    args.log.error('Could not make line image for {}'.format(detectid_i))
+
+            #row_line_im.append()
+        
         spec_table.flush()
         phot_table.flush()
         fibim2D_table.flush()
+        #line_im_table.flush()
         fileh.close()
 
     else:
