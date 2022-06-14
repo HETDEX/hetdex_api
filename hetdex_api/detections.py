@@ -657,7 +657,8 @@ class Detections:
 
             del det_table, join_tab
 
-            if False:
+            if True:
+                print('Adding in newly found badamps')
                 # add in any newly found badamps that haven't made it into the
                 # amp_flag.fits file yet
 
@@ -986,7 +987,7 @@ class Detections:
                 for name in self.hdfile.root.Elixer.colnames:
                     table[name] = getattr(self, name)
             except:
-                print("Could not add elixer columns")
+                pass
             try:
                 table.add_column(
                     Column(self.fluxlimit_4540), index=3, name="fluxlimit_4540"
