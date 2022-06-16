@@ -673,9 +673,21 @@ class Detections:
                     )
                     mask2 = np.logical_or(mask2, selmf * seldate)
 
-                    mask = mask1 * np.logical_not(mask2)
+                badamps_single = Table.read(config.badamp_single, format='ascii')
+
+                mask3 = np.zeros(np.size(self.detectid), dtype=bool)
+                
+                for row in badamps_single:
+                    selmf = self.multiframe == row["multiframe"]
+                    selshotid = self.shotid == row["shotid"]
+
+                    mask3 = np.logical_or(mask3, selmf * selshotid)
+
+                mask = mask1 * np.logical_not(mask2) * np.logical_not(mask3)
+
             else:
                 mask = mask1
+
                 
             return mask
 
