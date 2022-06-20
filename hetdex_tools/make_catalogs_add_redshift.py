@@ -6,6 +6,8 @@ import numpy as np
 import os.path as op
 import time
 
+import tables as tb
+
 from astropy.table import Table, unique, join, Column, vstack
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
@@ -107,12 +109,30 @@ def update_table(zdetfriend_all):
 
 # Enter the catalog version
 
-version = '3.0.0'
+
+def get_parser():
+    """ function that returns a parser from argparse """
+    
+    parser = ap.ArgumentParser(
+        description="""Extracts 1D spectrum at specified RA/DEC""", add_help=True
+    )
+    
+    parser.add_argument(
+        "-v",
+        "--version",
+        help="""source catalog version you want to create""",
+        type=str,
+        default=None,
+    )
+
+version = sys.argv[1]
+
+print('Adding redshifts to catalog: {}'.format(version))
 
 config = HDRconfig('hdr3')
 #catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
-catfile = 'source_catalog_3.0.0.fits'
+catfile = 'source_catalog_{}.fits'.format(version)
 source_table = Table.read(catfile)
 
 #fudging this for now
@@ -368,6 +388,7 @@ def add_z_guess(source_id):
                         wavelya_obs = np.min( group['wave'][sel_sn] )
                     except:
                         wavelya_obs = np.min( group['wave'] )
+
                     zlya_obs = wavelya_obs/wavelya - 1
 
                     sel_line = group['det_type'] == 'line'
@@ -386,8 +407,15 @@ def add_z_guess(source_id):
                         s_type = 'lae'
                         z_src  = 'elixer'
                     else:
-                        # assign redshift of highest S/N line except for LyA emitters
-                        sel_sn = np.argmax(group['sn'])
+                        # assign redshift of highest best_pz line
+                        # will cluster together anything found to have a high
+                        # confidence low-z redshfit but will not
+                        # cluster LAEs
+                        if np.any(group['best_pz'] > 0.6):
+                            sel_sn = np.argmax(group['best_pz'])
+                        else:
+                            sel_sn = np.argmax(group['sn'])
+                            
                         z_guess = group['best_z'][sel_sn]
                         z_conf = group['best_pz'][sel_sn]
                         z_src = 'elixer'
@@ -448,7 +476,7 @@ clustered_lae_index = np.where( source_table['z_hetdex'] == -2)[0]
 
 print('Updating z_hetdex to best_z for {} detectids'.format(len(clustered_lae_index)))
 
-sid_index = 30000300000000
+sid_index = 30100300000000
 
 for c_ind in clustered_lae_index:
     source_table['source_id'][c_ind] = sid_index
@@ -714,7 +742,20 @@ source_table['source_type'] = source_table['source_type'].astype(str)
 
 sel_sa22 = source_table['field'] == 'ssa22'
 sel_notsa22 = np.invert(sel_sa22)
-source_table[sel_notsa22].write('source_catalog_3.0.0.z.fits', overwrite=True)
-source_table[sel_notsa22].write('source_catalog_3.0.0.z.tab', format='ascii', overwrite=True)
 
-source_table[sel_sa22].write('source_catalog_3.0.0_sa22.fits', overwrite=True)
+#add sn_im info:
+
+fileh = tb.open_file(op.join( config.hdr_dir['hdr3'], 'catalogs/line_images_3.0.0.h5'),'r')
+sn_im_table = Table( fileh.root.Info.read())
+
+source_table2 = join(source_table, sn_im_table['detectid','sn_im'], join_type='left')
+
+print(len(source_table), len(source_table2))
+
+sel_sa22 = source_table2['field'] == 'ssa22'
+sel_notsa22 = np.invert(sel_sa22)
+
+source_table2[sel_notsa22].write('source_catalog_{}.z.fits'.format(version), overwrite=True)
+source_table2[sel_notsa22].write('source_catalog_{}.z.tab'.format(version), format='ascii', overwrite=True)
+
+source_table2[sel_sa22].write('source_catalog_{}_sa22.fits'.format(version), overwrite=True)
