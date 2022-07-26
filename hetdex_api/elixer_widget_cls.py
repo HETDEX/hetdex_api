@@ -127,6 +127,11 @@ class ElixerWidget:
         self.show_counterpart_btns = counterpart
         self.detectid = None
         self.constructor_status = ""
+        self.flag = []
+        self.vis_class = []
+        self.z = []
+        self.comment = []
+        self.counterpart = []
 
         if img_dir is not None:
             if op.exists(img_dir):
@@ -299,7 +304,7 @@ class ElixerWidget:
             )
         except:
             print(
-                "Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist"
+                f"Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist"
             )
             show_selection_buttons = False
 
@@ -394,6 +399,8 @@ class ElixerWidget:
                             + str(e)
                             + "\n"
                             + traceback.format_exc()
+                            + "\n"
+                            + fname
                         )
                         # print("Cannot load ELiXer Report image: ", fname)
                 else:
@@ -516,7 +523,7 @@ class ElixerWidget:
             value=detectstart,
             # min=1,
             min=1000000000,
-            max=10000000000,
+            max=99999999999,
             step=1,
             description="DetectID:",
             disabled=False,
