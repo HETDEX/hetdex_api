@@ -291,10 +291,10 @@ class ElixerWidget:
                 )
                 self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
         else: #we loaded from a savedfile
-            if detectfile is not None or len(detectfile) > 0:
+            if detectfile is not None and len(detectfile) > 0:
                 self.constructor_status += f"detectfile ({detectfile}) ignored in favor of savedfile ({savedfile}).\n"
 
-            if detectlist is not None or len(detectlist) > 0:
+            if detectlist is not None and len(detectlist) > 0:
                 self.constructor_status += f"detectlist ignored in favor of savedfile ({savedfile}).\n"
         # store outfile name if given
         # if outfile:
