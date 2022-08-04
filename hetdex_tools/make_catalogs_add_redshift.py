@@ -476,7 +476,7 @@ clustered_lae_index = np.where( source_table['z_hetdex'] == -2)[0]
 
 print('Updating z_hetdex to best_z for {} detectids'.format(len(clustered_lae_index)))
 
-sid_index = 30100300000000
+sid_index = 3010030000000
 
 for c_ind in clustered_lae_index:
     source_table['source_id'][c_ind] = sid_index
@@ -643,7 +643,7 @@ print('There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} Low-z detecti
 # now assigned selected det flag to LAE sample
 #for lzg and oii galaxies, this will be the brightest OII line (not doing resolved OII right now)
 
-sel_lae_line = source_table['line_id'] == 'Ly$\\\\alpha$'
+sel_lae_line = (source_table['line_id'] == 'Ly$\\\\alpha$') & (source_table['source_type'] == 'lae')
 #sel_z = source_table['z_hetdex'] > 1.87
 lae_tab = source_table[sel_lae_line ]
 lae_tab.sort('sn')
@@ -651,7 +651,7 @@ lae_tab.sort('sn')
 uniq_obs_lae = unique(lae_tab, keys='source_id' )
 uniq_obs_lae['selected_det'] = True
 
-sel_oii_line = source_table['line_id'] == 'OII'
+sel_oii_line = (source_table['line_id'] == 'OII') & (source_table['source_type'] == 'oii')
 #change lzgs to oii if an OII line is found  
 source_table['source_type'][sel_lzg & sel_oii_line] = 'oii'
 
@@ -662,7 +662,7 @@ uniq_obs_oii = unique(oii_tab, keys='source_id')
 uniq_obs_oii['selected_det'] = True
 
 # now assign brightest detectid to star, agn, lzg groups
-sel_rest = (source_table['source_type'] != 'lae') * (source_table['source_type'] != 'oii')
+sel_rest = (source_table['source_type'] != 'lae') & (source_table['source_type'] != 'oii')
 rest_tab = source_table[sel_rest]
 rest_tab.sort('gmag')
 
