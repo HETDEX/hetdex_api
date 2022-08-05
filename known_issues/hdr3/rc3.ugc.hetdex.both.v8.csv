@@ -1090,5 +1090,6 @@ Coords,PGC,Name1,Name2,Name3,logD25,logD25err,RC3PA,logR25,logR25err,OrigCoords,
 16h19m47.2464s +56d12m21.888s,PGC,UGC 10348,,,0.0,0.0,0.0,0.0,0.0,16h19m45.12s +56d12m54s,"UGCexclude,NEDcoords,NedNoRedshift,",0.5,0.075,135.0,nan
 16h13m47.1504s +56d16m49.764s,PGC,UGC 10292,,,0.0,0.0,0.0,0.0,0.0,16h13m40.08s +56d17m31.2s,"UGCexclude,NEDcoords,",0.55,0.06,172.0,0.030234
 10h37m36.681s +46d02m40.06s,PGC 031564,MCG +08-19-044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"Source Split from UGC 5778, Added Manually",0.391,0.233,31.0,0.04723
-12h07m28.43s +54d01m29.15s, PNG 136.6+61.9, PN G136.7+61.9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210309019, Added Manually",1.333,1.333,0.0,0.0
-15h21m46.56s +52d22m04.1s, PNG 085.3+52.3, Jacoby 1,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210510014, Added Manually",4.0833, 4.0833,0.0,0.0
+12h07m28.43s +54d01m29.15s,PNG 136.6+61.9,PN G136.7+61.9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210309019, Added Manually",1.333,1.333,0.0,0.0
+15h21m46.56s +52d22m04.1s,PNG 085.3+52.3,Jacoby 1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210309019, Added Manually",1.333,1.333,0.0,0.0
+
