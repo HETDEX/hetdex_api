@@ -63,6 +63,7 @@ class Detections:
         catalog_type="lines",
         curated_version=None,
         loadtable=True,
+        verbose=False,
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -166,7 +167,22 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
-            if self.survey == "hdr2.1":
+            if self.survey == 'hdr3':
+                if verbose:
+                    print('Adjusting noise values by 7% where applicable')
+                # adjust noise at IFU edges by factor of 1.07. This will affect the
+                # sn measures and the flux_noise_1sigma values
+                sel_fib1 = ((self.amp == 'RU') | (self.amp == 'LL')) & (self.fibnum <= 12)
+                sel_fib2 = ((self.amp == 'LU') | (self.amp == 'RL')) & (self.fibnum >= 101)
+                sel_fib = sel_fib1 | sel_fib2
+
+                self.sn[sel_fib] /= 1.07
+                self.sn_3fib[sel_fib] /= 1.07
+                self.sn_3fib_cen[sel_fib] /= 1.07
+                self.sn_cen[sel_fib] /= 1.07
+                self.flux_noise_1sigma[sel_fib] *= 1.07
+                
+            elif self.survey == "hdr2.1":
                 # Fix fluxes and continuum values for aperture corrections  
                 wave = self.hdfile.root.Detections.cols.wave[:]
                 apcor = self.hdfile.root.Spectra.cols.apcor[:]
