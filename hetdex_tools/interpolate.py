@@ -36,12 +36,13 @@ def make_narrowband_image(
     pixscale=0.25 * u.arcsec,
     imsize=30.0 * u.arcsec,
     wave_range=None,
-    convolve_image=True,
+    convolve_image=False,
     ffsky=True,
     subcont=False,
     dcont=50.,
     include_error=False,
     survey=LATEST_HDR_NAME,
+    extract_class=None,
 ):
 
     """
@@ -76,6 +77,9 @@ def make_narrowband_image(
         measure 50 AA wide regions on either side of the line
     include_error bool
         option to include error array
+    extract   Extract class object
+        option to include a preloaded Extract class object.
+        Default is to load extract class according to detection info
 
     Returns
     -------
@@ -110,7 +114,7 @@ def make_narrowband_image(
             surveyh5 = tb.open_file(config.surveyh5, 'r')
         except:
             pass
-        
+
     if detectid is not None:
     
         if (detectid >= 2100000000) * (detectid < 2190000000):
@@ -162,9 +166,11 @@ def make_narrowband_image(
     fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
-    E = Extract()
-    E.load_shot(shotid_obj, fibers=False, survey=survey)
-
+    if extract_class is None:
+        E = Extract()
+        E.load_shot(shotid_obj, fibers=False, survey=survey)
+    else:
+        E = extract_class
     # get spatial dims:
     ndim = int(imsize / pixscale)
     center = int(ndim / 2)
@@ -268,7 +274,10 @@ def make_narrowband_image(
                  np.cos(rrot)]]
 
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
-    E.close()
+
+    if extract_class is None:
+        E.close()
+
     if include_error:
         hdu_error = fits.ImageHDU(imerror, header=w.to_header())
         hdu_x = fits.ImageHDU(zarray[2], header=w.to_header())
@@ -287,7 +296,7 @@ def make_data_cube(
     wave_range=[3470, 5540],
     dwave=2.0,
     dcont=50.0,
-    convolve_image=True,
+    convolve_image=False,
     ffsky=True,
     subcont=False,
     survey=LATEST_HDR_NAME,

@@ -167,7 +167,9 @@ def add_elixer_cat_info(detect_table, det_type='line'):
                    'best_pz',
                    'combined_plae',
                    'combined_plae_lo',
-                   'combined_plae_hi'
+                   'combined_plae_hi',
+                   'flags',
+                   'classification_labels',
     ]
 
     catalog = join(detect_table, elix_tab[sel_det_col],  keys='detectid', join_type='left')

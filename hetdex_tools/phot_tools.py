@@ -40,7 +40,6 @@ from hetdex_api.extract import Extract
 
 from elixer import catalogs
 
-plt.style.use("fivethirtyeight")
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
@@ -73,13 +72,14 @@ def get_handle_for_detectid(detectid):
     return deth5
 
     
-def FitCircularAperture(
+def fit_circular_aperture(
     hdu=None,
     coords=None,
     radius=1.5 * u.arcsec,
     annulus=[5, 7] * u.arcsec,
     plot=False,
     plottitle=None,
+    return_sky_sigma=False,
 ):
     """
     Fit a circular aperture with either an HDU object or and
@@ -142,7 +142,10 @@ def FitCircularAperture(
         if plottitle is not None:
             plt.title(plottitle)
 
-    return flux, flux_err, bkg_stddev * u.Unit("10^-17 erg cm-2 s-1"), apcor
+    if return_sky_sigma:
+        return flux, flux_err, bkg_stddev * u.Unit("10^-17 erg cm-2 s-1"), apcor, stddev_sigclip
+    else:
+        return flux, flux_err, bkg_stddev * u.Unit("10^-17 erg cm-2 s-1"), apcor
 
 
 def get_flux_for_source(
@@ -157,6 +160,7 @@ def get_flux_for_source(
     convolve_image=False,
     return_hdu=False,
     survey=LATEST_HDR_NAME,
+    extract_class=None,
 ):
 
     global config, det_handle, current_hdr, surveyh5, current_deth5
@@ -216,6 +220,7 @@ def get_flux_for_source(
             subcont=True,
             include_error=True,
             survey=survey,
+            extract_class=extract_class
         )
     except:
         print('Could not make narrowband image for {}'.format(detectid_obj))
@@ -223,7 +228,7 @@ def get_flux_for_source(
         
     if plot:
         plottitle = "{} {}".format(detectid_obj, shotid_obj)
-        flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
+        flux, flux_err, bkg_stddev, apcor = fit_circular_aperture(
             hdu=hdu, coords=coords_obj, plot=True, plottitle=plottitle,
             radius=radius, annulus=annulus
         )
@@ -235,7 +240,7 @@ def get_flux_for_source(
             color="w",
         )
     else:
-        flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
+        flux, flux_err, bkg_stddev, apcor = fit_circular_aperture(
             hdu=hdu, coords=coords_obj,
             radius=radius, annulus=annulus, plot=False
         )
@@ -340,6 +345,7 @@ def get_line_image(
     return_coords=False,
     ffsky=False,
     survey=LATEST_HDR_NAME,
+    extract_class=None,
 ):
     global config, det_handle, current_hdr, current_deth5, surveyh5
 
@@ -426,6 +432,7 @@ def get_line_image(
         include_error=True,
         ffsky=ffsky,
         survey=survey,
+        extract_class=extract_class,
     )
 
     if return_coords:
@@ -979,7 +986,7 @@ def get_sn_for_aperture_range(
 
     for r in r_list:
 
-        flux, flux_err, bkg_stddev, apcor = FitCircularAperture(
+        flux, flux_err, bkg_stddev, apcor = fit_circular_aperture(
             hdu=hdu,
             coords=coords_center,
             plot=False,
@@ -1080,7 +1087,7 @@ def fit_growing_aperture(detectid,
     # stop growing at 8 arcsec for now
     # get flux info at sn_max and sn2sigma
 
-    flux_snmax, flux_err_snmax, bkg_stddev_snmax, apcor_snmax = FitCircularAperture(
+    flux_snmax, flux_err_snmax, bkg_stddev_snmax, apcor_snmax = fit_circular_aperture(
                 hdu=hdu,
                 coords=coords_center,
                 plot=False,
@@ -1104,7 +1111,7 @@ def fit_growing_aperture(detectid,
                 flux_err_2sigma,
                 bkg_stddev_2sigma,
                 apcor_2sigma,
-            ) = FitCircularAperture(
+            ) = fit_circular_aperture(
                 hdu=hdu,
                 coords=coords_center,
                 radius=r_2sigma * u.arcsec,
@@ -1137,7 +1144,7 @@ def fit_growing_aperture(detectid,
                 flux_err_2sigma,
                 bkg_stddev_2sigma,
                 apcor_2sigma,
-            ) = FitCircularAperture(
+            ) = fit_circular_aperture(
                 hdu=hdu,
                 coords=coords_center,
                 radius=r_2sigma * u.arcsec,
@@ -1160,7 +1167,7 @@ def fit_growing_aperture(detectid,
             flux_err_snmax,
             bkg_stddev_snmax,
             apcor_snmax,
-        ) = FitCircularAperture(
+        ) = fit_circular_aperture(
             hdu=hdu,
             coords=coords_center,
             radius=r_snmax * u.arcsec,

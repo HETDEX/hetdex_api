@@ -112,7 +112,7 @@ class ElixerWidget:
         detectfile=None,
         detectlist=None,
         savedfile=None,
-        outfile=None,
+        #outfile=None, #redundant with savedfile
         resume=False,
         img_dir=None,
         counterpart=False,
@@ -125,6 +125,13 @@ class ElixerWidget:
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
         self.show_counterpart_btns = counterpart
+        self.detectid = None
+        self.constructor_status = ""
+        self.flag = []
+        self.vis_class = []
+        self.z = []
+        self.comment = []
+        self.counterpart = []
 
         if img_dir is not None:
             if op.exists(img_dir):
@@ -142,111 +149,174 @@ class ElixerWidget:
             if op.isfile(elixer_h5):
                 HETDEX_ELIXER_HDF5 = elixer_h5
 
-        if detectfile:
-            self.detectid = np.unique(np.loadtxt(detectfile, dtype=np.int64, ndmin=1))
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), "?", dtype="|S80").astype(
-                str
-            )
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-            # hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
-            # and possible future use as followup
 
-        elif savedfile:
+        #change order, attempt to load the savedfile first. If it exists, ignore the detectfile and detectlist,
+        #if it does not exist, create it and use detectfile or detectlist if they exist
+
+        if savedfile:  # it is specified
             try:
-                saved_data = ascii.read(savedfile)
-                try:
-                    self.detectid = np.array(saved_data["detectid"], dtype=int)
-                except:
-                    self.detectid = np.array(
-                        saved_data["detectid"], dtype=float
-                    ).astype(int)
+                if not op.exists(savedfile):
+                    #it does not exist, though, so we will assume it as the new file to save, but not load from it
+                    self.constructor_status += f"savedfile ({savedfile}) does not exist.\n"
+                else:
+                    saved_data = ascii.read(savedfile)
+                    try:
+                        self.detectid = np.array(saved_data["detectid"], dtype=int)
+                    except:
+                        self.detectid = np.array(saved_data["detectid"], dtype=float).astype(int)
+                    try:
+                        u_detectid = np.unique(self.detectid)
+                        if len(self.detectid) != len(u_detectid):
+                            self.constructor_status += "!!! WARNING. Provided DetectIDs are NOT UNIQUE !!!\nWill FORCE to UNIQUE"
+                            self.detectid = u_detectid
+                    except Exception as e:
+                        self.constructor_status += "Exception enforcing uniqueness for detectIDs\n"
+                        self.constructor_status += str(e)
 
-                try:
-                    self.vis_class = np.array(saved_data["vis_class"], dtype=int)
-                except:
-                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                    try:
+                        self.vis_class = np.array(saved_data["vis_class"], dtype=int)
+                    except:
+                        self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
 
-                # could have a flag
-                try:
-                    self.flag = np.array(saved_data["flag"], dtype=int)
-                except:
-                    self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                    # could have a flag
+                    try:
+                        self.flag = np.array(saved_data["flag"], dtype=int)
+                    except:
+                        self.flag = np.zeros(np.size(self.detectid), dtype=int)
 
-                # could have z
-                try:
-                    self.z = np.array(saved_data["z"], dtype=float)
-                except:
-                    self.z = np.full(np.size(self.detectid), -1.0)
+                    # could have z
+                    try:
+                        self.z = np.array(saved_data["z"], dtype=float)
+                    except:
+                        self.z = np.full(np.size(self.detectid), -1.0)
 
-                # could have comment
-                try:
-                    self.comment = np.array(
-                        saved_data["comments"], dtype="|S80"
-                    ).astype(str)
-                except:
-                    self.comment = np.full(
-                        np.size(self.detectid), "?", dtype="|S80"
-                    ).astype(str)
+                    # could have comment
+                    try:
+                        self.comment = np.array(
+                            saved_data["comments"], dtype="|S80"
+                        ).astype(str)
+                    except:
+                        self.comment = np.full(
+                            np.size(self.detectid), "?", dtype="|S80"
+                        ).astype(str)
 
-                # could have counterpart
-                try:
-                    self.counterpart = np.array(saved_data["counterpart"], dtype=int)
-                except:
-                    self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
+                    # could have counterpart
+                    try:
+                        self.counterpart = np.array(saved_data["counterpart"], dtype=int)
+                    except:
+                        self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
             except:
                 print(
                     "Could not open and read in savedfile. Are you sure its in astropy table format"
                 )
 
-        elif detectlist is None:
-            global HETDEX_DETECT_HDF5_HANDLE
+        #if we have already specified the detection ID list from a saved file, ignore then detectfile and detectlist
+        #otherwise attempt to lost the file first and if that files then the list
 
-            if HETDEX_DETECT_HDF5_HANDLE is None:
+        #if they both exist, print a warning
+
+        if self.detectid is None or len(self.detectid) == 0:
+            if detectfile is not None and len(detectfile) > 0: #assume just a list of detectIDs
                 try:
-                    HETDEX_DETECT_HDF5_HANDLE = tables.open_file(
-                        HETDEX_DETECT_HDF5_FN, "r"
-                    )
-                except:
-                    print("Could not open detections database")
+                    self.detectid = np.loadtxt(detectfile, dtype=np.int64, ndmin=1)
 
-            if HETDEX_DETECT_HDF5_HANDLE is not None:
-                self.detectid = HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[
-                    :
-                ]
+                    try:
+                        u_detectid = np.unique(self.detectid)
+                        if len(self.detectid) != len(u_detectid):
+                            self.constructor_status += "!!! WARNING. Provided DetectIDs are NOT UNIQUE !!!\nWill FORCE to UNIQUE"
+                            self.detectid = u_detectid
+                    except Exception as e:
+                        self.constructor_status += "Exception enforcing uniqueness for detectIDs\n"
+                        self.constructor_status += str(e)
+
+                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                    self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                    self.z = np.full(np.size(self.detectid), -1.0)
+                    self.comment = np.full(np.size(self.detectid), "?", dtype="|S80").astype(
+                        str
+                    )
+                    self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+                    # hidden flag, distinguish vis_class 0 as unset vs reviewed & fake
+                    # and possible future use as followup
+
+                    if detectlist is not None and len(detectlist) > 0:
+                        self.constructor_status += "detectfile and detectlist both specified. Using detectfile.\n"
+                except Exception as e:
+                    print (f"Failed to load detectfile {detectfile}. Possible bad format. Expect one detectid per line.\n")
+                    print(e)
+                    return
+
+            elif detectlist is None:
+                global HETDEX_DETECT_HDF5_HANDLE
+
+                if HETDEX_DETECT_HDF5_HANDLE is None:
+                    try:
+                        print( f"Reading from ({HETDEX_DETECT_HDF5_FN}). ")
+                        HETDEX_DETECT_HDF5_HANDLE = tables.open_file(
+                            HETDEX_DETECT_HDF5_FN, "r"
+                        )
+                    except:
+                        print("Could not open detections database")
+
+                if HETDEX_DETECT_HDF5_HANDLE is not None:
+                    print(f"Attempting to load all detections. This may take a while ...")
+                    #these must already be unique so no need to waste time through np.unique
+                    self.detectid = HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                    self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                    self.z = np.full(np.size(self.detectid), -1.0)
+                    self.comment = np.full(
+                        np.size(self.detectid), "?", dtype="|S80"
+                    ).astype(str)
+                    self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+
+                else:
+                    self.detectid = []
+            else: #detectlist is specified
+                self.detectid = np.array(detectlist).flatten()
+                try:
+                    u_detectid = np.unique(self.detectid)
+                    if len(self.detectid) != len(u_detectid):
+                        self.constructor_status += "!!! WARNING. Provided DetectIDs are NOT UNIQUE !!!\nWill FORCE to UNIQUE"
+                        self.detectid = u_detectid
+                except Exception as e:
+                    self.constructor_status += "Exception enforcing uniqueness for detectIDs\n"
+                    self.constructor_status += str(e)
+
                 self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
                 self.flag = np.zeros(np.size(self.detectid), dtype=int)
                 self.z = np.full(np.size(self.detectid), -1.0)
-                self.comment = np.full(
-                    np.size(self.detectid), "?", dtype="|S80"
-                ).astype(str)
+                self.comment = np.full(np.size(self.detectid), "?", dtype="|S80").astype(
+                    str
+                )
                 self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+        else: #we loaded from a savedfile
+            if detectfile is not None and len(detectfile) > 0:
+                self.constructor_status += f"detectfile ({detectfile}) ignored in favor of savedfile ({savedfile}).\n"
 
-            else:
-                self.detectid = []
-        else:
-            self.detectid = np.array(detectlist).flatten()
-            self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-            self.flag = np.zeros(np.size(self.detectid), dtype=int)
-            self.z = np.full(np.size(self.detectid), -1.0)
-            self.comment = np.full(np.size(self.detectid), "?", dtype="|S80").astype(
-                str
-            )
-            self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
+            if detectlist is not None and len(detectlist) > 0:
+                self.constructor_status += f"detectlist ignored in favor of savedfile ({savedfile}).\n"
         # store outfile name if given
-        if outfile:
-            print(
-                "Careful with this option, it likely won't work properly. You are better off using the savedfile option"
-            )
-            self.outfilename = outfile
-        elif savedfile:
+        # if outfile:
+        #     print(
+        #         "Careful with this option, it likely won't work properly. You are better off using the savedfile option"
+        #     )
+        #     self.outfilename = outfile
+        #
+        if savedfile:
             self.outfilename = savedfile
         else:
             self.outfilename = "elixer_cls.dat"
+
+        #can be duplicates, but will this wreck the saved file??
+        #duplicates mess up the on next or on previous logic which advances/retreats +/- 1 from the matched
+        #detectid ... so if it hits a duplicate, you get stuck
+
+        try:
+            if self.constructor_status is not None and len(self.constructor_status) > 0:
+                print(self.constructor_status)
+        except:
+            pass
 
         self.resume = resume
         self.setup_widget()
@@ -270,7 +340,7 @@ class ElixerWidget:
             )
         except:
             print(
-                "Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist"
+                f"Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist"
             )
             show_selection_buttons = False
 
@@ -365,6 +435,8 @@ class ElixerWidget:
                             + str(e)
                             + "\n"
                             + traceback.format_exc()
+                            + "\n"
+                            + fname
                         )
                         # print("Cannot load ELiXer Report image: ", fname)
                 else:
@@ -487,7 +559,7 @@ class ElixerWidget:
             value=detectstart,
             # min=1,
             min=1000000000,
-            max=10000000000,
+            max=100000000000, #99999999999,
             step=1,
             description="DetectID:",
             disabled=False,
@@ -557,11 +629,17 @@ class ElixerWidget:
 
         self.status_box = widgets.Textarea(
             value="",
-            placeholder="OK",
+            placeholder= "OK",
             description="Status:",
             disabled=False,
             layout=Layout(width="80%"),
         )
+
+        if self.constructor_status is not None and len(self.constructor_status) > 0:
+            self.status_box.value = self.constructor_status
+            self.constructor_status = None
+
+
         # buttons as classification selection
         # self.s0_button = widgets.Button(description=' No Imaging ', button_style='success')
         # self.s1_button = widgets.Button(description=' Spurious ', button_style='success')
@@ -786,7 +864,10 @@ class ElixerWidget:
         try:
             if self.detectbox.value in self.detectid:
                 ix = np.where(self.detectid == self.detectbox.value)[0][0]
+                old_id = self.detectid[ix]
                 ix -= 1
+                while self.detectid[ix] == old_id and ix < len(self.detectid):
+                    ix -= 1
             else:
                 ix = np.max(np.where(self.detectid <= self.detectbox.value))
 
@@ -811,19 +892,27 @@ class ElixerWidget:
 
     def goto_next_detect(self):
         try:
+
             if self.detectbox.value in self.detectid:
                 ix = np.where(self.detectid == self.detectbox.value)[0][0]
+                old_id = self.detectid[ix]
                 ix += 1
+                while self.detectid[ix] == old_id and ix < len(self.detectid):
+                    ix += 1
             else:
                 ix = np.where(self.detectid > self.detectbox.value)[0][0]
 
             if ix >= np.size(self.detectid):
                 ix = np.argmax(self.detectid)
                 print("At the end of the DetectID List")
+                self.status_box.value += "At the end of the DetectID List"
                 return
-        except:
+        except Exception as e:
             # invalid index ... the report displayed is not in the operating list
             # so use the last good index:
+            #print(e)
+            self.status_box.value += "EXCEPTION"
+            self.status_box.value += e.str()
             ix = self.current_idx
 
         self.rest_widget_values(idx=ix)

@@ -63,6 +63,7 @@ class Detections:
         catalog_type="lines",
         curated_version=None,
         loadtable=True,
+        verbose=False,
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -166,7 +167,23 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
-            if self.survey == "hdr2.1":
+
+            if self.survey == 'hdr3' and catalog_type == 'lines':
+                if verbose:
+                    print('Adjusting noise values by 7% where applicable')
+                # adjust noise at IFU edges by factor of 1.07. This will affect the
+                # sn measures and the flux_noise_1sigma values
+                sel_fib1 = ((self.amp == 'RU') | (self.amp == 'LL')) & (self.fibnum <= 12)
+                sel_fib2 = ((self.amp == 'LU') | (self.amp == 'RL')) & (self.fibnum >= 101)
+                sel_fib = sel_fib1 | sel_fib2
+
+                self.sn[sel_fib] /= 1.07
+                self.sn_3fib[sel_fib] /= 1.07
+                self.sn_3fib_cen[sel_fib] /= 1.07
+                self.sn_cen[sel_fib] /= 1.07
+                self.flux_noise_1sigma[sel_fib] *= 1.07
+                
+            elif self.survey == "hdr2.1":
                 # Fix fluxes and continuum values for aperture corrections  
                 wave = self.hdfile.root.Detections.cols.wave[:]
                 apcor = self.hdfile.root.Spectra.cols.apcor[:]
@@ -657,7 +674,8 @@ class Detections:
 
             del det_table, join_tab
 
-            if False:
+            if True:
+                print('Adding in newly found badamps')
                 # add in any newly found badamps that haven't made it into the
                 # amp_flag.fits file yet
 
@@ -672,9 +690,21 @@ class Detections:
                     )
                     mask2 = np.logical_or(mask2, selmf * seldate)
 
-                    mask = mask1 * np.logical_not(mask2)
+                badamps_single = Table.read(config.badamp_single, format='ascii')
+
+                mask3 = np.zeros(np.size(self.detectid), dtype=bool)
+                
+                for row in badamps_single:
+                    selmf = self.multiframe == row["multiframe"]
+                    selshotid = self.shotid == row["shotid"]
+
+                    mask3 = np.logical_or(mask3, selmf * selshotid)
+
+                mask = mask1 * np.logical_not(mask2) * np.logical_not(mask3)
+
             else:
                 mask = mask1
+
                 
             return mask
 
@@ -986,7 +1016,7 @@ class Detections:
                 for name in self.hdfile.root.Elixer.colnames:
                     table[name] = getattr(self, name)
             except:
-                print("Could not add elixer columns")
+                pass
             try:
                 table.add_column(
                     Column(self.fluxlimit_4540), index=3, name="fluxlimit_4540"

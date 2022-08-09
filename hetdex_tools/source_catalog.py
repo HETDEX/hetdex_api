@@ -911,7 +911,7 @@ def plot_source_group(
         # plot detecid labels
         for row in group:
             plt.text(
-                row["ra"],
+                row["ra"]-0.00005,
                 row["dec"],
                 str(row["detectid"]),
                 transform=ax.get_transform("world"),

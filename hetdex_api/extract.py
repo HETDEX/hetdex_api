@@ -353,7 +353,16 @@ class Extract:
             fix = get_2pt1_extinction_fix()
             spec /= fix(self.wave)
             spece /= fix(self.wave)
+        elif self.survey == 'hdr3':
+            if verbose:
+                print('Increasing noise by 7% for fib 1-12 on LL/RU and fib 101-112 on LU/RL')
 
+            sel_fib1 = ((table_here['amp'] == b'RU') | (table_here['amp'] == b'LL')) & (table_here['fibnum'] <= 12)
+            sel_fib2 = ((table_here['amp'] == b'LU') | (table_here['amp'] == b'RL')) & (table_here['fibnum'] >= 101)
+            sel_fib = sel_fib1 | sel_fib2
+
+            spece[sel_fib] *= 1.07
+            
         ftf = table_here["fiber_to_fiber"]
 
         if self.survey == "hdr1":
