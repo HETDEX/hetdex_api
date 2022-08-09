@@ -414,7 +414,7 @@ def make_data_cube(
     
     rad = imsize.to(u.arcsec).value
     
-    info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
+    info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=ffsky)
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
