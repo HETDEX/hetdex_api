@@ -167,7 +167,8 @@ class Detections:
                     setattr(
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
-            if self.survey == 'hdr3':
+
+            if self.survey == 'hdr3' and catalog_type == 'lines':
                 if verbose:
                     print('Adjusting noise values by 7% where applicable')
                 # adjust noise at IFU edges by factor of 1.07. This will affect the
