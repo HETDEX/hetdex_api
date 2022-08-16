@@ -64,6 +64,7 @@ class Detections:
         curated_version=None,
         loadtable=True,
         verbose=False,
+        searchable=True
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -79,6 +80,12 @@ class Detections:
         load_table : bool
            Boolean flag to load all detection table info upon initialization.
            For example, if you just want to grab a spectrum this isn't needed.
+        searchable: bool
+            Boolean flag, related to loadtable. If loadtable is True, searchable
+            is ignored. If loadtable is False, searchable toggles whether to load
+            all detectids, ra, dec, waves from the h5 file to make the detections
+            searchable. This can be time consuming and should be False if you know
+            the detecids and only want to retrieve individual detections.
         
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3"]
@@ -360,7 +367,7 @@ class Detections:
                         )
                     )
 
-        else:
+        elif searchable:
             # just get coordinates, wavelength and detectid
             self.detectid = self.hdfile.root.Detections.cols.detectid[:]
             self.ra = self.hdfile.root.Detections.cols.ra[:]
@@ -368,7 +375,8 @@ class Detections:
             self.wave = self.hdfile.root.Detections.cols.wave[:]
             
         # set the SkyCoords
-        self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+        if searchable or loadtable:
+            self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
 
     def __getitem__(self, indx):
         """ 
