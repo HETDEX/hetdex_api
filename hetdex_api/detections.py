@@ -17,6 +17,7 @@ import os.path as op
 import numpy as np
 import tables as tb
 import copy
+from scipy import interpolate
 
 np.warnings.filterwarnings("ignore")
 
@@ -102,6 +103,7 @@ class Detections:
             print(catalog_type_options)
             return None
 
+        self.catalog_type = catalog_type.lower()
         # store to class
         if curated_version is not None:
             self.version = curated_version
@@ -118,6 +120,17 @@ class Detections:
       
         self.config = HDRconfig(survey=self.survey)
 
+        if survey == 'hdr3':
+            #open wd correction curve and create fit for quick assignment
+            self.wd_corr = Table.read(self.config.wdcor,
+                                      format='ascii.no_header',
+                                      names=['wave', 'corr'])
+            self.wd_corr_f = interpolate.interp1d(
+                self.wd_corr['wave'],
+                self.wd_corr['corr']
+            )
+            
+
         if catalog_type == "lines":
             self.filename = self.config.detecth5
         elif catalog_type == "continuum":
@@ -133,7 +146,7 @@ class Detections:
         
         if self.version is not None:
 
-            if True:
+            try:
 
                 if self.survey == 'hdr2.1':
                     catfile = op.join(
@@ -154,8 +167,7 @@ class Detections:
                         setattr(self, col, np.array(det_table[col]))
 
                 self.vis_class = -1 * np.ones(np.size(self.detectid))
-            else:
-#            except:
+            except Exception:
                 print("Could not open curated catalog version: " + self.version)
                 return None
 
@@ -175,21 +187,31 @@ class Detections:
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
 
-            if self.survey == 'hdr3' and catalog_type == 'lines':
-                if verbose:
-                    print('Adjusting noise values by 7% where applicable')
-                # adjust noise at IFU edges by factor of 1.07. This will affect the
-                # sn measures and the flux_noise_1sigma values
-                sel_fib1 = ((self.amp == 'RU') | (self.amp == 'LL')) & (self.fibnum <= 12)
-                sel_fib2 = ((self.amp == 'LU') | (self.amp == 'RL')) & (self.fibnum >= 101)
-                sel_fib = sel_fib1 | sel_fib2
+            if self.survey == 'hdr3':
+                if catalog_type == 'lines':
+                    if verbose:
+                        print('Adjusting noise values by 7% where applicable')
+                    # adjust noise at IFU edges by factor of 1.07. This will affect the
+                    # sn measures and the flux_noise_1sigma values in the lines catalog only
+                    sel_fib1 = ((self.amp == 'RU') | (self.amp == 'LL')) & (self.fibnum <= 12)
+                    sel_fib2 = ((self.amp == 'LU') | (self.amp == 'RL')) & (self.fibnum >= 101)
+                    sel_fib = sel_fib1 | sel_fib2
 
-                self.sn[sel_fib] /= 1.07
-                self.sn_3fib[sel_fib] /= 1.07
-                self.sn_3fib_cen[sel_fib] /= 1.07
-                self.sn_cen[sel_fib] /= 1.07
-                self.flux_noise_1sigma[sel_fib] *= 1.07
-                
+                    self.sn[sel_fib] /= 1.07
+                    self.sn_3fib[sel_fib] /= 1.07
+                    self.sn_3fib_cen[sel_fib] /= 1.07
+                    self.sn_cen[sel_fib] /= 1.07
+                    self.flux_noise_1sigma[sel_fib] *= 1.07
+
+                    if verbose:
+                        print('Applying HDR3 flux corrections')
+
+                    self.flux /= self.wd_corr_f(self.wave)
+                    self.flux_err /= self.wd_corr_f(self.wave)
+                    self.continuum /= self.wd_corr_f(self.wave)
+                    self.continuum_err /= self.wd_corr_f(self.wave)
+                    self.flux_noise_1sigma /= self.wd_corr_f(self.wave)
+            
             elif self.survey == "hdr2.1":
                 # Fix fluxes and continuum values for aperture corrections  
                 wave = self.hdfile.root.Detections.cols.wave[:]
@@ -875,17 +897,114 @@ class Detections:
 
         return mask
 
+    def get_detection_info(self,
+                           detectid_i,
+                           rawh5=False,
+                           verbose=False):
+        """
+        Returns Detections table information from H5 file
+        Applies relevent corrections such as noise model fix
+        and spectral adjustment if rawh5 is False
+        
+        Parameters
+        ----------
+        detectid: int
+        detectid (integer ID) of the detection you want to
+            get information for
+        rawh5: bool
+            if True, this will simply return the row from the detecth5
+            file. If False (the default), any relevent correcctions
+            are applied.
+        verbose: bool
+            provide info statements if set to True. Default is False
+
+        Returns
+        -------
+        det_info: array
+            returns detection info
+        """
+        
+        det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
+
+        if rawh5:
+            if verbose:
+                print('Returning raw H5 Detections table row')
+        else:
+            if verbose:
+                print('Returning updated Detections table row')
+            if self.catalog_type == 'lines':
+                if verbose:
+                    print('Adjusting noise values by 7% where applicable')
+                # adjust noise at IFU edges by factor of 1.07. This will affect the
+                # sn measures and the flux_noise_1sigma values in the lines catalog only
+                sel_fib1 = ((det_row['amp'] == b'RU') | (det_row['amp'] == b'LL')) & (det_row['fibnum'] <= 12)
+                sel_fib2 = ((det_row['amp'] == b'LU') | (det_row['amp'] == b'RL')) & (det_row['fibnum'] >= 101)
+                
+                if (sel_fib1 | sel_fib2):
+                    if verbose:
+                        print('Noise model update is required. Update performed.')
+                    det_row['sn'] /= 1.07
+                    det_row['sn_3fib'] /= 1.07
+                    det_row['sn_3fib_cen'] /= 1.07
+                    det_row['sn_cen'] /= 1.07
+                    det_row['flux_noise_1sigma'] *= 1.07
+                
+                if verbose:
+                    print('Applying HDR3 flux corrections')
+                det_row['flux'] /= self.wd_corr_f(det_row['wave'])
+                det_row['flux_err'] /= self.wd_corr_f(det_row['wave'])
+                det_row['continuum'] /= self.wd_corr_f(det_row['wave'])
+                det_row['continuum_err'] /= self.wd_corr_f(det_row['wave'])
+                det_row['flux_noise_1sigma'] /= self.wd_corr_f(det_row['wave'])
+                    
+        return det_row
+
     def get_spectrum(self, detectid_i,
                      deredden=False,
                      apply_extinction_fix=True,
-                     add_apcor=False):
+                     add_apcor=False,
+                     rawh5=False,
+                     verbose=False):
+
         """
         Grabs the 1D spectrum used to measure fitted parameters.
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            grab the spectrum for
+        deredden: bool
+            flag to return dust corrected spectrum
+        apply_extinction_fix: bool
+            HDR2 correction. Does not apply to any other release
+        add_apcor: bool
+            add a column with the applied aperture correction
+        rawh5: bool
+            if False, this will convert to 1AA binning and apply
+            any relevent spectral correcctions. This is the default
+            if True, it will only pull the spetral data from the detections
+            h5 file
+        verbose: bool
+            provide info statements if set to True. Default is False
+        
+        Returns
+        -------
+        spec_table: astropy table
+            2 or 3 column astropy table with spectral data
+        
         """
         spectra = self.hdfile.root.Spectra
         spectra_table = spectra.read_where("detectid == detectid_i")
+        
         data = Table()
-        intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+
+        if rawh5:
+            intensityunit = u.erg / (u.cm ** 2 * u.s * 2*u.AA)
+        else:
+            intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+
+            
         data["wave1d"] = Column(spectra_table["wave1d"][0], unit=u.AA)
         data["spec1d"] = Column(
             spectra_table["spec1d"][0], unit=1.0e-17 * intensityunit
@@ -893,12 +1012,20 @@ class Detections:
         data["spec1d_err"] = Column(
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
+
         if add_apcor:
             data["apcor"] = Column(spectra_table['apcor'][0])
-        # convert from 2AA binning to 1AA binning:
-        data["spec1d"] /= 2.0
-        data["spec1d_err"] /= 2.0
 
+        if rawh5 is False:
+            if verbose:
+                print('Converting from 2AA to 1AA binning')
+            # convert from 2AA binning to 1AA binning:
+            data["spec1d"] /= 2.0
+            data["spec1d_err"] /= 2.0
+        else:
+            if verbose:
+                print('Units are in 2AA binning.')
+                      
         if self.survey == 'hdr2.1' and apply_extinction_fix:
             # remove E(B-V)=0.02 screen extinction
             fix = get_2pt1_extinction_fix()
@@ -906,8 +1033,36 @@ class Detections:
             flux_corr = fix( data["wave1d"])
             data["spec1d"] /= flux_corr
             data["spec1d_err"] /= flux_corr
+            
+        elif self.survey == 'hdr3':
+            if rawh5 is False:
+                if verbose:
+                    print('Applying spectral correction')
+                data['spec1d'] /= self.wd_corr['corr']
+                data['spec1d_err'] /= self.wd_corr['corr']
+
+                # Apply HDR3 noise model correction
+                if verbose:
+                    print('Applying HDR3 noise model update')
+                det_row = self.get_detection_info(detectid_i)
+
+                # adjust noise at IFU edges by factor of 1.07.
+
+                sel_fib1 = ((det_row['amp'] == 'RU') | (det_row['amp'] == 'LL')) & (det_row['fibnum'] <= 12)
+                sel_fib2 = ((det_row['amp'] == 'LU') | (det_row['amp'] == 'RL')) & (det_row['fibnum'] >= 101)
+
+                if (sel_fib1 | sel_fib2):
+                    if verbose:
+                        print('Noise model is required. Update performed.')
+                    data['spec1d_err'] *= 1.07
+                else:
+                    if verbose:
+                        print('Noise model adjustment not required')
 
         if deredden:
+            if verbose:
+                print('Applying dust correction to spectrum')
+                
             det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
             coords = SkyCoord(ra = det_row['ra'][0], dec=det_row['dec'][0], unit='deg')
             deredden_corr = deredden_spectra(data["wave1d"], coords)
