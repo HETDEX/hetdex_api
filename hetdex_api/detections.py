@@ -143,6 +143,7 @@ class Detections:
 
         self.hdfile = tb.open_file(self.filename, mode="r")
 
+        self.surveyh5 = tb.open_file(self.config.surveyh5, 'r')
         
         if self.version is not None:
 
@@ -924,7 +925,7 @@ class Detections:
             returns detection info
         """
         
-        det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
+        det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")[0]
 
         if rawh5:
             if verbose:
@@ -959,6 +960,29 @@ class Detections:
                     
         return det_row
 
+    def get_survey_info(self, detectid_i):
+        """
+        Return Survey class info for detectid
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            grab the spectrum for
+
+        Returns
+        -------
+        survey_info
+            row of information from the survey_hdrX.h5 table
+        """
+
+        det_row = self.get_detection_info(detectid_i)
+        shotid_i = det_row['shotid']
+
+        survey_row = self.surveyh5.root.Survey.read_where('shotid == shotid_i')[0]
+
+        return survey_row
+        
     def get_spectrum(self, detectid_i,
                      deredden=False,
                      apply_extinction_fix=True,
