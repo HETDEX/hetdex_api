@@ -433,10 +433,14 @@ class Fibers:
 def get_fibers_table(
     shot,
     coords=None,
+    ifuslot=None,
+    multiframe=None,
+    expnum=None,
     radius=3.0 * u.arcsec,
     survey=LATEST_HDR_NAME,
     astropy=True,
-    verbose=True,
+    verbose=False,
+    rawh5=False,
 ):
     """
     Returns fiber specta for a given shot.
@@ -453,8 +457,12 @@ def get_fibers_table(
         flag to make it an astropy table
     survey
         data release you want to access
+    rawh5: bool
+        if True, this will simply return the fibers from the specified shoth5
+        file. If False (the default), any relevent correcctions
+        are applied.
     verbose
-        print out warnings. Default is True.
+        print out warnings. Default is False
 
     Returns
     -------
@@ -462,64 +470,152 @@ def get_fibers_table(
     object if astropy=True is set
 
     """
-    if verbose:
-        print(
-            "Fiber spectra returned in /2AA bins. Please use get_fiberinfo_for_coord(s) from Extract class in hetdex_api.extract"
-        )
 
     fileh = open_shot_file(shot, survey=survey.lower())
 
-    try:
-        ra_in = coords.ra.degree
-        dec_in = coords.dec.degree
-    except:
-        print("Coords argument must be an astropy coordinates object")
+    config = HDRconfig(survey=survey.lower())
 
-    try:
-        rad_in = radius.to(u.degree)
-        rad = radius
-    except:
-        rad_in = radius / 3600.0
-        rad = radius * u.arcsec
-        pass
+    if coords is not None:
+        if verbose:
+            print("Gathering fibers in aperture")
+        try:
+            ra_in = coords.ra.degree
+            dec_in = coords.dec.degree
+        except:
+            print("Coords argument must be an astropy coordinates object")
 
-    if survey == "hdr1":
-        # search first along ra
+        try:
+            rad_in = radius.to(u.degree)
+            rad = radius
+        except:
+            rad_in = radius / 3600.0
+            rad = radius * u.arcsec
+            pass
 
-        ra_table = fileh.root.Data.Fibers.read_where(
-            "sqrt((ra - ra_in)**2) < (rad_in + 2./3600)"
-        )
+        if survey == "hdr1":
+            # search first along ra
 
-        if any(ra_table):
-            coords_table = SkyCoord(
-                ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
+            ra_table = fileh.root.Data.Fibers.read_where(
+                "sqrt((ra - ra_in)**2) < (rad_in + 2./3600)"
             )
-            idx = coords.separation(coords_table) < rad
-            fibers_table = ra_table[idx]
 
-            fibers_table["calfib"] = fibers_table["calfib"] / 2.0
-            fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
+            if any(ra_table):
+                coords_table = SkyCoord(
+                    ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
+                )
+                idx = coords.separation(coords_table) < rad
+                fibers_table = ra_table[idx]
 
-            if astropy:
-                fibers_table = Table(fibers_table)
+                fibers_table["calfib"] = fibers_table["calfib"] / 2.0
+                fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
 
         else:
-            fibers_table = None
+            # use Fibers table to find fiber_ids
+            F = Fibers(shot, survey=survey.lower())
 
+            fibers_table = F.query_region(coords, radius=rad_in)
+            F.close()
+    elif multiframe is not None:
+        if verbose:
+            print("Accessing fibers for {}".format(multiframe))
+        multiframe_i = multiframe
+
+        fibers_table = fileh.root.Data.Fibers.read_where("multiframe == multiframe_i")
+        if expnum is not None:
+            if verbose:
+                print("Accessing fibers for expnum {}".format(expnum))
+
+            fibers_table = fibers_table[fibers_table["expnum"] == expnum]
+
+    elif ifuslot is not None:
+
+        # ensure ifuslot is three digit string
+        ifuslot = str(ifuslot).zfill(3)
+
+        if verbose:
+            print("Acessing fibers for ifuslot {}".format(ifuslot))
+        # use Fibers table to find multiframe ids for specified ifuslot
+        F = Fibers(shot, survey=survey.lower())
+
+        fibers_table = None
+
+        multiframe_array = np.unique(F.multiframe)
+
+        ifuslot_array = np.array([x[10:13] for x in multiframe_array])
+
+        fibers_table = None
+
+        for mf in multiframe_array[ifuslot_array == ifuslot]:
+            fib_table_i = fileh.root.Data.Fibers.read_where("multiframe == mf")
+            if fibers_table is None:
+                fibers_table = fib_table_i
+            else:
+                fibers_table = np.concatenate([fibers_table, fib_table_i])
+
+        if expnum is not None:
+            if verbose:
+                print("Accessing fibers for expnum {}".format(expnum))
+            fibers_table = fibers_table[fibers_table["expnum"] == expnum]
+        # close Fibers class
+        F.close()
     else:
+        if verbose:
+            print("Loading full fibers table for shot. This will take some time.")
+            print(
+                "Consider requesting a single multiframe and expnum or querying by coordinates"
+            )
+        fibers_table = fileh.root.Data.Fibers.read()
 
-        # use Fibers table to find fiber_ids
-        fiberindex = Fibers(shot, survey=survey)
+    if rawh5:
+        intensityunit = u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
+    else:
+        intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
 
-        fibers_table = fiberindex.query_region(coords, radius=rad_in)
+        if verbose:
+            print("Convert to spectral density units in 10^-17 ergs/s/cm^2/AA")
+            fibers_table["calfib"] /= 2.0
+            fibers_table["calfib_ffsky"] /= 2.0
+            fibers_table["calfibe"] /= 2.0
 
-        if np.size(fibers_table) > 0:
-            if astropy:
-                fibers_table = Table(fibers_table)
-        else:
-            fibers_table = None
+        if survey.lower() == "hdr3":
+            if verbose:
+                print("Applying spectral correction from WD modelling")
+            wd_corr = Table.read(
+                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+            )
+            fibers_table["calfib"] /= wd_corr["corr"]
+            fibers_table["calfib_ffsky"] /= wd_corr["corr"]
+            fibers_table["calfibe"] /= wd_corr["corr"]
+
+            if verbose:
+                print("Adjusting noise values by 7% where applicable")
+            # adjust noise at IFU edges by factor of 1.07
+            sel_fib1 = (
+                (fibers_table["amp"] == b"RU") | (fibers_table["amp"] == b"LL")
+            ) & (fibers_table["fibnum"] <= 12)
+            sel_fib2 = (
+                (fibers_table["amp"] == b"LU") | (fibers_table["amp"] == b"RL")
+            ) & (fibers_table["fibnum"] >= 101)
+
+            sel_fib = sel_fib1 | sel_fib2
+
+            fibers_table["calfibe"][sel_fib] *= 1.07
 
     fileh.close()
+
+    if np.size(fibers_table) > 0:
+        if astropy:
+            fibers_table = Table(fibers_table)
+            # add units
+            fibers_table["calfib"].unit = intensityunit
+            fibers_table["calfib_ffsky"].unit = intensityunit
+            fibers_table["calfibe"].unit = intensityunit
+            fibers_table["ra"].unit = u.deg
+            fibers_table["dec"].unit = u.deg
+            fibers_table["wavelength"].unit = u.AA
+        else:
+            fibers_table = None
+
     return fibers_table
 
 
