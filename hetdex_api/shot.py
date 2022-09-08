@@ -567,15 +567,15 @@ def get_fibers_table(
         fibers_table = fileh.root.Data.Fibers.read()
 
     if rawh5:
-        intensityunit = u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
+        intensityunit = 10**-17 * u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
     else:
-        intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+        intensityunit = 10**-17 * u.erg / (u.cm ** 2 * u.s * u.AA)
 
         if verbose:
             print("Convert to spectral density units in 10^-17 ergs/s/cm^2/AA")
-            fibers_table["calfib"] /= 2.0
-            fibers_table["calfib_ffsky"] /= 2.0
-            fibers_table["calfibe"] /= 2.0
+        fibers_table["calfib"] /= 2.0
+        fibers_table["calfib_ffsky"] /= 2.0
+        fibers_table["calfibe"] /= 2.0
 
         if survey.lower() == "hdr3":
             if verbose:
@@ -607,9 +607,9 @@ def get_fibers_table(
         if astropy:
             fibers_table = Table(fibers_table)
             # add units
-            fibers_table["calfib"].unit = intensityunit
-            fibers_table["calfib_ffsky"].unit = intensityunit
-            fibers_table["calfibe"].unit = intensityunit
+#            fibers_table["calfib"].unit = intensityunit
+#            fibers_table["calfib_ffsky"].unit = intensityunit
+#            fibers_table["calfibe"].unit = intensityunit
             fibers_table["ra"].unit = u.deg
             fibers_table["dec"].unit = u.deg
             fibers_table["wavelength"].unit = u.AA
