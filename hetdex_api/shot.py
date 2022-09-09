@@ -436,11 +436,12 @@ def get_fibers_table(
     ifuslot=None,
     multiframe=None,
     expnum=None,
-    radius=3.0 * u.arcsec,
+    radius=3.5 * u.arcsec,
     survey=LATEST_HDR_NAME,
     astropy=True,
     verbose=False,
     rawh5=False,
+    F=None,
 ):
     """
     Returns fiber specta for a given shot.
@@ -452,7 +453,7 @@ def get_fibers_table(
     coords
         astropy coordinate object
     radius
-        an astropy quantity object or radius in degrees
+        an astropy quantity object
     astropy
         flag to make it an astropy table
     survey
@@ -463,6 +464,8 @@ def get_fibers_table(
         are applied.
     verbose
         print out warnings. Default is False
+    F   Fibers class object
+        a pre-intiated fibers class object
 
     Returns
     -------
@@ -470,9 +473,12 @@ def get_fibers_table(
     object if astropy=True is set
 
     """
-
-    fileh = open_shot_file(shot, survey=survey.lower())
-
+    if F is not None:
+        fileh = F.hdfile
+    else:
+        F = Fibers(shot, survey=survey.lower())
+        fileh = F.hdfile
+    
     config = HDRconfig(survey=survey.lower())
 
     if coords is not None:
@@ -484,37 +490,8 @@ def get_fibers_table(
         except:
             print("Coords argument must be an astropy coordinates object")
 
-        try:
-            rad_in = radius.to(u.degree)
-            rad = radius
-        except:
-            rad_in = radius / 3600.0
-            rad = radius * u.arcsec
-            pass
+        fibers_table = F.query_region(coords, radius=radius)
 
-        if survey == "hdr1":
-            # search first along ra
-
-            ra_table = fileh.root.Data.Fibers.read_where(
-                "sqrt((ra - ra_in)**2) < (rad_in + 2./3600)"
-            )
-
-            if any(ra_table):
-                coords_table = SkyCoord(
-                    ra_table["ra"] * u.deg, ra_table["dec"] * u.deg, frame="icrs"
-                )
-                idx = coords.separation(coords_table) < rad
-                fibers_table = ra_table[idx]
-
-                fibers_table["calfib"] = fibers_table["calfib"] / 2.0
-                fibers_table["calfibe"] = fibers_table["calfibe"] / 2.0
-
-        else:
-            # use Fibers table to find fiber_ids
-            F = Fibers(shot, survey=survey.lower())
-
-            fibers_table = F.query_region(coords, radius=rad_in)
-            F.close()
     elif multiframe is not None:
         if verbose:
             print("Accessing fibers for {}".format(multiframe))
@@ -534,10 +511,6 @@ def get_fibers_table(
 
         if verbose:
             print("Acessing fibers for ifuslot {}".format(ifuslot))
-        # use Fibers table to find multiframe ids for specified ifuslot
-        F = Fibers(shot, survey=survey.lower())
-
-        fibers_table = None
 
         multiframe_array = np.unique(F.multiframe)
 
@@ -556,8 +529,7 @@ def get_fibers_table(
             if verbose:
                 print("Accessing fibers for expnum {}".format(expnum))
             fibers_table = fibers_table[fibers_table["expnum"] == expnum]
-        # close Fibers class
-        F.close()
+
     else:
         if verbose:
             print("Loading full fibers table for shot. This will take some time.")
@@ -601,20 +573,19 @@ def get_fibers_table(
 
             fibers_table["calfibe"][sel_fib] *= 1.07
 
-    fileh.close()
-
     if np.size(fibers_table) > 0:
         if astropy:
+            # convert to an astropy table format and add units
             fibers_table = Table(fibers_table)
             # add units
-#            fibers_table["calfib"].unit = intensityunit
-#            fibers_table["calfib_ffsky"].unit = intensityunit
-#            fibers_table["calfibe"].unit = intensityunit
+            fibers_table["calfib"].unit = intensityunit
+            fibers_table["calfib_ffsky"].unit = intensityunit
+            fibers_table["calfibe"].unit = intensityunit
             fibers_table["ra"].unit = u.deg
             fibers_table["dec"].unit = u.deg
             fibers_table["wavelength"].unit = u.AA
-        else:
-            fibers_table = None
+    else:
+        fibers_table = None
 
     return fibers_table
 
