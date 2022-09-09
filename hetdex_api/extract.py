@@ -97,7 +97,7 @@ def sclean(waves, fiber_data, fiber_error, mask,
 
 
 class Extract:
-    def __init__(self, wave=None):
+    def __init__(self, wave=None, apply_update=True):
         """
         Initialize Extract class
 
@@ -106,6 +106,13 @@ class Extract:
         wave: numpy 1d array
             wavelength of calfib extension for hdf5 files, does not need to be
             set unless needed by development team
+        apply_update: bool
+            flag to turn on/off automatic API updates. For example in HDR3
+            this includes adjustment to noise arrays by 1.07 factor 
+            to fibnum=1-12 for LL/RU channel and fibnum=101-112 for LU/RL.
+            It also includes spectral calibration adjustment wdcor.txt
+            Default is to include it
+        
         """
         if wave is not None:
             self.wave = wave
@@ -115,8 +122,8 @@ class Extract:
         self.log = setup_logging("Extract")
         self.fibers = None
         self.set_dither_pattern()
+        self.apply_update = apply_update
 
-        
     def set_dither_pattern(self, dither_pattern=None):
         """ 
         Set dither pattern (default if None given)
@@ -172,7 +179,6 @@ class Extract:
         else:
             self.fibers = None
             self.shoth5 = None
-            #open_shot_file(self.shot, survey=survey)
 
         self.set_dither_pattern(dither_pattern=dither_pattern)
 
@@ -353,7 +359,8 @@ class Extract:
             fix = get_2pt1_extinction_fix()
             spec /= fix(self.wave)
             spece /= fix(self.wave)
-        elif self.survey == 'hdr3':
+            
+        elif (self.survey == 'hdr3') & self.apply_update:
             if verbose:
                 print('Increasing noise by 7% for fib 1-12 on LL/RU and fib 101-112 on LU/RL')
 
@@ -362,7 +369,9 @@ class Extract:
             sel_fib = sel_fib1 | sel_fib2
 
             spece[sel_fib] *= 1.07
-            
+
+            # apply WD correction
+
         ftf = table_here["fiber_to_fiber"]
 
         if self.survey == "hdr1":
@@ -465,7 +474,9 @@ class Extract:
         if fiber_lower_limit < 2:
             raise Exception("fiber_lower_limit must be greater than 2")
         
-        if self.fibers is not None:
+        if self.apply_update is False:
+            if verbose:
+                print('No calfib update applied')
             idx = self.fibers.query_region_idx(coord, radius=radius)
 
             if len(idx) < fiber_lower_limit:
@@ -502,9 +513,17 @@ class Extract:
             fiber_id_array = self.fibers.table.read_coordinates(
                 idx, "fiber_id").astype(str)
         else:
-
+            if verbose:
+                print('Calfib updates applied')
+                
+            F = Fibers(self.shot, survey=self.survey)
             fib_table = get_fibers_table(
-                self.shot, coord, survey=self.survey, radius=radius*u.arcsec, verbose=False,
+                self.shot, coord,
+                survey=self.survey,
+                radius=radius,
+                verbose=False,
+                astropy=False,
+                F=F,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
@@ -518,10 +537,10 @@ class Extract:
                 if self.survey == 'hdr2.1':
                     spec = fib_table["spec_fullsky_sub"] / 2.0
                 else:
-                    spec = fib_table["calfib_ffsky"] / 2.0
+                    spec = fib_table["calfib_ffsky"] #/ 2.0
             else:
-                spec = fib_table["calfib"] / 2.0
-            spece = fib_table["calfibe"] / 2.0
+                spec = fib_table["calfib"] #/ 2.0
+            spece = fib_table["calfibe"] #/2.0
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
