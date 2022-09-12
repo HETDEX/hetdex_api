@@ -549,7 +549,7 @@ def get_fibers_table(
         fibers_table["calfib"] /= 2.0
         fibers_table["calfibe"] /= 2.0
 
-        if survey.lower == 'hdr2.1':
+        if survey.lower() == 'hdr2.1':
             fibers_table["spec_fullsky_sub"] /= 2.0
         else:
             fibers_table["calfib_ffsky"] /= 2.0
