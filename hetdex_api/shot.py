@@ -545,9 +545,14 @@ def get_fibers_table(
 
         if verbose:
             print("Convert to spectral density units in 10^-17 ergs/s/cm^2/AA")
+
         fibers_table["calfib"] /= 2.0
-        fibers_table["calfib_ffsky"] /= 2.0
         fibers_table["calfibe"] /= 2.0
+
+        if survey.lower == 'hdr2.1':
+            fibers_table["spec_fullsky_sub"] /= 2.0
+        else:
+            fibers_table["calfib_ffsky"] /= 2.0
 
         if survey.lower() == "hdr3":
             if verbose:
