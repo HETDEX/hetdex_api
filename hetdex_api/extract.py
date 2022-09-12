@@ -9,6 +9,7 @@ Note: this uses nway and pandas
 
 import numpy as np
 
+from astropy.table import Table
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.coordinates import SkyCoord
 from astropy.modeling.models import Moffat2D, Gaussian2D
@@ -28,15 +29,18 @@ from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
 
 from hetdex_api.extinction import get_2pt1_extinction_fix
+
 try:
     from hetdex_api.config import HDRconfig
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-    config = HDRconfig()    
+    config = HDRconfig()
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
     config = None
+
 
 def sclean(waves, fiber_data, fiber_error, mask,
            npix = 5, error_scale = 4.0):
@@ -369,9 +373,16 @@ class Extract:
             sel_fib = sel_fib1 | sel_fib2
 
             spece[sel_fib] *= 1.07
-
+            
             # apply WD correction
-
+            if verbose:
+                print("Applying spectral correction from WD modelling")
+            wd_corr = Table.read(
+                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+            )
+            spec /= wd_corr['corr']
+            spece /= wd_corr['corr']
+            
         ftf = table_here["fiber_to_fiber"]
 
         if self.survey == "hdr1":
@@ -515,15 +526,17 @@ class Extract:
         else:
             if verbose:
                 print('Calfib updates applied')
+
+            if self.fibers is None:
+                self.fibers = Fibers(self.shot, survey=self.survey)
                 
-            F = Fibers(self.shot, survey=self.survey)
             fib_table = get_fibers_table(
                 self.shot, coord,
                 survey=self.survey,
                 radius=radius,
                 verbose=False,
                 astropy=False,
-                F=F,
+                F=self.fibers,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
@@ -535,12 +548,12 @@ class Extract:
             dec = fib_table["dec"] 
             if ffsky:
                 if self.survey == 'hdr2.1':
-                    spec = fib_table["spec_fullsky_sub"] / 2.0
+                    spec = fib_table["spec_fullsky_sub"]
                 else:
-                    spec = fib_table["calfib_ffsky"] #/ 2.0
+                    spec = fib_table["calfib_ffsky"]
             else:
-                spec = fib_table["calfib"] #/ 2.0
-            spece = fib_table["calfibe"] #/2.0
+                spec = fib_table["calfib"]
+            spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
@@ -550,9 +563,9 @@ class Extract:
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
 
             expn = np.array(fib_table["expnum"], dtype=int)
-            mf_array = fib_table['multiframe']
+            mf_array = fib_table['multiframe'].astype(str)
             try:
-                fiber_id_array = fib_table['fiber_id']
+                fiber_id_array = fib_table['fiber_id'].astype(str)
             except:
                 fiber_id_array = []
 
@@ -560,6 +573,7 @@ class Extract:
             if verbose:
                 print('Removing extinction of E(B-V)=0.02')
             #apply HDR2.1 E(B-V)=0.02 extinction fix to fiber arrays
+            print('applying extinction fix')
             fix = get_2pt1_extinction_fix()
             spec /= fix(self.wave)
             spece /= fix(self.wave)
