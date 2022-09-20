@@ -198,6 +198,8 @@ def add_elixer_cat_info(detect_table, det_type='line'):
 
     elixer_cat.close()
 
+    catalog2.rename_column('best_z','z_elixer')
+    
     # fill mask values with nans
     for col in catalog2.columns:
         try:
@@ -262,6 +264,11 @@ def create_source_catalog(
     if update:
 
         print('Creating curated detection catalog version={}'.format(version))
+        print('Updating chi2fib values')
+        # Note chi2fib calculated in
+        #/work/05350/ecooper/stampede2/hdr3/fiber_chi2_check-hdr3.ipynb
+        chi2fib_tab = Table.read('/work/05350/ecooper/stampede2/hdr3/chi2fib_3.0.0.txt', format='ascii')
+        
         D = Detections(survey='hdr3')
         sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
         sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
@@ -289,6 +296,13 @@ def create_source_catalog(
         print(len(detects_line_table))
         detects_line_table = add_elixer_cat_info(detects_line_table, det_type='line')
         print(len(detects_line_table))
+        #apply additional chi2fib cut
+        detects_line_table2 = join(detects_line_table, chi2fib_tab, keys='detectid', join_type='left')
+        print('Size after combining with chi2fib_tab: {}'.format(len(detects_line_table2)))
+
+        sel_chi2fib = (detects_line_table2['chi2fib_1'] < 4.5) & (detects_line_table2['chi2fib_2'] < 4.5)
+        detects_line_table = detects_line_table2[sel_chi2fib]
+        print('Size after chi2fib cut: {}'.format(len(detects_line_table)))
         detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
         detects_line_table.write('detect_hdr{}.tab'.format(version),
                                  format='ascii',
@@ -376,7 +390,7 @@ def create_source_catalog(
     res = P.map(make_wfriend_table_for_shot, shotlist)
     P.close()
     
-    wstart = 300000000
+    wstart = int(version.replace('.', '', 2))*10**6
     wdetfriend_all = Table()
 
     firstid = True
@@ -850,7 +864,7 @@ def get_parser():
         "--dsky_3D",
         type=float,
         help="""Spatial linking length in arcsec""",
-        default=4.0,
+        default=6.0,
     )
 
     parser.add_argument(
