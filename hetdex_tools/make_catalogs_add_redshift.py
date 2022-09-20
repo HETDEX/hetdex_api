@@ -221,8 +221,8 @@ diagnose_assign.remove_column('cls_diagnose')
 
 # Take Elixer best_z for rest
 
-elixer_assign = source_table['source_id','best_z','best_pz'][sel & np.invert(sel_gmag)]
-elixer_assign.rename_column('best_z', 'z_hetdex')
+elixer_assign = source_table['source_id','z_elixer','best_pz'][sel & np.invert(sel_gmag)]
+elixer_assign.rename_column('z_elixer', 'z_hetdex')
 elixer_assign.rename_column('best_pz', 'z_hetdex_conf')
 elixer_assign['z_hetdex_src'] = 'elixer'
 elixer_assign['agn_flag'] = -1
@@ -322,8 +322,8 @@ def add_z_guess(source_id):
                 s_type = 'lzg'
         else:
             if np.size(group) == 1:
-                if np.isfinite(group['best_z']):
-                    z_guess = float( group['best_z'])
+                if np.isfinite(group['z_elixer']):
+                    z_guess = float( group['z_elixer'])
                     z_conf = float( group['best_pz'])
 
                     if 0.0 < z_guess < 0.5:
@@ -355,7 +355,7 @@ def add_z_guess(source_id):
                 if np.any( group['wave_group_id'] > 0):
                     sel_wave_group = group['wave_group_id'] > 0
                     sel_most_conf = np.argmin( group['src_separation'][sel_wave_group] )
-                    z_guess = group['best_z'][sel_wave_group][sel_most_conf]
+                    z_guess = group['z_elixer'][sel_wave_group][sel_most_conf]
                     z_conf = group['best_pz'][sel_wave_group][sel_most_conf]
                     # assign s_type
                     if 0.0 < z_guess < 0.5:
@@ -367,10 +367,10 @@ def add_z_guess(source_id):
 
                     z_src = 'elixer'
                     
-                elif np.std(group['best_z']) < 0.02:
+                elif np.std(group['z_elixer']) < 0.02:
                     #print(np.array(group['detectid']))
                     sel_most_conf = np.argmin( group['src_separation'] )
-                    z_guess = group['best_z'][sel_most_conf]
+                    z_guess = group['z_elixer'][sel_most_conf]
                     z_conf = group['best_pz'][sel_most_conf]
                     if 0.0 < z_guess < 0.5:
                         s_type='oii'
@@ -416,7 +416,7 @@ def add_z_guess(source_id):
                         else:
                             sel_sn = np.argmax(group['sn'])
                             
-                        z_guess = group['best_z'][sel_sn]
+                        z_guess = group['z_elixer'][sel_sn]
                         z_conf = group['best_pz'][sel_sn]
                         z_src = 'elixer'
                         if 0.0 < z_guess < 0.5:
@@ -480,7 +480,7 @@ sid_index = 3010030000000
 
 for c_ind in clustered_lae_index:
     source_table['source_id'][c_ind] = sid_index
-    source_table['z_hetdex'][c_ind] = source_table['best_z'][c_ind]
+    source_table['z_hetdex'][c_ind] = source_table['z_elixer'][c_ind]
     source_table['z_hetdex_conf'][c_ind] = source_table['best_pz'][c_ind]
     source_table['z_hetdex_src'][c_ind] = 'elixer'
     sid_index += 1
