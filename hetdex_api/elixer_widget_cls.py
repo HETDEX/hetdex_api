@@ -559,7 +559,7 @@ class ElixerWidget:
             value=detectstart,
             # min=1,
             min=1000000000,
-            max=100000000000, #99999999999,
+            max=int(8.9e18),#100000000000, #99999999999,
             step=1,
             description="DetectID:",
             disabled=False,
