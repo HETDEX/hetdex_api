@@ -14,6 +14,7 @@ import astropy.units as u
 
 from hetdex_api.config import HDRconfig
 import hetdex_tools.fof_kdtree as fof
+#import hetdex_api.wave as wv
 
 from multiprocessing import Pool
 
@@ -135,16 +136,12 @@ config = HDRconfig('hdr3')
 catfile = 'source_catalog_{}.fits'.format(version)
 source_table = Table.read(catfile)
 
-#fudging this for now
-#sel = source_table['source_id'] < 2140000000000
-#source_table['source_id'][sel] = source_table['source_id'][sel] + 10000000000
-
 #agn_tab = Table.read(config.agncat, format='ascii')
 agn_tab = None
 print('Source catalog was found at {}'.format(catfile))
 
-wavelya = 1215.67
-waveoii = 3727.8
+wavelya = 1215.67 #in vacuum
+waveoii = 3727.8 #in air
 waveciv = 1549.5
 waveheii = 1640.4
 
@@ -231,7 +228,6 @@ sel_oii = elixer_assign['z_hetdex'] < 0.5
 elixer_assign['source_type'] = 'gal'
 elixer_assign['source_type'][sel_lae] = 'lae'
 elixer_assign['source_type'][sel_oii] = 'oii'
-
 
 
 uniq_table = unique(source_table[np.invert(sel)], keys='source_id')
