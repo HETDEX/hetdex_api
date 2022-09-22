@@ -904,7 +904,7 @@ class ElixerWidget:
                 ix = np.where(self.detectid == np.int64(self.detectbox.value))[0][0]
                 old_id = self.detectid[ix]
                 ix += 1
-                while self.detectid[ix] == old_id and ix < len(self.detectid):
+                while ix < len(self.detectid) and self.detectid[ix] == old_id:
                     ix += 1
             else:
                 ix = np.where(self.detectid > np.int64(self.detectbox.value))[0][0]
