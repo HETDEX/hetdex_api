@@ -327,7 +327,7 @@ class ElixerWidget:
 
         global ELIXER_H5, HETDEX_ELIXER_HDF5
 
-        detectid = x
+        detectid = np.int64(x)
         show_selection_buttons = True
 
         try:
@@ -340,7 +340,7 @@ class ElixerWidget:
             )
         except:
             print(
-                f"Current object not in original list. Go to Next or Previous DetectID to return to input Detectlist"
+                f"Current object {self.detectbox} not in original list. Go to Next or Previous DetectID to return to input Detectlist"
             )
             show_selection_buttons = False
 
@@ -555,16 +555,23 @@ class ElixerWidget:
 
         self.current_idx = i_start
 
-        self.detectbox = widgets.BoundedIntText(
-            value=detectstart,
+        # self.detectbox = widgets.BoundedIntText(
+        #     value=detectstart,
+        #     # min=1,
+        #     min=1000000000,
+        #     max=int(8.9e18),#100000000000, #99999999999,
+        #     step=1,
+        #     description="DetectID:",
+        #     disabled=False,
+        # )
+
+        self.detectbox = widgets.Text(
+            value=str(detectstart),
+            placeholder = str(detectstart),
             # min=1,
-            min=1000000000,
-            max=100000000000, #99999999999,
-            step=1,
             description="DetectID:",
             disabled=False,
         )
-
         self.previousbutton = widgets.Button(
             layout=Layout(width="5%")
         )  # description='Previous DetectID')
@@ -775,7 +782,7 @@ class ElixerWidget:
         if HETDEX_DETECT_HDF5_HANDLE:
             try:
                 #dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
-                q_detectid = self.detectbox.value
+                q_detectid = np.int64(self.detectbox.value)
 
                 rows =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where("detectid==q_detectid", field="wave")
                 if (rows is not None) and (rows.size == 1):
@@ -862,14 +869,14 @@ class ElixerWidget:
     def goto_previous_detect(self):
 
         try:
-            if self.detectbox.value in self.detectid:
-                ix = np.where(self.detectid == self.detectbox.value)[0][0]
+            if np.int64(self.detectbox.value) in self.detectid:
+                ix = np.where(self.detectid == np.int64(self.detectbox.value))[0][0]
                 old_id = self.detectid[ix]
                 ix -= 1
                 while self.detectid[ix] == old_id and ix < len(self.detectid):
                     ix -= 1
             else:
-                ix = np.max(np.where(self.detectid <= self.detectbox.value))
+                ix = np.max(np.where(self.detectid <= np.int64(self.detectbox.value)))
 
             if ix < 0:
                 ix = 0
@@ -888,19 +895,19 @@ class ElixerWidget:
 
         # causes dirty flag
         self.current_idx = ix
-        self.detectbox.value = self.detectid[ix]
+        self.detectbox.value = str(self.detectid[ix])
 
     def goto_next_detect(self):
         try:
 
-            if self.detectbox.value in self.detectid:
-                ix = np.where(self.detectid == self.detectbox.value)[0][0]
+            if np.int64(self.detectbox.value) in self.detectid:
+                ix = np.where(self.detectid == np.int64(self.detectbox.value))[0][0]
                 old_id = self.detectid[ix]
                 ix += 1
                 while self.detectid[ix] == old_id and ix < len(self.detectid):
                     ix += 1
             else:
-                ix = np.where(self.detectid > self.detectbox.value)[0][0]
+                ix = np.where(self.detectid > np.int64(self.detectbox.value))[0][0]
 
             if ix >= np.size(self.detectid):
                 ix = np.argmax(self.detectid)
@@ -917,7 +924,7 @@ class ElixerWidget:
 
         self.rest_widget_values(idx=ix)
         self.current_idx = ix
-        self.detectbox.value = self.detectid[ix]
+        self.detectbox.value = str(self.detectid[ix])
 
     def set_counterpart(self, value=0):
         self.counterpart[self.current_idx] = value
@@ -942,7 +949,7 @@ class ElixerWidget:
             self.c_other_button.icon = "check"
 
     def set_classification(self, value=0):
-        self.current_idx = np.where(self.detectid == self.detectbox.value)[0][
+        self.current_idx = np.where(self.detectid == np.int64(self.detectbox.value))[0][
             0
         ]  # current position
 
@@ -1183,7 +1190,7 @@ class ElixerWidget:
         ascii.write(self.output, self.outfilename, overwrite=True)
 
     def on_elixer_neighborhood(self, b):
-        detectid = self.detectbox.value
+        detectid = np.int64(self.detectbox.value)
 
         try:
             # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
@@ -1207,7 +1214,7 @@ class ElixerWidget:
                 print("neighborhood not found")
 
     def get_mini_button_click(self, b):
-        detectid = self.detectbox.value
+        detectid = np.int64(self.detectbox.value)
         try:
             display(
                 Image(self.elixer_conn_mgr.fetch_image(
@@ -1264,7 +1271,7 @@ class ElixerWidget:
             )
 
         spec_table = get_spectra(
-            coords, ID=self.detectbox.value, survey=self.get_hdr_name_for_detectid()
+            coords, ID=np.int64(self.detectbox.value), survey=self.get_hdr_name_for_detectid()
         )
 
         # if current_wavelength < 0:
@@ -1296,7 +1303,7 @@ class ElixerWidget:
     def get_det_info(self):
         global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
-        detid = self.detectbox.value
+        detid = np.int64(self.detectbox.value)
 
         if (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.detecth5
@@ -1323,7 +1330,7 @@ class ElixerWidget:
                         print("Could not open {}".format(self.det_file))
 
         if DET_HANDLE is not None:
-            detid = self.detectbox.value
+            detid = np.int64(self.detectbox.value)
             try:
                 self.det_row = Table(
                     DET_HANDLE.root.Detections.read_where(
