@@ -202,7 +202,7 @@ class QueryWidget:
         elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
             self.det_file = CONFIG_HDR3.detecth5
         elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
-            self.det_file = CONFIG_HDR2.contsourceh5
+            self.det_file = CONFIG_HDR3.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file
