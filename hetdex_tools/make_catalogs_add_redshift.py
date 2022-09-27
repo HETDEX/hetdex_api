@@ -31,7 +31,7 @@ def zcluster_forshotid(shotid):
         np.array( uniq_table["ra_mean"]),
         np.array( uniq_table["dec_mean"]),
         np.array(uniq_table["z_hetdex"]),
-        dsky=5, dwave=0.01)
+        dsky=6, dwave=0.01)
     
     zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
     
