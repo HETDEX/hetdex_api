@@ -172,7 +172,7 @@ def add_elixer_cat_info(detect_table, det_type='line'):
                    'classification_labels',
     ]
 
-    catalog = join(detect_table, elix_tab[sel_det_col],  keys='detectid', join_type='left')
+    catalog = join(detect_table, np.unique( elix_tab[sel_det_col], keys='detectid'),  keys='detectid', join_type='left')
 
     catalog.rename_column('mag_g_wide', 'gmag')
 
@@ -183,7 +183,8 @@ def add_elixer_cat_info(detect_table, det_type='line'):
     selected = selected1 & selected2
 
     eo_tab = unique( extracted_objects[selected], keys='detectid')
-    
+
+    eo_tab.rename_column('flags_extracted_objects','flags_eo_tab')
     eo_tab.rename_column('ra', 'counterpart_ra')
     eo_tab.rename_column('dec', 'counterpart_dec')
     eo_tab.rename_column('mag', 'counterpart_mag')
