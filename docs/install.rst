@@ -1,6 +1,20 @@
 Installation
 ============
 
+Recommended Data Access
+-----------------------
+
+For new users, we recommend you access HETDEX Data via our JupyterLabs hosted at TACC  and at SciServer (https://sciserver.mpe.mpg.de). JupyterLabs are pre-built computing environments where many common python modules, including HETDEX specific modules are pre-installed. We also provide a number of Jupyter notebook tutorials to allow the user to become familiar with HETDEX-API and the HETDEX data model. Internal users will have access to 1Tb of storage and extra HPC resources.
+
+A TACC account is needed to access the TACC system: https://portal.tacc.utexas.edu/account-request. If you are part of the internal HETDEX collaboration, email Erin and Karl to set up your account. For public users, you can still create an account and you will have access to our public JupyterLab and public data only. No long-term storage will be provided but you will be able to learn how to access the HETDEX Public Catalogs and view some HETDEX visualization tools.
+
+Instructions for the TACC JupyterLab:
+
+1. Goto: https://jupyter.tacc.cloud
+2. Internal Users Pick "HETDEX Internal" Spawner Option. Click HPC option. Public users pick the HETDEX Public Option"
+3. Internal Users Check out this PDF for more info: http://web.corral.tacc.utexas.edu/hetdex/HETDEX/shared/HETDEX-JupyterLab-Instructions.pdf
+
+
 Easy Install for stampede2
 ---------------------------
 
@@ -21,20 +35,9 @@ You can now log onto https://vis.tacc.utexas.edu and run Jupyter notebooks. Choo
 For TACC Users 
 ---------------
 
-If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your $WORK, $SCRATCH (on stampede2) and $DATA (on wrangler) directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
+If this is your first time on a TACC cluster we recommend a few setup steps. First set your permissions so that your $WORK, $SCRATCH (on stampede2) directories are readable to everyone on TACC. Use at your own discretion, but this will allow you to share classifying work and notebooks with the team.
 
 To do these steps you can either ssh in (for example, with the terminal app on Mac OS) or you can access a terminal from vis.tacc.utexas.edu. For cluster specific connection details, please see `Jupyter Notebook Access`. 
-
-For wrangler:
-
-.. code-block:: bash
-
-   ssh username@wrangler.tacc.utexas.edu
-   cd $STOCKYARD
-   chmod -R a+rX .
-   cd $DATA
-   chmod -R a+rX .
-   cdw
 
 For stampede2:
 
@@ -47,7 +50,7 @@ For stampede2:
    chmod -R a+rX .
    cdw
 
-A note about TACC data drives: $DATA on wrangler, $SCRATCH on stampede2 should host active computing and file creation. It is not subject to a data limit but it is also not backed up. Files untouched may be deleted by the system admin. Your $HOME drive is backed up but has limited storage. $WORK storage is limited to 1 Tb and this is across all computing clusters. For more info please read: 
+A note about TACC data drives: $SCRATCH on stampede2 should host active computing and file creation. It is not subject to a data limit but it is also not backed up. Files untouched may be deleted by the system admin. Your $HOME drive is backed up but has limited storage. $WORK storage is limited to 1 Tb and this is across all computing clusters. For more info please read: 
 
 https://portal.tacc.utexas.edu/tutorials/managingio
 
@@ -145,14 +148,6 @@ For example,
    cd $HOME
    ln -s $WORK work-stampede2
    ln -s $SCRATCH scratch-stampede2
-
-or on wrangler:
-
-.. code-block:: bash
-
-   cd $HOME
-   ln -s $WORK work-wrangler
-   ln -s $DATA data-wrangler 
 
 This will allow you to go to your work directory when you log onto vis.
 
