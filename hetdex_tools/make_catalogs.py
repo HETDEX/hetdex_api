@@ -172,7 +172,7 @@ def add_elixer_cat_info(detect_table, det_type='line'):
                    'classification_labels',
     ]
 
-    catalog = join(detect_table, np.unique( elix_tab[sel_det_col], keys='detectid'),  keys='detectid', join_type='left')
+    catalog = join(detect_table, unique( elix_tab[sel_det_col], keys='detectid'),  keys='detectid', join_type='left')
 
     catalog.rename_column('mag_g_wide', 'gmag')
 
@@ -184,7 +184,7 @@ def add_elixer_cat_info(detect_table, det_type='line'):
 
     eo_tab = unique( extracted_objects[selected], keys='detectid')
 
-    eo_tab.rename_column('flags_extracted_objects','flags_eo_tab')
+    eo_tab.rename_column('flags','flags_eo')
     eo_tab.rename_column('ra', 'counterpart_ra')
     eo_tab.rename_column('dec', 'counterpart_dec')
     eo_tab.rename_column('mag', 'counterpart_mag')
@@ -299,10 +299,12 @@ def create_source_catalog(
         print(len(detects_line_table))
         #apply additional chi2fib cut
         detects_line_table2 = join(detects_line_table, chi2fib_tab, keys='detectid', join_type='left')
-        print('Size after combining with chi2fib_tab: {}'.format(len(detects_line_table2)))
+        detects_line_table3 = unique(detects_line_table2, keys='detectid')
+        
+        print('Size after combining with chi2fib_tab: {}'.format(len(detects_line_table3)))
 
-        sel_chi2fib = (detects_line_table2['chi2fib_1'] < 4.5) & (detects_line_table2['chi2fib_2'] < 4.5)
-        detects_line_table = detects_line_table2[sel_chi2fib]
+        sel_chi2fib = (detects_line_table3['chi2fib_1'] < 4.5) & (detects_line_table3['chi2fib_1'] < 4.5)
+        detects_line_table = detects_line_table3[sel_chi2fib]
         print('Size after chi2fib cut: {}'.format(len(detects_line_table)))
         detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
         detects_line_table.write('detect_hdr{}.tab'.format(version),
