@@ -2,6 +2,7 @@ astropy>=4.2.0
 astropy-healpix==0.5
 astroquery>=0.4.6
 astrowidgets==0.1.1
+dustmaps==1.0.9
 healpy==1.15.0
 ipywidgets>=7.6.1
 matplotlib>=3.2.1
