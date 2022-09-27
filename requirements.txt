@@ -9,7 +9,7 @@ numpy>=1.18.5
 photutils==0.7.1
 regions==0.4
 sep>=1.2.1
-speclite==0.8
+#speclite==0.8
 specutils>=1.7.0
 scipy>=1.4
 sphinx-argparse==0.2.5
