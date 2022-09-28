@@ -23,6 +23,9 @@ from astropy import wcs
 
 from regions import EllipseSkyRegion, EllipsePixelRegion
 
+import matplotlib
+matplotlib.use("agg")
+
 import healpy as hp
 from hetdex_api.config import HDRconfig
 

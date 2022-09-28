@@ -30,7 +30,7 @@ class HDRconfig:
             "hdr1": op.join(self.host_dir, "hdr1"),
             "hdr2": op.join(self.host_dir, "hdr2"),
             "hdr2.1": op.join(self.host_dir, "hdr2.1"),
-            "hdr3" : op.join(self.host_dir, "hdr3"),
+            "hdr3": op.join(self.host_dir, "hdr3"),
         }
 
         self.survey_dir = op.join(self.hdr_dir[survey], "survey")
@@ -146,4 +146,7 @@ class HDRconfig:
             self.starlabels = op.join(self.bad_dir, 'stars.txt')
             self.sdsscat = op.join(self.imaging_dir, 'sdss', 'specObj-dr16-trim.fits')
             self.extinction_fix = op.join(self.bad_dir, 'extinction')
-            self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask.h5')
+            self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask_3.0.1.h5')
+
+            if survey == 'hdr3':
+                self.wdcor = op.join(self.bad_dir, 'wdcor.txt')

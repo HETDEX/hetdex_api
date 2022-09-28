@@ -17,6 +17,7 @@ import os.path as op
 import numpy as np
 import tables as tb
 import copy
+from scipy import interpolate
 
 np.warnings.filterwarnings("ignore")
 
@@ -45,12 +46,12 @@ PYTHON_VERSION = sys.version_info
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     from dustmaps.config import config as dustmaps_config
-    
-    if dustmaps_config['data_dir'] is None:
+
+    if dustmaps_config["data_dir"] is None:
         print("Populating dustmaps config with {}".format(config.dustmaps))
-        dustmaps_config['data_dir'] = config.dustmaps
+        dustmaps_config["data_dir"] = config.dustmaps
     from dustmaps.sfd import SFDQuery
-                
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -64,6 +65,7 @@ class Detections:
         curated_version=None,
         loadtable=True,
         verbose=False,
+        searchable=True,
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -79,6 +81,12 @@ class Detections:
         load_table : bool
            Boolean flag to load all detection table info upon initialization.
            For example, if you just want to grab a spectrum this isn't needed.
+        searchable: bool
+            Boolean flag, related to loadtable. If loadtable is True, searchable
+            is ignored. If loadtable is False, searchable toggles whether to load
+            all detectids, ra, dec, waves from the h5 file to make the detections
+            searchable. This can be time consuming and should be False if you know
+            the detecids and only want to retrieve individual detections.
         
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3"]
@@ -89,27 +97,36 @@ class Detections:
             print(survey_options)
             return None
 
-        
         if catalog_type.lower() not in catalog_type_options:
             print("catalog_type not in catalog_type options")
             print(catalog_type_options)
             return None
 
+        self.catalog_type = catalog_type.lower()
         # store to class
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            if curated_version[0] == '3':
+            if curated_version[0] == "3":
                 # for now I'm assuming we don't have to do hdr3.0
-                self.survey = 'hdr3'
+                self.survey = "hdr3"
             else:
                 self.survey = "hdr" + curated_version[0:3]
         else:
             self.version = None
             self.survey = survey
             self.loadtable = loadtable
-      
+
         self.config = HDRconfig(survey=self.survey)
+
+        if survey == "hdr3":
+            # open wd correction curve and create fit for quick assignment
+            self.wd_corr = Table.read(
+                self.config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+            )
+            self.wd_corr_f = interpolate.interp1d(
+                self.wd_corr["wave"], self.wd_corr["corr"]
+            )
 
         if catalog_type == "lines":
             self.filename = self.config.detecth5
@@ -123,19 +140,24 @@ class Detections:
 
         self.hdfile = tb.open_file(self.filename, mode="r")
 
-        
+        self.surveyh5 = tb.open_file(self.config.surveyh5, "r")
+
         if self.version is not None:
 
-            if True:
+            try:
 
-                if self.survey == 'hdr2.1':
+                if self.survey == "hdr2.1":
                     catfile = op.join(
-                        self.config.detect_dir, "catalogs", "detect_hdr{}.fits".format(self.version)
+                        self.config.detect_dir,
+                        "catalogs",
+                        "detect_hdr{}.fits".format(self.version),
                     )
                 else:
 
                     catfile = op.join(
-                        self.config.hdr_dir[self.survey], "catalogs", "detect_hdr{}.fits".format(self.version)
+                        self.config.hdr_dir[self.survey],
+                        "catalogs",
+                        "detect_hdr{}.fits".format(self.version),
                     )
 
                 det_table = Table.read(catfile)
@@ -147,8 +169,7 @@ class Detections:
                         setattr(self, col, np.array(det_table[col]))
 
                 self.vis_class = -1 * np.ones(np.size(self.detectid))
-            else:
-#            except:
+            except Exception:
                 print("Could not open curated catalog version: " + self.version)
                 return None
 
@@ -168,23 +189,37 @@ class Detections:
                         self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
                     )
 
-            if self.survey == 'hdr3' and catalog_type == 'lines':
-                if verbose:
-                    print('Adjusting noise values by 7% where applicable')
-                # adjust noise at IFU edges by factor of 1.07. This will affect the
-                # sn measures and the flux_noise_1sigma values
-                sel_fib1 = ((self.amp == 'RU') | (self.amp == 'LL')) & (self.fibnum <= 12)
-                sel_fib2 = ((self.amp == 'LU') | (self.amp == 'RL')) & (self.fibnum >= 101)
-                sel_fib = sel_fib1 | sel_fib2
+            if self.survey == "hdr3":
+                if catalog_type == "lines":
+                    if verbose:
+                        print("Adjusting noise values by 7% where applicable")
+                    # adjust noise at IFU edges by factor of 1.07. This will affect the
+                    # sn measures and the flux_noise_1sigma values in the lines catalog only
+                    sel_fib1 = ((self.amp == "RU") | (self.amp == "LL")) & (
+                        self.fibnum <= 12
+                    )
+                    sel_fib2 = ((self.amp == "LU") | (self.amp == "RL")) & (
+                        self.fibnum >= 101
+                    )
+                    sel_fib = sel_fib1 | sel_fib2
 
-                self.sn[sel_fib] /= 1.07
-                self.sn_3fib[sel_fib] /= 1.07
-                self.sn_3fib_cen[sel_fib] /= 1.07
-                self.sn_cen[sel_fib] /= 1.07
-                self.flux_noise_1sigma[sel_fib] *= 1.07
-                
+                    self.sn[sel_fib] /= 1.07
+                    self.sn_3fib[sel_fib] /= 1.07
+                    self.sn_3fib_cen[sel_fib] /= 1.07
+                    self.sn_cen[sel_fib] /= 1.07
+                    self.flux_noise_1sigma[sel_fib] *= 1.07
+
+                    if verbose:
+                        print("Applying HDR3 flux corrections")
+
+                    self.flux /= self.wd_corr_f(self.wave)
+                    self.flux_err /= self.wd_corr_f(self.wave)
+                    self.continuum /= self.wd_corr_f(self.wave)
+                    self.continuum_err /= self.wd_corr_f(self.wave)
+                    self.flux_noise_1sigma /= self.wd_corr_f(self.wave)
+
             elif self.survey == "hdr2.1":
-                # Fix fluxes and continuum values for aperture corrections  
+                # Fix fluxes and continuum values for aperture corrections
                 wave = self.hdfile.root.Detections.cols.wave[:]
                 apcor = self.hdfile.root.Spectra.cols.apcor[:]
                 wave_spec = self.hdfile.root.Spectra.cols.wave1d[:]
@@ -192,14 +227,14 @@ class Detections:
                 apcor_array = np.ones_like(wave)
                 for idx in np.arange(0, np.size(wave)):
                     sel_apcor = np.where(wave_spec[idx, :] > wave[idx])[0][0]
-                    apcor_array[idx]=apcor[idx, sel_apcor]
+                    apcor_array[idx] = apcor[idx, sel_apcor]
                 self.apcor = apcor_array
 
                 if catalog_type == "lines":
 
                     # remove E(B-V)=0.02 screen extinction
                     fix = get_2pt1_extinction_fix()
-                   
+
                     self.flux /= fix(wave)
                     self.flux_err /= fix(wave)
                     self.continuum /= fix(wave)
@@ -216,22 +251,26 @@ class Detections:
                     # Apply S&F 2011 Extinction correction from SFD Map
                     # https://iopscience.iop.org/article/10.1088/0004-637X/737/2/103#apj398709t6
 
-                    self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
-                    
+                    self.coords = SkyCoord(
+                        self.ra * u.degree, self.dec * u.degree, frame="icrs"
+                    )
+
                     sfd = SFDQuery()
                     self.ebv = sfd(self.coords)
                     Rv = 3.1
-                    corr_SF2011 = 2.742  # Landolt V  
+                    corr_SF2011 = 2.742  # Landolt V
                     ext = []
-                    
-                    self.Av = corr_SF2011*self.ebv
-                    
-                    for index in np.arange( np.size(self.detectid)):
+
+                    self.Av = corr_SF2011 * self.ebv
+
+                    for index in np.arange(np.size(self.detectid)):
                         src_wave = np.array([np.double(self.wave[index])])
-                        ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[0]
+                        ext_i = extinction.fitzpatrick99(src_wave, self.Av[index], Rv)[
+                            0
+                        ]
                         ext.append(ext_i)
 
-                    deredden = 10**(0.4*np.array(ext))
+                    deredden = 10 ** (0.4 * np.array(ext))
 
                     self.flux *= deredden
                     self.flux_err *= deredden
@@ -300,7 +339,7 @@ class Detections:
                     self.gmag_err = self.mag_sdss_g
                 except:
                     pass
-                    #print("No Elixer table found")
+                    # print("No Elixer table found")
 
             # also assign a field and some QA identifiers
             self.field = np.chararray(np.size(self.detectid), 12, unicode=True)
@@ -356,19 +395,23 @@ class Detections:
                 else:
                     self.plae_poii_hetdex_gmag = np.array(
                         pickle.load(
-                            open(self.config.plae_poii_hetdex_gmag, "rb"), encoding="bytes"
+                            open(self.config.plae_poii_hetdex_gmag, "rb"),
+                            encoding="bytes",
                         )
                     )
 
-        else:
+        elif searchable:
             # just get coordinates, wavelength and detectid
             self.detectid = self.hdfile.root.Detections.cols.detectid[:]
             self.ra = self.hdfile.root.Detections.cols.ra[:]
             self.dec = self.hdfile.root.Detections.cols.dec[:]
             self.wave = self.hdfile.root.Detections.cols.wave[:]
-            
+
         # set the SkyCoords
-        self.coords = SkyCoord(self.ra * u.degree, self.dec * u.degree, frame="icrs")
+        if searchable or loadtable:
+            self.coords = SkyCoord(
+                self.ra * u.degree, self.dec * u.degree, frame="icrs"
+            )
 
     def __getitem__(self, indx):
         """ 
@@ -661,7 +704,7 @@ class Detections:
 
             # first read in amp_flag.fits file
             badamps = Table.read(self.config.badamp)
-            
+
             det_table = self.return_astropy_table()
 
             join_tab = join(
@@ -675,14 +718,14 @@ class Detections:
             del det_table, join_tab
 
             if True:
-                print('Adding in newly found badamps')
+                print("Adding in newly found badamps")
                 # add in any newly found badamps that haven't made it into the
                 # amp_flag.fits file yet
 
                 mask2 = np.zeros(np.size(self.detectid), dtype=bool)
-                
+
                 badamps2 = Table.read(self.config.badamp2, format="ascii")
-                
+
                 for row in badamps2:
                     selmf = self.multiframe == row["multiframe"]
                     seldate = (self.date >= row["date_start"]) * (
@@ -690,10 +733,10 @@ class Detections:
                     )
                     mask2 = np.logical_or(mask2, selmf * seldate)
 
-                badamps_single = Table.read(config.badamp_single, format='ascii')
+                badamps_single = Table.read(config.badamp_single, format="ascii")
 
                 mask3 = np.zeros(np.size(self.detectid), dtype=bool)
-                
+
                 for row in badamps_single:
                     selmf = self.multiframe == row["multiframe"]
                     selshotid = self.shotid == row["shotid"]
@@ -705,7 +748,6 @@ class Detections:
             else:
                 mask = mask1
 
-                
             return mask
 
     def remove_bad_pix(self):
@@ -854,30 +896,201 @@ class Detections:
 
         for idx, row in enumerate(galaxy_cat):
             gal_coord = SkyCoord(row["Coords"], frame="icrs")
-            rlimit = 1.1*d25scale*row["SemiMajorAxis"]*u.arcmin
+            rlimit = 1.1 * d25scale * row["SemiMajorAxis"] * u.arcmin
 
             if np.any(self.coords.separation(gal_coord) < rlimit):
-                galregion = create_gal_ellipse(galaxy_cat,
-                                               row_index=idx,
-                                               d25scale=d25scale)
-                dummy_wcs = create_dummy_wcs(galregion.center,
-                                             imsize=2*galregion.height)
+                galregion = create_gal_ellipse(
+                    galaxy_cat, row_index=idx, d25scale=d25scale
+                )
+                dummy_wcs = create_dummy_wcs(
+                    galregion.center, imsize=2 * galregion.height
+                )
                 galflag = galregion.contains(self.coords, dummy_wcs)
                 mask = mask * np.invert(galflag)
 
         return mask
 
-    def get_spectrum(self, detectid_i,
-                     deredden=False,
-                     apply_extinction_fix=True,
-                     add_apcor=False):
+    def get_detection_info(self, detectid_i, rawh5=False, verbose=False):
+        """
+        Returns Detections table information from H5 file
+        Applies relevent corrections such as noise model fix
+        and spectral adjustment if rawh5 is False
+        
+        Parameters
+        ----------
+        detectid: int
+        detectid (integer ID) of the detection you want to
+            get information for
+        rawh5: bool
+            if True, this will simply return the row from the detecth5
+            file. If False (the default), any relevent correcctions
+            are applied.
+        verbose: bool
+            provide info statements if set to True. Default is False
+
+        Returns
+        -------
+        det_info: ndarray object
+            returns detection info
+            column info given by det_info.dtype attribute
+        """
+
+        det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
+
+        if rawh5:
+            if verbose:
+                print("Returning raw H5 Detections table row")
+        else:
+            if verbose:
+                print("Returning updated Detections table row")
+            if self.catalog_type == "lines":
+                if verbose:
+                    print("Adjusting noise values by 7% where applicable")
+                # adjust noise at IFU edges by factor of 1.07. This will affect the
+                # sn measures and the flux_noise_1sigma values in the lines catalog only
+                sel_fib1 = ((det_row["amp"] == b"RU") | (det_row["amp"] == b"LL")) & (
+                    det_row["fibnum"] <= 12
+                )
+                sel_fib2 = ((det_row["amp"] == b"LU") | (det_row["amp"] == b"RL")) & (
+                    det_row["fibnum"] >= 101
+                )
+
+                if sel_fib1 | sel_fib2:
+                    if verbose:
+                        print("Noise model update is required. Update performed.")
+                    det_row["sn"] /= 1.07
+                    det_row["sn_3fib"] /= 1.07
+                    det_row["sn_3fib_cen"] /= 1.07
+                    det_row["sn_cen"] /= 1.07
+                    det_row["flux_noise_1sigma"] *= 1.07
+
+                if verbose:
+                    print("Applying HDR3 flux corrections")
+                det_row["flux"] /= self.wd_corr_f(det_row["wave"])
+                det_row["flux_err"] /= self.wd_corr_f(det_row["wave"])
+                det_row["continuum"] /= self.wd_corr_f(det_row["wave"])
+                det_row["continuum_err"] /= self.wd_corr_f(det_row["wave"])
+                det_row["flux_noise_1sigma"] /= self.wd_corr_f(det_row["wave"])
+
+        return det_row
+
+    def get_survey_info(self, detectid_i):
+        """
+        Return Survey class info for detectid
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            grab the spectrum for
+
+        Returns
+        -------
+        survey_info: ndarray object
+            row of information from the survey_hdrX.h5 table
+            column info given by survey_info.dtype attribute
+        """
+
+        det_row = self.get_detection_info(detectid_i)
+
+        shotid_i = det_row["shotid"]
+
+        survey_row = self.surveyh5.root.Survey.read_where("shotid == shotid_i")
+
+        return survey_row
+
+    def get_coord(self, detectid_i):
+        """
+        Return SkyCoord object for a single detection
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            get SkyCoord object for
+
+        Return
+        ------
+        coords: SkyCoord Class object
+
+        """
+
+        det_row = self.get_detection_info(detectid_i)
+
+        coord = SkyCoord(ra=det_row["ra"][0] * u.deg, dec=det_row["dec"][0] * u.deg)
+
+        return coord
+
+    def get_fiber_info(self, detectid_i):
+        """
+        Return Fibers table for a single detectid
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            get the fiber information
+
+        Returns
+        -------
+        fiber_info: ndarray object
+            table of fiber information for the specific
+            detection. Use fiber_info.dtype to get column info
+            
+        """
+
+        fib_info = self.hdfile.root.Fibers.read_where("detectid == detectid_i")
+
+        return fib_info
+
+    def get_spectrum(
+        self,
+        detectid_i,
+        deredden=False,
+        apply_extinction_fix=True,
+        add_apcor=False,
+        rawh5=False,
+        verbose=False,
+    ):
+
         """
         Grabs the 1D spectrum used to measure fitted parameters.
+
+        Parameters
+        ----------
+        detectid: int
+            detectid (integer ID) of the detection you want to
+            grab the spectrum for
+        deredden: bool
+            flag to return dust corrected spectrum
+        apply_extinction_fix: bool
+            HDR2 correction. Does not apply to any other release
+        add_apcor: bool
+            add a column with the applied aperture correction
+        rawh5: bool
+            if False, this will convert to 1AA binning and apply
+            any relevent spectral correcctions. This is the default
+            if True, it will only pull the spetral data from the detections
+            h5 file
+        verbose: bool
+            provide info statements if set to True. Default is False
+        
+        Returns
+        -------
+        spec_table: astropy table
+            2 or 3 column astropy table with spectral data
+        
         """
         spectra = self.hdfile.root.Spectra
         spectra_table = spectra.read_where("detectid == detectid_i")
+
         data = Table()
-        intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+
+        if rawh5:
+            intensityunit = u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
+        else:
+            intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+
         data["wave1d"] = Column(spectra_table["wave1d"][0], unit=u.AA)
         data["spec1d"] = Column(
             spectra_table["spec1d"][0], unit=1.0e-17 * intensityunit
@@ -885,23 +1098,63 @@ class Detections:
         data["spec1d_err"] = Column(
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
-        if add_apcor:
-            data["apcor"] = Column(spectra_table['apcor'][0])
-        # convert from 2AA binning to 1AA binning:
-        data["spec1d"] /= 2.0
-        data["spec1d_err"] /= 2.0
 
-        if self.survey == 'hdr2.1' and apply_extinction_fix:
+        if add_apcor:
+            data["apcor"] = Column(spectra_table["apcor"][0])
+
+        if rawh5 is False:
+            if verbose:
+                print("Converting from 2AA to 1AA binning")
+            # convert from 2AA binning to 1AA binning:
+            data["spec1d"] /= 2.0
+            data["spec1d_err"] /= 2.0
+        else:
+            if verbose:
+                print("Units are in 2AA binning.")
+
+        if self.survey == "hdr2.1" and apply_extinction_fix:
             # remove E(B-V)=0.02 screen extinction
             fix = get_2pt1_extinction_fix()
 
-            flux_corr = fix( data["wave1d"])
+            flux_corr = fix(data["wave1d"])
             data["spec1d"] /= flux_corr
             data["spec1d_err"] /= flux_corr
 
+        elif self.survey == "hdr3":
+            if rawh5 is False:
+                if verbose:
+                    print("Applying spectral correction")
+                data["spec1d"] /= self.wd_corr["corr"]
+                data["spec1d_err"] /= self.wd_corr["corr"]
+
+                # Apply HDR3 noise model correction
+                if verbose:
+                    print("Applying HDR3 noise model update")
+                det_row = self.get_detection_info(detectid_i)
+
+                # adjust noise at IFU edges by factor of 1.07.
+
+                sel_fib1 = ((det_row["amp"] == "RU") | (det_row["amp"] == "LL")) & (
+                    det_row["fibnum"] <= 12
+                )
+                sel_fib2 = ((det_row["amp"] == "LU") | (det_row["amp"] == "RL")) & (
+                    det_row["fibnum"] >= 101
+                )
+
+                if sel_fib1 | sel_fib2:
+                    if verbose:
+                        print("Noise model is required. Update performed.")
+                    data["spec1d_err"] *= 1.07
+                else:
+                    if verbose:
+                        print("Noise model adjustment not required")
+
         if deredden:
+            if verbose:
+                print("Applying dust correction to spectrum")
+
             det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
-            coords = SkyCoord(ra = det_row['ra'][0], dec=det_row['dec'][0], unit='deg')
+            coords = SkyCoord(ra=det_row["ra"][0], dec=det_row["dec"][0], unit="deg")
             deredden_corr = deredden_spectra(data["wave1d"], coords)
             data["spec1d"] *= deredden_corr
             data["spec1d_err"] *= deredden_corr
@@ -993,11 +1246,11 @@ class Detections:
         table.add_column(Column(self.field), index=4, name="field")
         table.add_column(Column(self.n_ifu), index=5, name="n_ifu")
         try:
-            if self.survey == 'hdr2.1':
+            if self.survey == "hdr2.1":
                 table.add_column(Column(self.apcor), name="apcor")
         except AttributeError:
             pass
-        
+
         if self.survey == "hdr1":
             table.add_column(
                 Column(self.fluxlimit_4550), index=3, name="fluxlimit_4550"
@@ -1025,34 +1278,38 @@ class Detections:
                 print("Could not add average flux limit")
 
         try:
-            table.add_column(self.fiber_ratio, name='fiber_ratio')
-        except:
-            pass
-            
-        # add new elixer info and fiber_ratio column
-        try:
-            table.add_column(self.best_z, name='best_z')
-            table.add_column(self.best_pz, name='best_pz')
-            table.add_column(self.flags_elixer, name='flags_elixer')
-            table.add_column(self.multiline_name, name='multiline_name')
-            table.add_column(self.classification_labels, name='classification_labels')
-            table.add_column(self.counterpart_mag, name='counterpart_mag')
-            table.add_column(self.counterpart_mag_err, name='counterpart_mag_err')
-            table.add_column(self.counterpart_dist, name='counterpart_dist')
-            table.add_column(self.counterpart_catalog_name, name='counterpart_catalog_name')
-            table.add_column(self.counterpart_filter_name, name='counterpart_filter_name')
-            table.add_column(self.forced_mag, name='forced_mag')
-            table.add_column(self.forced_mag_err, name='forced_mag_err')
-            table.add_column(self.forced_catalog_name, name='forced_catalog_name')
-            table.add_column(self.forced_filter_name, name='forced_filter_name')
-            table.add_column(self.forced_radius, name='forced_radius')
-        
+            table.add_column(self.fiber_ratio, name="fiber_ratio")
         except:
             pass
 
-        if self.survey == 'hdr2.1':
+        # add new elixer info and fiber_ratio column
+        try:
+            table.add_column(self.best_z, name="best_z")
+            table.add_column(self.best_pz, name="best_pz")
+            table.add_column(self.flags_elixer, name="flags_elixer")
+            table.add_column(self.multiline_name, name="multiline_name")
+            table.add_column(self.classification_labels, name="classification_labels")
+            table.add_column(self.counterpart_mag, name="counterpart_mag")
+            table.add_column(self.counterpart_mag_err, name="counterpart_mag_err")
+            table.add_column(self.counterpart_dist, name="counterpart_dist")
+            table.add_column(
+                self.counterpart_catalog_name, name="counterpart_catalog_name"
+            )
+            table.add_column(
+                self.counterpart_filter_name, name="counterpart_filter_name"
+            )
+            table.add_column(self.forced_mag, name="forced_mag")
+            table.add_column(self.forced_mag_err, name="forced_mag_err")
+            table.add_column(self.forced_catalog_name, name="forced_catalog_name")
+            table.add_column(self.forced_filter_name, name="forced_filter_name")
+            table.add_column(self.forced_radius, name="forced_radius")
+
+        except:
+            pass
+
+        if self.survey == "hdr2.1":
             try:
-                table.add_column(self.Av, name='Av')
+                table.add_column(self.Av, name="Av")
                 table.add_column(self.ebv, name="ebv")
                 table.add_column(self.flux_obs, name="flux_obs")
                 table.add_column(self.flux_err_obs, name="flux_obs_err")
@@ -1060,7 +1317,7 @@ class Detections:
                 table.add_column(self.continuum_err_obs, name="continuum_obs_err")
             except Exception:
                 pass
-            
+
         return table
 
     def save_spectrum(self, detectid_i, outfile=None):
@@ -1070,7 +1327,6 @@ class Detections:
         else:
             ascii.write(spec_data, "spec_" + str(detectid_i) + ".dat", overwrite=True)
 
-            
     def plot_spectrum(self, detectid_i, xlim=None, ylim=None):
         spec_data = self.get_spectrum(detectid_i)
         plt.figure(figsize=(8, 6))
@@ -1088,6 +1344,6 @@ class Detections:
 
     def __len__(self):
         return len(self.ra)
-  
+
     def close(self):
         self.hdfile.close()

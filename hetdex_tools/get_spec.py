@@ -181,7 +181,7 @@ def get_flags(fiber_info):
 def get_source_spectra(shotid, args):
 
 
-    E = Extract()
+    E = Extract(apply_update=args.apply_update)
 
     FibIndex = FiberIndex(survey=args.survey)
     
@@ -331,8 +331,7 @@ def get_source_spectra(shotid, args):
 
 def get_source_spectra_mp(source_dict, shotid, manager, args):
 
-
-    E = Extract()
+    E = Extract(apply_update=args.apply_update)
     FibIndex = FiberIndex(survey=args.survey)
 
     if args.survey == "hdr1":
@@ -773,8 +772,14 @@ def get_parser():
         required=False,
         action="store_true",
     )
-                        
-        
+
+    parser.add_argument(
+        "--apply_update",
+        help="""Set to apply relevent HDR Updates.""",
+        default=True,
+        required=False,
+    )
+
     return parser
 
 
@@ -957,6 +962,7 @@ def get_spectra(
     fiberweights=False,
     return_fiber_info=False,
     loglevel='INFO',
+    apply_update=True,
     
 ):
     """
@@ -1008,7 +1014,8 @@ def get_spectra(
     loglevel: str
         Level to set logging. Options are ERROR, WARNING, INFO,
         DEBUG. Defaults to INFO
-
+    apply_update: bool
+        Apply relevent HDR calibration updates. Default is True.
     Returns
     -------
     sources
@@ -1029,6 +1036,7 @@ def get_spectra(
     args.return_fiber_info = return_fiber_info
 
     args.keep_bad_shots = keep_bad_shots
+    args.apply_update = apply_update
 
     S = Survey(survey)
 
