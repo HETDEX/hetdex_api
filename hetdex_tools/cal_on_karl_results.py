@@ -9,7 +9,7 @@ Daniel Farrow (MPE) 2021, 2022
 """
 from numpy import (loadtxt, savetxt, transpose, interp, sqrt, exp, 
                    mean, linspace, zeros, array, polyfit, polyval, 
-                   abs, std, unique, histogram)
+                   abs, std, unique, histogram, histogram2d, interp)
 from numpy.random import uniform
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,14 +55,47 @@ def biweight_one_sigma_from_table(table, wave_bins):
 
     sigmas = []
     for wl, wh in zip(wave_bins[:-1], wave_bins[1:]):
-        noise = table["flux_noise_1sigma"][(table["wave"] > wl) & (table["wave"] <= wh)]
+        noise = table["flux_noise_1sigma"][(table["wave_in"] > wl) & (table["wave_in"] <= wh)]
         sigmas.append(biweight_location(noise[(noise < 100.0) & (noise > 0)], 
                       ignore_nan = True))
 
     return waves, array(sigmas)
 
 
-def measure_sigma_to_f50(fout):
+def measure_completeness(table, wave_bins, sn):
+    """
+    Measure completeness in wavelength
+    and flux bins
+
+    """
+    fluxes = linspace(0.5, 50, 20)
+
+    flux_cen = 0.5*(fluxes[1:] + fluxes[:-1])
+    wave_cen = 0.5*(wave_bins[1:] + wave_bins[:-1])
+
+    hist2d_all = histogram2d(table["flux_in"], table["wave_in"],
+                             bins=(fluxes, wave_bins))[0]
+
+    det = (table["sn"] > sn) & (table["chi"] < 2.5)
+ 
+    hist2d_det = histogram2d(table["flux_in"][det], 
+                             table["wave_in"][det],
+                             bins=(fluxes, wave_bins))[0]
+ 
+    compl = 1.0*hist2d_det/hist2d_all
+
+    f50s = []
+    for j in range(compl.shape[1]):
+        #compl[:, j] /= compl[-1, j]
+        f50 = interp(0.5, compl[:, j]/compl[-1, j], flux_cen)
+        f50s.append(f50) 
+        print(sn, wave_cen[j], f50)
+
+    return wave_cen, array(f50s), compl, fluxes
+
+
+
+def measure_sigma_to_f50(fout, split_files=False, use_karl_file=False):
     """
     Measure the conversion between the
     noise measured in apertures, to
@@ -77,13 +110,23 @@ def measure_sigma_to_f50(fout):
 
     """
 
-    # read in the shots to consider   
-    with open("datevobs_list_cal", 'r') as fp:
-        rshots = fp.readlines()
-    shots = [x.strip() for x in rshots]
+    s = ShotSensitivity("20200519v013", flim_model="v4")
+
+    # read in the shots to consider 
+    if split_files: 
+        with open("datevobs_list_cal", 'r') as fp:
+            rshots = fp.readlines()
+        shots = [x.strip() for x in rshots]
+    else:
+        table_full = Table.read("combined_onfly_3.5_3.fits")
+        shots = unique(table_full["datevshot"])
 
 
-    fix = get_2pt1_extinction_fix() 
+    fix = get_2pt1_extinction_fix()
+
+    # get rid of this for > hdr2.1
+    fix = lambda x : 1.0
+ 
     all_tables = []
     wave_bins_fine = linspace(3500, 5500, 200)
     wave_bins = array([3550., 3821., 4093., 4364., 4635., 4907., 5178., 5450.])
@@ -94,12 +137,20 @@ def measure_sigma_to_f50(fout):
         # For each shot measure the average flux noise 1 sigma
         # This should be a table of API-extracted noise
         # values for the cal shots
-        table = Table.read("{:s}_full_input_0.fits".format(shot))
+        if split_files:
+            table = Table.read("{:s}_full_input_0.fits".format(shot))
+        else:
+            table = table_full[table_full["datevshot"] == shot]
 
-        src_waves = table["wave"]
+
+        table = table[table["norm_3_3.5"] > 0.6]
+        src_waves = table["wave_in"]
 
         # above atmosphere units
-        src_noise = table["flux_noise_1sigma"]
+        src_noise = table["sigma_3_3.5"]
+        # Need this later
+        table["flux_noise_1sigma"] = src_noise
+        #src_noise = table["flux_noise_1sigma"]
 
         wlav, sigma_av = biweight_one_sigma_from_table(table, wave_bins_fine)
         wlav_binned, sigma_av_binned = biweight_one_sigma_from_table(table, wave_bins)
@@ -111,13 +162,23 @@ def measure_sigma_to_f50(fout):
  
         # Now loop over deriving a scaling 
         for i, sn in enumerate(snlist):
-            waves, f50, compl_curves_base, fluxes_base =\
-                read_karl_file("karl_f50_stuff/headfix{:s}.sn{:2.1f}.fcor".format(shot, sn))
+            if use_karl_file:
+                waves, f50, compl_curves_base, fluxes_base =\
+                    read_karl_file("karl_f50_stuff/headfix{:s}.sn{:2.1f}.fcor".format(shot, sn))
+            else:
+                waves, f50, compl_curves_base, fluxes_base = measure_completeness(table, wave_bins, sn)
 
-            # Correct for the extinction bug in HDR 2.1, so 
-            # that we're working in above the atmosphere units
+
+            print(waves, f50, compl_curves_base, fluxes_base)
+
             f50 = f50/fix(waves)
+
             scales[i, :] = f50*1e-17/sigma_av_binned
+
+            print(">>>>>")
+            print(scales[i, :])
+            print(s.f50_from_noise(sigma_av_binned, waves, sn)/sigma_av_binned)
+            
 
             # Correct for the scatter within the shot
             for j in range(scales.shape[1]):
@@ -182,7 +243,7 @@ def derive_corrections_to_conversion(flux_noise_1sigma, waves,
     """ 
 
     # datevshot just needed for the completeness interpolator
-    s = ShotSensitivity("20200519v013")
+    s = ShotSensitivity("20200519v013", flim_model="v4")
     flux_bins = linspace(5e-18, 1e-15, 60)
     fbcens = 0.5*(flux_bins[1:] + flux_bins[:-1])
 
@@ -201,7 +262,7 @@ def derive_corrections_to_conversion(flux_noise_1sigma, waves,
                              weights=compl)[0]
    
         ratios = 1.0*hist_out/hist_in 
-        f50_new = interp(0.5, ratios/max(ratios),
+        f50_new = interp(0.5, ratios, #/max(ratios),
                          fbcens) 
 
         #plt.plot(fbcens, ratios/max(ratios))
@@ -262,7 +323,7 @@ def plot_sigma_to_f50_scaling(table):
 
  
     f50_from_noise, sinterp, interp_sigmas = \
-        return_flux_limit_model("v3")
+        return_flux_limit_model("v5")
  
     for color, sn in zip(TABLEAU_COLORS, sns):
         there = table[abs(table["sn"] - sn) < 1e-8]
@@ -397,6 +458,9 @@ def fit_sntrend(sns, scalecens, scalecens_err):
 
 
 if __name__ == "__main__":
+
+    # If refitting make sure to use correct
+    # flim model when calling ShotSensitivity
 
     remeasure = False
     fscale = "scaling.fits"

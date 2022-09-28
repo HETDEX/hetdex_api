@@ -19,12 +19,15 @@ except ImportError:
 from os.path import isfile
 from six import iteritems
 import re
+from tempfile import NamedTemporaryFile
 from numpy import array
 import tables as tb
 from astropy.table import Table
 from pyhetdex.het.fplane import FPlane, NoIFUError
 from pyhetdex.coordinates.tangent_projection import TangentPlane
+
 from hetdex_api.mask_tools.amplifier_positions import amp_corners, swapped_around_amps
+from hetdex_api.shot import open_shot_file
 
 
 def get_fplane(filename, datestr='', actpos=False, full=True):
@@ -57,6 +60,38 @@ def get_fplane(filename, datestr='', actpos=False, full=True):
 
     with open(filename, 'w') as f:
         f.write(resp.read().decode())
+
+
+def generate_fplane_from_table(fplane_table):
+    """
+    Generate a FPlane object from a fplane
+    table but outputting to a temporary
+    file. This avoids having to change
+    pyhetdex.
+
+    Parameters
+    ----------
+    fplane_table : tables.table:Table
+        table containing focal plane 
+        information
+
+  
+    Output
+    ------
+    fplane : pyhetdex.het.fplane:FPlane
+        a pyhetdex fplane object
+
+    """
+
+    with NamedTemporaryFile(mode='w') as tpf:
+        for row in fplane_table.iterrows():
+            tpf.write("{:03d} {:8.5f} {:8.5f} {:03d} {:03d} {:03d} {:8.5f} {:8.5f}\n".format(
+                        row['ifuslot'], row['fpx'], row['fpy'], row['specid'],
+                        row['specslot'], row['ifuid'], row['ifurot'], row['platesc']))
+        tpf.seek(0)
+        fplane = FPlane(tpf.name)
+
+    return fplane
 
 
 def generate_ifu_mask(output_fn, survey_hdf, badshots_file, ramin, ramax, decmin, decmax, specific_shot=None,
@@ -108,11 +143,10 @@ def generate_ifu_mask(output_fn, survey_hdf, badshots_file, ramin, ramax, decmin
         print(query) 
         survey_ttable = survey_hdf.root.Survey.read_where(query)
 
-    # Loop over the datevshots and see if there are bad amps
+    # Loop over the datevshots and see if there are bad shots
     polys = []
     shids = []
     for line in survey_ttable:
-        print(line)
         # skip bad shots
         if line["shotid"] in bad_shots:
             continue
@@ -121,13 +155,13 @@ def generate_ifu_mask(output_fn, survey_hdf, badshots_file, ramin, ramax, decmin
 
         rot = 360.0 - (line["pa"] + 90.)
         tp = TangentPlane(line["ra"], line["dec"], rot)
-        fplane_fn = "fplanes/{:d}_fplane.txt".format(date)
-   
-        if not isfile(fplane_fn):
-           get_fplane(fplane_fn, datestr=str(date))
-           fplane = FPlane(fplane_fn)
-        else:
-           fplane = FPlane(fplane_fn) 
+
+
+        # Get the focal plane from the shot HDF        
+        shoth5 = open_shot_file(int(line["shotid"]))
+        fplane_table = shoth5.root.Astrometry.fplane
+        fplane = generate_fplane_from_table(fplane_table)
+        shoth5.close() 
 
         rect = [[-1.0*xsize, -1.0*xsize, xsize, xsize],
                 [-1.0*ysize, ysize, ysize, -1.0*ysize]]
@@ -359,12 +393,21 @@ def generate_bad_amp_mask(output_fn, survey_hdf, badamps_file, badshots_file,
 
 if __name__ == "__main__":
 
-    # The HDR2.1 bias region
-    # change this config
-    survey_hdf = "survey/survey_hdr2.1.h5"
-    badamps_file = "hdr2.1_issues/badamps.list"
-    badshots_file = "hdr2.1_issues/badshots.list"
-    badamps_fits="survey/amp_flag.fits"
+    # change this config to your file paths
+    release_root = "/mnt/hetdex_release/hdr3"
+    survey_hdf = release_root + "/survey/survey_hdr3.h5"
+    badamps_fits = release_root + "/survey/survey/amp_flag.fits"
+    
+    api_root = "/afs/ipp-garching.mpg.de/home/d/dfarrow/hetdex/code/HETDEX_API"
+    badamps_file = api_root + "/known_issues/hdr3/badamps.list"
+    badshots_file = api_root + "/known_issues/hdr3/badshots.list"
+ 
+    generate_ifu_mask("full_hdr3_30as.vert", survey_hdf, badshots_file, 0.0, 360.0, -90.0, 90.0, 
+                      xsize=30.0, ysize=30.0)
+
+    #generate_ifu_mask("full_hdr2pt1_30as.vert", survey_hdf, badshots_file, 0.0, 360.0, -90.0, 90.0, 
+    #                  xsize=30.0, ysize=30.0
+
 
     # whole sky
     #generate_ifu_mask("full_hdr2pt1_30as.vert", survey_hdf, badshots_file, 0.0, 360.0, -90.0, 90.0, 
@@ -374,7 +417,7 @@ if __name__ == "__main__":
     #                  xsize=30.0, ysize=30.0, specific_field="dex-fall")
 
     #generate_bad_amp_mask("hdr2.1_bas_mask.vert", survey_hdf, badamps_file, badshots_file, 0, 360.0, -90, 90)
-    generate_bad_amp_mask_fits("hdr2.1_bad_mask_fits.vert", survey_hdf, badamps_fits, 0, 360.0, -90, 90)
+    #generate_bad_amp_mask_fits("hdr2.1_bad_mask_fits.vert", survey_hdf, badamps_fits, 0, 360.0, -90, 90)
 
     #(response_4540 > 0.08) & (fwhm_moffat < 2.6)
     #generate_ifu_mask("hdr2.1_ifus.vert", survey_hdf, badshots_file, 195, 215, 50, 52, 

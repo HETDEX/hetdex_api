@@ -121,8 +121,12 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
     
     sel = (bad_amps_table['shotid'] == shotid) * (bad_amps_table['multiframe'] == mf)
 
-    return bad_amps_table['flag'][sel][0]
-
+    try:
+        return bad_amps_table['flag'][sel][0]
+    except IndexError as e:
+        print(f"ERROR: No entry for {shotid} and {mf} in the bad amp table!")
+        raise(e) 
+ 
 
 def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
                                 shotid=None,
