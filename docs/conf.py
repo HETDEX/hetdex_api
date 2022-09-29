@@ -68,7 +68,8 @@ html_theme = 'sphinx_rtd_theme'
 #html_static_path = ['_static']
 
 autodoc_mock_imports = ['catalogs', 'astropy', 'tables', 'ipywidgets', 'elixer',
-                        'astroquery', 'speclite', 'dustmaps']
+                        'astroquery', 'speclite', 'dustmaps', 'regions',
+                        'photutils']
 master_doc = 'index'
 
 source_parsers = {
