@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.abspath('../hetdex_api/'))
 # -- Project information -----------------------------------------------------
 
 project = 'hetdex_api'
-copyright = '2020, HETDEX Data Release Team'
+copyright = '2022, HETDEX Data Release Team'
 author = 'Erin Mentuch Cooper'
 
 # The full version, including alpha/beta/rc tags
-release = '0.5'
+release = '0.8'
 
 
 # -- General configuration ---------------------------------------------------
@@ -67,8 +67,8 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 #html_static_path = ['_static']
 
-autodoc_mock_imports = ['catalogs','astropy', 'tables', 'ipywidgets', 'elixer',
-                        'astroquery', 'speclite']
+autodoc_mock_imports = ['catalogs', 'astropy', 'tables', 'ipywidgets', 'elixer',
+                        'astroquery', 'speclite', 'dustmaps']
 master_doc = 'index'
 
 source_parsers = {
