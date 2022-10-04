@@ -572,6 +572,9 @@ class ElixerWidget:
             description="DetectID:",
             disabled=False,
         )
+
+        self.detid = np.int64(self.detectbox.value)
+        
         self.previousbutton = widgets.Button(
             layout=Layout(width="5%")
         )  # description='Previous DetectID')
@@ -896,7 +899,8 @@ class ElixerWidget:
         # causes dirty flag
         self.current_idx = ix
         self.detectbox.value = str(self.detectid[ix])
-
+        self.detid = np.int64(self.detectbox.value)
+        
     def goto_next_detect(self):
         try:
 
@@ -925,7 +929,8 @@ class ElixerWidget:
         self.rest_widget_values(idx=ix)
         self.current_idx = ix
         self.detectbox.value = str(self.detectid[ix])
-
+        self.detid = np.int64(self.detectbox.value)
+        
     def set_counterpart(self, value=0):
         self.counterpart[self.current_idx] = value
         self.c_none_button.icon = ""
@@ -1304,7 +1309,7 @@ class ElixerWidget:
         global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
         detid = np.int64(self.detectbox.value)
-
+        
         if (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.detecth5
         elif (detid >= 2100000000) & (detid < 2190000000):
