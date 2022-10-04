@@ -1,4 +1,4 @@
-astropy>=5.1.0
+astropy>=4.3
 astropy-healpix==0.5
 astroquery>=0.4.6
 astrowidgets==0.1.1
