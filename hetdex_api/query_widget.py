@@ -385,13 +385,13 @@ class QueryWidget:
         )
                 
         fig.update_layout(
-            xaxis_range=[3540, 5450],
             legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
             margin=dict(l=5, r=5, t=30, b=5),
             autosize=True,
             height=200,
             width=500,
-            font_size=8, xaxis_range=[3540, 5510]
+            font_size=8,
+            xaxis_range=[3540, 5450],
         )
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
