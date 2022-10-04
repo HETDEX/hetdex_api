@@ -119,7 +119,7 @@ class Detections:
 
         self.config = HDRconfig(survey=self.survey)
 
-        if survey == "hdr3":
+        if self.survey == "hdr3":
             # open wd correction curve and create fit for quick assignment
             self.wd_corr = Table.read(
                 self.config.wdcor, format="ascii.no_header", names=["wave", "corr"]
