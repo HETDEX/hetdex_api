@@ -79,7 +79,7 @@ class QueryWidget:
             self.update_det_coords()
         else:
             self.coords = SkyCoord(191.663132 * u.deg, 50.712696 * u.deg, frame="icrs")
-            self.detectid = 2101848640
+            self.detectid = 3003575145
 
         # initialize the image widget from astrowidgets
         self.imw = ImageWidget(image_width=600, image_height=600)
@@ -382,12 +382,16 @@ class QueryWidget:
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
-        fig.update_layout(legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
-                          margin=dict(l=5, r=5, t=30, b=5),
-                          autosize=True,
-                          height=200,
-                          width=500,
-                          font_size=8, xaxis_range=[3540, 5510])
+                
+        fig.update_layout(
+            xaxis_range=[3540, 5450],
+            legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
+            margin=dict(l=5, r=5, t=30, b=5),
+            autosize=True,
+            height=200,
+            width=500,
+            font_size=8, xaxis_range=[3540, 5510]
+        )
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])
