@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-install_requires = ['numpy', 'astropy>=5.1', 'astroquery',
-                    'scipy>=1.4', 'regions','photutils'
+install_requires = ['numpy', 'astropy>=4.3', 'astroquery',
+                    'scipy>=1.4', 'regions','photutils',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
@@ -34,7 +34,7 @@ setup(
                  "Intended Audience :: Science/Research",
                  "License :: OSI Approved :: GNU General Public License (GPL)",
                  "Operating System :: Unix",
-                 "Programming Language :: Python :: 3.10",
+                 "Programming Language :: Python :: 3.8",
                  "Topic :: Scientific/Engineering :: Astronomy",
                  "Topic :: Utilities",
                  ],
