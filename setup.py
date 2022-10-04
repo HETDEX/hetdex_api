@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'astroquery',
-                    'scipy>=0.17.0', 'regions',
+install_requires = ['numpy', 'astropy>=5.1', 'astroquery',
+                    'scipy>=1.4', 'regions','photutils'
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
@@ -11,7 +11,7 @@ extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
 setup(
     # package description and version
     name="hetdex_api",
-    version="0.8.7",
+    version="0.9",
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
@@ -34,7 +34,7 @@ setup(
                  "Intended Audience :: Science/Research",
                  "License :: OSI Approved :: GNU General Public License (GPL)",
                  "Operating System :: Unix",
-                 "Programming Language :: Python :: 3.7",
+                 "Programming Language :: Python :: 3.10",
                  "Topic :: Scientific/Engineering :: Astronomy",
                  "Topic :: Utilities",
                  ],
