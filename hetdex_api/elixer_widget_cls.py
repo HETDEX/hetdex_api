@@ -527,10 +527,13 @@ class ElixerWidget:
             self.det_table_button.on_click(self.det_table_button_click)
             self.get_mini_button.on_click(self.get_mini_button_click)
             self.get_sdss_button.on_click(self.get_sdss_button_click)
+
             self.get_legacy_button.on_click(self.get_legacy_button_click)
-            
+
+        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         # always show the status box
         display(self.status_box)
+        
 
     def setup_widget(self):
         if self.resume:
@@ -1201,9 +1204,10 @@ class ElixerWidget:
         try:
             # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
             # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
-            display(
-                Image(self.elixer_conn_mgr.fetch_image(detectid, report_type="nei"))
-            )
+            with self.bottombox:
+                display(
+                    Image(self.elixer_conn_mgr.fetch_image(detectid, report_type="nei"))
+                )
         except Exception as e:
             # self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
@@ -1215,7 +1219,8 @@ class ElixerWidget:
                     if not op.isfile(path):
                         print("%s not found" % path)
                 else:
-                    display(Image(path))
+                    with self.bottombox:
+                        display(Image(path))
             else:
                 print("neighborhood not found")
 
