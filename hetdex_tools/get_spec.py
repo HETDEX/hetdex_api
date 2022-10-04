@@ -120,11 +120,16 @@ import time
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
-config = HDRconfig()
-bad_amps_table = Table.read(config.badamp)
-galaxy_cat = Table.read(config.rc3cat, format="ascii")
-
+try:
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig()
+    bad_amps_table = Table.read(config.badamp)
+    galaxy_cat = Table.read(config.rc3cat, format="ascii")
+except:
+    print('Could not find data release')
+    config = None
+    bad_amps_table = None
+    galaxy_cat = None
 
 def merge(dict1, dict2):
     """ Return a new dictionary by merging two dictionaries recursively. """
