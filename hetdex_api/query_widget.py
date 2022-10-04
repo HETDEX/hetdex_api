@@ -66,7 +66,8 @@ class QueryWidget:
         self.aperture = aperture
         self.cutout_size = cutout_size
         self.zoom = zoom
-
+        self.spec_table = None
+        
         config = HDRconfig(survey=survey)
 
         self.catlib = catalogs.CatalogLibrary()
