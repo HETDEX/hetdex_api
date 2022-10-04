@@ -1373,9 +1373,6 @@ class ElixerWidget:
         self.get_det_info()
 
         url = 'https://www.legacysurvey.org/viewer?ra={:6.4f}&dec={:6.4f}&layer=ls-dr9&zoom=16'.format(self.det_row['ra'][0], self.det_row['dec'][0])
-
-        out = widgets.Output()
-
-        with out:
+        with self.bottombox:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
 
