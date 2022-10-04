@@ -22,7 +22,7 @@ import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 
-from IPython.display import Image, Javascript
+from IPython.display import display, Image, Javascript
 from ipywidgets import interact, Layout  # Style #, interactive
 
 # from IPython.display import clear_output
@@ -761,7 +761,8 @@ class ElixerWidget:
             description="Get the zooniverse mini Image", layout=Layout(width="30%"))
 
         self.get_sdss_button = widgets.Button(
-            description="Open SDSS Nav Tool", layout=Layout(width="30%"))
+            description="Open SDSS Nav Tool",
+            layout=Layout(width="30%"))
 
         self.get_legacy_button = widgets.Button(
             description="Open legacysurvey.com",
@@ -1367,4 +1368,8 @@ class ElixerWidget:
 
         url = 'https://www.legacysurvey.org/viewer?ra={:6.4f}&dec={:6.4f}&layer=ls-dr9&zoom=16'.format(self.det_row['ra'][0], self.det_row['dec'][0])
 
-        display(Javascript('window.open("{url}");'.format(url=url))) 
+        out = widgets.Output()
+
+        with out:
+            display(Javascript(f'window.open("{url}");'.format(url=url))) 
+
