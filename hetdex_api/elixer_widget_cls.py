@@ -533,7 +533,7 @@ class ElixerWidget:
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         # always show the status box
         display(self.status_box)
-        
+        display(self.bottombox)
 
     def setup_widget(self):
         if self.resume:
@@ -1337,7 +1337,7 @@ class ElixerWidget:
                 try:
                     DET_HANDLE = tables.open_file(self.det_file, 'r')
                 except Exception:
-                    with self.bottombox:
+                    with self.status_box:
                         print("Could not open {}".format(self.det_file))
 
         if DET_HANDLE is not None:
@@ -1356,7 +1356,8 @@ class ElixerWidget:
         self.get_det_info()
         
         try:
-            display(self.det_row.show_in_notebook())
+            with self.bottombox:
+                display(self.det_row.show_in_notebook())
         except Exception as e:
             self.status_box.value = str(e) + "\n" + traceback.format_exc()        
 
