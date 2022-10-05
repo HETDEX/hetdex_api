@@ -1289,12 +1289,13 @@ class ElixerWidget:
         # if current_wavelength < 0:
         # current_wavelength = self.get_observed_wavelength()
 
-        for row in spec_table:
-            plt.figure(figsize=(15, 2))
-            plt.plot(row["wavelength"], row["spec"])
-            plt.title(object_label + "        SHOTID = " + str(row["shotid"]))
-            plt.xlabel("wavelength (A)")
-            plt.ylabel("spec")
+        with self.bottombox:
+            for row in spec_table:
+                plt.figure(figsize=(15, 2))
+                plt.plot(row["wavelength"], row["spec"])
+                plt.title(object_label + "        SHOTID = " + str(row["shotid"]))
+                plt.xlabel("wavelength (A)")
+                plt.ylabel("spec")
             plt.axvline(x=self.get_observed_wavelength(), color="r", linestyle="--")
 
     def e_blue_button_click(self, b):
