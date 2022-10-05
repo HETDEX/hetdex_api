@@ -1227,10 +1227,11 @@ class ElixerWidget:
     def get_mini_button_click(self, b):
         detectid = np.int64(self.detectbox.value)
         try:
-            display(
-                Image(self.elixer_conn_mgr.fetch_image(
-                    detectid, report_type="mini"))
-            )
+            with self.bottombox:
+                display(
+                    Image(self.elixer_conn_mgr.fetch_image(
+                        detectid, report_type="mini"))
+                )
         except Exception as e:
             self.status_box.value = str(e) + "\n" + traceback.format_exc()
             print("mini not found")
@@ -1365,8 +1366,8 @@ class ElixerWidget:
         self.get_det_info()
                     
         url = 'http://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?ra={:6.4f}&dec={:6.4f}&scale=0.05&opt=G'.format(self.det_row['ra'][0], self.det_row['dec'][0])
-
-        display(Javascript('window.open("{url}");'.format(url=url)))
+        with self.bottombox:
+            display(Javascript('window.open("{url}");'.format(url=url)))
 
     def get_legacy_button_click(self, b):
 
