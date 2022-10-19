@@ -475,9 +475,11 @@ def get_fibers_table(
     """
     if F is not None:
         fileh = F.hdfile
+        close_F_at_end = False
     else:
         F = Fibers(shot, survey=survey.lower())
         fileh = F.hdfile
+        close_F_at_end = True
     
     config = HDRconfig(survey=survey.lower())
 
@@ -592,6 +594,10 @@ def get_fibers_table(
     else:
         fibers_table = None
 
+    #close h5 file handle if not passed initially
+    if close_F_at_end:
+        F.close()
+        
     return fibers_table
 
 
