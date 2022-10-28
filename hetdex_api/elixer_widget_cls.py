@@ -1201,14 +1201,18 @@ class ElixerWidget:
     def on_elixer_neighborhood(self, b):
         detectid = np.int64(self.detectbox.value)
 
-        try:
+        #try:
             # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
             # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
+        nei_imag = self.elixer_conn_mgr.fetch_image(detectid, report_type="nei")
+
+        if nei_imag is not None:
+                
             with self.bottombox:
                 display(
                     Image(self.elixer_conn_mgr.fetch_image(detectid, report_type="nei"))
                 )
-        except Exception as e:
+        else:#except Exception as e:
             # self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
             if elix_dir:
