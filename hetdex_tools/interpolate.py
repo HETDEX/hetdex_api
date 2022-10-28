@@ -105,16 +105,22 @@ def make_narrowband_image(
     global config, current_hdr, surveyh5
     global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
-            
+          
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
         try:
-            surveyh5.close() #just in case it does not exist yet
+            surveyh5.close()
             surveyh5 = tb.open_file(config.surveyh5, 'r')
         except:
             pass
-
+    else:
+        # check to see if survey file is closed and open if so
+        try:
+            surveyh5.root
+        except AttributeError:
+            surveyh5 = tb.open_file(config.surveyh5, 'r')
+        
     if detectid is not None:
     
         if (detectid >= 2100000000) * (detectid < 2190000000):
