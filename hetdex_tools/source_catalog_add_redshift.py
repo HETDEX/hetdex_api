@@ -143,8 +143,8 @@ def add_z_guess(source_id):
             z_conf = 0.9
             z_src = 'diagnose'
             
-        elif np.any( (group["cls_diagnose"] == "GALAXY" ) * (group['plae_classification'] < 0.5) ):
-            sel_best = (group["cls_diagnose"] == "GALAXY" ) * (group['plae_classification'] < 0.5)
+        elif np.any( (group["cls_diagnose"] == "GALAXY" ) * (group['plae_classification'] < 0.5) * (group['gmag'] < 22) ):
+            sel_best = (group["cls_diagnose"] == "GALAXY" ) * (group['plae_classification'] < 0.5) * (group['gmag'] < 22) 
             closest = np.argmin(group['src_separation'][sel_best])
             z_guess = group['z_diagnose'][sel_best][closest]
             z_conf = 0.9
