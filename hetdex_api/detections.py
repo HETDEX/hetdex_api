@@ -63,9 +63,9 @@ class Detections:
         survey=LATEST_HDR_NAME,
         catalog_type="lines",
         curated_version=None,
-        loadtable=True,
+        loadtable=False,
         verbose=False,
-        searchable=True,
+        searchable=False,
     ):
         """
         Initialize the detection catalog class for a given data release
