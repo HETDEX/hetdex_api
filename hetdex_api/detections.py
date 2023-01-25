@@ -66,6 +66,7 @@ class Detections:
         loadtable=False,
         verbose=False,
         searchable=False,
+        recentbadamp=False,
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -78,6 +79,9 @@ class Detections:
         catalog_type : string
             Catalog to laod up. Either 'lines' or 'continuum'. Default is 
             'lines'.
+        curated_version: string
+            upload the curated detection catalog. e.g. '2.1.3'. This is
+            much faster to load.
         load_table : bool
            Boolean flag to load all detection table info upon initialization.
            For example, if you just want to grab a spectrum this isn't needed.
@@ -87,7 +91,10 @@ class Detections:
             all detectids, ra, dec, waves from the h5 file to make the detections
             searchable. This can be time consuming and should be False if you know
             the detecids and only want to retrieve individual detections.
-        
+        recentbadamp: bool
+            add in any recent bad amps that have not yet been added to amp_flag.fits.
+            This is quite slow on the full database so is only recommended when using
+            curated_version option.
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3"]
         catalog_type_options = ["lines", "continuum", "broad"]
@@ -101,7 +108,8 @@ class Detections:
             print("catalog_type not in catalog_type options")
             print(catalog_type_options)
             return None
-
+        # store flag to update recent badamp list
+        self.recentbadamp = recentbadamp
         self.catalog_type = catalog_type.lower()
         # store to class
         if curated_version is not None:
@@ -717,7 +725,7 @@ class Detections:
 
             del det_table, join_tab
 
-            if True:
+            if self.recentbadamp:# This is really slow on the full catalog.
                 print("Adding in newly found badamps")
                 # add in any newly found badamps that haven't made it into the
                 # amp_flag.fits file yet
