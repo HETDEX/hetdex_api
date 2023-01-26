@@ -40,7 +40,7 @@ waveoii = 3727.8
 
 deth5 = None
 conth5 = None
-
+add_agn = True
 
 def make_friend_table_for_shot(shotid):
 
@@ -270,31 +270,50 @@ def create_source_catalog(
         #/work/05350/ecooper/stampede2/hdr3/fiber_chi2_check-hdr3.ipynb
         chi2fib_tab = Table.read('/work/05350/ecooper/stampede2/hdr3/chi2fib_3.0.0.txt', format='ascii')
         
-        D = Detections(survey='hdr3')
+        D = Detections(survey='hdr3', loadtable=True)
         sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
         sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
         
         sel_cont = D.continuum > -3
-        sel_chi2fib = D.chi2fib < 4.5
+        sel_chi2fib = D.chi2fib < 4
         sel_tp = D.throughput >= 0.08
         
         sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2) #&sel_field
     
         sel_wave = (D.wave >= 3550) & (D.wave <= 5460)
         sel_lw = (D.linewidth <= 14) & (D.linewidth > 6) & (D.sn >= 6.5)
-        
+
         sel1 = sel & sel_wave & sel_lw
-        
+       
         sel_wave = (D.wave >= 3510) & (D.wave <= 5490)
-        sel_lw = (D.linewidth <= 6) & (D.linewidth>= 1.6)
-        
+        sel_lw = (D.linewidth <= 6) & (D.linewidth>= 1.7)
+       
         sel2 = sel & sel_wave & sel_lw
         
         sel_cat = sel1 | sel2
+
+        # downselect catalog criteria
+        D = D[sel_cat]
+        mask_badamp = D.remove_bad_amps()
+        mask_badshots = D.remove_shots()
+
+        # downselect badamps and badshots
+        D = D[mask_badamp & mask_badshots]
         
-        detects_line_table = D[sel_cat].refine().return_astropy_table()
+        mask_baddet = D.remove_bad_detects()
+        mask_badpix = D.remove_bad_pix()
+        mask_meteor = D.remove_meteors()
+        galmask = D.remove_large_gal(d25scale=3.0)
+
+        print(len(D))
+        detects_line_table = D.return_astropy_table()
         detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
         print(len(detects_line_table))
+        detects_line_table.add_column(Column(mask_baddet.astype(int), name="flag_baddet", dtype=int))
+        detects_line_table.add_column(Column(mask_badpix.astype(int), name="flag_badpix", dtype=int))
+        detects_line_table.add_column(Column(mask_meteor.astype(int), name="flag_meteor", dtype=int))
+        detects_line_table.add_column(Column(galmask.astype(int), name="flag_gal", dtype=int))
+
         detects_line_table = add_elixer_cat_info(detects_line_table, det_type='line')
         print(len(detects_line_table))
         #apply additional chi2fib cut
@@ -303,19 +322,18 @@ def create_source_catalog(
         
         print('Size after combining with chi2fib_tab: {}'.format(len(detects_line_table3)))
 
-        sel_chi2fib = (detects_line_table3['chi2fib_1'] < 4.5) & (detects_line_table3['chi2fib_1'] < 4.5)
+        sel_chi2fib = (detects_line_table3['chi2fib_1'] < 4) & (detects_line_table3['chi2fib_2'] < 4)
         detects_line_table = detects_line_table3[sel_chi2fib]
         print('Size after chi2fib cut: {}'.format(len(detects_line_table)))
         detects_line_table.write('detect_hdr{}.fits'.format(version), overwrite=True)
         detects_line_table.write('detect_hdr{}.tab'.format(version),
                                  format='ascii',
                                  overwrite=True)
-        D.close()
     else:
         detects_line_table = Table.read('detect_hdr{}.fits'.format(version))
 
     if update:
-        detects_cont = Detections(catalog_type="continuum", survey='hdr3')
+        detects_cont = Detections(catalog_type="continuum", survey='hdr3', loadtable=True)
         
         sel1 = detects_cont.remove_bad_amps()
         sel2 = detects_cont.remove_meteors()
@@ -337,13 +355,35 @@ def create_source_catalog(
         detects_cont_table = Table.read("continuum_" + version + ".fits")
 
     if update:
+        # create an agn table with detection info added
+        if add_agn:
+            full_line_table = D.return_astropy_table()
+            full_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+            agn_tab = Table.read(config.agncat, format="ascii", include_names=['detectid','vis_class','z'])
+            agn_tab.rename_column('vis_class', 'agn_vis_class')
+            agn_tab.rename_column('z','z_agn')
+            detects_agn = join(agn_tab, vstack([detects_cont_table, full_line_table]), join_type='inner')
+            detects_agn.write("agn_" + version + ".fits", overwrite=True)
+        else:
+            print('No updated AGN catalog created')
+        D.close()
+    else:
+        detects_agn = Table.read("agn_" + version + ".fits")
+
+    if update:
         return
-        
+    
     global detect_table
 
-    detect_table = unique(
-        vstack([detects_cont_table, detects_line_table]),
-        keys='detectid')
+    if add_agn:
+        detect_table = unique(
+            vstack([detects_agn, detects_cont_table, detects_line_table]),
+            keys='detectid')
+    else:
+        
+        detect_table = unique(
+            vstack([detects_cont_table, detects_line_table]),
+            keys='detectid')
 
     append_fiber_ratio = False
     if append_fiber_ratio:
@@ -1074,7 +1114,7 @@ def main(argv=None):
     dtab = Table.read(op.join(
         config.imaging_dir,
         'catalogs',
-        'desi-hetdex-v1.0.fits'))
+        'desi-hetdex-v2.0.fits'))
 
     sel_good_hetdex = (dtab['wave'] >= 3640 )
     sel_good_desi = (dtab['COADD_FIBERSTATUS'] == 0)
@@ -1229,7 +1269,7 @@ def main(argv=None):
     source_table['continuum'] = deredden * source_table['continuum_obs']
     source_table['continuum_err'] = deredden * source_table['continuum_err_obs']
     source_table['flux_noise_1sigma'] = deredden * source_table['flux_noise_1sigma_obs']
-
+    
     source_table.write("source_catalog_{}.fits".format(args.version),
                        overwrite=True)
     source_table.write("source_catalog_{}.tab".format(args.version),
