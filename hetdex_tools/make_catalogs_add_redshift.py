@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import os.path as op
 import time
-
+import pandas as pd
 import tables as tb
 
 from astropy.table import Table, unique, join, Column, vstack
@@ -136,8 +136,8 @@ config = HDRconfig('hdr3')
 catfile = 'source_catalog_{}.fits'.format(version)
 source_table = Table.read(catfile)
 
-#agn_tab = Table.read(config.agncat, format='ascii')
-agn_tab = None
+agn_tab = Table.read(config.agncat, format='ascii')
+#agn_tab = None
 print('Source catalog was found at {}'.format(catfile))
 
 wavelya = 1215.67 #in vacuum
@@ -184,8 +184,6 @@ try:
 except:
     print('could not remove resolved oii values')
 
-
-
 diagnose_tab = Table.read( '/work/05350/ecooper/stampede2/redshift-tests/hdr3.0.0_lt23/diagnose_3.0.0_lt23.fits')
 diagnose_tab.rename_column('z_best', 'z_diagnose')
 diagnose_tab.rename_column('classification', 'cls_diagnose')
@@ -196,12 +194,21 @@ source_table = combined.copy()
 del combined, diagnose_tab
 
 # assign redshifts to sources with single detections
-
 sel = source_table['n_members'] == 1
 
-# Take Diagnose for gmag < 22
+# assign AGN redshifts in AGN catalog
 
-sel = source_table['n_members'] == 1
+if agn_tab is not None:
+    agn_assign = source_table['source_id','z_agn'][ (~source_table['z_agn'].mask) & sel].copy()
+    agn_assign.rename_column('z_agn','z_hetdex')
+    agn_assign['z_hetdex_conf'] = 0.9
+    agn_assign['z_hetdex_src'] = 'liu_agn'
+    agn_assign['source_type'] = 'agn'
+    agn_assign['agn_flag'] = 1
+
+    sel = (source_table['n_members'] == 1) & (source_table['z_agn'].mask)
+
+# Take Diagnose for gmag < 22 for remaining single detection sources
 sel_gmag = (source_table['gmag'] < 22) & (source_table['cls_diagnose'] != 'UNKNOWN' )
 
 diagnose_assign = source_table['source_id', 'z_diagnose', 'cls_diagnose'][sel & sel_gmag].copy()
@@ -229,6 +236,7 @@ elixer_assign['source_type'] = 'gal'
 elixer_assign['source_type'][sel_lae] = 'lae'
 elixer_assign['source_type'][sel_oii] = 'oii'
 
+sel = source_table['n_members'] == 1
 
 uniq_table = unique(source_table[np.invert(sel)], keys='source_id')
 
@@ -261,10 +269,10 @@ def add_z_guess(source_id):
         # get proper z's from Chenxu's catalog
             sel_det = agn_tab["detectid"] == agn_det
             z_guess = agn_tab["z"][sel_det][0]
-            agn_flag = agn_tab['zflag'][sel_det][0]
-            z_conf = agn_tab['zflag'][sel_det][0]
+            #agn_flag = agn_tab['zflag'][sel_det][0]
+            z_conf = 1 #agn_tab['zflag'][sel_det][0]
             s_type = "agn"
-            z_src = 'Liu+2022'
+            z_src = 'liu_agn'
             
         elif np.any( (group["cls_diagnose"] == "STAR" ) & (group['gmag'] < 22) ):
             s_type = "star"
@@ -461,7 +469,12 @@ z_table = Table(
         [uniq_table['source_id'], z_hetdex, z_src, z_conf, s_type, agn_flag],
         names=["source_id", "z_hetdex", "z_hetdex_src", "z_hetdex_conf", "source_type", "agn_flag"]
     )
-z_stack = vstack([diagnose_assign, elixer_assign, z_table])
+
+if agn_tab is not None:
+    z_stack = vstack([agn_assign, diagnose_assign, elixer_assign, z_table])
+else:
+    z_stack = vstack([diagnose_assign, elixer_assign, z_table])
+
 
 all_table = join(source_table, z_stack, join_type="left")
 source_table = all_table.copy()
@@ -748,10 +761,46 @@ source_table2 = join(source_table, sn_im_table['detectid','sn_im'], join_type='l
 
 print(len(source_table), len(source_table2))
 
-sel_sa22 = source_table2['field'] == 'ssa22'
+# add DEE classifications
+dee = unique( Table.read('/work/05350/ecooper/stampede2/hdr3/catalogs/Source_tsne_DEE.csv'), keys='detectid') # there are some duplicate rows
+dee['detectid'] = dee['detectid'].astype(int)
+sel_bad = (dee['tsne_x'] > 3) & (dee['tsne_y'] < -1)
+dee['flag_dee_tsne'] = np.invert( sel_bad)
+dee['dee_prob'] = dee['prob'].filled(-1)
+
+combined = join(source_table2, dee['detectid','dee_prob', 'tsne_x','tsne_y', 'flag_dee_tsne'], join_type='left')
+
+print(len(source_table2), len(combined))
+
+#add Ben Thomas + Ben Ayers ML plae predictions
+
+pred_df = pd.read_pickle('/work/05350/ecooper/wrangler/team_classify/shared/MLwork/hdr3-plya_vs_pae/all_predictions_hdr3.pkl')
+pred_tab = Table.from_pandas(pred_df)
+pred_tab = unique(pred_tab, keys='detectid')
+pred_tab['detectid'] = pred_tab['detectid'].astype(int)
+
+source_table2 = join(combined, pred_tab['detectid','pred_prob_lae'], join_type='left')
+
+print(len(combined), len(source_table2))
+
+source_table = source_table2
+
+sel_sa22 = source_table['field'] == 'ssa22'
 sel_notsa22 = np.invert(sel_sa22)
 
-source_table2[sel_notsa22].write('source_catalog_{}.z.fits'.format(version), overwrite=True)
-source_table2[sel_notsa22].write('source_catalog_{}.z.tab'.format(version), format='ascii', overwrite=True)
+# finalize flags
 
-source_table2[sel_sa22].write('source_catalog_{}_sa22.fits'.format(version), overwrite=True)
+source_table['flag_apcor'] = (source_table['apcor'] > 0.6).astype(int)
+source_table['flag_3540'] = ((source_table['wave'] < 3538) | (source_table['wave'] > 3545)).astype(int)
+source_table['flag_baddet'] = source_table['flag_baddet'].filled(1)
+source_table['flag_badpix'] = source_table['flag_badpix'].filled(1)
+source_table['flag_meteor'] = source_table['flag_meteor'].filled(1)
+source_table['flag_gal'] = source_table['flag_gal'].filled(1)
+source_table['flag_seldet'] = source_table['selected_det'].astype(int)
+
+source_table['flag_best'] = source_table['flag_seldet'] * source_table['flag_badpix'] * source_table['flag_apcor'] * source_table['flag_3540'] * source_table['flag_baddet'] * source_table['flag_meteor'] * source_table['flag_gal']
+
+source_table[sel_notsa22].write('source_catalog_{}.z.fits'.format(version), overwrite=True)
+source_table[sel_notsa22].write('source_catalog_{}.z.tab'.format(version), format='ascii', overwrite=True)
+
+source_table[sel_sa22].write('source_catalog_{}_sa22.fits'.format(version), overwrite=True)
