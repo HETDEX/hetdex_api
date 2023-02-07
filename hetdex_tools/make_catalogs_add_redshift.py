@@ -294,7 +294,8 @@ def add_z_guess(source_id):
         elif np.any( (group["cls_diagnose"] == "GALAXY" ) & (group['gmag'] < 22) ):
             sel_best = (group["cls_diagnose"] == "GALAXY" ) & (group['gmag'] < 22)
             closest = np.argmin(group['src_separation'][sel_best])
-            z_guess = group['z_diagnose'][sel_best][closest]
+            brightest = np.argmin(group['gmag'][sel_best])
+            z_guess = group['z_diagnose'][sel_best][brightest]
             z_conf = 0.9
             z_src = 'diagnose'
             if np.any( np.abs( group['wave'] - waveoii*(1+z_guess)) < 10):
@@ -386,50 +387,43 @@ def add_z_guess(source_id):
                     z_src  = 'elixer'
                     
                 else:                    
-                    # check to see if its a Lya/CIV match, assume blue line is Lya
-                    try:
-                        sel_sn = group['sn'] > 5.5
-                        wavelya_obs = np.min( group['wave'][sel_sn] )
-                    except:
-                        wavelya_obs = np.min( group['wave'] )
-
-                    zlya_obs = wavelya_obs/wavelya - 1
-
-                    sel_line = group['det_type'] == 'line'
-                    if np.any( np.abs( group['wave'][sel_line] - waveciv * (1 + zlya_obs )) < 20):
-                        print('lya, civ match for', list(group['detectid'][sel_line]))
-                        z_guess = zlya_obs
-                        z_conf = 0.95
-                        s_type = 'agn'
-                        agn_flag = 1
-                        z_src = '2em'
-                        
-                    elif np.any( np.abs( group['wave'][sel_line] - waveheii * (1 + zlya_obs )) < 20):
-                        print('lya, heii match for', list(group['detectid'][sel_line]))
-                        z_guess = zlya_obs
-                        z_conf = 0.95
-                        s_type = 'lae'
-                        z_src  = 'elixer'
+                    # assign redshift of highest best_pz line
+                    # or use highest S/N line
+                    if np.any(group['best_pz'] > 0.6):
+                        sel_sn = np.argmax(group['best_pz'])
                     else:
-                        # assign redshift of highest best_pz line
-                        # will cluster together anything found to have a high
-                        # confidence low-z redshfit but will not
-                        # cluster LAEs
-                        if np.any(group['best_pz'] > 0.6):
-                            sel_sn = np.argmax(group['best_pz'])
-                        else:
-                            sel_sn = np.argmax(group['sn'])
-                            
-                        z_guess = group['z_elixer'][sel_sn]
-                        z_conf = group['best_pz'][sel_sn]
-                        z_src = 'elixer'
-                        if 0.0 < z_guess < 0.5:
-                            s_type='oii'
-                        elif 1.88 < z_guess < 3.6:
-                            z_guess = -2
-                            s_type='lae'
-                        else:
-                            s_type='gal'
+                        sel_sn = np.argmax(group['sn'])
+                        
+                    z_guess = group['z_elixer'][sel_sn]
+                    z_conf = group['best_pz'][sel_sn]
+                    z_src = 'elixer'
+                    if 0.0 < z_guess < 0.5:
+                        s_type='oii'
+                    elif 1.88 < z_guess < 3.6:
+                        z_guess = -2
+                        s_type='lae'
+                    else:
+                        s_type='gal'
+
+                # check to see if its a Lya/CIV match, assume blue line is Lya
+#                try:
+#                    sel_sn = group['sn'] > 5.5
+#                    wavelya_obs = np.min( group['wave'][sel_sn] )
+#                except:
+#                    wavelya_obs = np.min( group['wave'] )
+#                    
+#                    zlya_obs = wavelya_obs/wavelya - 1
+                sel_line = group['det_type'] == 'line'
+                zlya_obs = z_guess
+                if np.any( np.abs( group['wave'][sel_line] - waveciv * (1 + zlya_obs )) < 20):
+                    print('lya, civ match for', list(group['detectid'][sel_line]))
+                    z_guess = zlya_obs
+                    z_conf = 0.95
+                    s_type = 'agn'
+                    agn_flag = 1
+                    z_src = '2em'
+                elif np.any( np.abs( group['wave'][sel_line] - waveoii * (1 + z_guess)) < 20):
+                    s_type = 'oii'
     else:#except:
         print('could not classify {}'.format(source_id))
 
@@ -479,6 +473,7 @@ else:
 all_table = join(source_table, z_stack, join_type="left")
 source_table = all_table.copy()
 
+
 # uncluster LAEs whose line pairings are not supported by best_z
 
 clustered_lae_index = np.where( source_table['z_hetdex'] == -2)[0]
@@ -494,25 +489,27 @@ for c_ind in clustered_lae_index:
     source_table['z_hetdex_src'][c_ind] = 'elixer'
     sid_index += 1
 
-#don't need to do anymore
-#source_table['z_guess'] = source_table['z_hetdex']
+sel_star = source_table['source_type'] == 'star'
+sel_oii = source_table['source_type'] == 'oii'
+sel_lae = source_table['source_type'] == 'lae'
+sel_agn = source_table['source_type'] == 'agn'
+sel_lzg = source_table['source_type'] == 'lzg'
 
 # assign Line ID
 spectral_lines = Table.read('/work2/05350/ecooper/stampede2/redshift-tests/spectral_lines.txt', format='ascii')
 
 source_table['line_id'] = np.chararray(len(source_table), 20, unicode=True)
 
-for row in spectral_lines:
-    sel = np.abs( source_table['wave'] - (1 + source_table['z_hetdex']) * row['lambda_vac']) < 15
-    source_table['line_id'][sel] = row['species']
-
 source_table['dwave'] = np.zeros_like(source_table['wave'])
 
-sel_star = source_table['source_type'] == 'star'
-sel_oii = source_table['source_type'] == 'oii'
-sel_lae = source_table['source_type'] == 'lae'
-sel_agn = source_table['source_type'] == 'agn'
-sel_lzg = source_table['source_type'] == 'lzg'
+for row in spectral_lines:
+    
+    sel = np.abs( source_table['wave'] - (1 + source_table['z_hetdex']) * row['lambda_vac']) < 15
+    source_table['line_id'][sel] = str(row['species'])
+
+    #allow AGN to have broader fit
+    sel = np.abs( source_table['wave'] - (1 + source_table['z_hetdex']) * row['lambda_vac']) < 30
+    source_table['line_id'][sel&sel_agn] = str(row['species'])
 
 print('There are {} stars, {} OII emitters, {} LAEs and {} Low-z gals'.format(
     np.sum(sel_star), np.sum(sel_oii), np.sum(sel_lae), np.sum(sel_lzg)))
@@ -640,6 +637,16 @@ if add_oii:
         sel = source_table['source_id'] == sid
         source_table['source_type'][sel] = 'oii'
 
+#change lzgs to oii if an OII line is found 
+sel_oii_line = (source_table['line_id'] == 'OII')
+sel_lzg = source_table['source_type'] == 'lzg'
+
+sids_to_switch = np.unique( source_table['source_id'][sel_oii_line & sel_lzg])
+
+for sid in sids_to_switch:
+    sel = source_table['source_id'] == sid
+    source_table['source_type'][sel] = 'oii'
+
 sel_star = source_table['source_type'] == 'star'
 sel_oii = source_table['source_type'] == 'oii'
 sel_lae = source_table['source_type'] == 'lae'
@@ -652,20 +659,18 @@ print('There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} Low-z detecti
 # now assigned selected det flag to LAE sample
 #for lzg and oii galaxies, this will be the brightest OII line (not doing resolved OII right now)
 
-sel_lae_line = (source_table['line_id'] == 'Ly$\\\\alpha$') & (source_table['source_type'] == 'lae')
+sel_lae_line = (source_table['line_id'] == 'Lya') & (source_table['source_type'] == 'lae')
 #sel_z = source_table['z_hetdex'] > 1.87
 lae_tab = source_table[sel_lae_line ]
 lae_tab.sort('sn')
+lae_tab.reverse()
 
 uniq_obs_lae = unique(lae_tab, keys='source_id' )
 uniq_obs_lae['selected_det'] = True
 
-sel_oii_line = (source_table['line_id'] == 'OII') & (source_table['source_type'] == 'oii')
-#change lzgs to oii if an OII line is found  
-source_table['source_type'][sel_lzg & sel_oii_line] = 'oii'
-
 oii_tab = source_table[sel_oii_line]
 oii_tab.sort('sn')
+oii_tab.reverse()
 
 uniq_obs_oii = unique(oii_tab, keys='source_id')
 uniq_obs_oii['selected_det'] = True
@@ -755,7 +760,8 @@ sel_notsa22 = np.invert(sel_sa22)
 #add sn_im info:
 
 fileh = tb.open_file(op.join( config.hdr_dir['hdr3'], 'catalogs/line_images_3.0.0.h5'),'r')
-sn_im_table = Table( fileh.root.Info.read())
+sn_im_table = unique( Table( fileh.root.Info.read()), keys='detectid')
+fileh.close()
 
 source_table2 = join(source_table, sn_im_table['detectid','sn_im'], join_type='left')
 
@@ -765,7 +771,7 @@ print(len(source_table), len(source_table2))
 dee = unique( Table.read('/work/05350/ecooper/stampede2/hdr3/catalogs/Source_tsne_DEE.csv'), keys='detectid') # there are some duplicate rows
 dee['detectid'] = dee['detectid'].astype(int)
 sel_bad = (dee['tsne_x'] > 3) & (dee['tsne_y'] < -1)
-dee['flag_dee_tsne'] = np.invert( sel_bad)
+dee['flag_dee_tsne'] = np.invert( sel_bad).astype(int)
 dee['dee_prob'] = dee['prob'].filled(-1)
 
 combined = join(source_table2, dee['detectid','dee_prob', 'tsne_x','tsne_y', 'flag_dee_tsne'], join_type='left')
@@ -783,23 +789,39 @@ source_table2 = join(combined, pred_tab['detectid','pred_prob_lae'], join_type='
 
 print(len(combined), len(source_table2))
 
-source_table = source_table2
+source_table = unique( source_table2, keys='detectid')
 
 sel_sa22 = source_table['field'] == 'ssa22'
 sel_notsa22 = np.invert(sel_sa22)
 
 # finalize flags
 
-source_table['flag_apcor'] = (source_table['apcor'] > 0.6).astype(int)
+source_table['flag_apcor'] = np.invert( (source_table['apcor'] < 0.5) & (source_table['sn'] < 6)).astype(int)
+#we can keep the AGN vetted detections with low apcor
+source_table['flag_apcor'][source_table['z_agn'] > 0] = 1
+
 source_table['flag_3540'] = ((source_table['wave'] < 3538) | (source_table['wave'] > 3545)).astype(int)
+source_table['flag_3540'][source_table['z_agn'] > 0] = 1
+
 source_table['flag_baddet'] = source_table['flag_baddet'].filled(1)
 source_table['flag_badpix'] = source_table['flag_badpix'].filled(1)
 source_table['flag_meteor'] = source_table['flag_meteor'].filled(1)
 source_table['flag_gal'] = source_table['flag_gal'].filled(1)
 source_table['flag_seldet'] = source_table['selected_det'].astype(int)
+source_table['flag_fwhm'] = (source_table['fwhm'] <= 2.66).astype(int)
+source_table['flag_dee_tsne'] = source_table['flag_dee_tsne'].filled(-1)
 
-source_table['flag_best'] = source_table['flag_seldet'] * source_table['flag_badpix'] * source_table['flag_apcor'] * source_table['flag_3540'] * source_table['flag_baddet'] * source_table['flag_meteor'] * source_table['flag_gal']
+source_table['flag_best'] = source_table['flag_badpix'] * source_table['flag_apcor'] * source_table['flag_3540'] * source_table['flag_baddet'] * source_table['flag_meteor'] * source_table['flag_gal']
 
+for col in source_table.columns:
+    try:
+        source_table[col] = source_table[col].filled(np.nan)
+        print("yes", col)
+    except:
+        print('no', col)
+# remove nonsense metadata
+source_table.meta = {}
+                                                                                        
 source_table[sel_notsa22].write('source_catalog_{}.z.fits'.format(version), overwrite=True)
 source_table[sel_notsa22].write('source_catalog_{}.z.tab'.format(version), format='ascii', overwrite=True)
 
