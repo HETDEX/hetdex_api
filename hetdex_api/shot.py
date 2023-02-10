@@ -442,6 +442,7 @@ def get_fibers_table(
     verbose=False,
     rawh5=False,
     F=None,
+    fiber_flux_offset=None,
 ):
     """
     Returns fiber specta for a given shot.
@@ -466,7 +467,11 @@ def get_fibers_table(
         print out warnings. Default is False
     F   Fibers class object
         a pre-intiated fibers class object
-
+    fiber_flux_offset: 1036 array
+        array of values in units of 10**-17 ergs/s/cm2/AA to add
+        to each fiber spectrum used in the extraction. Defaults
+        to None
+    
     Returns
     -------
     A table of fibers within the defined aperture. Will be an astropy table
@@ -580,6 +585,12 @@ def get_fibers_table(
 
             fibers_table["calfibe"][sel_fib] *= 1.07
 
+            if fiber_flux_offset is not None:
+                if verbose:
+                    print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+                fibers_table["calfib"] += fiber_flux_offset
+                fibers_table["calfib_ffsky"] += fiber_flux_offset
+                
     if np.size(fibers_table) > 0:
         if astropy:
             # convert to an astropy table format and add units
