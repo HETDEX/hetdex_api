@@ -227,7 +227,9 @@ class Extract:
                                  return_fiber_info=False,
                                  fiber_lower_limit=3,
                                  verbose=False,
-                                 nmax=5000):
+                                 nmax=5000,
+                                 fiber_flux_offset=None,
+    ):
         """ 
         Grab fibers within a radius and get relevant info,
         optimised for searching for a longer list of 
@@ -253,6 +255,10 @@ class Extract:
             Maximum number of coordinates to consider at once
             during the match. If you put in more it loops
             over them.
+        fiber_flux_offset: 1036 array
+            array of values in units of 10**-17 ergs/s/cm2/AA to add
+            to each fiber spectrum used in the extraction. Defaults
+            to None 
 
         Returns
         -------
@@ -382,7 +388,12 @@ class Extract:
             )
             spec /= wd_corr['corr']
             spece /= wd_corr['corr']
-            
+
+            if fiber_flux_offset is not None:
+                if verbose:
+                    print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+                spec += fiber_flux_offset
+                
         ftf = table_here["fiber_to_fiber"]
 
         if self.survey == "hdr1":
@@ -429,7 +440,6 @@ class Extract:
             return icoord_all, seps_all, ifux, ifuy, xc, yc, ra, dec, spec, spece, mask, fiber_id_array, mf_array
         else:
             return icoord_all, seps_all, ifux, ifuy, xc, yc, ra, dec, spec, spece, mask
-
     
     
     def get_fiberinfo_for_coord(self,
@@ -438,10 +448,12 @@ class Extract:
                                 ffsky=False,
                                 return_fiber_info=False,
                                 fiber_lower_limit=3,
-                                verbose=False):
+                                verbose=False,
+                                fiber_flux_offset=None
+    ):
         """ 
         Grab fibers within a radius and get relevant info
-        
+    
         Parameters
         ----------
         coord: SkyCoord Object
@@ -457,6 +469,10 @@ class Extract:
         fiber_lower_limit : int
             Minimum number of fibers needed in aperture to
             return a result
+        fiber_flux_offset: 1036 array
+            array of values in units of 10**-17 ergs/s/cm2/AA to add
+            to each fiber spectrum used in the extraction. Defaults
+            to None 
         
         Returns
         -------
@@ -537,6 +553,7 @@ class Extract:
                 verbose=False,
                 astropy=False,
                 F=self.fibers,
+                fiber_flux_offset=fiber_flux_offset,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
