@@ -218,6 +218,7 @@ def get_source_spectra(shotid, args):
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
+                    fiber_flux_offset=args.fiber_flux_offset,
                 )
             except TypeError:
                 info_result = E.get_fiberinfo_for_coord(
@@ -225,6 +226,7 @@ def get_source_spectra(shotid, args):
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
+                    fiber_flux_offset=args.fiber_flux_offset,
                 )
             if info_result is not None:
                 try:
@@ -365,6 +367,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
+                    fiber_flux_offset=args.fiber_flux_offset,
                 )
             except TypeError:
                 info_result = E.get_fiberinfo_for_coord(
@@ -372,6 +375,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     radius=args.rad,
                     ffsky=args.ffsky,
                     return_fiber_info=True,
+                    fiber_flux_offset=args.fiber_flux_offset,
                 )
             if info_result is not None:
                 if np.size(args.ID) > 1:
@@ -968,7 +972,7 @@ def get_spectra(
     return_fiber_info=False,
     loglevel='INFO',
     apply_update=True,
-    
+    fiber_flux_offset=None,
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -1021,6 +1025,10 @@ def get_spectra(
         DEBUG. Defaults to INFO
     apply_update: bool
         Apply relevent HDR calibration updates. Default is True.
+    fiber_flux_offset: 1036 array
+        array of values in units of 10**-17 ergs/s/cm2/AA to add
+        to each fiber spectrum used in the extraction. Defaults
+        to None
     Returns
     -------
     sources
@@ -1042,6 +1050,7 @@ def get_spectra(
 
     args.keep_bad_shots = keep_bad_shots
     args.apply_update = apply_update
+    args.fiber_flux_offset = fiber_flux_offset
 
     S = Survey(survey)
 
