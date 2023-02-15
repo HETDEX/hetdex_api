@@ -478,6 +478,9 @@ def get_fibers_table(
     object if astropy=True is set
 
     """
+    if verbose:
+        print("Grabbing fibers from {}".format(shot))
+        
     if F is not None:
         fileh = F.hdfile
         close_F_at_end = False
@@ -513,8 +516,8 @@ def get_fibers_table(
 
     elif ifuslot is not None:
 
-        # ensure ifuslot is three digit string
-        ifuslot = str(ifuslot).zfill(3)
+        # ensure ifuslot is three digit Unicode string
+        ifuslot = ifuslot.zfill(3).decode()
 
         if verbose:
             print("Acessing fibers for ifuslot {}".format(ifuslot))
@@ -526,6 +529,7 @@ def get_fibers_table(
         fibers_table = None
 
         for mf in multiframe_array[ifuslot_array == ifuslot]:
+
             fib_table_i = fileh.root.Data.Fibers.read_where("multiframe == mf")
             if fibers_table is None:
                 fibers_table = fib_table_i
@@ -587,7 +591,9 @@ def get_fibers_table(
 
             if fiber_flux_offset is not None:
                 if verbose:
-                    print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+                    print("Applying supplied fiber_flux_offset: {}".format(
+                        fiber_flux_offset)
+                    )
                 fibers_table["calfib"] += fiber_flux_offset
                 fibers_table["calfib_ffsky"] += fiber_flux_offset
                 
