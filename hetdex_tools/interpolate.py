@@ -15,19 +15,20 @@ from hetdex_api.extract import Extract
 try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     config = HDRconfig(LATEST_HDR_NAME)
-    CONFIG_HDR2 = HDRconfig('hdr2.1')
-    CONFIG_HDR3 = HDRconfig('hdr3')
+    CONFIG_HDR2 = HDRconfig("hdr2.1")
+    CONFIG_HDR3 = HDRconfig("hdr3")
 
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr3"
-    
+
 OPEN_DET_FILE = None
 DET_HANDLE = None
 DET_FILE = None
 
 current_hdr = LATEST_HDR_NAME
 surveyh5 = tb.open_file(config.surveyh5, "r")
+
 
 def make_narrowband_image(
     detectid=None,
@@ -39,10 +40,11 @@ def make_narrowband_image(
     convolve_image=False,
     ffsky=True,
     subcont=False,
-    dcont=50.,
+    dcont=50.0,
     include_error=False,
     survey=LATEST_HDR_NAME,
     extract_class=None,
+    fiber_flux_offset=None,
 ):
 
     """
@@ -80,7 +82,11 @@ def make_narrowband_image(
     extract   Extract class object
         option to include a preloaded Extract class object.
         Default is to load extract class according to detection info
-
+    fiber_flux_offset: 1036 array
+        array of values in units of 10**-17 ergs/s/cm2/AA to add
+        to each fiber spectrum used in the extraction. Defaults
+        to None    
+    
     Returns
     -------
     hdu: PrimaryHDU object
@@ -105,13 +111,13 @@ def make_narrowband_image(
     global config, current_hdr, surveyh5
     global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
-          
+
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
         try:
             surveyh5.close()
-            surveyh5 = tb.open_file(config.surveyh5, 'r')
+            surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
     else:
@@ -119,10 +125,10 @@ def make_narrowband_image(
         try:
             surveyh5.root
         except AttributeError:
-            surveyh5 = tb.open_file(config.surveyh5, 'r')
-        
+            surveyh5 = tb.open_file(config.surveyh5, "r")
+
     if detectid is not None:
-    
+
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
         elif (detectid >= 2100000000) * (detectid < 2190000000):
@@ -131,10 +137,10 @@ def make_narrowband_image(
             DET_FILE = CONFIG_HDR3.detecth5
         elif (detectid >= 3090000000) * (detectid < 3100000000):
             DET_FILE = CONFIG_HDR2.contsourceh5
-        
+
         if OPEN_DET_FILE is None:
-            
-            DET_HANDLE = tb.open_file(DET_FILE, 'r')
+
+            DET_HANDLE = tb.open_file(DET_FILE, "r")
             OPEN_DET_FILE = DET_FILE
         else:
             if DET_FILE == OPEN_DET_FILE:
@@ -143,18 +149,17 @@ def make_narrowband_image(
                 DET_HANDLE.close()
                 OPEN_DET_FILE = DET_FILE
                 try:
-                    DET_HANDLE = tb.open_file(self.DET_FILE, 'r')
+                    DET_HANDLE = tb.open_file(self.DET_FILE, "r")
                 except:
                     print("Could not open {}".format(self.det_file))
 
         detectid_obj = detectid
-        det_info = DET_HANDLE.root.Detections.read_where('detectid == detectid_obj')[0]
-        
+        det_info = DET_HANDLE.root.Detections.read_where("detectid == detectid_obj")[0]
+
         shotid_obj = det_info["shotid"]
         wave_obj = det_info["wave"]
         linewidth = det_info["linewidth"]
-        wave_range = [wave_obj - 2.0 * linewidth,
-                      wave_obj + 2.0 * linewidth]
+        wave_range = [wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
     elif coords is not None:
         if shotid is not None:
@@ -183,7 +188,9 @@ def make_narrowband_image(
 
     rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
 
-    info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=ffsky)
+    info_result = E.get_fiberinfo_for_coord(
+        coords, radius=rad, ffsky=ffsky, fiber_flux_offset=fiber_flux_offset
+    )
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
@@ -222,7 +229,7 @@ def make_narrowband_image(
             wrange=wave_range,
             convolve_image=convolve_image,
         )
-    
+
         imslice = zarray[0]
 
     if subcont:
@@ -236,7 +243,7 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[0]-dcont-10, wave_range[0]-10],
+            wrange=[wave_range[0] - dcont - 10, wave_range[0] - 10],
             convolve_image=convolve_image,
         )
 
@@ -250,15 +257,14 @@ def make_narrowband_image(
             seeing_fac=fwhm,
             scale=pixscale.to(u.arcsec).value,
             boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[1]+10, wave_range[1]+dcont+10],
+            wrange=[wave_range[1] + 10, wave_range[1] + dcont + 10],
             convolve_image=convolve_image,
         )
-        
-        dwave = wave_range[1]-wave_range[0]
-        im_cont = (zarray_blue[0] + zarray_red[0])/(2*dcont)
 
-        imslice = zarray[0] - dwave*im_cont
+        dwave = wave_range[1] - wave_range[0]
+        im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
 
+        imslice = zarray[0] - dwave * im_cont
 
     w = wcs.WCS(naxis=2)
     imsize = imsize.to(u.arcsec).value
@@ -269,15 +275,12 @@ def make_narrowband_image(
 
     # get rotation:
     sys_rot = 1.55
-    rot = 360. - (90. + pa + sys_rot)
+    rot = 360.0 - (90.0 + pa + sys_rot)
     rrot = np.deg2rad(rot)
 
-#    w.wcs.crota = [ 0, rot]
-    
-    w.wcs.pc = [[np.cos(rrot),
-                 np.sin(rrot)],
-                [-1.0*np.sin(rrot),
-                 np.cos(rrot)]]
+    #    w.wcs.crota = [ 0, rot]
+
+    w.wcs.pc = [[np.cos(rrot), np.sin(rrot)], [-1.0 * np.sin(rrot), np.cos(rrot)]]
 
     hdu = fits.PrimaryHDU(imslice, header=w.to_header())
 
@@ -306,6 +309,7 @@ def make_data_cube(
     ffsky=True,
     subcont=False,
     survey=LATEST_HDR_NAME,
+    fiber_flux_offset=None,
 ):
 
     """
@@ -336,10 +340,13 @@ def make_data_cube(
         option to subtract continuum. Default is False. This
         will measure the continuum 50AA below and above the
         input wave_range
-    dcont
+    dcont: float
         width in angstrom to measure the continuum. Default is to
         measure 50 AA wide regions on either side of the line  
-
+    fiber_flux_offset: 1036 array
+        array of values in units of 10**-17 ergs/s/cm2/AA to add
+        to each fiber spectrum used in the extraction. Defaults
+        to None    
     Returns
     -------
     hdu: PrimaryHDU object
@@ -370,8 +377,8 @@ def make_data_cube(
         config = HDRconfig(survey)
         current_hdr = survey
         try:
-            surveyh5.close() #just in case it does not exist yet
-            surveyh5 = tb.open_file(config.surveyh5, 'r')
+            surveyh5.close()  # just in case it does not exist yet
+            surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
 
@@ -389,8 +396,8 @@ def make_data_cube(
         if OPEN_DET_FILE is None:
 
             OPEN_DET_FILE = DET_FILE
-            DET_HANDLE = tb.open_file(DET_FILE, 'r')
-    
+            DET_HANDLE = tb.open_file(DET_FILE, "r")
+
         else:
             if DET_FILE == OPEN_DET_FILE:
                 pass
@@ -398,12 +405,12 @@ def make_data_cube(
                 DET_HANDLE.close()
                 OPEN_DET_FILE = DET_FILE
                 try:
-                    DET_HANDLE = tb.open_file(DET_FILE, 'r')
+                    DET_HANDLE = tb.open_file(DET_FILE, "r")
                 except Exception:
                     print("Could not open {}".format(DET_FILE))
-                
+
         detectid_obj = detectid
-        det_info = DET_HANDLE.root.Detections.read_where('detectid == detectid_obj')[0]
+        det_info = DET_HANDLE.root.Detections.read_where("detectid == detectid_obj")[0]
 
         shotid = det_info["shotid"]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
@@ -426,10 +433,13 @@ def make_data_cube(
     w.wcs.crpix = [center, center, 1]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
-    
+
     rad = imsize.to(u.arcsec).value
-    
-    info_result = E.get_fiberinfo_for_coord(coords, radius=rad, ffsky=False)
+
+    info_result = E.get_fiberinfo_for_coord(
+        coords, radius=rad, ffsky=False, fiber_flux_offset=fiber_flux_offset
+    )
+
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
@@ -441,7 +451,7 @@ def make_data_cube(
 
     surveyh5 = tb.open_file(config.surveyh5, "r")
     shotid_obj = shotid
-   
+
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     if convolve_image:
@@ -453,14 +463,14 @@ def make_data_cube(
 
     # add in rotation
     sys_rot = 1.55
-    rot = 360. - (90. + pa + sys_rot)
+    rot = 360.0 - (90.0 + pa + sys_rot)
     w.wcs.crota = [0, rot, 0]
-#    rrot = np.deg2rad(rot)
-#    w.wcs.pc = [[np.cos(rrot),
-#                 np.sin(rrot),0],
-#                [-1.0*np.sin(rrot),
-#                 np.cos(rrot),0], [0,0,0]]
-    
+    #    rrot = np.deg2rad(rot)
+    #    w.wcs.pc = [[np.cos(rrot),
+    #                 np.sin(rrot),0],
+    #                [-1.0*np.sin(rrot),
+    #                 np.cos(rrot),0], [0,0,0]]
+
     im_cube = np.zeros((nwave, ndim, ndim))
 
     wave_i = wave_range[0]
@@ -497,7 +507,7 @@ def make_data_cube(
                     scale=pixscale.to(u.arcsec).value,
                     boxsize=imsize.to(u.arcsec).value,
                     nchunks=2,
-                    wrange=[wave_i-dcont, wave_i],
+                    wrange=[wave_i - dcont, wave_i],
                     convolve_image=convolve_image,
                 )
                 zarray_red = E.make_narrowband_image(
@@ -515,9 +525,9 @@ def make_data_cube(
                     convolve_image=convolve_image,
                 )
 
-                im_cont = (zarray_blue[0] + zarray_red[0])/(2*dcont)
-                im_slice = im_src[0] - dwave*im_cont
-    
+                im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
+                im_slice = im_src[0] - dwave * im_cont
+
             im_cube[i, :, :] = im_slice
 
         except Exception:
