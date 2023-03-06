@@ -78,6 +78,7 @@ class MCMC_Gauss:
         self.initial_peak = None
 
         self.max_sigma = 20.0
+        self.min_sigma = 0.0
         self.range_mu = 5.0
         self.max_A_mult = 2.0
         self.max_y_mult = 2.0
@@ -179,13 +180,13 @@ class MCMC_Gauss:
 
         if self.initial_A < 0 : #same as emission, but "A" is negative (flip sign) and y is between a max and zero
             if (-self.range_mu < mu - self.initial_mu < self.range_mu) and \
-                    (0.0 < sigma < self.max_sigma) and \
+                    (self.min_sigma < sigma < self.max_sigma) and \
                     (self.max_A_mult * self.initial_A < A < 0.0) and \
                     (self.min_y < y < self.max_y_mult * self.initial_peak):
                 return 0.0  # remember this is ln(prior) so a return of 0.0 == 1  (since ln(1) == 0.0)
         else:
             if (-self.range_mu < mu - self.initial_mu < self.range_mu) and \
-                    (0.0 < sigma < self.max_sigma) and \
+                    (self.min_sigma < sigma < self.max_sigma) and \
                     (0.0 < A < self.max_A_mult * self.initial_A) and \
                     (self.min_y < y < self.max_y_mult * self.initial_peak):
                 return 0.0  # remember this is ln(prior) so a return of 0.0 == 1  (since ln(1) == 0.0)
