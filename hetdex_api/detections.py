@@ -1059,6 +1059,7 @@ class Detections:
         add_apcor=False,
         rawh5=False,
         verbose=False,
+        ffsky=False,
     ):
 
         """
@@ -1082,6 +1083,8 @@ class Detections:
             h5 file
         verbose: bool
             provide info statements if set to True. Default is False
+        ffsky: bool
+            option to use full frame sky calibration. Default is False
         
         Returns
         -------
@@ -1100,9 +1103,15 @@ class Detections:
             intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
 
         data["wave1d"] = Column(spectra_table["wave1d"][0], unit=u.AA)
-        data["spec1d"] = Column(
-            spectra_table["spec1d"][0], unit=1.0e-17 * intensityunit
-        )
+
+        if ffsky:
+            data["spec1d"] = Column(
+                spectra_table["spec1d_ffsky"][0], unit=1.0e-17 * intensityunit
+            )
+        else:
+            data["spec1d"] = Column(
+                spectra_table["spec1d"][0], unit=1.0e-17 * intensityunit
+            )
         data["spec1d_err"] = Column(
             spectra_table["spec1d_err"][0], unit=1.0e-17 * intensityunit
         )
