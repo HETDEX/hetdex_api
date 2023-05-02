@@ -194,19 +194,21 @@ source_table = combined.copy()
 del combined, diagnose_tab
 
 # assign redshifts to sources with single detections
-sel = source_table['n_members'] == 1
+sel = (source_table['n_members'] == 1) 
 
 # assign AGN redshifts in AGN catalog
 
 if agn_tab is not None:
-    agn_assign = source_table['source_id','z_agn'][ (~source_table['z_agn'].mask) & sel].copy()
+    sel = (source_table['n_members'] == 1) & (source_table['z_agn'] > 0 )
+    
+    agn_assign = source_table['source_id','z_agn'][ sel].copy()
     agn_assign.rename_column('z_agn','z_hetdex')
     agn_assign['z_hetdex_conf'] = 0.9
     agn_assign['z_hetdex_src'] = 'liu_agn'
     agn_assign['source_type'] = 'agn'
     agn_assign['agn_flag'] = 1
 
-    sel = (source_table['n_members'] == 1) & (source_table['z_agn'].mask)
+    sel = (source_table['n_members'] == 1) & np.invert( source_table['z_agn'] > 0 )
 
 # Take Diagnose for gmag < 22 for remaining single detection sources
 sel_gmag = (source_table['gmag'] < 22) & (source_table['cls_diagnose'] != 'UNKNOWN' )
@@ -447,6 +449,7 @@ t1 = time.time()
 
 print('Adding z_hetdex complete in {:5.3} m'.format( (t1-t0) / 60))
 
+
 z_hetdex = []
 z_conf = []
 s_type = []
@@ -531,7 +534,7 @@ print('Clustering in redshift space')
 shotid_list = np.unique(source_table['shotid'])
 
 t0 = time.time()
-p = Pool(24)
+p = Pool(20)
 res = p.map(zcluster_forshotid, shotid_list)
 p.close()
 
@@ -768,11 +771,26 @@ source_table2 = join(source_table, sn_im_table['detectid','sn_im'], join_type='l
 print(len(source_table), len(source_table2))
 
 # add DEE classifications
-dee = unique( Table.read('/work/05350/ecooper/stampede2/hdr3/catalogs/Source_tsne_DEE.csv'), keys='detectid') # there are some duplicate rows
-dee['detectid'] = dee['detectid'].astype(int)
+dee1 = unique( Table.read('/work/05350/ecooper/stampede2/hdr3/catalogs/Source_tsne_DEE.csv'), keys='detectid')
+dee1['detectid'] = dee1['detectid'].astype(int)
+dee1['dee_prob'] = dee1['prob'].filled(-1)
+dee1 = dee1['detectid','dee_prob', 'tsne_x','tsne_y']
+
+#gather updated dee probabilities
+dee2 = Table.read('/work/05350/ecooper/stampede2/hdr3/catalogs/prob_rf_data_2_16_23.dat', format='ascii')
+dee2['detectid'] = dee2['detectid'].astype(int)
+
+#ignore HDR2 data
+dee2 = dee2[ dee2['detectid'] >= 3000000000]
+
+dee = join( dee1, dee2, keys='detectid', join_type='outer')
+
+dee['rf_number'] = dee['rf_number'].filled(-1)     
+sel_update = dee['rf_number'] >= 0  
+dee['dee_prob'][sel_update] = dee['rf_number'][sel_update] 
+
 sel_bad = (dee['tsne_x'] > 3) & (dee['tsne_y'] < -1)
 dee['flag_dee_tsne'] = np.invert( sel_bad).astype(int)
-dee['dee_prob'] = dee['prob'].filled(-1)
 
 combined = join(source_table2, dee['detectid','dee_prob', 'tsne_x','tsne_y', 'flag_dee_tsne'], join_type='left')
 
@@ -790,11 +808,9 @@ source_table2 = join(combined, pred_tab['detectid','pred_prob_lae'], join_type='
 print(len(combined), len(source_table2))
 
 source_table = unique( source_table2, keys='detectid')
-
-sel_sa22 = source_table['field'] == 'ssa22'
-sel_notsa22 = np.invert(sel_sa22)
-
 # finalize flags
+
+source_table['dee_prob'] = source_table['dee_prob'].filled(-1)
 
 source_table['flag_apcor'] = np.invert( (source_table['apcor'] < 0.5) & (source_table['sn'] < 6)).astype(int)
 #we can keep the AGN vetted detections with low apcor
@@ -802,16 +818,61 @@ source_table['flag_apcor'][source_table['z_agn'] > 0] = 1
 
 source_table['flag_3540'] = ((source_table['wave'] < 3538) | (source_table['wave'] > 3545)).astype(int)
 source_table['flag_3540'][source_table['z_agn'] > 0] = 1
-
-source_table['flag_baddet'] = source_table['flag_baddet'].filled(1)
-source_table['flag_badpix'] = source_table['flag_badpix'].filled(1)
-source_table['flag_meteor'] = source_table['flag_meteor'].filled(1)
-source_table['flag_gal'] = source_table['flag_gal'].filled(1)
 source_table['flag_seldet'] = source_table['selected_det'].astype(int)
 source_table['flag_fwhm'] = (source_table['fwhm'] <= 2.66).astype(int)
 source_table['flag_dee_tsne'] = source_table['flag_dee_tsne'].filled(-1)
+source_table['flag_dee_prob'] = ((source_table['dee_prob'] == -1) | (source_table['dee_prob'] > 0.2) | (source_table['source_type'] == 'agn')).astype(int)
 
-source_table['flag_best'] = source_table['flag_badpix'] * source_table['flag_apcor'] * source_table['flag_3540'] * source_table['flag_baddet'] * source_table['flag_meteor'] * source_table['flag_gal']
+# add RAIC continuum data
+
+raic_cat_cont = Table.read('/work/05350/ecooper/stampede2/line_images/hdr3/cont_full_all_cat_20230322.csv')
+
+# add column with detectids   
+detectlist = []
+for row in raic_cat_cont:
+    detectlist.append(int(row['File'][-14:-4]))
+raic_cat_cont['detectid'] = detectlist
+
+#sort by score, will take unique label for highest score
+raic_cat_cont.sort('Score')
+raic_cat_cont.reverse()
+
+raic_cat_cont_uniq = unique(raic_cat_cont, keys='detectid')
+raic_cat_cont_uniq.rename_column('Score','RAIC_Score')
+raic_cat_cont_uniq.rename_column('Label','RAIC_Label')
+
+# add RAIC line data
+raic_cat = Table.read('/work/05350/ecooper/stampede2/line_images/hdr3/streaks_20230328.csv')
+
+# add column with detectids   
+detectlist = []
+for row in raic_cat:
+    detectlist.append(int(row['File'][-14:-4]))
+raic_cat['detectid'] = detectlist
+
+#sort by score, will take unique label for highest score
+raic_cat.sort('Score')
+raic_cat.reverse()
+
+raic_cat_uniq = unique(raic_cat, keys='detectid')
+raic_cat_uniq.rename_column('Score','RAIC_Score')
+raic_cat_uniq.rename_column('Label','RAIC_Label')
+
+raic_cat_stack = vstack( [raic_cat_cont_uniq, raic_cat_uniq])
+                   
+source_table2 = join( source_table, raic_cat_stack['detectid','RAIC_Score','RAIC_Label'], join_type='left')
+
+print('Lengths before:after raic join: {}:{}'.format( len(source_table), len(source_table2) ))
+
+source_table = source_table2
+
+source_table['raic_streak'] = ( (source_table['RAIC_Score'] > 0.75) & (source_table['RAIC_Label'] == 'streaks')).astype(int).filled(-1)
+source_table['raic_satellite'] = ((source_table['RAIC_Score'] > 0.75) * (source_table['RAIC_Label'] == 'satellite')).astype(int).filled(-1)
+source_table['raic_cont'] = ((source_table['RAIC_Score'] > 0.75) * ( (source_table['RAIC_Label'] == 'calibissue') |  (source_table['RAIC_Label'] == 'baddither') | (source_table['RAIC_Label'] == 'badfiber') | (source_table['RAIC_Label'] == 'streak') | (source_table['RAIC_Label'] =='lowcounts'))).astype(int).filled(-1)
+source_table['flag_raic'] = np.invert( (source_table['raic_streak'] == 1) | (source_table['raic_cont'] == 1) | ( source_table['raic_satellite'] == 1)).astype(int)
+
+flag_best = np.invert(source_table['flag_badpix'] == 0) * source_table['flag_apcor'] * source_table['flag_3540'] * source_table['flag_baddet'] * source_table['flag_meteor'] * source_table['flag_gal'] * source_table['flag_dee_prob'] * source_table['flag_raic']
+source_table.add_column(Column(flag_best, name='flag_best', dtype=int), index=3)
 
 for col in source_table.columns:
     try:
@@ -821,8 +882,11 @@ for col in source_table.columns:
         print('no', col)
 # remove nonsense metadata
 source_table.meta = {}
-                                                                                        
+
+
+sel_sa22 = source_table['field'] == 'ssa22'
+sel_notsa22 = np.invert(sel_sa22)
+
 source_table[sel_notsa22].write('source_catalog_{}.z.fits'.format(version), overwrite=True)
 source_table[sel_notsa22].write('source_catalog_{}.z.tab'.format(version), format='ascii', overwrite=True)
-
 source_table[sel_sa22].write('source_catalog_{}_sa22.fits'.format(version), overwrite=True)
