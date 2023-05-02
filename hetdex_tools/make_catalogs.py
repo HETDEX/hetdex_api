@@ -157,10 +157,14 @@ def add_elixer_cat_info(detect_table, det_type="line"):
     if det_type == "line":
         elixer_file = op.join(config.detect_dir, "elixer_hdr3_emis_cat.h5")
         elixer_cat = tb.open_file(elixer_file, "r")
-    else:
+    elif det_type=="cont":
         elixer_file = op.join(config.detect_dir, "elixer_hdr3_cont_cat.h5")
         elixer_cat = tb.open_file(elixer_file, "r")
-
+    elif det_type=="agn":
+        elixer_file =  op.join(config.hdr_dir['hdr3'], 'catalogs', "agn_v5_elixer.h5") 
+        elixer_cat = tb.open_file(elixer_file, "r")
+                             
+        
     elix_tab = Table(elixer_cat.root.Detections.read())
 
     sel_det_col = [
@@ -175,6 +179,10 @@ def add_elixer_cat_info(detect_table, det_type="line"):
         "flags",
         "classification_labels",
     ]
+
+    if det_type == 'agn':#updated elixer columns applied here
+        elix_tab.rename_column('z_best', 'best_z')
+        elix_tab.rename_column('z_best_pz', 'best_pz')
 
     catalog = join(
         detect_table,
@@ -318,29 +326,8 @@ def create_source_catalog(version="3.0.0", update=False):
         )
 
         D = Detections(survey="hdr3", loadtable=True)
-        sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
-        sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
 
-        sel_cont = D.continuum > -3
-        sel_chi2fib = D.chi2fib < 4
-        sel_tp = D.throughput >= 0.08
-
-        sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2)  # &sel_field
-
-        sel_wave = (D.wave >= 3550) & (D.wave <= 5460)
-        sel_lw = (D.linewidth <= 14) & (D.linewidth > 6) & (D.sn >= 6.5)
-
-        sel1 = sel & sel_wave & sel_lw
-
-        sel_wave = (D.wave >= 3510) & (D.wave <= 5490)
-        sel_lw = (D.linewidth <= 6) & (D.linewidth >= 1.7)
-
-        sel2 = sel & sel_wave & sel_lw
-
-        sel_cat = sel1 | sel2
-
-        # downselect catalog criteria
-        D = D[sel_cat]
+        # get masking info for each detection
         mask_badamp = D.remove_bad_amps()
         mask_badshots = D.remove_shots()
 
@@ -352,21 +339,44 @@ def create_source_catalog(version="3.0.0", update=False):
         mask_meteor = D.remove_meteors()
         galmask = D.remove_large_gal(d25scale=3.0)
 
+        # apply curated line catalog criteria
+        sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
+        sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
+        
+        sel_cont = D.continuum > -3
+        sel_chi2fib = D.chi2fib < 4
+        sel_tp = D.throughput >= 0.08
+        
+        sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2)  # &sel_field
+        
+        sel_wave = (D.wave >= 3550) & (D.wave <= 5460)
+        sel_lw = (D.linewidth <= 14) & (D.linewidth > 6) & (D.sn >= 6.5)
+        
+        sel1 = sel & sel_wave & sel_lw
+        
+        sel_wave = (D.wave >= 3510) & (D.wave <= 5490)
+        sel_lw = (D.linewidth <= 6) & (D.linewidth >= 1.7)
+        
+        sel2 = sel & sel_wave & sel_lw
+        
+        sel_cat = sel1 | sel2
+    
+        # downselect catalog criteria
         print(len(D))
-        detects_line_table = D.return_astropy_table()
+        detects_line_table = D[sel_cat].return_astropy_table()
         detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
         print(len(detects_line_table))
         detects_line_table.add_column(
-            Column(mask_baddet.astype(int), name="flag_baddet", dtype=int)
+            Column(mask_baddet[sel_cat].astype(int), name="flag_baddet", dtype=int)
         )
         detects_line_table.add_column(
-            Column(mask_badpix.astype(int), name="flag_badpix", dtype=int)
+            Column(mask_badpix[sel_cat].astype(int), name="flag_badpix", dtype=int)
         )
         detects_line_table.add_column(
-            Column(mask_meteor.astype(int), name="flag_meteor", dtype=int)
+            Column(mask_meteor[sel_cat].astype(int), name="flag_meteor", dtype=int)
         )
         detects_line_table.add_column(
-            Column(galmask.astype(int), name="flag_gal", dtype=int)
+            Column(galmask[sel_cat].astype(int), name="flag_gal", dtype=int)
         )
 
         detects_line_table = add_elixer_cat_info(detects_line_table, det_type="line")
@@ -398,19 +408,35 @@ def create_source_catalog(version="3.0.0", update=False):
             catalog_type="continuum", survey="hdr3", loadtable=True
         )
 
-        sel1 = detects_cont.remove_bad_amps()
-        sel2 = detects_cont.remove_meteors()
-        sel3 = detects_cont.remove_shots()
-        sel4 = detects_cont.remove_bad_detects()
-        sel5 = detects_cont.remove_large_gal()
+        mask_badamp_cont = detects_cont.remove_bad_amps()
+        mask_badshot_cont = detects_cont.remove_shots()
+        mask_tp_cont =  detects_cont.throughput > 0.08
 
-        sel6 = detects_cont.throughput > 0.08
+        detects_cont = detects_cont[mask_badamp_cont & mask_badshot_cont & mask_tp_cont ]
 
-        detects_cont_table = detects_cont[
-            sel1 & sel2 & sel3 & sel4 & sel5 & sel6
-        ].return_astropy_table()
+        mask_meteor_cont = detects_cont.remove_meteors()
+        mask_baddet_cont = detects_cont.remove_bad_detects()
+        galmask_cont = detects_cont.remove_large_gal()
+
+        detects_cont_table = detects_cont.return_astropy_table()
         detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
         print(len(detects_cont_table))
+
+        detects_cont_table.add_column(
+            Column(mask_baddet_cont.astype(int), name="flag_baddet", dtype=int)
+        )
+        detects_cont_table.add_column(
+            Column(-1 * np.ones(len(detects_cont_table)), name="flag_badpix", dtype=int)
+        )
+        detects_cont_table.add_column(
+            Column(mask_meteor_cont.astype(int), name="flag_meteor", dtype=int)
+        )
+        detects_cont_table.add_column(
+            Column(galmask_cont.astype(int), name="flag_gal", dtype=int)
+        )
+
+        full_cont_table = detects_cont_table.copy()
+       
         detects_cont_table = add_elixer_cat_info(detects_cont_table, det_type="cont")
         print(len(detects_cont_table))
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
@@ -426,6 +452,21 @@ def create_source_catalog(version="3.0.0", update=False):
         if add_agn:
             full_line_table = D.return_astropy_table()
             full_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+            print("Size of full_line_table: {}".format( len(full_line_table)))
+            full_line_table.add_column(
+                Column(mask_baddet.astype(int), name="flag_baddet", dtype=int)
+            )
+            full_line_table.add_column(
+                Column(mask_badpix.astype(int), name="flag_badpix", dtype=int)
+            )
+            full_line_table.add_column(
+                Column(mask_meteor.astype(int), name="flag_meteor", dtype=int)
+            )
+            full_line_table.add_column(
+                Column(galmask.astype(int), name="flag_gal", dtype=int)
+                                                                        )
+
+                                                            
             agn_tab = Table.read(
                 config.agncat,
                 format="ascii",
@@ -435,9 +476,14 @@ def create_source_catalog(version="3.0.0", update=False):
             agn_tab.rename_column("z", "z_agn")
             detects_agn = join(
                 agn_tab,
-                vstack([detects_cont_table, full_line_table]),
+                vstack([full_cont_table, full_line_table]),
                 join_type="inner",
             )
+            detects_agn_line = add_elixer_cat_info(detects_agn, det_type="agn")
+            detects_agn_cont = add_elixer_cat_info(detects_agn, det_type="cont")
+            detects_agn = vstack([detects_agn_line, detects_agn_cont])
+            detects_agn.sort('gmag')
+            detects_agn = unique( detects_agn, keys='detectid')
             detects_agn.write("agn_" + version + ".fits", overwrite=True)
         else:
             print("No updated AGN catalog created")
@@ -445,6 +491,7 @@ def create_source_catalog(version="3.0.0", update=False):
     else:
         detects_agn = Table.read("agn_" + version + ".fits")
 
+    
     if update:
         return
 
