@@ -9,17 +9,20 @@
 # command line
 # python3 lya_pyimfit.py --detectid 3090001360 --wave_range 4000 5000 --subcont False --star
 
+import sys
 import numpy as np
 import tables as tb
 import os.path as op
 
 from astropy.coordinates import SkyCoord
+from astropy.table import Table
 from astropy import units as u
 from astropy import wcs
 from astropy.stats import sigma_clipped_stats
 
-from photutils import EllipticalAnnulus, CircularAnnulus
-from photutils import aperture_photometry
+from photutils.aperture import EllipticalAperture
+from photutils.aperture import EllipticalAnnulus, CircularAnnulus
+from photutils.aperture import aperture_photometry
 
 from astropy.cosmology import Planck18 as cosmo
 
@@ -42,8 +45,7 @@ from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 from matplotlib import gridspec
 
-plot_both_models = False
-plot_log = True
+plot_both_models = True
 
 LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 
@@ -52,7 +54,7 @@ surveyh5 = tb.open_file(config.surveyh5, "r")
 deth5 = tb.open_file(config.detecth5, "r")
 conth5 = tb.open_file(config.contsourceh5, "r")
 
-version = "3.0.1"
+version = "3.0.2"
 catfile = op.join(
     config.hdr_dir["hdr3"], "catalogs", "source_catalog_" + version + ".fits"
 )
@@ -92,15 +94,15 @@ def do_pyimfit(
 
         shotid_obj = det_info["shotid"]
         fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
-        amp = det_info["multiframe"]
+        amp = str(det_info["multiframe"])
 
         if wave_range is not None:
             wave_range_obj = wave_range
         else:
-            if detectid_obj <= 2190000000:
-                wave_range_obj = [wave_obj - 2 * linewidth, wave_obj + 2 * linewidth]
+            if detectid_obj <= 3090000000:
+                wave_range_obj = [wave_obj-2*linewidth, wave_obj+2*linewidth]
             else:
-                wave_range_obj = [4100, 4200]
+                wave_range_obj = [3700,5200]
 
         if coords is not None:
             coords_obj = coords
@@ -111,7 +113,7 @@ def do_pyimfit(
                 "fwhm_virus"
             ][0]
 
-        try:
+        if True:#try:
             hdu = make_narrowband_image(
                 coords=coords_obj,
                 shotid=shotid_obj,
@@ -123,8 +125,9 @@ def do_pyimfit(
                 include_error=True,
             )
 
-        except:
+        else:#except Exception:
             print("Could not make narrowband image for {}".format(detectid))
+            sys.Exit()
             pass  # return np.nan, np.nan
 
     elif wave_group_id is not None:
@@ -147,7 +150,7 @@ def do_pyimfit(
         linewidth = group["linewidth"][0]
         shotid_obj = group["shotid"][0]
         fwhm = group["fwhm"][0]
-        amp = group["multiframe"][0]
+        amp = str(group["multiframe"][0])
 
         if wave_range is not None:
             wave_range_obj = wave_range
@@ -222,6 +225,7 @@ def do_pyimfit(
 
     image_data = hdu[0].data
 
+
     E = Extract()
     E.load_shot(shotid_obj)
     moffat_psf = E.moffat_psf(seeing=fwhm, boxsize=imsize, scale=pixscale)
@@ -236,12 +240,52 @@ def do_pyimfit(
     dx = 20
     dy = 20
 
+    #create fiber psf
+    boxsize=imsize/2
+    xl, xh = (0.0 - boxsize / 2.0, 0.0 + boxsize / 2.0 + pixscale)
+    yl, yh = (0.0 - boxsize / 2.0, 0.0 + boxsize / 2.0 + pixscale)
+    x, y = (np.arange(xl, xh, pixscale), np.arange(yl, yh, pixscale))
+    xgrid, ygrid = np.meshgrid(x, y)
+    
+    fiber_psf = np.zeros_like(xgrid)
+    r = np.sqrt( xgrid**2 + ygrid**2)
+    sel_r = r <= 0.75
+    fiber_psf[sel_r] = 1
+
     mask = image_data == 0
 
     sky = np.median(image_data[~mask])
     mean, median, stddev = sigma_clipped_stats(hdu[0].data[~mask], sigma=2, maxiters=5)
     masked_data = hdu[0].data
     masked_data = np.ma.masked_where((masked_data - mean) < 3 * stddev, masked_data)
+
+    error = np.sqrt( hdu[1].data**2 + stddev**2)
+
+    # create moffat model for both point source model and core+exp model
+
+    moffat_model_desc = pyimfit.SimpleModelDescription()
+    
+    moffat_model_desc.x0.setValue(xcen, [xcen-dx,xcen+dx])
+    moffat_model_desc.y0.setValue(ycen, [ycen-dy,ycen+dx])
+    
+    moffatmodel = pyimfit.make_imfit_function("Moffat")
+    
+    moffatmodel.PA.setValue(0, fixed=True)
+    moffatmodel.ell.setValue(0, fixed=True)
+    moffatmodel.fwhm.setValue( fwhm/pixscale, fixed=True)
+    moffatmodel.beta.setValue( 3.5, fixed=True)
+    moffatmodel.I_0.setValue(10, [0.001, 10000])
+    moffat_model_desc.addFunction(moffatmodel)
+    
+    # fit line flux map to moffat first to fix intensity for core component in exp model
+
+    imfit_fitter_moffat = pyimfit.Imfit(moffat_model_desc, psf=fiber_psf)
+    imfit_fitter_moffat.fit( image_data, mask=mask, error=error)
+    chi2_moffat = imfit_fitter_moffat.reducedFitStatistic
+
+    # get moffat intensity level
+    moffat_I0 = imfit_fitter_moffat.getRawParameters()[4]
+    #moffatmodel.I_0.setValue(moffat_I0, fixed=True)
 
     model_desc = pyimfit.SimpleModelDescription()
 
@@ -251,52 +295,34 @@ def do_pyimfit(
     expmodel = pyimfit.make_imfit_function("Exponential")
     # set initial values, lower and upper limits for central surface brightness I_0, scale length h;
     # specify that ellipticity is to remain fixed
-    expmodel.I_0.setValue(10, [0, 1000])
+    expmodel.I_0.setValue(10, [0, 10000])
     expmodel.h.setValue(10, [0, 100])
     expmodel.PA.setValue(40, [0, 180])
     expmodel.ell.setValue(0.5, [0, 1])
 
+    model_desc.addFunction(moffatmodel)
     model_desc.addFunction(expmodel)
 
-    imfit_fitter = pyimfit.Imfit(model_desc, psf=moffat_psf[0])
+    imfit_fitter = pyimfit.Imfit(model_desc, psf=fiber_psf)#moffat_psf[0])
 
-    imfit_fitter.fit(image_data, mask=mask, error=hdu[1].data)
+    imfit_fitter.fit(image_data, mask=mask, error=error)
     chi2 = imfit_fitter.reducedFitStatistic
 
     fit_params = imfit_fitter.getRawParameters()
 
     exp_x0 = fit_params[0]
     exp_y0 = fit_params[1]
-    exp_PA = fit_params[2]
-    exp_ell = fit_params[3]
-    exp_I_0 = fit_params[4]
-    exp_h = fit_params[5]
+    exp_PA = fit_params[7]
+    exp_ell = fit_params[8]
+    exp_I_0 = fit_params[9] #fit_params[4]
+    exp_h = fit_params[10] #fit_params[5]
 
-    moffat_model_desc = pyimfit.SimpleModelDescription()
-
-    moffat_model_desc.x0.setValue(xcen, [xcen - dx, xcen + dx])
-    moffat_model_desc.y0.setValue(ycen, [ycen - dy, ycen + dx])
-
-    # create an Exponential image function, then define the parameter initial values and limits
-    moffatmodel = pyimfit.make_imfit_function("Moffat")
-    # set initial values, lower and upper limits for central surface brightness I_0, scale length h;
-    # specify that ellipticity is to remain fixed
-    moffatmodel.PA.setValue(0, fixed=True)
-    moffatmodel.ell.setValue(0, fixed=True)
-    moffatmodel.fwhm.setValue(fwhm / pixscale, fixed=True)
-    moffatmodel.beta.setValue(3.5, fixed=True)
-    moffatmodel.I_0.setValue(10, [0.001, 10000])
-    moffat_model_desc.addFunction(moffatmodel)
-
-    imfit_fitter_moffat = pyimfit.Imfit(moffat_model_desc)
-    imfit_fitter_moffat.fit(image_data, mask=mask, error=hdu[1].data)
-    chi2_moffat = imfit_fitter_moffat.reducedFitStatistic
-
-    fit_params_moffat = imfit_fitter_moffat.getRawParameters()
-
-    moffat_x0 = fit_params_moffat[0]
-    moffat_y0 = fit_params_moffat[1]
-
+    if False:# not working on stampede2
+        parameterNames, bootstrapResults = imfit_fitter.runBootstrap(10, getColumnNames=True)
+        exp_h_err = np.std(bootstrapResults[:,5])
+    else:
+        exp_h_err = 0
+        
     r_n = (
         exp_h
         * pixscale
@@ -304,10 +330,6 @@ def do_pyimfit(
         * u.arcmin
         * cosmo.kpc_proper_per_arcmin(redshift)
     ).value
-
-    output = np.append(r_n, chi2)
-    output = np.append(output, chi2_moffat)
-    output = np.append(output, fit_params)
 
     model_im = imfit_fitter.getModelImage()
     moffat_im = imfit_fitter_moffat.getModelImage()
@@ -318,8 +340,16 @@ def do_pyimfit(
     sb_model_im = []
     sb_moffat_im = []
 
+    r_n_err = (
+        exp_h_err
+        * pixscale
+        * u.arcsec.to(u.arcmin)
+        * u.arcmin
+        * cosmo.kpc_proper_per_arcmin(redshift)
+    ).value
+
     r_in_array = np.arange(1, xcen, dr)
-    r_in_array = np.logspace(-3, np.log10(xcen))
+    r_in_array = np.logspace(-3, np.log10(2*xcen))
     for r_in in r_in_array:
 
         if star:
@@ -328,12 +358,12 @@ def do_pyimfit(
         else:
             a_in = r_in
             a_out = r_in + dr
-            b_out = a_out * (1 - exp_ell ** 2)
+            b_out = a_out * (1 - exp_ell)
 
             aper = EllipticalAnnulus((exp_x0, exp_y0), a_in, a_out, b_out, theta=exp_PA)
 
         phot_table = aperture_photometry(
-            image_data, aper, mask=mask, error=hdu[1].data + stddev
+            image_data, aper, mask=mask, error=error,
         )
 
         sb.append(phot_table["aperture_sum"][0] / aper.area)
@@ -351,6 +381,64 @@ def do_pyimfit(
     sb_model_im = 10 ** -17 * np.array(sb_model_im) / (pixscale ** 2)
     sb_moffat_im = 10 ** -17 * np.array(sb_moffat_im) / (pixscale ** 2)
 
+    #calculate lya_flux at r_n and r_ext. r_n must be non-zero
+    if star == False:
+        r_ext_pix = r_in_array[np.where(sb < (2*stddev*10**-17/pixscale**2) )[0][0]]
+        r_ext = r_ext_pix * pix_to_kpc
+        a_ext = r_ext_pix
+        b_ext = a_ext*(1-exp_ell)
+        aper_ext = EllipticalAperture( (exp_x0, exp_y0), a_ext, b_ext, theta=exp_PA)
+        phot_table_ext = aperture_photometry(image_data, aper_ext, mask=mask, error=error)
+
+        lum_dist = cosmo.luminosity_distance(redshift).to(u.cm)
+        
+        if r_n > 0:
+            a_rn = exp_h
+            b_rn = a_rn*(1-exp_ell)
+            aper_rn = EllipticalAperture( (exp_x0, exp_y0), a_rn, b_rn, theta=exp_PA)
+            phot_table_rn = aperture_photometry(image_data, aper_rn, mask=mask, error=error)        
+            flux_lya_rn = phot_table_rn['aperture_sum'][0]*10**-17 * u.erg/(u.cm**2 * u.s)
+            flux_lya_rn_err = phot_table_rn['aperture_sum_err'][0]*10**-17 * u.erg/(u.cm**2 * u.s)
+            lum_rn = flux_lya_rn*4.* np.pi*lum_dist**2
+            lum_rn_err = flux_lya_rn_err*4.* np.pi*lum_dist**2
+        else:
+            flux_lya_rn = 0.0 * u.erg/(u.cm**2 * u.s)
+            flux_lya_rn_err = 0.0 * u.erg/(u.cm**2 * u.s)
+            lum_rn = 0.0 * u.erg/(u.cm**2 * u.s)
+            lum_rn_err = 0.0 * u.erg/(u.cm**2 * u.s)
+            
+        flux_lya_ext = phot_table_ext['aperture_sum'][0]*10**-17 * u.erg/(u.cm**2 * u.s)
+        flux_lya_ext_err = phot_table_ext['aperture_sum_err'][0]*10**-17 * u.erg/(u.cm**2 * u.s)
+        lum_ext = flux_lya_ext*4.* np.pi*lum_dist**2
+        lum_ext_err = flux_lya_ext_err*4.* np.pi*lum_dist**2
+                            
+        outputs = np.array([r_ext,
+                            r_n,
+                            r_n_err,
+                            flux_lya_ext.value,
+                            flux_lya_ext_err.value,
+                            flux_lya_rn.value,
+                            flux_lya_rn_err.value,
+                            lum_rn.value,
+                            lum_rn_err.value,
+                            lum_ext.value,
+                            lum_ext_err.value,
+                            chi2,
+                            chi2_moffat,
+                            moffat_I0,
+                            exp_x0,
+                            exp_y0,
+                            exp_PA,
+                            exp_ell,
+                            exp_I_0,
+                            exp_h ])
+        np.save('pyimfit_output/params_{}'.format(name), outputs)
+
+
+    aper_circ_bkg = CircularAnnulus( (moffat_x0, moffat_y0), 10/pixscale, 12/pixscale)
+    phot_table_bkg = aperture_photometry(image_data, aper_circ_bkg, mask=mask, error=error)
+    sb_bkg = phot_table_bkg['aperture_sum']/aper_circ_bkg.area
+   
     plt.style.use("default")
     plt.rcParams["axes.linewidth"] = 2
     plt.rcParams.update({"font.size": 12})
@@ -380,6 +468,7 @@ def do_pyimfit(
             amp,
         ),
         fontsize=16,
+        y=0.94,
     )
 
     # Get Image data from Elixer
@@ -438,8 +527,13 @@ def do_pyimfit(
     lat.set_axislabel("Dec", minpad=-0.2)
     lon.set_ticklabel(exclude_overlapping=True)
 
-    # aper.plot(color='white', linestyle='dashed', linewidth=4, transform=ax4.get_transform(w))
-
+    if star:
+        aper_circ_bkg.plot(color='white', linestyle='dashed', linewidth=1, transform=ax4.get_transform(w))
+    else:
+        if r_n > 0:
+            aper_rn.plot(color='white', linestyle='dashed', linewidth=1, transform=ax4.get_transform(w))
+        aper_ext.plot(color='white', linestyle='dashed', linewidth=2, transform=ax4.get_transform(w))
+                                                        
     ax3 = fig.add_subplot(gs[1, :])
     plt.plot(
         spec_table["wavelength"][0],
@@ -468,8 +562,7 @@ def do_pyimfit(
 
     plt.axvspan(wave_range_obj[0], wave_range_obj[1], color="orange", alpha=0.4)
 
-    ax5 = fig.add_subplot(gs[0, 1:])
-
+    ax5 = fig.add_subplot(gs[0,1])
     if star:
         plt.errorbar(
             r_in_array * pixscale,
@@ -485,7 +578,7 @@ def do_pyimfit(
                 r_in_array * pixscale,
                 sb_model_im,
                 color="tab:red",
-                label="Exp Model ($\chi2$={:3.2f})".format(chi2),
+                label="Core+Exp Model ($\chi2$={:3.2f})".format(chi2),
             )
 
         plt.plot(
@@ -502,11 +595,9 @@ def do_pyimfit(
             ),
             linestyle="dashed",
             color="tab:green",
-            label="Extract Moffat PSF (FWHM:{:3.2f})".format(fwhm),
+            label="Moffat PSF (FWHM:{:3.2f})".format(fwhm),
         )
-        plt.yscale("log")
         plt.xlim(0, 15)
-        # plt.ylim(10**-19,10**-14)
         plt.xlabel("Semi-major axis (arcsec)")
     else:
         plt.errorbar(
@@ -522,7 +613,7 @@ def do_pyimfit(
         plt.plot(
             r_in_array * pix_to_kpc,
             sb_model_im,
-            label="Exp Model ($\chi2$={:3.2f})".format(chi2),
+            label="Core + Exp Model ($\chi2$={:3.2f})".format(chi2),
             color="r",
         )
 
@@ -542,25 +633,22 @@ def do_pyimfit(
             ),
             linestyle="dashed",
             color="tab:green",
-            label="Extract Moffat PSF (FWHM:{:3.2f})".format(fwhm),
+            label="Moffat PSF (FWHM:{:3.2f})".format(fwhm),
         )
-        plt.xlim(0, 50)
+        plt.xlim(0, 100)
         plt.xlabel("Semi-major axis (kpc)")
         plt.text(
-            0.6,
+            0.5,
             0.6,
             "r_n={:3.2f} kpc".format(r_n),
             transform=ax5.transAxes,
-            fontsize=16,
+            fontsize=12,
         )
+        plt.text(0.5,0.5, 'r_ext={:3.2f} kpc'.format(r_ext), transform = ax5.transAxes, fontsize=12)
         secax = ax5.secondary_xaxis("top", functions=(kpc_to_arcsec, kpc_to_arcsec))
         secax.set_xlabel("Semi-major axis (arcsec)")
-        plt.axvline(x=r_n, color="orange", linestyle="dashed")
-
-    if plot_log:
-        plt.yscale("log")
-        plt.ylim(10 ** -19, 10 ** -14)
-
+        plt.axvline(x=r_n, color='orange', linestyle='dotted')
+        plt.axvline(x=r_ext, color='orange', linestyle='dashed')
     plt.text(
         0.05,
         0.85,
@@ -570,7 +658,57 @@ def do_pyimfit(
         color="black",
     )
     plt.ylabel(r"SB (erg/s/cm$^2$/arcsec$^2$")
-    plt.legend(markerscale=1, fontsize=12, labelspacing=0.4)
+    plt.legend(markerscale=1, fontsize=10, labelspacing=0.4, loc='upper right')
+
+
+    ax5b = fig.add_subplot(gs[0,2])
+    
+    if star:
+        plt.errorbar(r_in_array*pixscale, sb, yerr=sb_error, label='data',
+                     linestyle="none", color='tab:blue', marker="o")
+        if plot_both_models:
+            plt.plot(r_in_array*pixscale, sb_model_im, color='tab:red', label='Exp Model ($\chi2$={:3.2f})'.format(chi2))
+            
+        plt.plot(r_in_array*pixscale, sb_moffat_im,
+                 label='Moffat Model ($\chi2$={:3.2f})'.format(chi2_moffat),
+                 color='tab:orange')
+        plt.plot(np.arange(psf_xcen)*pixscale, np.max(sb)*(moffat_psf[0, psf_xcen:-1,psf_ycen]/moffat_psf[0,psf_xcen,psf_ycen]),
+                 linestyle='dashed', color='tab:green', label='Moffat PSF (FWHM:{:3.2f})'.format(fwhm))
+        plt.xlim(0,15)
+        plt.xlabel('Semi-major axis (arcsec)')
+        plt.axhline(y=(stddev/pixscale**2)*10**-17, color='grey', linestyle='dashed')
+    else:
+        plt.errorbar(r_in_array*pix_to_kpc, sb, yerr=sb_error, label='data',
+                     linestyle="none", color='tab:blue', marker="o")
+    
+        plt.plot(r_in_array*pix_to_kpc, sb_model_im, label='Exp Model ($\chi2$={:3.2f})'.format(chi2), color='r')
+        
+        if plot_both_models:
+            plt.plot(r_in_array*pix_to_kpc, sb_moffat_im,
+                     label='Moffat Model ($\chi2$={:3.2f})'.format(chi2_moffat),
+                     color='tab:orange')
+            
+        plt.plot(pix_to_kpc*np.arange(psf_xcen), np.max(sb)*(moffat_psf[0, psf_xcen:-1,psf_ycen]/moffat_psf[0,psf_xcen,psf_ycen]),
+                 linestyle='dashed', color='tab:green', label='Moffat PSF (FWHM:{:3.2f})'.format(fwhm))
+        plt.xlim(0,100)
+        plt.xlabel('Semi-major axis (kpc)')
+        plt.text(0.5,0.6, 'r_n={:3.2f} kpc'.format(r_n), transform = ax5b.transAxes, fontsize=12)
+        secax = ax5b.secondary_xaxis('top', functions=(kpc_to_arcsec, kpc_to_arcsec))
+        secax.set_xlabel('Semi-major axis (arcsec)')
+        plt.axvline(x=r_n, color='orange', linestyle='dotted')
+        plt.axvline(x=r_ext, color='orange', linestyle='dashed')
+        plt.axhline(y=(stddev/pixscale**2)*10**-17, color='grey', linestyle='dashed')
+        plt.text(0.05, 0.85, '{}'.format(name), transform=ax3.transAxes, fontsize=14, color='black')
+        plt.ylabel(r'SB (erg/s/cm$^2$/arcsec$^2$')
+        #plt.legend(markerscale=1, fontsize=10, labelspacing=0.4)
+        
+    plt.yscale('log')
+    if star:
+        xmin, xmax, ymin, ymax = plt.axis()
+        plt.ylim(10**-18, ymax)
+    else:
+        xmin, xmax, ymin, ymax = plt.axis()
+        plt.ylim(10**-20, ymax)
 
     zscale = ZScaleInterval(contrast=0.5, krej=1.5)
     vmin, vmax = zscale.get_limits(values=image_data)
@@ -604,7 +742,7 @@ def do_pyimfit(
         plt.text(
             0.5,
             0.9,
-            r"Exponential Model",
+            r"Core + Exp Model",
             transform=ax7.transAxes,
             fontsize=16,
             ha="center",
@@ -629,9 +767,6 @@ def do_pyimfit(
         )
     else:
         plt.savefig("pyimfit_figs/{}.png".format(name), dpi=150, bbox_inches="tight")
-
-    if star == False:
-        np.save("pyimfit_output/params_{}".format(name), output)
 
     return
 
