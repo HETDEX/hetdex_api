@@ -63,10 +63,7 @@ class HDRconfig:
             )
         except:
             pass
-        if survey == 'hdr2.1':
-            self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
-        elif survey == 'hdr3':
-            self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer_hdr3_emis_cat.h5")
+        self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
         self.imaging_dir = op.join(self.host_dir, "imaging")
         self.contsourceh5 = op.join(
             self.hdr_dir[survey], "detect", "continuum_sources.h5"
