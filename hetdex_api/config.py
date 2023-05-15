@@ -105,7 +105,7 @@ class HDRconfig:
             self.badamp = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
 
-        if survey in ["hdr2.1",'hdr3']:
+        if survey in ["hdr2.1",'hdr3', 'hdr4']:
             if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
             elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)):
