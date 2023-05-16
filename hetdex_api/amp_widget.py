@@ -25,6 +25,7 @@ try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
+    CONFIG_HDR4 = HDRconfig('hdr4')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -59,7 +60,7 @@ class AmpWidget:
         self.detfile = None
         
         self.survey_widget = widgets.Dropdown(
-                        options=["HDR1","HDR2.1", "HDR3"],
+                        options=["HDR1","HDR2.1", "HDR3", "HDR4"],
                         value=self.survey.upper(),
                         layout=Layout(width="10%"),
                     )
@@ -81,7 +82,7 @@ class AmpWidget:
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
-            max=4000000000,
+            max=5000000000,
             step=1,
             description="DetectID:",
             disabled=False,
