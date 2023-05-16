@@ -25,7 +25,7 @@ from hetdex_api.config import HDRconfig
 # hard coded variable to initialize 'rms', 'chi' arrays
 # and remove 'twi_spectrum' for all realeases past hdr1
 global hdr_survey
-hdr_survey = "hdr3"
+hdr_survey = "hdr4"
 
 def build_path(reduction_folder, instr, date, obsid, expn):
     folder = op.join(
@@ -483,7 +483,7 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""", type=str, default="hdr3"
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""", type=str, default="hdr4"
     )
 
     parser.add_argument(
