@@ -120,8 +120,8 @@ def main(argv=None):
                         default='/scratch/03946/hetdex/detect')
     
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1, hdr3}""",
-                        type=str, default="hdr3")
+                        help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
+                        type=str, default="hdr4")
     
     
     args = parser.parse_args(argv)
