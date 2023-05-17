@@ -96,7 +96,7 @@ class Detections:
             This is quite slow on the full database so is only recommended when using
             curated_version option.
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", 'hdr4']
         catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
@@ -118,6 +118,8 @@ class Detections:
             if curated_version[0] == "3":
                 # for now I'm assuming we don't have to do hdr3.0
                 self.survey = "hdr3"
+            elif curated_version[0] == "4":
+                self.survey = "hdr4"
             else:
                 self.survey = "hdr" + curated_version[0:3]
         else:
