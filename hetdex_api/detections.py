@@ -953,7 +953,7 @@ class Detections:
         else:
             if verbose:
                 print("Returning updated Detections table row")
-            if self.catalog_type == "lines":
+            if (self.catalog_type == "lines") & (self.survey == 'hdr3'):
                 if verbose:
                     print("Adjusting noise values by 7% where applicable")
                 # adjust noise at IFU edges by factor of 1.07. This will affect the
