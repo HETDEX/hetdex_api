@@ -82,7 +82,7 @@ class HDRconfig:
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr1"
             else:
                 self.bad_dir = "/work/05350/ecooper/hdr1/HETDEX_API/known_issues/hdr1"
-
+            self.badfib = op.join(self.bad_dir, "badfib.tab")
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
