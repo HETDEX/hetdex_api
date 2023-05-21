@@ -33,6 +33,7 @@ from astropy.io import ascii
 import pickle
 import speclite.filters
 
+from hetdex_api.shot import Fibers, get_fibers_table
 from hetdex_api.survey import Survey
 from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
@@ -96,7 +97,7 @@ class Detections:
             This is quite slow on the full database so is only recommended when using
             curated_version option.
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", 'hdr4']
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4"]
         catalog_type_options = ["lines", "continuum", "broad"]
 
         if survey.lower() not in survey_options:
@@ -126,6 +127,12 @@ class Detections:
             self.version = None
             self.survey = survey
             self.loadtable = loadtable
+
+        # create attributes to store masking catalogs for get_detection_flags later
+        self.badamps = None
+        self.badpix = None
+        self.galaxy_cat = None
+        self.badfib = None
 
         self.config = HDRconfig(survey=self.survey)
 
@@ -727,7 +734,7 @@ class Detections:
 
             del det_table, join_tab
 
-            if self.recentbadamp:# This is really slow on the full catalog.
+            if self.recentbadamp:  # This is really slow on the full catalog.
                 print("Adding in newly found badamps")
                 # add in any newly found badamps that haven't made it into the
                 # amp_flag.fits file yet
@@ -953,7 +960,7 @@ class Detections:
         else:
             if verbose:
                 print("Returning updated Detections table row")
-            if (self.catalog_type == "lines") & (self.survey == 'hdr3'):
+            if (self.catalog_type == "lines") & (self.survey == "hdr3"):
                 if verbose:
                     print("Adjusting noise values by 7% where applicable")
                 # adjust noise at IFU edges by factor of 1.07. This will affect the
@@ -1366,3 +1373,131 @@ class Detections:
 
     def close(self):
         self.hdfile.close()
+
+    def get_detection_flags(self, detectid, F=None):
+        """
+        Parameters
+        ----------
+        detectid int
+
+        F: Fibers class object
+        Optional to pass through the Fibers class so that it does not have to be reopen for each detectid
+        
+        Returns
+        -------
+        flag diction
+        keys are flag_pixmask, flag_badamp, flag_badpix, flag_badfib, flag_meteor, flag_largegal, flag_chi2fib
+        1 if good, 0 if flagged bad
+        """
+
+        # close Fiber class object at end if not passed in
+        closeF = False
+        
+        if F is None:
+            closeF = True
+
+        flag_dict = {'flag_badamp': 1,
+                     'flag_badpix': 1,
+                     'flag_badfib': 1,
+                     'flag_pixmask': 1,
+                     'flag_meteor': 1,
+                     'flag_largegal': 1,
+                     'flag_chi2fib': 1}
+
+        det_info = self.get_detection_info(detectid)[0]
+        det_fib_info = self.get_fiber_info(detectid)
+        det_coords = self.get_coord(detectid)
+        shotid = det_info["shotid"]
+
+        # find detection wavelength index
+        wave = det_info["wave"]
+        #wave_i = np.argmin(np.abs(wave_rect - wave))
+
+        if self.galaxy_cat is None:
+            self.galaxy_cat = Table.read(self.config.rc3cat, format="ascii")
+
+        flag_dict['flag_largegal'] = int(gal_flag_from_coords(det_coords, self.galaxy_cat) == False)
+        flag_dict['flag_meteor'] = int(meteor_flag_from_coords(det_coords, shotid=shotid))
+
+        if F is None:
+            F = Fibers(shotid, survey=self.survey)
+
+        # grab fibers table to get calfibe info
+        fibers_table = get_fibers_table(shotid, coords=det_coords, F=F)
+
+        ifiber = det_fib_info["weight"].argsort()[::-1]
+
+        # store list of 3 highest weight fibers and their fiber info
+        fiberids = det_fib_info[ifiber]["fiber_id"][0:3]
+        mfs = det_fib_info[ifiber]["multiframe"][0:3]
+        xs = det_fib_info[ifiber]["x_raw"][0:3]
+        ys = det_fib_info[ifiber]["y_raw"][0:3]
+        fibnums = det_fib_info[ifiber]["fibnum"][0:3]
+
+        # check for flag_badamp
+        if self.badamps is None:
+            self.badamps = Table.read(self.config.badamp)
+
+        for mf in np.unique(mfs):
+            sel_row = (self.badamps["multiframe"] == mf) & (
+                self.badamps["shotid"] == shotid
+            )
+            if np.any(self.badamps["flag"][sel_row] == 0):
+                flag_badamp = 0
+
+        # check for flag_badpix and flag_badfib
+        if self.badpix is None:
+            self.badpix = Table.read(
+                self.config.badpix,
+                format="ascii",
+                names=["multiframe", "x1", "x2", "y1", "y2"],
+            )
+
+        if self.badfib is None:
+            self.badfib = Table.read(self.config.badfib, format="ascii")
+
+        for i in np.arange(0, 2):
+            sel_mf = self.badpix["multiframe"] == mfs[i]
+            sel_x = (xs[i] >= self.badpix["x1"]) & (xs[i] <= self.badpix["x2"])
+            sel_y = (ys[i] >= self.badpix["y1"]) & (ys[i] <= self.badpix["y2"])
+            sel_badpix = sel_mf & sel_x & sel_y
+
+            if np.sum(sel_badpix) > 0:
+                flag_dict['flag_badpix'] = 0
+
+            sel_fib = (self.badfib["multiframe"] == mf[i]) & ( self.badfib["fibnum"] == fibnums[i])
+
+            if np.sum(sel_fib) > 0:
+                flag_dict['flag_badfib'] = 0
+
+        # flag detection if any 3 spectral resolution elements are masked
+
+        chi2fib = np.ndarray((3,3))
+
+        for i, fib_i in enumerate(fiberids):
+
+            sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
+            # access native wavelength and spectrum
+            wavelength = fibers_table["wavelength"][sel_fib][0]
+            spectrum = fibers_table["spectrum"][sel_fib][0]
+            chi2 = fibers_table["chi2"][sel_fib][0]
+            # error1D = fibers_table['error1D'][sel_fib][0]
+
+            wave_io = np.argmin(np.abs(wavelength - wave))
+
+            if np.any(spectrum[wave_io - 1 : wave_io + 2] == 0.0):
+                flag_dict['flag_pixmask'] = 0
+
+            selwave = np.abs(wavelength - wave) < 5
+            if np.sum(selwave)>0:
+                chi2fib[i] = np.max(chi2[np.where(selwave)])
+
+        flag_dict['chi2fib'] = chi2fib
+            
+        if np.max(chi2fib) >= 4.5:
+            flag_dict['flag_chi2fib'] = 0
+
+        if closeF:
+            F.close()
+            
+        return flag_dict
