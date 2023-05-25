@@ -1428,8 +1428,8 @@ class Detections:
         ifiber = det_fib_info["weight"].argsort()[::-1]
 
         # store list of 3 highest weight fibers and their fiber info
-        fiberids = det_fib_info[ifiber]["fiber_id"][0:3]
-        mfs = det_fib_info[ifiber]["multiframe"][0:3]
+        fiberids = det_fib_info[ifiber]["fiber_id"][0:3].astype(str)
+        mfs = det_fib_info[ifiber]["multiframe"][0:3].astype(str)
         xs = det_fib_info[ifiber]["x_raw"][0:3]
         ys = det_fib_info[ifiber]["y_raw"][0:3]
         fibnums = det_fib_info[ifiber]["fibnum"][0:3]
@@ -1439,11 +1439,13 @@ class Detections:
             self.badamps = Table.read(self.config.badamp)
 
         for mf in np.unique(mfs):
+
             sel_row = (self.badamps["multiframe"] == mf) & (
                 self.badamps["shotid"] == shotid
             )
+
             if np.any(self.badamps["flag"][sel_row] == 0):
-                flag_badamp = 0
+                flag_dict['flag_badamp'] = 0
 
         # check for flag_badpix and flag_badfib
         if self.badpix is None:
@@ -1465,8 +1467,8 @@ class Detections:
             if np.sum(sel_badpix) > 0:
                 flag_dict['flag_badpix'] = 0
 
-            sel_fib = (self.badfib["multiframe"] == mf[i]) & ( self.badfib["fibnum"] == fibnums[i])
-
+            sel_fib = (self.badfib["multiframe"] == mfs[i]) & ( self.badfib["fibnum"] == fibnums[i])
+            
             if np.sum(sel_fib) > 0:
                 flag_dict['flag_badfib'] = 0
 
