@@ -251,9 +251,9 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
         type=str,
-        default="hdr3"
+        default="hdr4"
     )
 
     args = parser.parse_args(argv)
@@ -274,19 +274,19 @@ def main(argv=None):
     # does not already exist.
     
     if args.append:
-        fileh = tb.open_file(args.outfilename, "a", "HDR3 Detections Database")
+        fileh = tb.open_file(args.outfilename, "a", "{} Detections Database".format(args.survey.upper()))
         detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
     else:
 
         if args.broad:
-            fileh = tb.open_file(outfilename, "w", "HDR3 Broad Detections Database")
-            index_buff = 3960000000
+            fileh = tb.open_file(outfilename, "w", "{} Broad Detections Database".format(args.survey.upper()))
+            index_buff = 4960000000
 #        elif args.continuum: (doing continuum separately for HDR3)
 #            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
-            fileh = tb.open_file(outfilename, "w", "HDR3 Detections Database")
-            index_buff = 3000000000
+            fileh = tb.open_file(outfilename, "w", "{} Detections Database".format(args.survey.upper()))
+            index_buff = 4000000000# + 13843050 + 1 # this is assuming we'll merge in hdr3/detect_hdr3.h5
 
         detectidx = index_buff
 
@@ -404,7 +404,7 @@ def main(argv=None):
                 "1D Spectra for each Line Detection"
             )
 
-        amp_stats = Table.read(config.badamp)
+        #amp_stats = Table.read(config.badamp)
    
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
@@ -414,11 +414,11 @@ def main(argv=None):
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
-            amp_stats = amp_stats[amp_stats['shotid'] == shotid]
+            #amp_stats = amp_stats[amp_stats['shotid'] == shotid]
         elif args.month:
             mcres_str = str(args.month) + "*mc"
             amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
-            amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
+            #amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
         elif args.ifu:
             mcres_str = "*" + args.ifu + ".mc"
         else:
@@ -465,15 +465,15 @@ def main(argv=None):
                 selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
                 selSN = (detectcatall['sn'] > 4.5)
-                selLW = (detectcatall['linewidth'] > 1.7)
+#                selLW = (detectcatall['linewidth'] > 1.7)
 #                selchi2 = (detectcatall['chi2'] <= 5)
 #                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
 #                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
-                selchi2fib = (detectcatall['chi2fib'] < 5)
-                selcat = selSN * selLW * selchi2fib
+#                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN #* selLW * selchi2fib
             # removing down selection 2021-11-18
-            
-            detectcat = detectcatall  #[selcat]
+
+            detectcat = detectcatall[selcat]
 
             nsel_file = np.sum(selcat)
 
@@ -529,22 +529,22 @@ def main(argv=None):
 
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
-
-                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
-                    if (row['wave'] > 3540) and (row['wave'] < 3560):
-                        continue
-
-                if multiframe in ['multi_032_094_028_RU']:
-                    if (row['wave'] > 3530) and (row['wave'] < 3545):
-                        continue
+# taking this out for HDR4
+#                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
+#                    if (row['wave'] > 3540) and (row['wave'] < 3560):
+#                        continue
+#
+#                if multiframe in ['multi_032_094_028_RU']:
+#                    if (row['wave'] > 3530) and (row['wave'] < 3545):
+#                        continue
                 
-                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                ampflag = bool(amp_stats['flag'][selamp])
-               
-                if np.size(ampflag) == 0:
-                    args.log.error('No ampflag for '
-                                   + str(rowMain['shotid'])
-                                   + ' ' + multiframe)
+#                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+#                ampflag = bool(amp_stats['flag'][selamp])
+#               
+#                if np.size(ampflag) == 0:
+#                    args.log.error('No ampflag for '
+#                                   + str(rowMain['shotid'])
+#                                   + ' ' + multiframe)
                 # no longer removing bad amps
 #                if ampflag == False:
 #                    continue
