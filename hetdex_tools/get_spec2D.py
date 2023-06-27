@@ -131,9 +131,11 @@ def get_2Dimage_array(detectid_obj, detects, fibers, width=100, height=50):
 
 
 def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
+
     fiber_table = Table(
         detects.hdfile.root.Fibers.read_where("detectid == detectid_obj")
     )
+
     maxfib = np.argmax(fiber_table["weight"])
     wave_obj = fiber_table["wavein"][maxfib]
     multiframe_obj = fiber_table["multiframe"][maxfib]
@@ -404,7 +406,7 @@ def main(argv=None):
             # add data to HDF5 file
             row = fibim2D_table.row
             row["detectid"] = detectid_i
-            sel = detects.detectid == detectid_i
+            #sel = detects.detectid == detectid_i
 
             try:
                 row["im_wave"] = get_2Dimage_wave(detectid_i,
