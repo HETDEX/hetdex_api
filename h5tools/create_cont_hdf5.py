@@ -145,6 +145,12 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
 
     parser.add_argument(
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
+        type=str,
+        default="hdr4"
+    )
+
+    parser.add_argument(
         "-m", "--month", help="""Month to run: 201901""", type=str, default=None
     )
 
@@ -202,7 +208,7 @@ def main(argv=None):
         "--shotlist",
         help="""Text file of DATE OBS list""",
         type=str,
-        default="/scratch/03946/hetdex/hdr3/survey/hdr3.shotlist",
+        default="/scratch/03946/hetdex/hdr4/survey/hdr4.shotlist",
     )
 
     parser.add_argument(
@@ -235,13 +241,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    index_buff = 3090000000
+    index_buff = 4090000000 + 297876 + 1
     detectidx = index_buff
     
     if args.merge:
         n_size = 300000
         
-        fileh = tb.open_file(args.outfilename, "w", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(args.outfilename, "w", "{} Continuum Source Database".format(args.survey.upper()))
 
         tableMain = fileh.create_table(
             fileh.root,
@@ -371,13 +377,13 @@ def main(argv=None):
     detectcat["col8"].name = "datevshot"
 
     if args.append:
-        fileh = tb.open_file(outfilename, "a", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(outfilename, "a", "{} Continuum Source Database".format(args.survey.upper()))
         tableMain = fileh.root.Detections
         tableSpectra = fileh.root.Spectra
         tableFibers = fileh.root.Fibers
 
     else:
-        fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(outfilename, "w", "{} Continuum Source Database".format(args.survey.upper()))
         
         tableMain = fileh.create_table(
             fileh.root,
@@ -592,14 +598,15 @@ def main(argv=None):
     fileh.close()
 
     # remove untarred files
+    # this was very slow so removed for HDR4. Just remove manually after
 
-    tarfiles = glob.glob('./spec/{}*'.format(datevobs))
-
-    for f in tarfiles:
-        try:
-            os.remove(f)
-        except OSError as e:
-            print("Error: %s : %s" % (f, e.strerror))
+    #tarfiles = glob.glob('./spec/{}*'.format(datevobs))
+    #
+    #for f in tarfiles:
+    #    try:
+    #        os.remove(f)
+    #    except OSError as e:
+    #        print("Error: %s : %s" % (f, e.strerror))
                          
 if __name__ == "__main__":
     main()
