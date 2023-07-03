@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 install_requires = ['numpy', 'astropy>=4.3', 'astroquery',
-                    'scipy>=1.4', 'regions','photutils',
+                    'scipy>=1.4', 'regions','photutils', 'tables', 'speclite',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
@@ -15,7 +15,7 @@ setup(
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
-    download_url='https://github.com/HETDEX/hetdex_api/archive/0.8.2.tar.gz',
+    download_url='https://github.com/HETDEX/hetdex_api/archive/0.9.tar.gz',
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
