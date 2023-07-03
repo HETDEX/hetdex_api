@@ -14,8 +14,8 @@ class HDRconfig:
         # Check stampede2 first
         if op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
-        elif op.exists("/corral-repl/utexas/Hobby-Eberly-Teelsco"):
-            self.host_dir = "/corral-repl/utexas/Hobby-Eberly-Teelsco"
+        elif op.exists("/corral-repl/utexas/Hobby-Eberly-Telesco"):
+            self.host_dir = "/corral-repl/utexas/Hobby-Eberly-Telesco"
         elif op.exists("/home/jovyan/Hobby-Eberly-Telesco"):
             self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
         elif op.exists("/home/idies/workspace/HETDEX"):
