@@ -536,7 +536,7 @@ class Detections:
 
             tab_coords = SkyCoord(ra=seltab['ra']*u.deg, dec=seltab['dec']*u.deg)
             sep = tab_coords.separation(coord)
-            
+            seltab['separation'] = sep.arcsec
             maskcoords = sep < radius
 
             tab = seltab[maskcoords]
