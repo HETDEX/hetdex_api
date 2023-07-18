@@ -241,7 +241,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    index_buff = 4090000000 + 297876 + 1
+    index_buff = 4090000000 + 297876 + 1 # starting count post HDR3 detection indices 
     detectidx = index_buff
     
     if args.merge:
