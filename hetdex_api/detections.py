@@ -538,11 +538,13 @@ class Detections:
             sep = tab_coords.separation(coord)
             
             maskcoords = sep < radius
-                
+
+            tab = seltab[maskcoords]
+            tab.sort('detectid')
             if astropy:
-                return seltab[maskcoords]
+                return tab
             else:
-                return list( seltab['detectid'][ maskcoords])
+                return list( tab['detectid'])
                 
             
     def find_match(
