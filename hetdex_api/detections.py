@@ -19,13 +19,6 @@ import tables as tb
 import copy
 from scipy import interpolate
 
-np.warnings.filterwarnings("ignore")
-
-import matplotlib
-
-matplotlib.use("agg")
-import matplotlib.pyplot as plt
-
 from astropy.table import vstack, Table, Column, join
 import astropy.units as u
 from astropy.coordinates import SkyCoord
@@ -39,6 +32,8 @@ from hetdex_api.config import HDRconfig
 from hetdex_api.mask import *
 from hetdex_api.extinction import *
 import extinction
+
+import healpy as hp
 
 
 PYTHON_MAJOR_VERSION = sys.version_info[0]
@@ -98,7 +93,7 @@ class Detections:
             curated_version option.
         """
         survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4"]
-        catalog_type_options = ["lines", "continuum", "broad"]
+        catalog_type_options = ["lines", "continuum", "broad", 'index']
 
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -127,7 +122,7 @@ class Detections:
             self.version = None
             self.survey = survey
             self.loadtable = loadtable
-
+            self.searchable = searchable
         # create attributes to store masking catalogs for get_detection_flags later
         self.badamps = None
         self.badpix = None
@@ -154,6 +149,11 @@ class Detections:
                 self.filename = self.config.detectbroadh5
             except:
                 print("Could not locate broad line catalog")
+        elif catalog_type ==  'index':
+            if self.survey not in ['hdr4', 'hdr5','hdr6']:
+                print('The Detection Index file only exists beyond hdr3')
+            else:
+                self.filename = self.config.detectindexh5
 
         self.hdfile = tb.open_file(self.filename, mode="r")
 
@@ -418,11 +418,12 @@ class Detections:
                     )
 
         elif searchable:
+            
             # just get coordinates, wavelength and detectid
             self.detectid = self.hdfile.root.Detections.cols.detectid[:]
             self.ra = self.hdfile.root.Detections.cols.ra[:]
             self.dec = self.hdfile.root.Detections.cols.dec[:]
-            self.wave = self.hdfile.root.Detections.cols.wave[:]
+            self.waves = self.hdfile.root.Detections.cols.wave[:]
 
         # set the SkyCoords
         if searchable or loadtable:
@@ -474,24 +475,76 @@ class Detections:
 
         return self[mask]
 
-    def query_by_coords(self, coords, radius):
+    def query_by_coord(self, coord, radius=3.*u.arcsec, astropy=True):
         """
-        Returns mask based on a coordinate search
-        
-        self = Detections Class object   
-        coords - astropy coordinate object
-        radius - an astropy Quantity object, or a string 
-        that can be parsed into one.  e.g., '1 degree' 
-        or 1*u.degree. Will assume arcsec if no units given
-        
-        """
-        sep = self.coords.separation(coords)
-        try:
-            maskcoords = sep < radius
-        except:
-            maskcoords = sep.arcmin < radius
-        return maskcoords
+        Returns list of detecitds or astropy table object
+        based on a coordinate search
 
+        Paramters
+        ---------
+
+        self
+            Detections Class object. If catalog_type=='index', healpix
+            searching is done and is most efficient. Can also be
+            applied to other catalog_types with the searchable==True
+            or loadtable==True option set
+        coord - astropy coordinate object
+            only works for a single coordinate objects
+        radius
+           an astropy Quantity object
+        astropy bool
+           if True will return an astropy table of detection info
+           if False will return detectid list
+           
+        Returns
+        -------
+        Detectid or Table
+        """
+
+        if self.catalog_type in ['lines', 'broad', 'continuum']:
+            if self.loadtable:
+                sep = self.coords.separation(coord)
+                
+                maskcoords = sep < radius
+
+                if astropy:
+                    return self[maskcoords].return_astropy_table()
+                else:
+                    return self.detectid[ maskcoords]
+            else:
+                print('You must use loadtable==True for catolog_type=={}'.format(self.catalog_type))
+
+        elif self.catalog_type == 'index':
+            Nside = 2 ** 15
+            
+            ra_obj = coord.ra.deg
+            dec_obj = coord.dec.deg
+            
+            ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
+            
+            vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
+
+            pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
+            
+            seltab = Table()
+            
+            for hpix in pix_region:
+                tab = Table( self.hdfile.root.DetectIndex.read_where('healpix == hpix'))
+                seltab = vstack( [seltab, tab])
+
+            # query sub-table based on coordinates
+
+            tab_coords = SkyCoord(ra=seltab['ra']*u.deg, dec=seltab['dec']*u.deg)
+            sep = tab_coords.separation(coord)
+            
+            maskcoords = sep < radius
+                
+            if astropy:
+                return seltab[maskcoords]
+            else:
+                return list( seltab['detectid'][ maskcoords])
+                
+            
     def find_match(
         self, coord, radius=5.0 * u.arcsec, wave=None, dwave=5.0, shotid=None
     ):
@@ -1354,19 +1407,20 @@ class Detections:
             ascii.write(spec_data, "spec_" + str(detectid_i) + ".dat", overwrite=True)
 
     def plot_spectrum(self, detectid_i, xlim=None, ylim=None):
-        spec_data = self.get_spectrum(detectid_i)
-        plt.figure(figsize=(8, 6))
-        plt.errorbar(
-            spec_data["wave1d"], spec_data["spec1d"], yerr=spec_data["spec1d_err"]
-        )
-        plt.title("DetectID " + str(detectid_i))
-        plt.xlabel("wave (AA)")
-        plt.ylabel("flux (1e-17 erg/s/cm^2/AA)")
-        if xlim is not None:
-            plt.xlim(xlim)
-            if ylim is not None:
-                plt.ylim(ylim)
-        plt.show()
+        print('We have removed this code bit from the API for efficiency')
+#        spec_data = self.get_spectrum(detectid_i)
+#        plt.figure(figsize=(8, 6))
+#        plt.errorbar(
+#            spec_data["wave1d"], spec_data["spec1d"], yerr=spec_data["spec1d_err"]
+#        )
+#        plt.title("DetectID " + str(detectid_i))
+#        plt.xlabel("wave (AA)")
+#        plt.ylabel("flux (1e-17 erg/s/cm^2/AA)")
+#        if xlim is not None:
+#            plt.xlim(xlim)
+#            if ylim is not None:
+#                plt.ylim(ylim)
+#        plt.show()
 
     def __len__(self):
         return len(self.ra)
