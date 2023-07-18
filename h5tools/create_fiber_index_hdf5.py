@@ -66,7 +66,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/scratch/03946/hetdex/hdr3/reduction/data",
+        default="/scratch/03946/hetdex/hdr4/reduction/data",
     )
 
     parser.add_argument(
@@ -74,7 +74,7 @@ def main(argv=None):
         "--shotlist",
         help="""Text file of DATE OBS list""",
         type=str,
-        default="hdr3.shotlist",
+        default="hdr4.shotlist",
     )
 
     parser.add_argument(
@@ -86,7 +86,7 @@ def main(argv=None):
         default=None,
     )
 
-    parser.add_argument("-survey", "--survey", type=str, default="hdr3")
+    parser.add_argument("-survey", "--survey", type=str, default="hdr4")
 
     parser.add_argument(
         "-m",
