@@ -286,7 +286,7 @@ def main(argv=None):
 #            index_buff = 2190000000
         else:
             fileh = tb.open_file(outfilename, "w", "{} Detections Database".format(args.survey.upper()))
-            index_buff = 4000000000# + 13843050 + 1 # this is assuming we'll merge in hdr3/detect_hdr3.h5
+            index_buff = 4000000000 + 13843050 + 1 # this is so last 8 from HDR3 are not used in HDR4 trailing 8 digits
 
         detectidx = index_buff
 
