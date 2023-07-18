@@ -64,6 +64,9 @@ class HDRconfig:
             )
         except:
             pass
+        self.detectindexh5 = op.join(
+            self.hdr_dir[survey], "survey", "detect_index_" + survey + ".h5"
+        )
         self.elixerh5 = op.join(self.hdr_dir[survey], "detect", "elixer.h5")
         self.imaging_dir = op.join(self.host_dir, "imaging")
         self.contsourceh5 = op.join(
