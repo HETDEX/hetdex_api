@@ -520,7 +520,7 @@ class Detections:
             ra_obj = coord.ra.deg
             dec_obj = coord.dec.deg
             
-            ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
+            ra_sep = radius.to(u.degree).value + 6.0 / 3600.0
             
             vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
 
