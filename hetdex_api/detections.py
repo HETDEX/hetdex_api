@@ -506,7 +506,7 @@ class Detections:
                 sep = self.coords.separation(coord)
                 
                 maskcoords = sep < radius
-
+                
                 if astropy:
                     return self[maskcoords].return_astropy_table()
                 else:
@@ -541,11 +541,15 @@ class Detections:
 
             tab = seltab[maskcoords]
             tab.sort('detectid')
-            if astropy:
-                return tab
+
+            if len(tab) > 0:
+            
+                if astropy:
+                    return tab
+                else:
+                    return list( tab['detectid'])
             else:
-                return list( tab['detectid'])
-                
+                return None
             
     def find_match(
         self, coord, radius=5.0 * u.arcsec, wave=None, dwave=5.0, shotid=None
