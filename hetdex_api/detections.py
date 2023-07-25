@@ -1476,7 +1476,7 @@ class Detections:
         if self.galaxy_cat is None:
             self.galaxy_cat = Table.read(self.config.rc3cat, format="ascii")
 
-        flag_dict['flag_largegal'] = int(gal_flag_from_coords(det_coords, self.galaxy_cat) == False)
+        flag_dict['flag_largegal'] = int(gal_flag_from_coords(det_coords, self.galaxy_cat))
         flag_dict['flag_meteor'] = int(meteor_flag_from_coords(det_coords, shotid=shotid))
 
         if F is None:
