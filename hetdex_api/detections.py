@@ -450,7 +450,7 @@ class Detections:
                 setattr(p, attrname, getattr(self, attrname))
         return p
 
-    def refine(self, gmagcut=None, remove_large_gal=True, d25scale=3.0):
+    def refine(self, gmagcut=None, remove_large_gal=True, d25scale=1.5):
         """
         Masks out bad and bright detections 
         and returns a refined Detections class
@@ -955,7 +955,7 @@ class Detections:
                 mask[idx] = meteor_flag_from_coords(coord, row["shotid"])
         return mask
 
-    def remove_large_gal(self, d25scale=3.0):
+    def remove_large_gal(self, d25scale=1.5):
         """
         Returns boolean mask with detections landing within
         galaxy defined by d25scale flagged as False.
