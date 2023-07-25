@@ -300,7 +300,7 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     return w
 
 
-def gal_flag_from_coords(coords, galaxy_cat, d25scale=3., nmatches=1):
+def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5, nmatches=1):
     """
     Returns a boolean flag value to mask sources near large galaxies
     
@@ -315,7 +315,7 @@ def gal_flag_from_coords(coords, galaxy_cat, d25scale=3., nmatches=1):
         is catered for the RC3 catalog stored in config.rc3cat
     d25scale
         The scaling of ellipses.  1.0 means use the ellipse for D25.
-        Experimentation showed a value of 1.75 might be more appropriate
+        Experimentation shows value of 1.5 works well
     nmatches
         the closest nmatches are searched for.  nmatches = 1 means
         search the closest coordinate only.  nmatches = 3 is recommended
