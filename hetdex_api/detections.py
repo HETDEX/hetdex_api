@@ -1234,6 +1234,13 @@ class Detections:
                     if verbose:
                         print("Noise model adjustment not required")
 
+        elif self.survey == "hdr4":
+            if rawh5 is False:
+                if verbose:
+                    print("Applying spectral correction")
+                    data["spec1d"] /= self.wd_corr["corr"]
+                    data["spec1d_err"] /= self.wd_corr["corr"]
+
         if deredden:
             if verbose:
                 print("Applying dust correction to spectrum")
