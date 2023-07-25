@@ -300,7 +300,7 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     return w
 
 
-def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5, nmatches=1):
+def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5):
     """
     Returns a boolean flag value to mask sources near large galaxies
     
@@ -316,9 +316,6 @@ def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5, nmatches=1):
     d25scale
         The scaling of ellipses.  1.0 means use the ellipse for D25.
         Experimentation shows value of 1.5 works well
-    nmatches
-        the closest nmatches are searched for.  nmatches = 1 means
-        search the closest coordinate only.  nmatches = 3 is recommended
 
     Returns
     -------
@@ -332,17 +329,18 @@ def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5, nmatches=1):
    
     # calculate angular distances to all of the sources, and pick out the n closest ones
     d2d = coords.separation(gal_coords)
-    ind1 = np.argsort(d2d)  # sort from closest to farthest away
-    id_close = ind1[0:nmatches]
+
+    sel_rows = np.where(d2d < 1.*u.deg)[0]
 
     # create fake WCS for regions use
     mywcs = create_dummy_wcs(coords)
 
     flag = False
 
-    for idnum in id_close:
-        ellipse = create_gal_ellipse(galaxy_cat, row_index=idnum, d25scale=d25scale)
-        if ellipse.contains(coords, mywcs):
-            flag = True
+    if len(sel_rows) > 0:
+        for row_index in sel_rows:
+            ellipse = create_gal_ellipse(galaxy_cat, row_index=row_index, d25scale=d25scale)
+            if ellipse.contains(coords, mywcs):
+                flag = True
 
     return flag
