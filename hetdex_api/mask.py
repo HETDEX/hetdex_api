@@ -226,7 +226,7 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=12.*u.arcsec):
     return flag
 
 
-def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
+def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=1.5):
     """
     Similar to galmask.py/ellreg but can take a galaxy name as input.
 
@@ -244,7 +244,8 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
     pgcname: str
         the PGCNAME in the RC3 cat. This is a string. eg. "PGC 43255" for NGC 4707
     d25scale: float
-        how many times D25 should to scale the region
+        how many times D25 should to scale the region. Default is 1.5 based on
+        visual exploration
     """
     if row_index is not None:
         index = row_index
@@ -256,8 +257,8 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.):
     # The ellipse region uses the major and minor axes, so we have to multiply by
     # two first, before applying any user scaling.
     
-    major = (galaxy_cat['SemiMajorAxis'][index]) * d25scale * u.arcmin
-    minor = (galaxy_cat['SemiMinorAxis'][index]) * d25scale * u.arcmin
+    major = 2.0 * (galaxy_cat['SemiMajorAxis'][index]) * d25scale * u.arcmin
+    minor = 2.0 * (galaxy_cat['SemiMinorAxis'][index]) * d25scale * u.arcmin
     pa    = (galaxy_cat['PositionAngle'][index]) * u.deg
     ellipse_reg = EllipseSkyRegion(center=coords, height=major, width=minor, angle=pa)
 
