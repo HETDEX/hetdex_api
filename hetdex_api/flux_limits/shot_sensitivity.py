@@ -121,7 +121,7 @@ class ShotSensitivity(object):
         2*wavenpix + 1 (default 3)
     d25scale : float
         Sets the multiplier for the galaxy masks
-        applied (default 3.0)
+        applied (default 1.5)
     sclean_bad : bool
         Replace bad data using the sclean
         tool (see hetdex_api.extract:Extract)
@@ -130,7 +130,7 @@ class ShotSensitivity(object):
         to the screen
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
-                 ffsky=False, wavenpix=3, d25scale=3.0, verbose=False,
+                 ffsky=False, wavenpix=3, d25scale=1.5, verbose=False,
                  sclean_bad = True, log_level="WARNING"): 
 
         self.conf = HDRconfig()
@@ -212,7 +212,7 @@ class ShotSensitivity(object):
         ----------
         d25scale : float
             Sets the multiplier for the galaxy masks
-            applied (default 3.5)
+            applied (default 1.5)
         """      
 
         logger = logging.getLogger(name="ShotSensitivity")
