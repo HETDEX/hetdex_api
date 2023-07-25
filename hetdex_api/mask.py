@@ -320,8 +320,8 @@ def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5):
     Returns
     -------
     flag - boolean
-        True if the source lies within the ellipse defined
-        False if the source is not within the scaling
+        True if the source is not in the galaxy mask 
+        False if the source is within the scaling of the galaxy mask
 
     """
    
@@ -335,12 +335,12 @@ def gal_flag_from_coords(coords, galaxy_cat, d25scale=1.5):
     # create fake WCS for regions use
     mywcs = create_dummy_wcs(coords)
 
-    flag = False
+    flag = True
 
     if len(sel_rows) > 0:
         for row_index in sel_rows:
             ellipse = create_gal_ellipse(galaxy_cat, row_index=row_index, d25scale=d25scale)
             if ellipse.contains(coords, mywcs):
-                flag = True
+                flag = False
 
     return flag
