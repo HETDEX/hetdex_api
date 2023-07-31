@@ -8,7 +8,7 @@ import os.path as op
 
 class HDRconfig:
 
-    LATEST_HDR_NAME = 'hdr3'
+    LATEST_HDR_NAME = 'hdr4'
 
     def __init__(self, survey=LATEST_HDR_NAME):
         # Check stampede2 first
