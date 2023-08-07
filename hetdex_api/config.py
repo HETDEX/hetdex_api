@@ -154,5 +154,9 @@ class HDRconfig:
             self.extinction_fix = op.join(self.bad_dir, 'extinction')
             self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask.h5')
 
-            if survey == 'hdr3':
-                self.wdcor = op.join(self.bad_dir, 'wdcor.txt')
+            #if survey == 'hdr3':
+            try:
+                if float(survey[3:]) >= 3.0:
+                    self.wdcor = op.join(self.bad_dir, 'wdcor.txt')
+            except:
+                self.wdcor = None

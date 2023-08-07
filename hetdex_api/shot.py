@@ -596,7 +596,26 @@ def get_fibers_table(
                     )
                 fibers_table["calfib"] += fiber_flux_offset
                 fibers_table["calfib_ffsky"] += fiber_flux_offset
-                
+
+        elif float(survey.lower()[3:]) >= 4.0: #only HDR4 and up
+            if verbose:
+                print("Applying spectral correction from WD modelling")
+            wd_corr = Table.read(
+                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+            )
+            fibers_table["calfib"] /= wd_corr["corr"]
+            fibers_table["calfib_ffsky"] /= wd_corr["corr"]
+            fibers_table["calfibe"] /= wd_corr["corr"]
+
+
+            if fiber_flux_offset is not None:
+                if verbose:
+                    print("Applying supplied fiber_flux_offset: {}".format(
+                        fiber_flux_offset)
+                    )
+                fibers_table["calfib"] += fiber_flux_offset
+                fibers_table["calfib_ffsky"] += fiber_flux_offset
+
     if np.size(fibers_table) > 0:
         if astropy:
             # convert to an astropy table format and add units

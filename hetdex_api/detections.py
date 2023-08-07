@@ -131,7 +131,7 @@ class Detections:
 
         self.config = HDRconfig(survey=self.survey)
 
-        if self.survey == "hdr3":
+        if float(self.survey[3:])  >= 3.0: # == "hdr3":
             # open wd correction curve and create fit for quick assignment
             self.wd_corr = Table.read(
                 self.config.wdcor, format="ascii.no_header", names=["wave", "corr"]
@@ -228,6 +228,15 @@ class Detections:
 
                     if verbose:
                         print("Applying HDR3 flux corrections")
+
+                    self.flux /= self.wd_corr_f(self.wave)
+                    self.flux_err /= self.wd_corr_f(self.wave)
+                    self.continuum /= self.wd_corr_f(self.wave)
+                    self.continuum_err /= self.wd_corr_f(self.wave)
+                    self.flux_noise_1sigma /= self.wd_corr_f(self.wave)
+            elif  float(self.survey[3:]) >= 4.0:# == "hdr3":
+                if verbose:
+                    print("Applying HDR4 and up WD flux corrections")
 
                     self.flux /= self.wd_corr_f(self.wave)
                     self.flux_err /= self.wd_corr_f(self.wave)
@@ -1047,6 +1056,16 @@ class Detections:
                 det_row["continuum"] /= self.wd_corr_f(det_row["wave"])
                 det_row["continuum_err"] /= self.wd_corr_f(det_row["wave"])
                 det_row["flux_noise_1sigma"] /= self.wd_corr_f(det_row["wave"])
+            elif (self.catalog_type == "lines") and float(self.survey[3:]) >= 4.0:
+                #specifically HDR3 handled just above, but only the lines catalog
+                #since these are not the spectra, just the emission line
+                if verbose:
+                    print("Applying HDR4 and up WD flux corrections")
+                det_row["flux"] /= self.wd_corr_f(det_row["wave"])
+                det_row["flux_err"] /= self.wd_corr_f(det_row["wave"])
+                det_row["continuum"] /= self.wd_corr_f(det_row["wave"])
+                det_row["continuum_err"] /= self.wd_corr_f(det_row["wave"])
+                det_row["flux_noise_1sigma"] /= self.wd_corr_f(det_row["wave"])
 
         return det_row
 
@@ -1234,12 +1253,12 @@ class Detections:
                     if verbose:
                         print("Noise model adjustment not required")
 
-        elif self.survey == "hdr4":
+        elif float(self.survey[3:]) >= 4.0: # == "hdr4":
             if rawh5 is False:
                 if verbose:
                     print("Applying spectral correction")
-                    data["spec1d"] /= self.wd_corr["corr"]
-                    data["spec1d_err"] /= self.wd_corr["corr"]
+                data["spec1d"] /= self.wd_corr["corr"]
+                data["spec1d_err"] /= self.wd_corr["corr"]
 
         if deredden:
             if verbose:
