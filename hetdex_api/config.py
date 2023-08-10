@@ -12,7 +12,9 @@ class HDRconfig:
 
     def __init__(self, survey=LATEST_HDR_NAME):
         # Check stampede2 first
-        if op.exists("/scratch/03946/hetdex"):
+        if op.exists("/scratch/projects/hetdex"): #DD 2023-08-05
+            self.host_dir = "/scratch/projects/hetdex"
+        elif op.exists("/scratch/03946/hetdex"):
             self.host_dir = "/scratch/03946/hetdex"
         elif op.exists("/corral-repl/utexas/Hobby-Eberly-Telesco"):
             self.host_dir = "/corral-repl/utexas/Hobby-Eberly-Telesco"
@@ -39,9 +41,12 @@ class HDRconfig:
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
         self.tp_dir = op.join(self.red_dir, "throughput")
-        self.calib_dir = op.join(self.hdr_dir[survey], "calib")
-        self.dustmaps = op.join(self.calib_dir, 'dustmaps')
-        self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
+        #self.calib_dir = op.join(self.hdr_dir[survey], "calib") #DD 2023-08-05
+        self.calib_dir = op.join(self.host_dir, "lib_calib")
+        #self.dustmaps = op.join(self.calib_dir, 'dustmaps')
+        self.dustmaps = op.join(self.host_dir, 'hdr3/calib/dustmaps') #DD 2023-08-05
+        #self.pixflat_dir = op.join(self.hdr_dir[survey], "calib/lib_pflat")
+        self.pixflat_dir = op.join(self.calib_dir, "lib_pflat") #DD 2023-08-05
         self.raw_dir = op.join(self.hdr_dir[survey], "raw")
         self.flim_dir = op.join(self.red_dir, "flim")
         self.flim_sim_completeness = op.join(self.flim_dir, "snfiles")
@@ -149,5 +154,9 @@ class HDRconfig:
             self.extinction_fix = op.join(self.bad_dir, 'extinction')
             self.fibermaskh5 = op.join(self.survey_dir, 'fiber_mask.h5')
 
-            if survey == 'hdr3':
-                self.wdcor = op.join(self.bad_dir, 'wdcor.txt')
+            #if survey == 'hdr3':
+            try:
+                if float(survey[3:]) >= 3.0:
+                    self.wdcor = op.join(self.bad_dir, 'wdcor.txt')
+            except:
+                self.wdcor = None

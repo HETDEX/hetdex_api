@@ -393,6 +393,21 @@ class Extract:
                 if verbose:
                     print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
                 spec += fiber_flux_offset
+        elif (float(self.survey[3:]) >= 4.0) and self.apply_update: #HDR4 and up
+            #apply the WD correction but not the earlier HDR3 1.07x noise correction to 1st and last 12 fibers
+
+            if verbose:
+                print("Applying spectral correction from WD modelling")
+            wd_corr = Table.read(
+                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+            )
+            spec /= wd_corr['corr']
+            spece /= wd_corr['corr']
+
+            if fiber_flux_offset is not None:
+                if verbose:
+                    print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+                spec += fiber_flux_offset
                 
         ftf = table_here["fiber_to_fiber"]
 
