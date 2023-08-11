@@ -23,6 +23,8 @@ import hetdex_api.sqlite_utils as sql
 import ipywidgets as widgets
 
 from IPython.display import display, Image, Javascript
+from PIL import Image as PILImage
+import io
 from ipywidgets import interact, Layout  # Style #, interactive
 
 # from IPython.display import clear_output
@@ -535,6 +537,8 @@ class ElixerWidget:
         display(self.status_box)
         display(self.bottombox)
 
+
+
     def setup_widget(self):
         if self.resume:
             try:
@@ -577,6 +581,7 @@ class ElixerWidget:
         )
 
         self.detid = np.int64(self.detectbox.value)
+        self.neighbor_list = []
         
         self.previousbutton = widgets.Button(
             layout=Layout(width="5%")
@@ -597,6 +602,7 @@ class ElixerWidget:
         )  # , button_style='info')
         self.elixerNeighborhood.style.button_color = "darkgray"
         # self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
+
 
         self.line_id_drop = widgets.Dropdown(
             options=line_id_dict.keys(),
@@ -822,6 +828,7 @@ class ElixerWidget:
 
             # do NOT reset the line id label ... can cause a loop
             # self.get_line_match(self.z_box.value, current_wavelength )
+
 
     def _handle_line_id_selection(self, event):
         """
@@ -1207,10 +1214,23 @@ class ElixerWidget:
         nei_imag = self.elixer_conn_mgr.fetch_image(detectid, report_type="nei")
 
         if nei_imag is not None:
-                
+
+            try:
+                pil_img = PILImage.open(io.BytesIO(nei_imag))
+                if 'Neighbors' in pil_img.info.keys():
+                    self.neighbor_list = pil_img.info['Neighbors']
+                    if len(self.neighbor_list) > 0:
+                        self.status_box.value = f"Neighbors: {self.neighbor_list}"
+                else:
+                    self.neighbor_list = []
+                del pil_img
+            except: #Exception as e:
+                pass #self.status_box.value = str(e) + "\n" + traceback.format_exc()
+
             with self.bottombox:
                 display(
-                    Image(self.elixer_conn_mgr.fetch_image(detectid, report_type="nei"))
+                    #Image(self.elixer_conn_mgr.fetch_image(detectid, report_type="nei"))
+                    Image(nei_imag)
                 )
         else:#except Exception as e:
             # self.status_box.value = str(e) + "\n" + traceback.format_exc()
@@ -1223,6 +1243,18 @@ class ElixerWidget:
                     if not op.isfile(path):
                         print("%s not found" % path)
                 else:
+                    try:
+                        pil_img = PILImage.open(path)
+                        if 'Neighbors' in pil_img.info.keys():
+                            self.neighbor_list = pil_img.info['Neighbors']
+                            if len(self.neighbor_list) > 0:
+                                self.status_box.value = f"Neighbors: {self.neighbor_list}"
+                        else:
+                            self.neighbor_list = []
+                        del pil_img
+                    except: # Exception as e:
+                        pass #self.status_box.value = str(e) + "\n" + traceback.format_exc()
+
                     with self.bottombox:
                         display(Image(path))
             else:
