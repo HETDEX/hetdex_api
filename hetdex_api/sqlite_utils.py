@@ -34,21 +34,32 @@ except:
 #  xx0 = standard hetdex
 #  xx6 = broad emission lines (still in with the xx0 detections as of hdr2.1)
 #  xx9 = continuum sources
-DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db"
+DICT_DB_PATHS = {10: ["/scratch/projects/hetdex/hdr1/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr1/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr1/detect/image_db",
+                      "/work/03946/hetdex/hdr1/detect/image_db"
                      ],
-                 20: ["/scratch/03261/polonius/hdr2/detect/image_db",
-                      "/work/03261/polonius/hdr2/detect/image_db",
+                 20: ["/scratch/projects/hetdex/hdr2/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr2/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2/detect/image_db",
                       "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
-                 21: ["/scratch/03946/hetdex/hdr2.1/detect/image_db",
-                      "/scratch/03261/polonius/hdr2.1/detect/image_db",
+                 21: ["/scratch/projects/hetdex/hdr2.1/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr2.1/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2.1/detect/image_db",
+                      "/scratch/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03946/hetdex/hdr2.1/detect/image_db",
-                      "/work/03261/polonius/hdr2.1/detect/image_db"
                       ],
-                 30: ["/scratch/03946/hetdex/hdr3/detect/image_db",
+                 30: ["/scratch/projects/hetdex/hdr3/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr3/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr3/detect/image_db",
+                      "/scratch/03946/hetdex/hdr3/detect/image_db",
                       "/work/03946/hetdex/hdr3/detect/image_db",
-                      "/scratch/03261/polonius/hdr3/detect/image_db",
-                      "/work/03261/polonius/hdr3/detect/image_db",
+                      ],
+                 40: ["/scratch/projects/hetdex/hdr4/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr4/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr4/detect/image_db",
+                      "/scratch/03946/hetdex/hdr4/detect/image_db",
                       ],
                  #note: 31 is just temporary as the 30 detectIDs were named as 31 detectids
                  # 31: ["/scratch/03261/polonius/hdr3/detect/image_db",
