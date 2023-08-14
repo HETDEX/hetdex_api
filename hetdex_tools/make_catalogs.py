@@ -150,20 +150,12 @@ def return_fiber_ratio(det, det_type):
     return fiber_ratio
 
 
-def add_elixer_cat_info(detect_table, det_type="line"):
+def add_elixer_cat_info(detect_table):
 
     global config
 
-    if det_type == "line":
-        elixer_file = op.join(config.detect_dir, "elixer_hdr3_emis_cat.h5")
-        elixer_cat = tb.open_file(elixer_file, "r")
-    elif det_type=="cont":
-        elixer_file = op.join(config.detect_dir, "elixer_hdr3_cont_cat.h5")
-        elixer_cat = tb.open_file(elixer_file, "r")
-    elif det_type=="agn":
-        elixer_file =  op.join(config.hdr_dir['hdr3'], 'catalogs', "agn_v5_elixer.h5") 
-        elixer_cat = tb.open_file(elixer_file, "r")
-                             
+    elixer_file = op.join(config.detect_dir, "elixer_hdr3.0.3.h5")
+    elixer_cat = tb.open_file(elixer_file, "r")
         
     elix_tab = Table(elixer_cat.root.Detections.read())
 
@@ -171,18 +163,14 @@ def add_elixer_cat_info(detect_table, det_type="line"):
         "detectid",
         "mag_g_wide",
         "plya_classification",
-        "best_z",
-        "best_pz",
+        "z_best_2",
+        "z_best_pz_2",
         "combined_plae",
         "combined_plae_lo",
         "combined_plae_hi",
         "flags",
         "classification_labels",
     ]
-
-    if det_type == 'agn':#updated elixer columns applied here
-        elix_tab.rename_column('z_best', 'best_z')
-        elix_tab.rename_column('z_best_pz', 'best_pz')
 
     catalog = join(
         detect_table,
@@ -192,7 +180,8 @@ def add_elixer_cat_info(detect_table, det_type="line"):
     )
 
     catalog.rename_column("mag_g_wide", "gmag")
-
+    catalog.rename_column("z_best_2","best_z")
+    catalog.rename_column("z_best_pz_2", "best_pz")
     extracted_objects = Table(elixer_cat.root.ExtractedObjects.read())
     selected1 = (extracted_objects["selected"] == True) & (
         extracted_objects["filter_name"] == b"r"
@@ -260,10 +249,9 @@ def add_elixer_cat_info(detect_table, det_type="line"):
     for col in catalog2.columns:
         try:
             catalog2[col] = catalog2[col].filled(np.nan)
-            print("Replacing masked values with np.nan for {}".format(col))
-        except:
+        except Exception:
             pass
-            # print('no', col)
+            
     return catalog2
 
 
@@ -318,84 +306,36 @@ def create_source_catalog(version="3.0.0", update=False):
     if update:
 
         print("Creating curated detection catalog version={}".format(version))
-        print("Updating chi2fib values")
-        # Note chi2fib calculated in
-        # /work/05350/ecooper/stampede2/hdr3/fiber_chi2_check-hdr3.ipynb
-        chi2fib_tab = Table.read(
-            "/work/05350/ecooper/stampede2/hdr3/chi2fib_3.0.0.txt", format="ascii"
-        )
 
         D = Detections(survey="hdr3", loadtable=True)
 
         # get masking info for each detection
         mask_badamp = D.remove_bad_amps()
         mask_badshots = D.remove_shots()
-
+        mask_tp = D.throughput >= 0.08
         # downselect badamps and badshots
-        D = D[mask_badamp & mask_badshots]
+        D = D[mask_badamp & mask_badshots & mask_tp]
 
         mask_baddet = D.remove_bad_detects()
-        mask_badpix = D.remove_bad_pix()
-        mask_meteor = D.remove_meteors()
-        galmask = D.remove_large_gal(d25scale=3.0)
 
-        # apply curated line catalog criteria
-        sel_cut1 = (D.sn >= 7) & (D.chi2 <= 2.5)
-        sel_cut2 = (D.sn >= 4.8) & (D.sn < 7) & (D.chi2 <= 1.2)
-        
-        sel_cont = D.continuum > -3
-        sel_chi2fib = D.chi2fib < 4
-        sel_tp = D.throughput >= 0.08
-        
-        sel = sel_cont & sel_chi2fib & sel_tp & (sel_cut1 | sel_cut2)  # &sel_field
-        
-        sel_wave = (D.wave >= 3550) & (D.wave <= 5460)
-        sel_lw = (D.linewidth <= 14) & (D.linewidth > 6) & (D.sn >= 6.5)
-        
-        sel1 = sel & sel_wave & sel_lw
-        
-        sel_wave = (D.wave >= 3510) & (D.wave <= 5490)
-        sel_lw = (D.linewidth <= 6) & (D.linewidth >= 1.7)
-        
-        sel2 = sel & sel_wave & sel_lw
-        
-        sel_cat = sel1 | sel2
-    
-        # downselect catalog criteria
-        print(len(D))
+        sel_cut1 = (D.sn >= 4.8) & (D.chi2 <= 2.5)
+        sel_cont = (D.continuum > -3)
+        sel_chi2fib = D.chi2fib < 4.5
+        sel_lw = (D.linewidth <= 14) & (D.linewidth >= 1.6)
+
+        sel_cat = sel_cut1 & sel_cont & sel_chi2fib * sel_lw 
+
         detects_line_table = D[sel_cat].return_astropy_table()
         detects_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
+
         print(len(detects_line_table))
         detects_line_table.add_column(
             Column(mask_baddet[sel_cat].astype(int), name="flag_baddet", dtype=int)
         )
-        detects_line_table.add_column(
-            Column(mask_badpix[sel_cat].astype(int), name="flag_badpix", dtype=int)
-        )
-        detects_line_table.add_column(
-            Column(mask_meteor[sel_cat].astype(int), name="flag_meteor", dtype=int)
-        )
-        detects_line_table.add_column(
-            Column(galmask[sel_cat].astype(int), name="flag_gal", dtype=int)
-        )
 
-        detects_line_table = add_elixer_cat_info(detects_line_table, det_type="line")
+        detects_line_table = add_elixer_cat_info(detects_line_table)
         print(len(detects_line_table))
-        # apply additional chi2fib cut
-        detects_line_table2 = join(
-            detects_line_table, chi2fib_tab, keys="detectid", join_type="left"
-        )
-        detects_line_table3 = unique(detects_line_table2, keys="detectid")
 
-        print(
-            "Size after combining with chi2fib_tab: {}".format(len(detects_line_table3))
-        )
-
-        sel_chi2fib = (detects_line_table3["chi2fib_1"] < 4) & (
-            detects_line_table3["chi2fib_2"] < 4
-        )
-        detects_line_table = detects_line_table3[sel_chi2fib]
-        print("Size after chi2fib cut: {}".format(len(detects_line_table)))
         detects_line_table.write("detect_hdr{}.fits".format(version), overwrite=True)
         detects_line_table.write(
             "detect_hdr{}.tab".format(version), format="ascii", overwrite=True
@@ -414,10 +354,8 @@ def create_source_catalog(version="3.0.0", update=False):
 
         detects_cont = detects_cont[mask_badamp_cont & mask_badshot_cont & mask_tp_cont ]
 
-        mask_meteor_cont = detects_cont.remove_meteors()
         mask_baddet_cont = detects_cont.remove_bad_detects()
-        galmask_cont = detects_cont.remove_large_gal()
-
+        
         detects_cont_table = detects_cont.return_astropy_table()
         detects_cont_table.add_column(Column(str("cont"), name="det_type", dtype=str))
         print(len(detects_cont_table))
@@ -425,19 +363,14 @@ def create_source_catalog(version="3.0.0", update=False):
         detects_cont_table.add_column(
             Column(mask_baddet_cont.astype(int), name="flag_baddet", dtype=int)
         )
-        detects_cont_table.add_column(
-            Column(-1 * np.ones(len(detects_cont_table)), name="flag_badpix", dtype=int)
-        )
-        detects_cont_table.add_column(
-            Column(mask_meteor_cont.astype(int), name="flag_meteor", dtype=int)
-        )
-        detects_cont_table.add_column(
-            Column(galmask_cont.astype(int), name="flag_gal", dtype=int)
-        )
+        # set columns to 0 that are not relevent to continuum catalog
+        for col in ['apcor','flux_noise_1sigma','sn_3fib','sn_3fib_cen','sn_cen']:
+            detects_cont_table[col] = 0.0
 
+        
         full_cont_table = detects_cont_table.copy()
        
-        detects_cont_table = add_elixer_cat_info(detects_cont_table, det_type="cont")
+        detects_cont_table = add_elixer_cat_info(detects_cont_table)
         print(len(detects_cont_table))
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
         detects_cont_table.write(
@@ -456,17 +389,7 @@ def create_source_catalog(version="3.0.0", update=False):
             full_line_table.add_column(
                 Column(mask_baddet.astype(int), name="flag_baddet", dtype=int)
             )
-            full_line_table.add_column(
-                Column(mask_badpix.astype(int), name="flag_badpix", dtype=int)
-            )
-            full_line_table.add_column(
-                Column(mask_meteor.astype(int), name="flag_meteor", dtype=int)
-            )
-            full_line_table.add_column(
-                Column(galmask.astype(int), name="flag_gal", dtype=int)
-                                                                        )
 
-                                                            
             agn_tab = Table.read(
                 config.agncat,
                 format="ascii",
@@ -479,11 +402,11 @@ def create_source_catalog(version="3.0.0", update=False):
                 vstack([full_cont_table, full_line_table]),
                 join_type="inner",
             )
-            detects_agn_line = add_elixer_cat_info(detects_agn, det_type="agn")
-            detects_agn_cont = add_elixer_cat_info(detects_agn, det_type="cont")
-            detects_agn = vstack([detects_agn_line, detects_agn_cont])
+            detects_agn = add_elixer_cat_info(detects_agn)
+
             detects_agn.sort('gmag')
             detects_agn = unique( detects_agn, keys='detectid')
+            print('Final AGN length: {}'.format( len(detects_agn)))
             detects_agn.write("agn_" + version + ".fits", overwrite=True)
         else:
             print("No updated AGN catalog created")
@@ -491,7 +414,6 @@ def create_source_catalog(version="3.0.0", update=False):
     else:
         detects_agn = Table.read("agn_" + version + ".fits")
 
-    
     if update:
         return
 
@@ -502,30 +424,46 @@ def create_source_catalog(version="3.0.0", update=False):
             vstack([detects_agn, detects_cont_table, detects_line_table]),
             keys="detectid",
         )
+        detect_table['z_agn'] = detect_table['z_agn'].filled(-1)
+        detect_table['agn_vis_class'] = detect_table['agn_vis_class'].filled(-1)
+
+        del detects_cont_table, detects_line_table, detects_agn
     else:
 
         detect_table = unique(
             vstack([detects_cont_table, detects_line_table]), keys="detectid"
         )
 
-    append_fiber_ratio = False
-    if append_fiber_ratio:
-        # add fiber_ratio
-        fiber_ratio = []
-        for row in detect_table:
-            det = row["detectid"]
-            det_type = row["det_type"]
-            try:
-                fiber_ratio.append(return_fiber_ratio(det, det_type))
-            except:
-                fiber_ratio.append(np.nan)
-                print("fiber_ratio failed for {}".format(det))
-        detect_table["fiber_ratio"] = fiber_ratio
-
-    del detects_cont_table, detects_line_table
+        del detects_cont_table, detects_line_table
 
     gc.collect()
 
+    # add det flags table
+
+    detflags_tab = Table.read(
+        "/work/05350/ecooper/stampede2/hdr3/catalogs/det_flags_3.0.3.fits")
+    print('Adding det flags to full catalog. Size is {}'.format(len(detect_table)))
+    detect_table2 = join(
+        detect_table, detflags_tab, keys="detectid", join_type="left"
+    )
+    detect_table = unique(detect_table2, keys="detectid")
+    
+    print(
+        "Size after combining with detflags_tab: {}".format(len(detect_table))
+    )
+    # fill mask values with nans
+    for col in detect_table.columns:
+        try:
+            if col in ['flag_pixmask', 'flag_badamp', 'flag_badpix', 'flag_badfib', 'flag_meteor', 'flag_largegal', 'flag_chi2fib','flag_baddetect']:
+                detect_table[col] = detect_table[col].filled(1)
+                print("Replacing masked values with 1 for {}".format(col))
+            else:
+                detect_table[col] = detect_table[col].filled(np.nan)
+                print("Replacing masked values with np.nan for {}".format(col))
+        except Exception:
+            pass
+            print('no', col)
+    
     # calculate ebv and av for every detections
     all_coords = SkyCoord(ra=detect_table["ra"], dec=detect_table["dec"], unit="deg")
     sfd = SFDQuery()
@@ -722,7 +660,7 @@ def create_source_catalog(version="3.0.0", update=False):
     t0 = time.time()
     sel = expand_table["wave_group_id"] > 0
     wid_list = np.unique(expand_table["wave_group_id"][sel])
-    p = Pool(32)
+    p = Pool(24)
     res = p.map(merge_wave_groups, wid_list)
     p.close()
 
@@ -802,7 +740,7 @@ def create_source_catalog(version="3.0.0", update=False):
             print("yes", col)
         except:
             pass
-            # print('no', col)
+            print('no', col)
     return expand_table
 
 
@@ -1384,14 +1322,14 @@ def main(argv=None):
     source_table["src_separation"] = det_coord.separation(src_coord)
     source_table.sort(["src_separation"])
 
-    print("Filling masked values with NaNs")
-
-    for col in source_table.columns:
-        try:
-            source_table[col] = source_table[col].filled(np.nan)
-            print("yes", col)
-        except:
-            pass
+    #print("Filling masked values with NaNs")
+    
+    #for col in source_table.columns:
+    #    try:
+    #        source_table[col] = source_table[col].filled(np.nan)
+    #        print("yes", col)
+    #    except:
+    #        pass
             # print('no', col)
     # remove nonsense metadata
     source_table.meta = {}
