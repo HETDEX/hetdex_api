@@ -516,11 +516,6 @@ class ElixerWidget:
             #                              self.e_manual_dec,
             #                              self.e_manual_button]))
 
-            display(widgets.HBox( [self.det_table_button,
-                                   self.get_sdss_button,
-                                   self.get_legacy_button,
-                                   self.get_mini_button]))
-
             self.e_blue_button.on_click(self.e_blue_button_click)
             self.e_red_button.on_click(self.e_red_button_click)
             self.e_green_button.on_click(self.e_green_button_click)
@@ -532,6 +527,10 @@ class ElixerWidget:
 
             self.get_legacy_button.on_click(self.get_legacy_button_click)
 
+        display(widgets.HBox( [self.det_table_button,
+                               self.get_sdss_button,
+                               self.get_legacy_button,
+                               self.get_mini_button]))
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         # always show the status box
         display(self.status_box)
