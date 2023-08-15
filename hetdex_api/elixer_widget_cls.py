@@ -37,7 +37,8 @@ try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
-
+    CONFIG_HDR4 = HDRconfig('hdr4')
+    
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
@@ -521,16 +522,16 @@ class ElixerWidget:
             self.e_green_button.on_click(self.e_green_button_click)
             self.e_manual_button.on_click(self.e_manual_button_click)
 
-            self.det_table_button.on_click(self.det_table_button_click)
-            self.get_mini_button.on_click(self.get_mini_button_click)
-            self.get_sdss_button.on_click(self.get_sdss_button_click)
-
-            self.get_legacy_button.on_click(self.get_legacy_button_click)
+        self.det_table_button.on_click(self.det_table_button_click)
+        self.get_mini_button.on_click(self.get_mini_button_click)
+        self.get_sdss_button.on_click(self.get_sdss_button_click)
+        self.get_legacy_button.on_click(self.get_legacy_button_click)
 
         display(widgets.HBox( [self.det_table_button,
                                self.get_sdss_button,
                                self.get_legacy_button,
                                self.get_mini_button]))
+
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         # always show the status box
         display(self.status_box)
@@ -1360,7 +1361,11 @@ class ElixerWidget:
         elif (detid >= 3000000000) & (detid < 3090000000):
             self.det_file = CONFIG_HDR3.detecth5
         elif (detid >= 3090000000) & (detid < 3100000000):
-            self.det_file = CONFIG_HDR2.contsourceh5
+            self.det_file = CONFIG_HDR3.contsourceh5
+        elif (detid >= 4000000000) & (detid < 4090000000):
+            self.det_file = CONFIG_HDR4.detecth5
+        elif (detid >= 4090000000) & (detid < 4100000000):
+            self.det_file = CONFIG_HDR4.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file
