@@ -191,7 +191,11 @@ class Detections:
                 return None
 
         elif self.loadtable:
-            colnames = self.hdfile.root.Detections.colnames
+
+            if catalog_type == 'index':
+                colnames = self.hdfile.root.DetectIndex.colnames
+            else:
+                colnames = self.hdfile.root.Detections.colnames
             for name in colnames:
                 if isinstance(
                     getattr(self.hdfile.root.Detections.cols, name)[0], np.bytes_
@@ -427,12 +431,19 @@ class Detections:
                     )
 
         elif searchable:
-            
-            # just get coordinates, wavelength and detectid
-            self.detectid = self.hdfile.root.Detections.cols.detectid[:]
-            self.ra = self.hdfile.root.Detections.cols.ra[:]
-            self.dec = self.hdfile.root.Detections.cols.dec[:]
-            self.waves = self.hdfile.root.Detections.cols.wave[:]
+
+            if catalog_type == 'index':
+                # just get coordinates, wavelength and detectid                          
+                self.detectid = self.hdfile.root.DetectIndex.cols.detectid[:]
+                self.ra = self.hdfile.root.DetectIndex.cols.ra[:]
+                self.dec = self.hdfile.root.DetectIndex.cols.dec[:]
+                self.waves = self.hdfile.root.DetectIndex.cols.wave[:]
+            else:
+                # just get coordinates, wavelength and detectid
+                self.detectid = self.hdfile.root.Detections.cols.detectid[:]
+                self.ra = self.hdfile.root.Detections.cols.ra[:]
+                self.dec = self.hdfile.root.Detections.cols.dec[:]
+                self.waves = self.hdfile.root.Detections.cols.wave[:]
 
         # set the SkyCoords
         if searchable or loadtable:
