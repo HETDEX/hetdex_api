@@ -194,6 +194,20 @@ class Detections:
 
             if catalog_type == 'index':
                 colnames = self.hdfile.root.DetectIndex.colnames
+
+                for name in colnames:
+                    if isinstance(
+                            getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_
+                    ):
+                        setattr(
+                            self,
+                            name,
+                            getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(str),
+                        )
+                else:
+                    setattr(
+                        self, name, getattr(self.hdfile.root.DetectIndex.cols, name)[:]
+                    )
             else:
                 colnames = self.hdfile.root.Detections.colnames
             for name in colnames:
