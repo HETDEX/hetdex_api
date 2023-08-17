@@ -196,34 +196,29 @@ class Detections:
                 colnames = self.hdfile.root.DetectIndex.colnames
 
                 for name in colnames:
-                    if isinstance(
-                            getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_
-                    ):
+                    if isinstance(getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_):
+                        setattr(self,
+                                name,
+                                getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(str),
+                        )
+                    else:
+                        setattr(
+                            self, name, getattr(self.hdfile.root.DetectIndex.cols, name)[:]
+                        )
+            else:
+                colnames = self.hdfile.root.Detections.colnames
+                for name in colnames:
+                    if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0], np.bytes_):
                         setattr(
                             self,
                             name,
-                            getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(str),
+                            getattr(self.hdfile.root.Detections.cols, name)[:].astype(str),
                         )
-                else:
-                    setattr(
-                        self, name, getattr(self.hdfile.root.DetectIndex.cols, name)[:]
-                    )
-            else:
-                colnames = self.hdfile.root.Detections.colnames
-            for name in colnames:
-                if isinstance(
-                    getattr(self.hdfile.root.Detections.cols, name)[0], np.bytes_
-                ):
-                    setattr(
-                        self,
-                        name,
-                        getattr(self.hdfile.root.Detections.cols, name)[:].astype(str),
-                    )
-                else:
-                    setattr(
-                        self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
-                    )
-
+                    else:
+                        setattr(
+                            self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
+                        )
+                        
             if self.survey == "hdr3":
                 if catalog_type == "lines":
                     if verbose:
