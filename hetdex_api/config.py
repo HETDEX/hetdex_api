@@ -115,6 +115,8 @@ class HDRconfig:
         if survey in ["hdr2.1",'hdr3', 'hdr4']:
             if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
+            elif op.exists('/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)):
+                self.bad_dir = '/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)
             elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)):
                 self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)
             elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)):
