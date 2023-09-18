@@ -637,7 +637,7 @@ class Extract:
         if not hasattr(self, "shoth5"):
             pass
         else:
-            self.shoth5 = open_shot_file(self.shot, survey=survey)
+            self.shoth5 = open_shot_file(self.shot, survey=self.survey)
         
             #self.log.warning("Please do load_shot to get star catalog params.")
             #return None
