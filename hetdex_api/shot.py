@@ -594,8 +594,16 @@ def get_fibers_table(
                     print("Applying supplied fiber_flux_offset: {}".format(
                         fiber_flux_offset)
                     )
+
+                #DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                sel_nan = fibers_table["calfibe"] == 0
+                fibers_table["calfib"][sel_nan] = np.nan
+                fibers_table["calfib_ffsky"][sel_nan] = np.nan
+
                 fibers_table["calfib"] += fiber_flux_offset
                 fibers_table["calfib_ffsky"] += fiber_flux_offset
+                fibers_table["calfib"][sel_nan] = 0
+                fibers_table["calfib_ffsky"][sel_nan] = 0
 
         elif float(survey.lower()[3:]) >= 4.0: #only HDR4 and up
             if verbose:
@@ -613,8 +621,16 @@ def get_fibers_table(
                     print("Applying supplied fiber_flux_offset: {}".format(
                         fiber_flux_offset)
                     )
+
+                #DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                sel_nan = fibers_table["calfibe"] == 0
+                fibers_table["calfib"][sel_nan] = np.nan
+                fibers_table["calfib_ffsky"][sel_nan] = np.nan
+
                 fibers_table["calfib"] += fiber_flux_offset
                 fibers_table["calfib_ffsky"] += fiber_flux_offset
+                fibers_table["calfib"][sel_nan] = 0
+                fibers_table["calfib_ffsky"][sel_nan] = 0
 
     if np.size(fibers_table) > 0:
         if astropy:
