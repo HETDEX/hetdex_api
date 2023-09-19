@@ -885,7 +885,7 @@ class Extract:
             # Only use stars that are bright enough and not near the edge
             if gmag[i] > gmag_limit:
                 self.log.info(
-                    "PSF model StarID: %i too faint: %0.2f" % (starid[i], gmag[i])
+                    "PSF model StarID: {} too faint: {:4.2f}".format(starid[i], gmag[i])
                 )
                 continue
             result = self.get_fiberinfo_for_coord(coord, radius=radius)
@@ -900,7 +900,7 @@ class Extract:
             )
             if not in_bounds:
                 self.log.info(
-                    "PSF model StarID: %i on edge: %0.2f, %0.2f" % (starid[i], xc, yc)
+                    "PSF model StarID: {} on edge: {:4.2f}, {:4.2f}".format(starid[i], xc, yc)
                 )
                 continue
             psfi = self.make_collapsed_image(
