@@ -392,7 +392,12 @@ class Extract:
             if fiber_flux_offset is not None:
                 if verbose:
                     print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+
+                # DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                sel_nan = spece == 0
+                spec[sel_nan] = np.nan
                 spec += fiber_flux_offset
+                spec[sel_nan] = 0
         elif (float(self.survey[3:]) >= 4.0) and self.apply_update: #HDR4 and up
             #apply the WD correction but not the earlier HDR3 1.07x noise correction to 1st and last 12 fibers
 
@@ -407,7 +412,12 @@ class Extract:
             if fiber_flux_offset is not None:
                 if verbose:
                     print("Applying supplied fiber_flux_offset: {}".format(fiber_flux_offset))
+
+                # DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                sel_nan = spece == 0
+                spec[sel_nan] = np.nan
                 spec += fiber_flux_offset
+                spec[sel_nan] = 0
                 
         ftf = table_here["fiber_to_fiber"]
 
