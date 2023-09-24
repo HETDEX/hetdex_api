@@ -73,7 +73,7 @@ def main(argv=None):
         "--detectdir",
         help="""Directory for Detect Info""",
         type=str,
-        default="/scratch/03946/hetdex/detect",
+        default="/scratch/projects/hetdex/detect",
     )
         
     parser.add_argument(
