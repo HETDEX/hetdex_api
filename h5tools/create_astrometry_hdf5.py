@@ -117,7 +117,7 @@ def main(argv=None):
     parser.add_argument("-detdir", "--detectdir",
                         help='''Directory for Detect Info''',
                         type=str,
-                        default='/scratch/03946/hetdex/detect')
+                        default='/scratch/projects/hetdex/detect')
     
     parser.add_argument("-survey", "--survey",
                         help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
@@ -294,6 +294,9 @@ def main(argv=None):
 
         matchpdf = op.join(shiftsdir,
                            'match_' + expn + '.pdf')
+
+        matchpng_orig = op.join( shiftsdir, 'match_{}.png'.format(expn) )
+        
         matchpng = 'match_pngs/match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
         if op.exists(matchpdf):
@@ -302,8 +305,14 @@ def main(argv=None):
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = matchpdf
+        elif op.exists( matchpng_orig):
+            os.system('cp ' + matchpng_orig + ' ' + matchpng)
+            plt_matchim = plt.imread(matchpng)
+            matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
+            matchim.attrs['CLASS'] = 'IMAGE'
+            matchim.attrs['filename'] = matchpng_orig
         else:
-            args.log.warning('Count not include %s' % matchpdf)
+            args.log.warning('Count not include %s' % matchpng)
 
         # populate offset info for catalog matches
         file_getoff = op.join(shiftsdir,
