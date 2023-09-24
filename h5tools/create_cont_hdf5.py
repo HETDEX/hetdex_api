@@ -171,14 +171,6 @@ def main(argv=None):
     )
     
     parser.add_argument(
-        "-cs",
-        "--contsource",
-        help="""Path to Karls rext catalog""",
-        type=str,
-        default='/scratch/00115/gebhardt/cs/rcs0',
-    )
-
-    parser.add_argument(
         "-dp",
         "--detect_path",
         help="""Path to detections""",
@@ -203,13 +195,13 @@ def main(argv=None):
         default=0,
     )
 
-    parser.add_argument(
-        "-sl",
-        "--shotlist",
-        help="""Text file of DATE OBS list""",
-        type=str,
-        default="/scratch/03946/hetdex/hdr4/survey/hdr4.shotlist",
-    )
+    #parser.add_argument(
+    #    "-sl",
+    #    "--shotlist",
+    #    help="""Text file of DATE OBS list""",
+    #    type=str,
+    #    default="/scratch/projects/hetdex/hdr4/survey/hdr4.shotlist",
+    #)
 
     parser.add_argument(
         "--merge",
@@ -439,15 +431,16 @@ def main(argv=None):
 
     det_cols = fileh.root.Detections.colnames
 
-    shottab = Table.read(args.shotlist, format='ascii.no_header')
-    shotlist = []
-    for row in shottab:
-        shotlist.append( int(str(row['col1']) + str(row['col2']).zfill(3)))
+    #Not needed as we are generating for an input shot now. Removed 2023-09-22 EMC
+    #shottab = Table.read(args.shotlist, format='ascii.no_header')
+    #shotlist = []
+    #for row in shottab:
+    #    shotlist.append( int(str(row['col1']) + str(row['col2']).zfill(3)))
 
     for row in detectcat:
 
-        if row['shotid'] not in shotlist:
-            continue
+        #if row['shotid'] not in shotlist:
+        #    continue
 
         rowMain = tableMain.row
 
