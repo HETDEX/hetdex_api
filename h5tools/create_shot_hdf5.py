@@ -479,7 +479,7 @@ def main(argv=None):
         "--detect_path",
         help="""Path to detections""",
         type=str,
-        default="/scratch/03946/hetdex/detect/dithall",        
+        default="/scratch/projects/hetdex/detect/dithall",        
     )
 
     parser.add_argument(
