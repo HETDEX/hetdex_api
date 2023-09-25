@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-                                                                                                                                                                 
+# -*- coding: utf-8 -*-                                                                                                                                                                
 """ 
 @author: Erin Mentuch Cooper
 
@@ -251,9 +251,9 @@ def main(argv=None):
         try:
             radec = ascii.read(radecfile)
             rowNV['expnum'] = int(expn[3:5])
-            rowNV['ra'] = radec['col1']
-            rowNV['dec'] = radec['col2']
-            rowNV['parangle'] = radec['col3']
+            rowNV['ra'] = radec['col1'][0]
+            rowNV['dec'] = radec['col2'][0]
+            rowNV['parangle'] = radec['col3'][0]
         except:
             args.log.warning('Could not include %s' % radecfile)
 
@@ -312,7 +312,7 @@ def main(argv=None):
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = matchpng_orig
         else:
-            args.log.warning('Count not include %s' % matchpng)
+            args.log.warning('Could not include %s' % matchpng)
 
         # populate offset info for catalog matches
         file_getoff = op.join(shiftsdir,
@@ -361,11 +361,11 @@ def main(argv=None):
             f_getoff2 = ascii.read(file_getoff2)
             row = tableQA.row
             row['expnum'] = int(expn[3:5])
-            row['xoffset'] = f_getoff2['col1']
-            row['yoffset'] = f_getoff2['col2']
-            row['xrms'] = f_getoff2['col3']
-            row['yrms'] = f_getoff2['col4']
-            row['nstars'] = f_getoff2['col5']
+            row['xoffset'] = f_getoff2['col1'][0]
+            row['yoffset'] = f_getoff2['col2'][0]
+            row['xrms'] = f_getoff2['col3'][0]
+            row['yrms'] = f_getoff2['col4'][0]
+            row['nstars'] = f_getoff2['col5'][0]
             row.append()
 
         except:
