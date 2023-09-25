@@ -66,19 +66,11 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-r",
-        "--rootdir",
-        help="""Root Directory for Reductions""",
-        type=str,
-        default="/work/03946/hetdex/maverick/red1/reductions/",
-    )
-
-    parser.add_argument(
         "-sdir",
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/scratch/03946/hetdex/hdr4/reduction/data",
+        default="/scratch/projects/hetdex/hdr4/reduction/data",
     )
 
     parser.add_argument(
@@ -87,14 +79,6 @@ def main(argv=None):
         help="""Text file of DATE OBS list""",
         type=str,
         default="dex.hdr2.shotlist",
-    )
-
-    parser.add_argument(
-        "-ad",
-        "--astrometry_dir",
-        help="""Directory for Shifts""",
-        type=str,
-        default="/data/00115/gebhardt/vdrp/shifts/",
     )
 
     parser.add_argument(
