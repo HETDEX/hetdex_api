@@ -638,7 +638,10 @@ def get_fibers_table(
             fibers_table = Table(fibers_table)
             # add units
             fibers_table["calfib"].unit = intensityunit
-            fibers_table["calfib_ffsky"].unit = intensityunit
+            if survey.lower() == 'hdr2.1':
+                fibers_table["spec_fullsky_sub"].unit = intensityunit
+            else:
+                fibers_table["calfib_ffsky"].unit = intensityunit
             fibers_table["calfibe"].unit = intensityunit
             fibers_table["ra"].unit = u.deg
             fibers_table["dec"].unit = u.deg
