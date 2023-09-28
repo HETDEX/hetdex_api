@@ -77,10 +77,10 @@ def main(argv=None):
     # )
 
     files = [
-        "/scratch/03946/hetdex/hdr3/detect/detect_hdr3.h5",
-        "/scratch/03946/hetdex/hdr3/detect/continuum_sources.h5",
-        "/scratch/03946/hetdex/hdr4/detect/detect_hdr4.h5",
-        "/scratch/03946/hetdex/hdr4/detect/continuum_sources.h5",
+        "/scratch/projects/hetdex/hdr3/detect/detect_hdr3.h5",
+        "/scratch/projects/hetdex/hdr3/detect/continuum_sources.h5",
+        "/scratch/projects/hetdex/hdr4/detect/detect_hdr4.h5",
+        "/scratch/projects/hetdex/hdr4/detect/continuum_sources.h5",
     ]
 
     # set up HEALPIX options
