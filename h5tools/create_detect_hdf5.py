@@ -410,7 +410,7 @@ def main(argv=None):
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
                     'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight',
-                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen']
+                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen','dummy']
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
