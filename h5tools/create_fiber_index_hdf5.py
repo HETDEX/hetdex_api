@@ -66,7 +66,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/scratch/03946/hetdex/hdr4/reduction/data",
+        default="/scratch/projects/hetdex/hdr4/reduction/data",
     )
 
     parser.add_argument(
