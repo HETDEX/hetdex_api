@@ -45,6 +45,7 @@ def make_narrowband_image(
     survey=LATEST_HDR_NAME,
     extract_class=None,
     fiber_flux_offset=None,
+    interp_kind='linear',
 ):
 
     """
@@ -86,7 +87,9 @@ def make_narrowband_image(
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
         to None    
-    
+    interp_kind: str
+        Kind of interpolation to pixelated grid from fiber intensity    
+
     Returns
     -------
     hdu: PrimaryHDU object
@@ -212,6 +215,7 @@ def make_narrowband_image(
             boxsize=imsize.to(u.arcsec).value,
             wrange=wave_range,
             convolve_image=convolve_image,
+            interp_kind=interp_kind,
         )
         imslice = zarray[0]
         imerror = zarray[1]
@@ -228,6 +232,7 @@ def make_narrowband_image(
             boxsize=imsize.to(u.arcsec).value,
             wrange=wave_range,
             convolve_image=convolve_image,
+            interp_kind=interp_kind,
         )
 
         imslice = zarray[0]
@@ -245,6 +250,7 @@ def make_narrowband_image(
             boxsize=imsize.to(u.arcsec).value,
             wrange=[wave_range[0] - dcont - 10, wave_range[0] - 10],
             convolve_image=convolve_image,
+            interp_kind=interp_kind,
         )
 
         zarray_red = E.make_narrowband_image(
@@ -259,6 +265,7 @@ def make_narrowband_image(
             boxsize=imsize.to(u.arcsec).value,
             wrange=[wave_range[1] + 10, wave_range[1] + dcont + 10],
             convolve_image=convolve_image,
+            interp_kind=interp_kind,
         )
 
         dwave = wave_range[1] - wave_range[0]
@@ -310,6 +317,7 @@ def make_data_cube(
     subcont=False,
     survey=LATEST_HDR_NAME,
     fiber_flux_offset=None,
+    interp_kind='linear',
 ):
 
     """
@@ -347,6 +355,9 @@ def make_data_cube(
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
         to None    
+    interp_kind: str
+        Kind of interpolation to pixelated grid from fiber intensity
+
     Returns
     -------
     hdu: PrimaryHDU object
@@ -491,6 +502,7 @@ def make_data_cube(
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
+                interp_kind=interp_kind,
             )
 
             im_slice = im_src[0]
@@ -509,6 +521,7 @@ def make_data_cube(
                     nchunks=2,
                     wrange=[wave_i - dcont, wave_i],
                     convolve_image=convolve_image,
+                    interp_kind=interp_kind,
                 )
                 zarray_red = E.make_narrowband_image(
                     ifux_cen,
@@ -523,6 +536,7 @@ def make_data_cube(
                     boxsize=imsize.to(u.arcsec).value,
                     wrange=[wave_i + dwave, wave_i + dwave + dcont],
                     convolve_image=convolve_image,
+                    interp_kind=interp_kind,
                 )
 
                 im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
