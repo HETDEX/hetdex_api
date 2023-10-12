@@ -220,7 +220,7 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % file_stars)
     
-    pngfiles = glob.glob(op.join(shiftsdir, '*.png'))
+    pngfiles = glob.glob(op.join(shiftsdir, '2*.png'))
     pngnum = 1
 
     for pngfile in pngfiles:
