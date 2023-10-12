@@ -374,9 +374,9 @@ def main(argv=None):
                 args.log.warning('IFU stats file is empty: ' + ifufile)
             
         if args.month:
-            ifu_tab.write('ifustats_month_' + str(args.month) + '.tab', format='ascii')
+            ifu_tab.write('ifustats_month_' + str(args.month) + '.tab', format='ascii', overwrite=True)
         else:
-            ifu_tab.write('ifustats_merged.tab', format='ascii')
+            ifu_tab.write('ifustats_merged.tab', format='ascii', overwrite=True)
  
     else:
 
