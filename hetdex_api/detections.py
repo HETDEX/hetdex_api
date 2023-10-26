@@ -818,7 +818,7 @@ class Detections:
             # this is needed to match with detection class object sorting
             join_tab.sort("detectid")
 
-            mask1 = join_tab["flag"] != 0
+            mask1 = (join_tab["flag"] != 0)
 
             del det_table, join_tab
 
@@ -919,6 +919,17 @@ class Detections:
 
         self.vis_class[mask] = -2
 
+        if self.survey == 'hdr4':
+            # remove shots that were incorrectly included
+            hdr4_shots_to_remove = [20190802013,
+                                    20190802026,
+                                    20190802027,
+                                    20190802028,
+                                    20190802029]
+            for shot in hdr4_shots_to_remove:
+                maskshot = self.shotid == shot
+                mask = np.logical_or(maskshot, mask)
+        
         return np.invert(mask)
 
     def remove_balmerdip_stars(self):
@@ -1552,6 +1563,8 @@ class Detections:
 
             if np.any(self.badamps["flag"][sel_row] == 0):
                 flag_dict['flag_badamp'] = 0
+            elif np.sum(sel_row) == 0:
+                flag_dict['flag_badamp'] = 0
 
         # check for flag_badpix and flag_badfib
         if self.badpix is None:
@@ -1585,6 +1598,10 @@ class Detections:
         for i, fib_i in enumerate(fiberids):
 
             sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
+
+            if len(sel_fib) == 0:
+                continue
+                
             # access native wavelength and spectrum
             wavelength = fibers_table["wavelength"][sel_fib][0]
             spectrum = fibers_table["spectrum"][sel_fib][0]
