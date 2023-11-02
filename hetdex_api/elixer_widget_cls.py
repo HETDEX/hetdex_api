@@ -427,12 +427,13 @@ class ElixerWidget:
             try:
                 # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
                 # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
-                display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
-                #added 2023-11-02 by EMC
 
-                if cutoutspath is not None:
+                 #added 2023-11-02 by EMC   
+                if self.cutoutpath is not None:
                     display(Image(filename=op.join(self.cutoutpath, '{}.png'.format(detectid))))
-                    
+
+                display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+
             except Exception as e:
 
                 if elix_dir:
