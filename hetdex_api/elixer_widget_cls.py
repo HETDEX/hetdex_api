@@ -121,6 +121,7 @@ class ElixerWidget:
         counterpart=False,
         detect_h5=None,
         elixer_h5=None,
+        cutoutspath=None,
     ):
 
         global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5
@@ -426,6 +427,11 @@ class ElixerWidget:
                 # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
                 # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
                 display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+                #added 2023-11-02 by EMC
+
+                if cutoutspath is not None:
+                    display(Image(filename=op.join(cutoutspath, '{}.png'.format(detectid))))
+                    
             except Exception as e:
 
                 if elix_dir:
