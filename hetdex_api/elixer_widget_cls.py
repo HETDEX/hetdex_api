@@ -121,7 +121,7 @@ class ElixerWidget:
         counterpart=False,
         detect_h5=None,
         elixer_h5=None,
-        cutoutspath=None,
+        cutoutpath=None,
     ):
 
         global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5
@@ -136,7 +136,8 @@ class ElixerWidget:
         self.z = []
         self.comment = []
         self.counterpart = []
-
+        self.cutoutpath = cutoutpath
+        
         if img_dir is not None:
             if op.exists(img_dir):
                 elix_dir = img_dir
@@ -430,7 +431,7 @@ class ElixerWidget:
                 #added 2023-11-02 by EMC
 
                 if cutoutspath is not None:
-                    display(Image(filename=op.join(cutoutspath, '{}.png'.format(detectid))))
+                    display(Image(filename=op.join(self.cutoutpath, '{}.png'.format(detectid))))
                     
             except Exception as e:
 
