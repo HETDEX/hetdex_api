@@ -34,6 +34,7 @@ class HDRconfig:
             "hdr2.1": op.join(self.host_dir, "hdr2.1"),
             "hdr3": op.join(self.host_dir, "hdr3"),
             "hdr4": op.join(self.host_dir, "hdr4"),
+            "pdr1": op.join(self.host_dir, "pdr1"),
         }
 
         self.survey_dir = op.join(self.hdr_dir[survey], "survey")
