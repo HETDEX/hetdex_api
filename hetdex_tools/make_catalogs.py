@@ -698,26 +698,6 @@ def create_source_catalog(version="3.0.0", update=False):
 
     del detfriend_all, detect_table
 
-    gaia_stars = Table.read(config.gaiacat)
-
-    gaia_coords = SkyCoord(ra=gaia_stars["ra"] * u.deg, dec=gaia_stars["dec"] * u.deg)
-    src_coords = SkyCoord(
-        ra=expand_table["ra"] * u.deg, dec=expand_table["dec"] * u.deg
-    )
-
-    idx, d2d, d3d = src_coords.match_to_catalog_sky(gaia_coords)
-
-    sel = d2d < 1.5 * u.arcsec
-
-    gaia_match_name = np.zeros_like(expand_table["source_id"], dtype=int)
-    gaia_match_name[sel] = gaia_stars["source_id"][idx][sel]
-
-    gaia_match_dist = np.zeros_like(expand_table["source_id"], dtype=float)
-    gaia_match_dist[sel] = d2d[sel].to_value(u.arcsec)
-
-    expand_table["gaia_match_id"] = gaia_match_name
-    expand_table["gaia_match_dist"] = gaia_match_dist
-
     expand_table.rename_column("size", "n_members")
     expand_table.rename_column("icx", "ra_mean")
     expand_table.rename_column("icy", "dec_mean")
@@ -980,7 +960,7 @@ def get_parser():
         "--dsky_2D",
         type=float,
         help="""Spatial linking length in arcsec""",
-        default=2.0,
+        default=3.0,
     )
 
     parser.add_argument(
