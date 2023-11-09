@@ -196,9 +196,14 @@ class Detections:
                 colnames = self.hdfile.root.DetectIndex.colnames
 
                 for name in colnames:
+                    
                     if isinstance(getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_):
+                        if name == 'survey':
+                            outname = 'hdr'
+                        else:
+                            outname = name
                         setattr(self,
-                                name,
+                                outname,
                                 getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(str),
                         )
                     else:
@@ -1051,7 +1056,11 @@ class Detections:
             column info given by det_info.dtype attribute
         """
 
-        det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
+        if self.catalog_type == 'index':
+            det_row = self.hdfile.root.DetectIndex.read_where("detectid == detectid_i")
+            return det_row
+        else:
+            det_row = self.hdfile.root.Detections.read_where("detectid == detectid_i")
 
         if rawh5:
             if verbose:
