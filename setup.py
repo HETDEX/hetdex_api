@@ -50,8 +50,7 @@ setup(
                         'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube',
                         'hetdex_get_spec = hetdex_tools.get_spec:main',
                         'hetdex_get_spec2D = hetdex_tools.get_spec2D:main',
-                        'hetdex_get_shots = hetdex_tools.get_shots_of_interest:main'
-                     ]
+                    ]
                    },
 
 )
