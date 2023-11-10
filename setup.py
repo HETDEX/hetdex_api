@@ -5,7 +5,7 @@ install_requires = ['numpy', 'astropy>=4.3', 'astroquery',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
-extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
+extras = {'doc' : ['sphinx==5.2.2',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx_rtd_theme']}
 
 setup(
