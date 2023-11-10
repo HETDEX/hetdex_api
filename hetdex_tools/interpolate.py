@@ -17,10 +17,11 @@ try:  # using HDRconfig
     config = HDRconfig(LATEST_HDR_NAME)
     CONFIG_HDR2 = HDRconfig("hdr2.1")
     CONFIG_HDR3 = HDRconfig("hdr3")
+    CONFIG_HDR4 = HDRconfig("hdr4")
 
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr3"
+    LATEST_HDR_NAME = "hdr4"
 
 OPEN_DET_FILE = None
 DET_HANDLE = None
@@ -112,7 +113,7 @@ def make_narrowband_image(
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
     global config, current_hdr, surveyh5
-    global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
+    global CONFIG_HDR2, CONFIG_HDR3, CONFIG_HDR4, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
 
     if survey != current_hdr:
@@ -139,7 +140,11 @@ def make_narrowband_image(
         elif (detectid >= 3000000000) * (detectid < 3090000000):
             DET_FILE = CONFIG_HDR3.detecth5
         elif (detectid >= 3090000000) * (detectid < 3100000000):
-            DET_FILE = CONFIG_HDR2.contsourceh5
+            DET_FILE = CONFIG_HDR3.contsourceh5
+        elif (detectid >= 4000000000) * (detectid < 4090000000):
+            DET_FILE = CONFIG_HDR4.detecth5
+        elif (detectid >= 4090000000) * (detectid < 4100000000):
+            DET_FILE = CONFIG_HDR4.contsourceh5
 
         if OPEN_DET_FILE is None:
 
