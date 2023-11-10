@@ -67,6 +67,53 @@ def zcluster_forshotid(shotid):
     return zdetfriend_all
 
 
+def zclusterstars_forshotid(shotid):
+
+    global source_table
+
+    sel = source_table["shotid"] == shotid
+
+    uniq_table = unique(source_table[sel], keys=["source_id"])
+
+    kdtree, r = fof.mktree(
+        np.array(uniq_table["ra_mean"]),
+        np.array(uniq_table["dec_mean"]),
+        np.array(uniq_table["z_hetdex"]),
+        dsky=30,
+        dwave=0.0001,
+    )
+
+    zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
+
+    if len(zfriend_lst) == 0:
+        return None
+
+    zfriend_table = fof.process_group_list(
+        zfriend_lst,
+        np.array(uniq_table["source_id"]),
+        np.array(uniq_table["ra_mean"]),
+        np.array(uniq_table["dec_mean"]),
+        np.array(uniq_table["z_hetdex"]),
+        np.array(uniq_table["flux_g"]),
+    )
+
+    memberlist = []
+    friendlist = []
+
+    for row in zfriend_table:
+        friendid = row["id"]
+        members = np.array(row["members"])
+    friendlist.extend(friendid * np.ones_like(members))
+    memberlist.extend(members)
+    zfriend_table.remove_column("members")
+
+    zdetfriend_tab = Table()
+    zdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+    zdetfriend_tab.add_column(Column(memberlist, name="source_id"))
+    zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
+    return zdetfriend_all
+
+
 def update_table(zdetfriend_all):
 
     global source_table
@@ -284,13 +331,13 @@ def add_z_guess(source_id):
             z_conf = 0.9
             z_src = "diagnose"
 
-        elif np.any((group["cls_diagnose"] == "QSO") & (group["gmag"] < 22)):
-            sel_best = (group["cls_diagnose"] == "QSO") & (group["gmag"] < 22)
-            s_type = "agn"
-            closest = np.argmin(group["src_separation"][sel_best])
-            z_guess = group["z_diagnose"][sel_best][closest]
-            z_conf = 0.9
-            z_src = "diagnose"
+        #elif np.any((group["cls_diagnose"] == "QSO") & (group["gmag"] < 22)):
+        #    sel_best = (group["cls_diagnose"] == "QSO") & (group["gmag"] < 22)
+        #    s_type = "agn"
+        #    closest = np.argmin(group["src_separation"][sel_best])
+        #    z_guess = group["z_diagnose"][sel_best][closest]
+        #    z_conf = 0.9
+        #    z_src = "diagnose"
 
         elif np.any((group["cls_diagnose"] == "GALAXY") & (group["gmag"] < 22)):
             sel_best = (group["cls_diagnose"] == "GALAXY") & (group["gmag"] < 22)
@@ -573,11 +620,22 @@ p.close()
 for r in res:
     if r is not None:
         update_table(r)
+
+print("Clustering stars in redshift space")
+shotid_list = np.unique(source_table["shotid"])
+
+p = Pool(16)
+res = p.map(zclusterstars_forshotid, shotid_list)
+p.close()
+
+for r in res:
+    if r is not None:
+        update_table(r)
 t1 = time.time()
 
 print("Done clustering in redshift space in {:5.2f} minutes".format((t1 - t0) / 60))
 
-source_table.sort("source_id", "gmag")
+source_table.sort(["source_id", "gmag"])
 
 # change lzgs to oii if an OII line is found
 sel_oii_line = source_table["line_id"] == "OII"
@@ -831,7 +889,7 @@ source_table = unique(source_table2, keys="detectid")
 # finalize flags
 
 source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
-
+source_table['flag_lowlw'] = ((source_table['linewidth'] > 1.7) | (source_table['det_type'] == 'cont')).astype(int)
 source_table["flag_apcor"] = np.invert(
     (source_table["apcor"] < 0.5) & (source_table["sn"] < 6)
 ).astype(int)
@@ -959,6 +1017,7 @@ flag_best = (
     * source_table["flag_raic"]
     * source_table["flag_chi2fib"]
     * source_table["flag_pixmask"]
+    * source_table['flag_lowlw']
 )
 source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
