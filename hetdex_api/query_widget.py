@@ -41,6 +41,7 @@ try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
+    CONFIG_HDR4 = HDRconfig('hdr4')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -71,7 +72,7 @@ class QueryWidget:
         config = HDRconfig(survey=survey)
 
         self.catlib = catalogs.CatalogLibrary()
-
+                
         if coords:
             self.coords = coords
             self.detectid = 1000000000
@@ -82,23 +83,23 @@ class QueryWidget:
             self.coords = SkyCoord(191.663132 * u.deg, 50.712696 * u.deg, frame="icrs")
             self.detectid = 3003575145
 
-        # initialize the image widget from astrowidgets
-        self.imw = ImageWidget(image_width=600, image_height=600)
-
-        self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2", "HDR2.1", "HDR3"],
-            value=self.survey.upper(),
-            layout=Layout(width="10%"),
-        )
-
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=1000000000,
-            max=4000000000,
+            max=6000000000,
             step=1,
             description="DetectID:",
             disabled=False,
         )
+        # initialize the image widget from astrowidgets
+        self.imw = ImageWidget(image_width=600, image_height=600)
+
+        self.survey_widget = widgets.Dropdown(
+            options=["HDR1", "HDR2", "HDR2.1", "HDR3", "HDR4"],
+            value=self.survey.upper(),
+            layout=Layout(width="10%"),
+        )
+
         self.im_ra = widgets.FloatText(
             value=self.coords.ra.value,
             description="RA (deg):",
@@ -143,7 +144,7 @@ class QueryWidget:
             ]
         )
         self.leftbox = widgets.VBox(
-            [self.imw, self.textimpath], layout=Layout(width="800px")
+            [self.imw, self.textimpath], layout=Layout(width="50%")
         )
         self.rightbox = widgets.VBox(
             [
@@ -157,7 +158,7 @@ class QueryWidget:
                 self.marker_table_output,
                 self.spec_output,
             ],
-            layout=Layout(width="800px"),
+            layout=Layout(width="50%")
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
@@ -204,6 +205,10 @@ class QueryWidget:
             self.det_file = CONFIG_HDR3.detecth5
         elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
             self.det_file = CONFIG_HDR3.contsourceh5
+        elif (self.detectid >= 4000000000) * (self.detectid < 4090000000):
+            self.det_file = CONFIG_HDR4.detecth5
+        elif (self.detectid >= 4090000000) * (self.detectid < 4100000000):
+            self.det_file = CONFIG_HDR4.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file
