@@ -53216,8 +53216,7 @@
 4029211136
 4029274024
 4029331212
-4029466310# ElixerWidget( detectlist = source_table['detectid'][(source_table['flag_dee_tsne']==1)* (source_table['z_hetdex']>1.88) * sel_sn * sel_good * (source_table['source_type'] != 'agn') * (source_table['wave'] < 3600) ])
-# I manually went through this and removed good sources
+4029466310
 3000080964
 3000084845
 3000128078
