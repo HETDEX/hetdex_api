@@ -1037,7 +1037,7 @@ def main(argv=None):
         * np.invert( source_table['flag_dee'] == 0)
     )
     #update all AGN detections inspected by Chenxu to good
-    flag_best[source_table['z_agn' > 0] = 1
+    flag_best[source_table['z_agn'] > 0] = 1
           
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
@@ -1051,7 +1051,7 @@ def main(argv=None):
             except AttributeError:
                 pass
         elif (source_table[col].dtype == '>f4'):
-	    try:
+            try:
                 source_table[col] = source_table[col].filled(-999.0)
             except AttributeError:
                 pass
@@ -1065,7 +1065,7 @@ def main(argv=None):
         else:
             try:
                 source_table[col] = source_table[col].filled('')
-            except AttributeError:
+            except:
                 pass
         
     # remove nonsense metadata
