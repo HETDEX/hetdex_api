@@ -451,13 +451,13 @@ class Detections:
                 self.detectid = self.hdfile.root.DetectIndex.cols.detectid[:]
                 self.ra = self.hdfile.root.DetectIndex.cols.ra[:]
                 self.dec = self.hdfile.root.DetectIndex.cols.dec[:]
-                self.waves = self.hdfile.root.DetectIndex.cols.wave[:]
+                self.wave = self.hdfile.root.DetectIndex.cols.wave[:]
             else:
                 # just get coordinates, wavelength and detectid
                 self.detectid = self.hdfile.root.Detections.cols.detectid[:]
                 self.ra = self.hdfile.root.Detections.cols.ra[:]
                 self.dec = self.hdfile.root.Detections.cols.dec[:]
-                self.waves = self.hdfile.root.Detections.cols.wave[:]
+                self.wave = self.hdfile.root.Detections.cols.wave[:]
 
         # set the SkyCoords
         if searchable or loadtable:
