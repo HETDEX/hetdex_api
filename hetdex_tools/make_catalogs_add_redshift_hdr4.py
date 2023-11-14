@@ -484,10 +484,10 @@ def main(argv=None):
                 source_table["z_agn"] > 0
             )
 
-        # Take Diagnose for gmag < 22 for remaining single detection sources
-        sel_gmag = (source_table["gmag"] < 22) & (
-            source_table["cls_diagnose"] != "UNKNOWN"
-        )
+        # Take Diagnose for gmag < 22 and continuum for remaining single detection sources
+        sel_gmag = (
+            (source_table["gmag"] < 22) | (source_table["det_type"] == "cont")
+        ) & (source_table["cls_diagnose"] != "UNKNOWN")
 
         diagnose_assign = source_table["source_id", "z_diagnose", "cls_diagnose"][
             sel & sel_gmag
@@ -510,7 +510,7 @@ def main(argv=None):
         # Take Elixer best_z for rest
 
         elixer_assign = source_table["source_id", "z_elixer", "best_pz"][
-            sel & np.invert(sel_gmag)
+            sel & np.invert(sel_gmag) & (source_table['det_type'] == 'line')
         ]
         elixer_assign.rename_column("z_elixer", "z_hetdex")
         elixer_assign.rename_column("best_pz", "z_hetdex_conf")
@@ -844,17 +844,21 @@ def main(argv=None):
 
     # add DEE classifications
     dee = unique(
-        Table.read("/scratch/projects/hetdex/hdr4/catalogs/ml/zoo_tsne_rfnumber_20231107.csv"),
+        Table.read(
+            "/scratch/projects/hetdex/hdr4/catalogs/ml/zoo_tsne_rfnumber_20231107.csv"
+        ),
         keys="detectid",
     )
     dee["dee_prob"] = dee["rf_number"].filled(-1)
     sel_bad = (dee["tsne_x"] > 5) & (dee["tsne_y"] < 0)
     dee["flag_dee_tsne"] = np.invert(sel_bad).astype(int)
-    dee['flag_dee'] = np.invert(sel_bad * (dee['dee_prob'] <= 0.3 ) * (dee['dee_prob']>=0.0 )).astype(int)
-    
+    dee["flag_dee"] = np.invert(
+        sel_bad * (dee["dee_prob"] <= 0.3) * (dee["dee_prob"] >= 0.0)
+    ).astype(int)
+
     combined = join(
         source_table,
-        dee["detectid", "dee_prob", "tsne_x", "tsne_y", "flag_dee_tsne", 'flag_dee'],
+        dee["detectid", "dee_prob", "tsne_x", "tsne_y", "flag_dee_tsne", "flag_dee"],
         join_type="left",
     )
 
@@ -862,10 +866,12 @@ def main(argv=None):
 
     # add 2D profile fits
 
-    fit_2D = Table.read('/work/05350/ecooper/stampede2/hdr4/fit_profile_output_4.0.0.fits')
-    
+    fit_2D = Table.read(
+        "/work/05350/ecooper/stampede2/hdr4/fit_profile_output_4.0.0.fits"
+    )
+    fit_2D.rename_column('sn_max', 'sn_moffat')
     source_table2 = join(
-        combined, fit_2D["detectid", "sn_im", "sn_max", "chi2_moffat"], join_type="left"
+        combined, fit_2D["detectid", "sn_im", "sn_moffat", "chi2_moffat"], join_type="left"
     )
 
     print(len(combined), len(source_table2))
@@ -874,11 +880,11 @@ def main(argv=None):
     # finalize flags
 
     source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
-    source_table['flag_dee'] = source_table['flag_dee'].filled(-1)
-    source_table["flag_dee"][source_table['source_type']=='agn'] = 1
-    source_table['flag_dee_tsne'] = source_table['flag_dee_tsne'].filled(-1)
-    source_table["flag_dee_tsne"][source_table['source_type']=='agn'] = 1
-    
+    source_table["flag_dee"] = source_table["flag_dee"].filled(-1)
+    source_table["flag_dee"][source_table["source_type"] == "agn"] = 1
+    source_table["flag_dee_tsne"] = source_table["flag_dee_tsne"].filled(-1)
+    source_table["flag_dee_tsne"][source_table["source_type"] == "agn"] = 1
+
     source_table["flag_lowlw"] = (
         (source_table["linewidth"] > 1.7) | (source_table["det_type"] == "cont")
     ).astype(int)
@@ -890,8 +896,10 @@ def main(argv=None):
     # also keep all continuum sources
     source_table["flag_apcor"][source_table["det_type"] == "cont"] = 1
 
-    source_table['flag_wave'] = ( (source_table['wave'] >= 3510) * (source_table['wave'] <= 5496)).astype(int)
-    source_table['flag_wave'][ source_table['det_type'] == 'cont'] = 1
+    source_table["flag_wave"] = (
+        (source_table["wave"] >= 3510) * (source_table["wave"] <= 5496)
+    ).astype(int)
+    source_table["flag_wave"][source_table["det_type"] == "cont"] = 1
     source_table["flag_3540"] = (
         (source_table["wave"] < 3534)
         | (source_table["wave"] > 3548)  # changed 2023-10-28
@@ -899,18 +907,20 @@ def main(argv=None):
 
     source_table["flag_3540"][source_table["z_agn"] > 0] = 1
 
-    source_table["flag_5200"] = ((source_table["wave"] < 5200) | (source_table["wave"] > 5204)).astype(int)
+    source_table["flag_5200"] = (
+        (source_table["wave"] < 5200) | (source_table["wave"] > 5204)
+    ).astype(int)
 
     source_table["flag_5200"][source_table["z_agn"] > 0] = 1
-    
+
     source_table["flag_seldet"] = source_table["selected_det"].astype(int)
     source_table["flag_fwhm"] = (source_table["fwhm"] <= 2.66).astype(int)
 
     # add RAIC continuum data
 
     raic_cat_cont = Table.read(
-        '/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_cont_labels_20231108_hdr4.0.0.fits'
-        #"/work/05350/ecooper/stampede2/line_images/hdr3/cont_full_all_cat_20230322.csv"
+        "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_cont_labels_20231108_hdr4.0.0.fits"
+        # "/work/05350/ecooper/stampede2/line_images/hdr3/cont_full_all_cat_20230322.csv"
     )
 
     # sort by score, will take unique label for highest score
@@ -923,8 +933,8 @@ def main(argv=None):
 
     # add RAIC line data
     raic_cat = Table.read(
-        '/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_line_labels_20231107_hdr4.0.0.fits'
-        #"/work/05350/ecooper/stampede2/line_images/hdr3/streaks_20230328.csv"
+        "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_line_labels_20231107_hdr4.0.0.fits"
+        # "/work/05350/ecooper/stampede2/line_images/hdr3/streaks_20230328.csv"
     )
 
     raic_cat.sort("Score")
@@ -952,7 +962,9 @@ def main(argv=None):
 
     source_table["raic_streak"] = (
         (
-            (source_table["RAIC_Score"] > 0.25) # note this applies to both continuum and line emission detections
+            (
+                source_table["RAIC_Score"] > 0.35
+            )  # note this applies to both continuum and line emission detections
             & (source_table["RAIC_Label"] == "streak")
         )
         .astype(int)
@@ -960,14 +972,11 @@ def main(argv=None):
     )
 
     source_table["raic_meteor"] = (
-        (
-            (source_table["RAIC_Score"] > 0.5)
-            & (source_table["RAIC_Label"] == "meteor")
-        )
+        ((source_table["RAIC_Score"] > 0.5) & (source_table["RAIC_Label"] == "meteor"))
         .astype(int)
         .filled(-1)
     )
-        
+
     source_table["raic_satellite"] = (
         (
             (source_table["RAIC_Score"] > 0.5)
@@ -982,9 +991,9 @@ def main(argv=None):
             * (
                 (source_table["RAIC_Label"] == "calibissue")
                 | (source_table["RAIC_Label"] == "baddither")
-                | (source_table["RAIC_Label"] == "badfiber") # Score > 0.3
-                #| ( (source_table["RAIC_Label"] == "streak")
-                #| (source_table["RAIC_Label"] == "lowcounts")
+                | (source_table["RAIC_Label"] == "badfiber")  # Score > 0.3
+                # | ( (source_table["RAIC_Label"] == "streak")
+                # | (source_table["RAIC_Label"] == "lowcounts")
             )
         )
         .astype(int)
@@ -994,39 +1003,46 @@ def main(argv=None):
         (source_table["raic_streak"] == 1)
         | (source_table["raic_cont"] == 1)
         | (source_table["raic_satellite"] == 1)
-        | (source_table['raic_meteor'] == 1)
+        | (source_table["raic_meteor"] == 1)
     ).astype(int)
 
     # suggested parameter cuts by Erin
-    sel1 = (source_table["chi2"] <= 1.5) * (source_table["linewidth"] <= 6) * (source_table['sn'] < 5.5)
-    sel2 = (source_table["sn"] >= 5.5) 
-    sel_2D = np.invert( (source_table['sn_max'] < 4.5) * ( (source_table['sn'] < 8) | (source_table['wave']<3600) ) ).filled(1)
+    sel1 = (
+        (source_table["chi2"] <= 1.5)
+        * (source_table["linewidth"] <= 6)
+        * (source_table["sn"] < 5.5)
+    )
+    sel2 = source_table["sn"] >= 5.5
+    sel_2D = np.invert(
+        (source_table["sn_moffat"] < 3.9)
+        * ((source_table["sn"] < 8) | (source_table["wave"] < 3600))
+    ).filled(1)
 
-    flag_erin = ( sel1 | sel2 ) * sel_2D
-     
+    flag_erin = (sel1 | sel2) * sel_2D
+
     source_table.add_column(Column(flag_erin, name="flag_erin_cuts", dtype=int))
 
     # one final loop through manually set bad detections:
 
-    baddets = set(np.loadtxt( config.baddetect, dtype=int))
-    current_good_dets = set(source_table['detectid'][source_table['flag_baddet'] == 1])
-    update_det = current_good_dets.intersection( baddets )
+    baddets = np.loadtxt(config.baddetect, dtype=int)
+    current_good_dets = np.array(source_table["detectid"][source_table["flag_baddet"] == 1])
+    update_det = np.intersect1d( current_good_dets, baddets)
 
-    print('Updating bad detects flag for {} detections'.format(len(update_det)))
-          
+    print("Updating bad detects flag for {} detections".format(len(update_det)))
+
     for baddet in update_det:
-        sel_det = source_table['detectid'] == baddet
-        if source_table['flag_baddet'][sel_det] == 1:
-            source_table['flag_baddet'][sel_det] = 0
-    
+        sel_det = source_table["detectid"] == baddet
+        if source_table["flag_baddet"][sel_det] == 1:
+            source_table["flag_baddet"][sel_det] = 0
+
     flag_best = (
         source_table["flag_badamp"]
         * source_table["flag_badfib"]
         * source_table["flag_badpix"]
         * source_table["flag_apcor"]
-        * source_table['flag_wave']
+        * source_table["flag_wave"]
         * source_table["flag_3540"]
-        * source_table['flag_5200']
+        * source_table["flag_5200"]
         * source_table["flag_baddet"]
         * source_table["flag_meteor"]
         * source_table["flag_largegal"]
@@ -1034,48 +1050,51 @@ def main(argv=None):
         * source_table["flag_chi2fib"]
         * source_table["flag_pixmask"]
         * source_table["flag_lowlw"]
-        * np.invert( source_table['flag_dee'] == 0)
+        * np.invert(source_table["flag_dee"] == 0)
     )
-    #update all AGN detections inspected by Chenxu to good
-    flag_best[source_table['z_agn'] > 0] = 1
-          
+    # update all AGN detections inspected by Chenxu to good
+    flag_best[source_table["z_agn"] > 0] = 1
+
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
     # Fill in masked values
-    
+
     for col in source_table.columns:
-        if (source_table[col].dtype == '>f8'):
-            source_table[col] = source_table[col].astype(np.float32)
+        if source_table[col].dtype == ">f8":
+            if col in ["lum_lya", "lum_lya_err", "lum_oii", "lum_oii_err"]:
+                pass
+            else:
+                source_table[col] = source_table[col].astype(np.float32)
             try:
                 source_table[col] = source_table[col].filled(-999.0)
             except AttributeError:
                 pass
-        elif (source_table[col].dtype == '>f4'):
+        elif source_table[col].dtype == ">f4":
             try:
                 source_table[col] = source_table[col].filled(-999.0)
             except AttributeError:
                 pass
-        elif (source_table[col].dtype == '>i4') | (source_table[col].dtype == '>i8'):
+        elif (source_table[col].dtype == ">i4") | (source_table[col].dtype == ">i8"):
             try:
                 source_table[col] = source_table[col].filled(-999)
             except AttributeError:
                 pass
-        elif (source_table[col].dtype == 'bool'):
+        elif source_table[col].dtype == "bool":
             continue
         else:
             try:
-                source_table[col] = source_table[col].filled('')
+                source_table[col] = source_table[col].filled(" ")
             except:
                 pass
-        
+
     # remove nonsense metadata
     source_table.meta = {}
 
     sel_sa22 = source_table["field"] == "ssa22"
     sel_notsa22 = np.invert(sel_sa22)
 
-    sel_hdr3 = (source_table['date'] < 20210901) & (source_table['detectid'] < 4e9)
-    
+    sel_hdr3 = (source_table["date"] < 20210901) & (source_table["detectid"] < 4e9)
+
     source_table[sel_notsa22].write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
     )
@@ -1086,12 +1105,13 @@ def main(argv=None):
         "source_catalog_{}_sa22.fits".format(version), overwrite=True
     )
 
-    source_table[sel_notsa22*sel_hdr3].write(
-        "source_catalog_{}.fits".format('3.0.3'), overwrite=True
+    source_table[sel_notsa22 * sel_hdr3].write(
+        "source_catalog_{}.fits".format("3.0.3"), overwrite=True
     )
-    source_table[sel_notsa22*sel_hdr3].write(
-        "source_catalog_{}.tab".format('3.0.3'), format="ascii", overwrite=True
+    source_table[sel_notsa22 * sel_hdr3].write(
+        "source_catalog_{}.tab".format("3.0.3"), format="ascii", overwrite=True
     )
+
 
 if __name__ == "__main__":
     main()
