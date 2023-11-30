@@ -614,24 +614,25 @@ def get_fibers_table(
             fibers_table["calfib_ffsky"] /= wd_corr["corr"]
             fibers_table["calfibe"] /= wd_corr["corr"]
 
-            early_2019_hdr4 = np.loadtxt( op.join( config.bad_dir, 'hdr4_2019.shots'), dtype=int)
+            if (shot < 20210901000):
+                early_2019_hdr4 = np.loadtxt( op.join( config.bad_dir, 'hdr4_2019.shots'), dtype=int)
+                if (shot not in early_2019_hdr4):
 
-            if (shot < 20210901000) and (shot not in early_2019_hdr4):
-                
-                # for HDR3 frames adjust noise at IFU by factor of 1.07
-                if verbose:
-                    print("Adjusting noise values by 7% where applicable")
+                    # for HDR3 frames adjust noise at IFU by factor of 1.07
+                    if verbose:
+                        print("Adjusting noise values by 7% where applicable")
 
-                sel_fib1 = (
-                    (fibers_table["amp"] == b"RU") | (fibers_table["amp"] == b"LL")
-                ) & (fibers_table["fibnum"] <= 12)
-                sel_fib2 = (
-                    (fibers_table["amp"] == b"LU") | (fibers_table["amp"] == b"RL")
-                ) & (fibers_table["fibnum"] >= 101)
-                
-                sel_fib = sel_fib1 | sel_fib2
-                
-                fibers_table["calfibe"][sel_fib] *= 1.07
+                    sel_fib1 = (
+                        (fibers_table["amp"] == b"RU") | (fibers_table["amp"] == b"LL")
+                    ) & (fibers_table["fibnum"] <= 12)
+                    sel_fib2 = (
+                        (fibers_table["amp"] == b"LU") | (fibers_table["amp"] == b"RL")
+                    ) & (fibers_table["fibnum"] >= 101)
+
+                    sel_fib = sel_fib1 | sel_fib2
+
+                    fibers_table["calfibe"][sel_fib] *= 1.07
+
 
             if fiber_flux_offset is not None:
                 if verbose:
