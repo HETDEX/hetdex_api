@@ -423,10 +423,9 @@ def create_source_catalog(version="4.0.0", update=False):
         del detects_cont_table, detects_line_table
 
     #also add in HDR3.0.3
-
+    detect_agn_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/agn_3.0.3.fits')
     detect_line_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/detect_hdr3.0.3.fits')
     detect_cont_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/continuum_3.0.3.fits')
-    detect_agn_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/agn_3.0.3.fits')
 
     # exclude data past 20210831 for the HDR3 catalgos
     detect_line_hdr3 = detect_line_hdr3[ detect_line_hdr3['date'] < 20210901]
