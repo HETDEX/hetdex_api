@@ -248,8 +248,16 @@ class Survey:
 
         survey_table["shot_flag"] = good_shots
 
-        survey_table["mjd"] = self.mjd[:, 0]
-        survey_table["exptime"] = np.mean(self.exptime, axis=1)
+        try:
+            survey_table["mjd"] = self.mjd[:, 0]
+        except:
+            pass
+
+        try:
+            survey_table["exptime"] = np.mean(self.exptime, axis=1)
+        except:
+            pass
+            
         try:
             survey_table["fluxlimit_4540"] = self.fluxlimit_4540
         except:
