@@ -11,6 +11,7 @@ import os.path as op
 import re
 import tables as tb
 import numpy as np
+import h5py
 
 import warnings
 import sys
@@ -31,6 +32,14 @@ try:
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
     LATEST_HDR_NAME = "hdr2.1"
+
+def open_ffsky_rescor(filename, indices=None):
+    with h5py.File(filename, "r") as ff:
+        if indices is None:
+            ffsky_rescor = ff['calfib_ffsky_rescor'][:]
+        else:
+            ffsky_rescor = ff['calfib_ffsky_rescor'][indices]
+    return ffsky_rescor
     
 def open_shot_file(shotid, survey=LATEST_HDR_NAME):
     """
@@ -500,10 +509,7 @@ def get_fibers_table(
     if add_rescor:
         filerescor = op.join(config.red_dir, 'ffsky_rescor', str(shot) + ".h5")
 
-        if op.exists(filerescor):
-            fileh_rescor = tb.open_file(filerescor, "r")
-            ffsky_rescor = fileh_rescor.root.calfib_ffsky_rescor.read()
-        else:
+        if not op.exists(filerescor):
             add_rescor = False
             print('Could not open {}. Forcing add_rescor to False'.format(filerescor))
     
@@ -524,8 +530,8 @@ def get_fibers_table(
             if add_rescor:
                 if verbose:
                     print('Adding calfib_ffsky_rescor column')
-                
-                fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
+                ffsky_rescor = open_ffsky_rescor(filerescor, idx)
+                fibers_table['calfib_ffsky_rescor'] = ffsky_rescor
         
     elif multiframe is not None:
         if verbose:
@@ -539,7 +545,7 @@ def get_fibers_table(
         if add_rescor:
             if verbose:
                 print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
+            fibers_table['calfib_ffsky_rescor'] = open_ffsky_rescor(filerescor, idx)
         
         if expnum is not None:
             if verbose:
@@ -549,7 +555,9 @@ def get_fibers_table(
     elif ifuslot is not None:
 
         # ensure ifuslot is three digit Unicode string
-        ifuslot = ifuslot.zfill(3).decode()
+        ifuslot = ifuslot.zfill(3)
+        if isinstance(ifuslot, bytes):
+            ifuslot = ifuslot.decode()
 
         if verbose:
             print("Acessing fibers for ifuslot {}".format(ifuslot))
@@ -561,13 +569,14 @@ def get_fibers_table(
         idx = []
         for mf in multiframe_array[ifuslot_array == ifuslot]:
             idx.append( fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
+        idx = np.unique(idx)
 
         fibers_table = Table( fileh.root.Data.Fibers.read_coordinates(idx))
         
         if add_rescor:
             if verbose:
                 print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
+            fibers_table['calfib_ffsky_rescor'] = open_ffsky_rescor(filerescor, idx)
         
         if expnum is not None:
             if verbose:
@@ -585,7 +594,7 @@ def get_fibers_table(
         if add_rescor:
             if verbose:
                 print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor    
+            fibers_table['calfib_ffsky_rescor'] = open_ffsky_rescor(filerescor)    
 
     if rawh5:
         intensityunit = 10**-17 * u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
