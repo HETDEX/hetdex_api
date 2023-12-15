@@ -560,7 +560,7 @@ def get_fibers_table(
 
         idx = []
         for mf in multiframe_array[ifuslot_array == ifuslot]:
-            idx.append( fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
+            idx.extend( fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
 
         fibers_table = Table( fileh.root.Data.Fibers.read_coordinates(idx))
         
