@@ -549,7 +549,9 @@ def get_fibers_table(
     elif ifuslot is not None:
 
         # ensure ifuslot is three digit Unicode string
-        ifuslot = ifuslot.zfill(3).decode()
+        ifuslot = ifuslot.zfill(3)
+        if isinstance(ifuslot, bytes):
+            ifuslot = ifuslot.decode()
 
         if verbose:
             print("Acessing fibers for ifuslot {}".format(ifuslot))
@@ -714,6 +716,12 @@ def get_fibers_table(
     #close h5 file handle if not passed initially
     if close_F_at_end:
         F.close()
+
+    if add_rescor:
+        try:
+            fileh_rescor.close()
+        except:
+            pass
         
     return fibers_table
 
