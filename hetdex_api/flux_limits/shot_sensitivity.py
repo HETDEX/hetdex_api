@@ -14,7 +14,7 @@ from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    repeat, loadtxt, where, argmin, invert, logical_not, isfinite,
-                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean)
+                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean, any)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
