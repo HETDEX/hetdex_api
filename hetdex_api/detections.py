@@ -612,7 +612,7 @@ class Detections:
             index of matches
         """
 
-        selmatch = self.query_by_coords(coord, radius)
+        selmatch = self.query_by_coord(coord, radius)
 
         if wave is not None:
             selwave = np.abs(self.wave - wave) < dwave
@@ -703,7 +703,7 @@ class Detections:
 
         if limits.aperture_flag:
             coords = SkyCoord(limits.ra * u.degree, limits.dec * u.degree, frame="icrs")
-            maskfield = self.query_by_coords(coords, limits.rad)
+            maskfield = self.query_by_coord(coords, limits.rad)
         else:
             maskfield = np.zeros(ndets, dtype=bool)
             print("Subselecting for field(s):", limits.field)

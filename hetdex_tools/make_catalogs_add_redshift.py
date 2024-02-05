@@ -12,6 +12,8 @@ from astropy.table import Table, unique, join, Column, vstack
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
 
+import argparse as ap
+
 from hetdex_api.config import HDRconfig
 import hetdex_tools.fof_kdtree as fof
 
