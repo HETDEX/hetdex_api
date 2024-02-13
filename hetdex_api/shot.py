@@ -20,6 +20,8 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 
 from hetdex_api.config import HDRconfig
+from astropy.nddata import bitmask
+from astropy.nddata.bitmask import BitFlagNameMap
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -28,14 +30,30 @@ try:
     from hetdex_api.config import HDRconfig
 
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig(survey=LATEST_HDR_NAME)
+
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr2.1"
+    LATEST_HDR_NAME = "hdr4"
+
     
+class CALFIB_DQ(BitFlagNameMap):
+    MAIN = 1
+    FTF = 2
+    CHI2FIB = 4
+    BADPIX = 8
+    BADAMP = 16
+    LARGEGAL = 32
+    METEOR = 64
+    BADSHOT = 128
+    THROUGHPUT = 256
+    BADFIB = 512
+    SAT = 1024
+
 def open_shot_file(shotid, survey=LATEST_HDR_NAME):
     """
     Open the H5 file for a shot. This is a global function that allows you
-    to open an H5 file based on its shotid and data release. 
+    to open an H5 file based on its shotid and data release.
 
     Parameters
     ----------
@@ -45,7 +63,7 @@ def open_shot_file(shotid, survey=LATEST_HDR_NAME):
         string datevobs (eg. '20180123v009')
 
     survey : string
-            Data release you would like to load, i.e., 'HDR1', 'hdr2', 
+            Data release you would like to load, i.e., 'HDR1', 'hdr2',
             This is case insensitive.
 
     Example
@@ -74,7 +92,14 @@ def open_shot_file(shotid, survey=LATEST_HDR_NAME):
 
 
 class Fibers:
-    def __init__(self, shot, survey=LATEST_HDR_NAME):
+    def __init__(
+        self,
+        shot,
+        survey=LATEST_HDR_NAME,
+        add_rescor=False,
+        add_mask=False,
+        mask_version=None,
+    ):
         """
         Initialize Fibers Class
 
@@ -92,6 +117,12 @@ class Fibers:
         shot
             either in the form of integer shotid (eg. 20180123009) or
             string datevobs (eg. 20180123v009)
+        add_mask
+            boolean option to open mask h5 file handle. Defaults to False for now.
+        mask_version
+            Force mask version rather than using the default from HDRconfig
+        add_rescor
+            boolean option to open rescor h5 file. Defaults to False
         survey
             Data release you would like to load, i.e., 'HDR1', 'hdr2', 'hdr2.1'
             This is case insensitive.
@@ -100,6 +131,10 @@ class Fibers:
         ----------
         hdfile
             h5 file handle for the specified shotid
+        maskh5
+            h5 file handle for the mask
+        rescorh5
+            h5 file handle for residual correction file
         table
             h5 table of Fiber data
         coords
@@ -109,7 +144,49 @@ class Fibers:
             'calfibe'
         """
 
+        global config
+
         self.hdfile = open_shot_file(shot, survey=survey)
+
+        if re.search("v", str(shot)):
+            shotid = int(shot.replac("v", ""))
+            datevobs = shot
+        else:
+            shotid = shot
+            datevobs = "{}v{}".format(str(shotid)[0:8], str(shotid)[8:11])
+
+        if add_mask:
+            try:
+                if mask_version is not None:
+                    self.mask_version = mask_version
+                else:
+                    self.mask_version = config.LATEST_MASK_DICT[survey]
+
+                # compose the file handle
+                fmask = op.join(
+                    config.mask_dir, self.mask_version, "{}.h5".format(datevobs)
+                )
+                self.maskh5 = tb.open_file(fmask, "r")
+            except:
+                print(
+                    "Could not open mask h5 file for version {}.".format(
+                        self.mask_version
+                    )
+                )
+        else:
+            self.maskh5 = None
+            self.mask_version = None
+
+        if add_rescor:
+            filerescor = op.join(config.red_dir, "ffsky_rescor", str(shotid) + ".h5")
+            try:
+                self.rescorh5 = tb.open_file(filerescor, "r")
+            except:
+                print(
+                    "Could not open {}. Forcing add_rescor to False".format(filerescor)
+                )
+        else:
+            self.rescorh5 = None
 
         self.table = self.hdfile.root.Data.Fibers
 
@@ -118,7 +195,6 @@ class Fibers:
         if survey == "hdr1":
             colnames = self.hdfile.root.Data.Fibers.colnames
             for name in colnames:
-
                 if isinstance(
                     getattr(self.hdfile.root.Data.Fibers.cols, name)[0], np.bytes_
                 ):
@@ -134,7 +210,6 @@ class Fibers:
         else:
             colnames = self.hdfile.root.Data.FiberIndex.colnames
             for name in colnames:
-
                 if isinstance(
                     getattr(self.hdfile.root.Data.FiberIndex.cols, name)[0], np.bytes_
                 ):
@@ -153,7 +228,9 @@ class Fibers:
                     )
 
         self.coords = SkyCoord(
-            self.ra[:] * u.degree, self.dec[:] * u.degree, frame="icrs",
+            self.ra[:] * u.degree,
+            self.dec[:] * u.degree,
+            frame="icrs",
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
@@ -167,7 +244,7 @@ class Fibers:
             Fibers class object
         coords
             astropy coordinate object
-        radius 
+        radius
             astropy quantity. If no quantity given, assume arcsec
         """
         try:
@@ -294,8 +371,14 @@ class Fibers:
         spectab.write(file, format="ascii", overwrite=True)
 
     def close(self):
-        """ Close the H5 file related to the Fibers call"""
+        """Close the H5 files related to the Fibers call"""
         self.hdfile.close()
+
+        if self.maskh5 is not None:
+            self.maskh5.close()
+
+        if self.rescorh5 is not None:
+            self.rescorh5.close()
 
     def get_fib_image2D(
         self,
@@ -444,6 +527,8 @@ def get_fibers_table(
     fiber_flux_offset=None,
     add_rescor=False,
     add_mask=False,
+    mask_options=None,
+    mask_version=None,
 ):
     """
     Returns fiber specta for a given shot.
@@ -467,7 +552,7 @@ def get_fibers_table(
     verbose
         print out warnings. Default is False
     F   Fibers class object
-        a pre-intiated fibers class object. This is used to limit I/O. 
+        a pre-intiated fibers class object. This is used to limit I/O.
     fiber_flux_offset: 1036 array
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
@@ -477,7 +562,11 @@ def get_fibers_table(
         Defaults to False for now
     add_mask
         option to add mask column. Defaults to False for now.
-    
+    mask_options
+        string array options to select to mask. Default None will select all flags.
+        Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
+        'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
+
     Returns
     -------
     A table of fibers within the defined aperture. Will be an astropy table
@@ -486,26 +575,73 @@ def get_fibers_table(
     """
     if verbose:
         print("Grabbing fibers from {}".format(shot))
-        
+
+    update_F = False  # flag to update Fibers class object if needed
+
     if F is not None:
         fileh = F.hdfile
+
+        # check if you mask h5 needs to be open
+
+        if add_mask and F.maskh5 is None:
+            update_F = True
+
+        if mask_version is None:
+            mask_version = F.mask_version
+            if verbose:
+                print('Using mask_version={}'.format(mask_version))
+                                                     
+        if F.mask_version != mask_version:
+            if verbose:
+                print('Updating mask_version to mask_version={}'.format(mask_version))
+            update_F = True
+
+        if add_rescor and F.rescor is None:
+            update_F = True
+
+        if update_F:
+
+            if verbose:
+                print(
+                    "Fibers class object is updating for options: add_mask={}, add_rescor={}, mask_version={}".format(
+                        add_mask, add_rescor, mask_version
+                    )
+                )
+            
+            F = Fibers(
+                shot,
+                survey=survey.lower(),
+                add_rescor=add_rescor,
+                add_mask=add_mask,
+                mask_version=mask_version,
+            )
+            
         close_F_at_end = False
     else:
-        F = Fibers(shot, survey=survey.lower())
+        if verbose:
+            print(
+                "Opening Fibers class object. If you are running many calls of get_fibers_table consider pre-opening the Fibers class object."
+            )
+            print(
+                    "Fibers class object is opening for options: add_mask={}, add_rescor={}, mask_version={}".format(
+                        add_mask, add_rescor, mask_version
+                    )
+            )
+
+        F = Fibers(
+            shot,
+            survey=survey.lower(),
+            add_rescor=add_rescor,
+            add_mask=add_mask,
+            mask_version=mask_version,
+        )
         fileh = F.hdfile
         close_F_at_end = True
-    
+
     config = HDRconfig(survey=survey.lower())
 
-    if add_rescor:
-        filerescor = op.join(config.red_dir, 'ffsky_rescor', str(shot) + ".h5")
-
-        if op.exists(filerescor):
-            fileh_rescor = tb.open_file(filerescor, "r")
-            ffsky_rescor = fileh_rescor.root.calfib_ffsky_rescor.read()
-        else:
-            add_rescor = False
-            print('Could not open {}. Forcing add_rescor to False'.format(filerescor))
+    #set empty index for logic later in code
+    idx = []
     
     if coords is not None:
         if verbose:
@@ -517,15 +653,7 @@ def get_fibers_table(
             print("Coords argument must be an astropy coordinates object")
 
         idx = F.query_region_idx(coords, radius=radius)
-        fibers_table = Table( fileh.root.Data.Fibers.read_coordinates(idx))
-
-        if add_rescor:
-        
-            if add_rescor:
-                if verbose:
-                    print('Adding calfib_ffsky_rescor column')
-                
-                fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
+        fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
         
     elif multiframe is not None:
         if verbose:
@@ -534,20 +662,9 @@ def get_fibers_table(
 
         idx = fileh.root.Data.FiberIndex.get_where_list("multiframe == multiframe_i")
 
-        fibers_table = Table( fileh.root.Data.Fibers.read_coordinates(idx))
-
-        if add_rescor:
-            if verbose:
-                print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
-        
-        if expnum is not None:
-            if verbose:
-                print("Accessing fibers for expnum {}".format(expnum))
-            fibers_table = fibers_table[fibers_table["expnum"] == expnum]
+        fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
 
     elif ifuslot is not None:
-
         # ensure ifuslot is three digit Unicode string
         ifuslot = ifuslot.zfill(3)
         if isinstance(ifuslot, bytes):
@@ -562,37 +679,68 @@ def get_fibers_table(
 
         idx = []
         for mf in multiframe_array[ifuslot_array == ifuslot]:
-            idx.extend( fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
+            idx.extend(fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
 
-        fibers_table = Table( fileh.root.Data.Fibers.read_coordinates(idx))
+        fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
         
-        if add_rescor:
-            if verbose:
-                print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor[idx]
-        
-        if expnum is not None:
-            if verbose:
-                print("Accessing fibers for expnum {}".format(expnum))
-            fibers_table = fibers_table[fibers_table["expnum"] == expnum]
-
     else:
         if verbose:
             print("Loading full fibers table for shot. This will take some time.")
             print(
                 "Consider requesting a single multiframe and expnum or querying by coordinates"
             )
-        fibers_table = Table( fileh.root.Data.Fibers.read())
-        
-        if add_rescor:
-            if verbose:
-                print('Adding calfib_ffsky_rescor column')
-            fibers_table['calfib_ffsky_rescor'] = ffsky_rescor    
+        fibers_table = Table(fileh.root.Data.Fibers.read())
 
+    if add_rescor:
+        if verbose:
+            print("Adding calfib_ffsky_rescor column")
+        ffsky_rescor = F.rescorh5.root.calfib_ffsky_rescor.read()
+
+        if len(idx) > 0:
+            fibers_table["calfib_ffsky_rescor"] = ffsky_rescor[idx]
+        else:
+            fibers_table["calfib_ffsky_rescor"] = ffsky_rescor
+
+    if add_mask:
+        if verbose:
+            print('Adding mask array using mask_version={}'.format(F.mask_version)) 
+
+        if len(idx) > 0:
+            bitmaskDQ = F.maskh5.root.CalfibDQ.read_coordinates( idx, 'calfib_dq')
+        else:
+            bitmaskDQ = F.maskh5.root.CalfibDQ.read()['calfib_dq']
+            
+        if mask_options is not None:
+            if mask_option=='bitmask':
+                #return the mask the full bitmask array
+                fiber_table['mask'] = bitmaskDQ
+                
+            # get mask name dictionary
+            mask_names = []
+            for i in CALFIB_DQ.__dict__.keys():
+                if '_' not in i:
+                    mask_names.append(i)
+
+            for mask_option in mask_options:
+                if mask_option not in mask_names:
+                    print('mask_option={} not in mask_option dictionary for mask_version={}. Mask options are:{}'.format(mask_option, mask_version, mask_names))
+
+        else:
+            if verbose:
+                print('Masking everything. mask_options set to None')
+            bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True)
+            fibers_table['mask'] = bool_mask
+            
+    # down-select on expnum if desired
+    if expnum is not None:
+        if verbose:
+            print("Accessing fibers for expnum {}".format(expnum))
+        fibers_table = fibers_table[fibers_table["expnum"] == expnum]
+        
     if rawh5:
-        intensityunit = 10**-17 * u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
+        intensityunit = 10**-17 * u.erg / (u.cm**2 * u.s * 2 * u.AA)
     else:
-        intensityunit = 10**-17 * u.erg / (u.cm ** 2 * u.s * u.AA)
+        intensityunit = 10**-17 * u.erg / (u.cm**2 * u.s * u.AA)
 
         if verbose:
             print("Convert to spectral density units in 10^-17 ergs/s/cm^2/AA")
@@ -600,7 +748,7 @@ def get_fibers_table(
         fibers_table["calfib"] /= 2.0
         fibers_table["calfibe"] /= 2.0
 
-        if survey.lower() == 'hdr2.1':
+        if survey.lower() == "hdr2.1":
             fibers_table["spec_fullsky_sub"] /= 2.0
         else:
             fibers_table["calfib_ffsky"] /= 2.0
@@ -631,11 +779,13 @@ def get_fibers_table(
 
             if fiber_flux_offset is not None:
                 if verbose:
-                    print("Applying supplied fiber_flux_offset: {}".format(
-                        fiber_flux_offset)
+                    print(
+                        "Applying supplied fiber_flux_offset: {}".format(
+                            fiber_flux_offset
+                        )
                     )
 
-                #DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                # DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
                 sel_nan = fibers_table["calfibe"] == 0
                 fibers_table["calfib"][sel_nan] = np.nan
                 fibers_table["calfib_ffsky"][sel_nan] = np.nan
@@ -646,9 +796,9 @@ def get_fibers_table(
                 fibers_table["calfib_ffsky"][sel_nan] = 0
 
                 if add_rescor:
-                    fibers_table['calfib_ffsky_rescor'][sel_nan] = 0
-                    
-        elif float(survey.lower()[3:]) >= 4.0: #only HDR4 and up
+                    fibers_table["calfib_ffsky_rescor"][sel_nan] = 0
+
+        elif float(survey.lower()[3:]) >= 4.0:  # only HDR4 and up
             if verbose:
                 print("Applying spectral correction from WD modelling")
             wd_corr = Table.read(
@@ -658,10 +808,11 @@ def get_fibers_table(
             fibers_table["calfib_ffsky"] /= wd_corr["corr"]
             fibers_table["calfibe"] /= wd_corr["corr"]
 
-            if (shot < 20210901000):
-                early_2019_hdr4 = np.loadtxt( op.join( config.bad_dir, 'hdr4_2019.shots'), dtype=int)
-                if (shot not in early_2019_hdr4):
-
+            if shot < 20210901000:
+                early_2019_hdr4 = np.loadtxt(
+                    op.join(config.bad_dir, "hdr4_2019.shots"), dtype=int
+                )
+                if shot not in early_2019_hdr4:
                     # for HDR3 frames adjust noise at IFU by factor of 1.07
                     if verbose:
                         print("Adjusting noise values by 7% where applicable")
@@ -677,14 +828,15 @@ def get_fibers_table(
 
                     fibers_table["calfibe"][sel_fib] *= 1.07
 
-
             if fiber_flux_offset is not None:
                 if verbose:
-                    print("Applying supplied fiber_flux_offset: {}".format(
-                        fiber_flux_offset)
+                    print(
+                        "Applying supplied fiber_flux_offset: {}".format(
+                            fiber_flux_offset
+                        )
                     )
 
-                #DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
+                # DD 2023-09-19 replace calfibe 0 spot with nan wo the fiber_flux_offset does not create "data"
                 sel_nan = fibers_table["calfibe"] == 0
                 fibers_table["calfib"][sel_nan] = np.nan
                 fibers_table["calfib_ffsky"][sel_nan] = np.nan
@@ -693,14 +845,14 @@ def get_fibers_table(
                 fibers_table["calfib_ffsky"] += fiber_flux_offset
                 fibers_table["calfib"][sel_nan] = 0
                 fibers_table["calfib_ffsky"][sel_nan] = 0
-                
+
     if np.size(fibers_table) > 0:
         if astropy:
             # convert to an astropy table format and add units
             fibers_table = Table(fibers_table)
             # add units
             fibers_table["calfib"].unit = intensityunit
-            if survey.lower() == 'hdr2.1':
+            if survey.lower() == "hdr2.1":
                 fibers_table["spec_fullsky_sub"].unit = intensityunit
             else:
                 fibers_table["calfib_ffsky"].unit = intensityunit
@@ -713,16 +865,10 @@ def get_fibers_table(
     else:
         fibers_table = None
 
-    #close h5 file handle if not passed initially
+    # close h5 file handle if not passed initially
     if close_F_at_end:
         F.close()
 
-    if add_rescor:
-        try:
-            fileh_rescor.close()
-        except:
-            pass
-        
     return fibers_table
 
 
@@ -761,7 +907,7 @@ def get_image2D_cutout(
 
     Returns
     -------
-    
+
     """
     fibers = Fibers(shot)
 
