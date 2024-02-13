@@ -10,6 +10,9 @@ class HDRconfig:
 
     LATEST_HDR_NAME = 'hdr4'
 
+    LATEST_MASK_DICT = {'hdr4': '4.0.1',
+                        'pdr1': '1.0'}
+    
     def __init__(self, survey=LATEST_HDR_NAME):
         # Check stampede2 first
         if op.exists("/scratch/projects/hetdex"): #DD 2023-08-05
@@ -41,6 +44,7 @@ class HDRconfig:
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
+        self.mask_dir = op.join(self.red_dir, "mask")
         self.tp_dir = op.join(self.red_dir, "throughput")
         #self.calib_dir = op.join(self.hdr_dir[survey], "calib") #DD 2023-08-05
         self.calib_dir = op.join(self.host_dir, "lib_calib")
