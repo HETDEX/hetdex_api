@@ -529,6 +529,7 @@ def get_fibers_table(
     add_mask=False,
     mask_options=None,
     mask_version=None,
+    ignore_mask=None,
 ):
     """
     Returns fiber specta for a given shot.
@@ -564,6 +565,7 @@ def get_fibers_table(
         option to add mask column. Defaults to False for now.
     mask_options
         string array options to select to mask. Default None will select all flags.
+        Set this to 'BITMASK' to return the full bitmask array
         Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
         'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
 
@@ -667,7 +669,6 @@ def get_fibers_table(
         multiframe_i = multiframe
 
         idx = fileh.root.Data.FiberIndex.get_where_list("multiframe == multiframe_i")
-
         fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
 
     elif ifuslot is not None:
@@ -686,7 +687,7 @@ def get_fibers_table(
         idx = []
         for mf in multiframe_array[ifuslot_array == ifuslot]:
             idx.extend(fileh.root.Data.FiberIndex.get_where_list("multiframe == mf"))
-
+        
         fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
         
     else:
@@ -701,7 +702,7 @@ def get_fibers_table(
         if verbose:
             print("Adding calfib_ffsky_rescor column")
         ffsky_rescor = F.rescorh5.root.calfib_ffsky_rescor.read()
-
+        
         if len(idx) > 0:
             fibers_table["calfib_ffsky_rescor"] = ffsky_rescor[idx]
         else:
@@ -717,25 +718,44 @@ def get_fibers_table(
             bitmaskDQ = F.maskh5.root.CalfibDQ.read()['calfib_dq']
             
         if mask_options is not None:
-            if mask_option=='bitmask':
+
+            if mask_options == 'bitmask' or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
-                fiber_table['mask'] = bitmaskDQ
-                
-            # get mask name dictionary
-            mask_names = []
-            for i in CALFIB_DQ.__dict__.keys():
-                if '_' not in i:
-                    mask_names.append(i)
+                bool_mask = bitmaskDQ
+            else:
+                # get mask name dictionary
+                mask_names = []
+                for i in CALFIB_DQ.__dict__.keys():
+                    if '_' not in i:
+                        mask_names.append(i)
 
-            for mask_option in mask_options:
-                if mask_option not in mask_names:
-                    print('mask_option={} not in mask_option dictionary for mask_version={}. Mask options are:{}'.format(mask_option, mask_version, mask_names))
+                if verbose:
+                    print('Creating bool mask with mask_options={}'.format(mask_options))
 
+                # set up initial mask to all True
+                bool_mask = np.ones_like(bitmaskDQ, dtype=bool)
+
+                #flag according to selected mask_options
+                for mask_option in mask_options:
+                    if mask_option.upper() not in mask_names:
+                        print('mask_option={} not in mask_option dictionary for mask_version={}. Mask options are:{}'.format(mask_option, mask_version, mask_names))
+                    else:
+                        bool_mask *= (CALFIB_DQ[mask_option.upper()] & bitmaskDQ) == 0
+                    
+        elif ignore_mask is not None:
+            if verbose:
+                print('Creating mask but ignoring mask flags={}'.format(ignore_mask))
+            try:
+                bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True, ignore_flags=ignore_mask)
+            except:
+                print('ignore_mask={} failed to generated. This should be a list of integers or strings. String mask names are:{}'.format( ignore_mask, mask_names))
+            
         else:
             if verbose:
                 print('Masking everything. mask_options set to None')
             bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True)
-            fibers_table['mask'] = bool_mask
+
+        fibers_table['mask'] = bool_mask
             
     # down-select on expnum if desired
     if expnum is not None:
