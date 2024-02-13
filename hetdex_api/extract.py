@@ -578,13 +578,11 @@ class Extract:
                 print('Calfib updates applied')
 
             if self.fibers is None:
-                self.fibers = Fibers(self.shot, survey=self.survey)
+                self.fibers = Fibers(self.shot,
+                                     survey=self.survey,
+                                     add_rescor=ffsky_rescor,
+                                     add_mask=add_mask)
 
-            if ffsky_rescor:
-                add_rescor = True
-            else:
-                add_rescor = False
-                
             fib_table = get_fibers_table(
                 self.shot, coord,
                 survey=self.survey,
@@ -593,7 +591,7 @@ class Extract:
                 astropy=True,
                 F=self.fibers,
                 fiber_flux_offset=fiber_flux_offset,
-                add_rescor=add_rescor,
+                add_rescor=ffsky_rescor,
                 add_mask=add_mask,
             )
 
