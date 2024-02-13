@@ -596,7 +596,7 @@ def get_fibers_table(
                 print('Updating mask_version to mask_version={}'.format(mask_version))
             update_F = True
 
-        if add_rescor and F.rescor is None:
+        if add_rescor and F.rescorh5 is None:
             update_F = True
 
         if update_F:
