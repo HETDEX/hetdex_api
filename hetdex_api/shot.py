@@ -641,7 +641,7 @@ def get_fibers_table(
     config = HDRconfig(survey=survey.lower())
 
     #set index to None for logic later in code
-    idx = None
+    idx =[]
     
     if coords is not None:
         if verbose:
