@@ -640,8 +640,8 @@ def get_fibers_table(
 
     config = HDRconfig(survey=survey.lower())
 
-    #set empty index for logic later in code
-    idx = []
+    #set index to None for logic later in code
+    idx = None
     
     if coords is not None:
         if verbose:
@@ -653,7 +653,13 @@ def get_fibers_table(
             print("Coords argument must be an astropy coordinates object")
 
         idx = F.query_region_idx(coords, radius=radius)
-        fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
+
+        if len(idx) > 0:
+            fibers_table = Table(fileh.root.Data.Fibers.read_coordinates(idx))
+        else:
+            if verbose:
+                print('No fibers found for {} in {}'.format(coords, shot))
+            return None
         
     elif multiframe is not None:
         if verbose:
