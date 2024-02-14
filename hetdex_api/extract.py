@@ -164,7 +164,7 @@ class Extract:
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
     def load_shot(
-        self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True
+            self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True, add_mask=True
     ):
         """
         Load fiber info from hdf5 for given shot_input
@@ -178,7 +178,7 @@ class Extract:
         self.survey = survey
 
         if fibers:
-            self.fibers = Fibers(self.shot, survey=survey)
+            self.fibers = Fibers(self.shot, survey=survey, add_mask=add_mask)
             self.shoth5 = self.fibers.hdfile
         else:
             self.fibers = None
@@ -618,13 +618,16 @@ class Extract:
                 spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
             ftf = fib_table["fiber_to_fiber"]
+            
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+            elif add_mask:
+                mask = fib_table['mask']
             else:
                 mask = fib_table["calfibe"]
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
-
+                
             expn = np.array(fib_table["expnum"], dtype=int)
             mf_array = fib_table['multiframe'].astype(str)
             try:
