@@ -530,6 +530,8 @@ def get_fibers_table(
     mask_options=None,
     mask_version=None,
     ignore_mask=None,
+    mask_in_place=False,
+    mask_value=np.nan,
 ):
     """
     Returns fiber specta for a given shot.
@@ -568,7 +570,12 @@ def get_fibers_table(
         Set this to 'BITMASK' to return the full bitmask array
         Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
         'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
-
+    ignore_mask
+        Option to provide a list of flag names that should be ingored in the mask model
+    mask_in_place
+        Set to True to apply mask to calfib, calfibe, calfib_ffsky and calfib_ffsky_rescor
+    mask_value
+        value to fill masked values. Default is np.nan
     Returns
     -------
     A table of fibers within the defined aperture. Will be an astropy table
