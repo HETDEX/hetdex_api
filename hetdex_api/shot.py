@@ -723,18 +723,19 @@ def get_fibers_table(
             bitmaskDQ = F.maskh5.root.CalfibDQ.read_coordinates( idx, 'calfib_dq')
         else:
             bitmaskDQ = F.maskh5.root.CalfibDQ.read()['calfib_dq']
-            
+
+        # get mask name dictionary                                                                      
+        mask_names = []
+        for i in CALFIB_DQ.__dict__.keys():
+            if '_' not in i:
+                mask_names.append(i)
+
         if mask_options is not None:
 
             if mask_options == 'bitmask' or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
                 bool_mask = bitmaskDQ
             else:
-                # get mask name dictionary
-                mask_names = []
-                for i in CALFIB_DQ.__dict__.keys():
-                    if '_' not in i:
-                        mask_names.append(i)
 
                 if verbose:
                     print('Creating bool mask with mask_options={}'.format(mask_options))
@@ -753,7 +754,7 @@ def get_fibers_table(
             if verbose:
                 print('Creating mask but ignoring mask flags={}'.format(ignore_mask))
             try:
-                bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True, ignore_flags=ignore_mask)
+                bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True, ignore_flags=ignore_mask, flag_name_map=CALFIB_DQ)
             except:
                 print('ignore_mask={} failed to generated. This should be a list of integers or strings. String mask names are:{}'.format( ignore_mask, mask_names))
             
