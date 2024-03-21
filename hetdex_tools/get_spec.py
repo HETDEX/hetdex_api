@@ -207,9 +207,9 @@ def get_source_spectra(shotid, args):
         moffat = E.moffat_psf(fwhm, 10.5, 0.25)
 
         if len(args.matched_sources[shotid]) > source_num_switch:
-            E.load_shot(shotid, fibers=True, survey=args.survey, add_mask=args.apply_mask)
+            E.load_shot(shotid, fibers=True, survey=args.survey, add_mask=args.apply_mask,args=args)
         else:
-            E.load_shot(shotid, fibers=False, survey=args.survey, add_mask=args.apply_mask)
+            E.load_shot(shotid, fibers=False, survey=args.survey, add_mask=args.apply_mask,args=args)
 
         for ind in args.matched_sources[shotid]:
             try:
