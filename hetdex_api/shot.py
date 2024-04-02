@@ -99,6 +99,7 @@ class Fibers:
         add_rescor=False,
         add_mask=False,
         mask_version=None,
+        args=None,
     ):
         """
         Initialize Fibers Class
@@ -126,6 +127,8 @@ class Fibers:
         survey
             Data release you would like to load, i.e., 'HDR1', 'hdr2', 'hdr2.1'
             This is case insensitive.
+        args
+            arguments passed in from external caller
 
         Attributes
         ----------
@@ -159,14 +162,24 @@ class Fibers:
             try:
                 if mask_version is not None:
                     self.mask_version = mask_version
-                else:
+                elif survey in config.LATEST_MASK_DICT.keys():
                     self.mask_version = config.LATEST_MASK_DICT[survey]
+                else:
+                    self.mask_version = None
+                    self.maskh5 = None
+                    self.mask_version = None
+                    add_mask = False
+                    if args is not None:
+                        args.add_mask = False
+                        args.apply_mask = False
+                    print("Fiber masking not allowed for version {}.".format(survey))
 
-                # compose the file handle
-                fmask = op.join(
-                    config.mask_dir, self.mask_version, "{}.h5".format(datevobs)
-                )
-                self.maskh5 = tb.open_file(fmask, "r")
+                if self.mask_version is not None:
+                    # compose the file handle
+                    fmask = op.join(
+                        config.mask_dir, self.mask_version, "{}.h5".format(datevobs)
+                    )
+                    self.maskh5 = tb.open_file(fmask, "r")
             except:
                 print(
                     "Could not open mask h5 file for version {}.".format(
