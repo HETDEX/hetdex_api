@@ -9,8 +9,8 @@ Welcome to hetdex-api's documentation!
     :members:
        
 .. toctree::
-   :maxdepth: 1
-   :caption: Accessing HETDEX Data with hetdex-api
+   :maxdepth: 2
+   :caption: HETDEX Data Access
 
    install
    introduction
