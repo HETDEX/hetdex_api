@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath('../hetdex_api/'))
 project = 'hetdex-api'
 copyright = '2024, Erin Mentuch Cooper, Dustin Davis, Daniel Farrow, Greg Zeimann'
 author = 'Erin Mentuch Cooper, Dustin Davis, Daniel Farrow, Greg Zeimann'
-release = '0.8'
+release = '0.9'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
