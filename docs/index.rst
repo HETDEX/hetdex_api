@@ -12,6 +12,7 @@ Welcome to hetdex-api's documentation!
 
    install
    introduction
+   hetdex_api
 
 Indices and tables
 ==================
