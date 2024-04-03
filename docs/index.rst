@@ -17,6 +17,13 @@ Welcome to hetdex-api's documentation!
    cookbook
    support
 
+
+API Reference
+=============
+
+.. toctree::
+   api
+   
 Indices and tables
 ==================
 
