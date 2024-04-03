@@ -10,8 +10,8 @@ Welcome to hetdex-api's documentation!
    :maxdepth: 1
    :caption: Contents:
 
-	     install
-	     introduction
+   install
+   introduction
 
 Indices and tables
 ==================
