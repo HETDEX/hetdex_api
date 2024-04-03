@@ -1,24 +1,15 @@
-.. HETDEX API documentation master file, created by
-   sphinx-quickstart on Thu Nov 28 14:27:13 2019.
+.. hetdex-api documentation master file, created by
+   sphinx-quickstart on Wed Apr  3 05:52:35 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to HETDEX API's documentation!
+Welcome to hetdex-api's documentation!
 ======================================
 
-.. automodule:: hetdex_api.hetdex_api
-    :members:
-
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
-   install
-   introduction
-   cookbook
-   commandline
-   hetdex_api
-   support
 
 
 Indices and tables
