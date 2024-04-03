@@ -279,7 +279,8 @@ def get_source_spectra(shotid, args):
                                        multiframe,
                                        ra,
                                        dec,
-                                       np.sum(weights*mask, axis=1))])
+                                       np.sum(weights*mask, axis=1),
+                                       weights)])
                 except:
                     fiber_info = []
 
