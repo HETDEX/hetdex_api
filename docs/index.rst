@@ -7,10 +7,11 @@ Welcome to hetdex-api's documentation!
 ======================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
 	     install
+	     introduction
 
 Indices and tables
 ==================
