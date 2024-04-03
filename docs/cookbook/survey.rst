@@ -40,11 +40,11 @@ Survey Class
 
    .. code:: python
 
-      survey = Survey('hdr1')
+      survey = Survey('hdr4')
 
 .. container:: cell markdown
 
-   This calls the HDR1 survey class and sets each column in the survey
+   This calls the latest survey class and sets each column in the survey
    table as an attribute to this object. This is how it looks through an
    astropy Table object:
 
