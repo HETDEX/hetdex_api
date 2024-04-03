@@ -12,7 +12,9 @@ Welcome to hetdex-api's documentation!
 
    install
    introduction
+   cookbook
    hetdex_api
+   support
 
 Indices and tables
 ==================
