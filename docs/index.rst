@@ -6,14 +6,11 @@
 Welcome to hetdex-api's documentation!
 ======================================
 
-.. automodule:: hetdex_api.hetdex_api
-    :members:
-       
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
+	     install
 
 Indices and tables
 ==================
