@@ -2,6 +2,6 @@ API Reference
 =============
 
 .. autosummary::
-   :toctree: generated
 
-   shot
+   hetdex_api.hetdex_api.shot
+   
