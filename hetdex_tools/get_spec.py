@@ -274,13 +274,21 @@ def get_source_spectra(shotid, args):
 
                 # get fiber info no matter what so we can flag
                 try:
+                    # 20240403 DD per wavelength weights
+                    # fiber_info = np.array( [
+                    #     x for x in zip(fiberid,
+                    #                    multiframe,
+                    #                    ra,
+                    #                    dec,
+                    #                    np.sum(weights*mask, axis=1),
+                    #                    weights)])
+
                     fiber_info = np.array( [
                         x for x in zip(fiberid,
                                        multiframe,
                                        ra,
                                        dec,
-                                       np.sum(weights*mask, axis=1),
-                                       weights)])
+                                       np.sum(weights*mask, axis=1))])
                 except:
                     fiber_info = []
 
@@ -421,7 +429,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     
                 # get fiber info no matter what so we can flag
                 try:
-                    fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1))])
+                    #20240403 DD per wavelength weights
+                    #fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1),weights)])
+                    fiber_info = np.array(
+                        [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights * mask, axis=1))])
                 except:
                     args.log.warning('Could not get fiber info, no flagging created')
                     fiber_info = []
