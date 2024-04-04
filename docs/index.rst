@@ -5,9 +5,7 @@
 
 Welcome to hetdex-api's documentation!
 ======================================
-.. automodule:: hetdex_api.hetdex_api
-    :members:
-       
+
 .. toctree::
    :maxdepth: 2
    :caption: HETDEX Data Access
@@ -17,7 +15,8 @@ Welcome to hetdex-api's documentation!
    cookbook
    support
 
-
+.. autoclass:: FiberIndex
+   
 API Reference
 =============
 
