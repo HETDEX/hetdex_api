@@ -30,6 +30,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
     'sphinx_rtd_theme',
+    "nbsphinx",
 ]
 
 templates_path = ['_templates']
