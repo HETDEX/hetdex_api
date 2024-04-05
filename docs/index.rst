@@ -10,9 +10,17 @@ Welcome to hetdex-api's documentation!
 
    install
    introduction
-   FiberQueryExample.ipynb
    cookbook
    support
+
+Notebook Examples
+=================
+
+.. toctree::
+   :maxdepth 2
+   :caption Notebook Examples
+
+   ../notebooks/FiberQueryExample.ipynb
    
 API Reference
 =============
