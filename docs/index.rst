@@ -1,9 +1,9 @@
 Welcome to hetdex-api's documentation!
 ======================================
 
-.. automodule:: hetdex_api
+.. automodule:: hetdex_api.survey
     :members:
-       
+   
 .. toctree::
    :maxdepth: 2
    :caption: HETDEX Data Access
