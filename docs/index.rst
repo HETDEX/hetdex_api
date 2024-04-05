@@ -18,7 +18,9 @@ API Reference
 =============
 
 .. toctree::
-   hetdex_api
+   :maxdepth: 2
+   :caption: Reference
+hetdex_api
    
 Indices and tables
 ==================
