@@ -6,6 +6,7 @@ Data Access
 .. toctree::
    :maxdepth: 1
 
+   cookbook/survey.rst
    cookbook/api-notebooks/01-Accessing_the_Survey_Class/01-Accessing_the_Survey_Class.rst
    cookbook/shot.rst
    cookbook/detects.rst

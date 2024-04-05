@@ -1,7 +1,9 @@
 API Reference
 =============
 
-.. autoclass:: hetdex_api.survey FiberIndex
-.. autosummary:: hetdex_api.hetdex_api
-   survey
+.. automodule:: hetdex_api.survey
+    :members:
+
+.. autoclass:: hetdex_api.survey.FiberIndex
+
    
