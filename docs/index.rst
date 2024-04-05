@@ -20,7 +20,7 @@ Notebook Examples
    :maxdepth 2
    :caption Notebook Examples
 
-   ../notebooks/FiberQueryExample.ipynb
+   notebooks/FiberQueryExample.ipynb
    
 API Reference
 =============
