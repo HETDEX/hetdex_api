@@ -17,7 +17,7 @@ API Reference
 =============
 
 .. toctree::
-   api
+   hetdex_api
    
 Indices and tables
 ==================
