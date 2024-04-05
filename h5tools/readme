@@ -1,0 +1,37 @@
+1. Make the SHOT h5 files. See instructions in hdr4/reduction/data/read_make
+    1. Ingest one shot at a time
+    2. Note to Erin: consider ingesting amp.dat file at this point
+2. Make the Detection H5 files. This step can be done in parallel with 1
+    1. These are made one shot at a time
+3. Compile results for full survey. See instructions in hdr4/survey/read_make
+    1. Make Survey File
+    2. Make FiberIndex File
+    3. Make DetectIndex File
+4. Get im statistics using get_imvals. This is needed for amp flag in next step.
+    1. This takes about 6 Node hours at 64 tasks/N
+5. Make amp flag file
+    1.  /work/05350/ecooper/stampede2/hdr4/bad_amp_hunting_hdr4.ipynb 
+6. Make curated catalog lists
+7. Run Elixer
+8. Find new meteors (Note this step requires the Elixer Run on the curated line catalog)
+    1. /work/05350/ecooper/stampede2/hdr4/meteors.ipynb
+9. Run fiber index masking (This requires as much updates to masking as possible, but is not a requisite to anything except the mask version will match the catalog version)
+    1.  /work/05350/ecooper/stampede2/hdr4/making_fiber_mask.ipynb
+10. Get detection flags (This requires as much updates to masking as possible)
+    1. awk '{print "python3 get_det_flags.py", $1$2}' /scratch/projects/hetdex/hdr4/survey/hdr4.use > run_shot
+    2. Code is at hetdex_api/hetdex_tools/get_det_flags.py 
+    3. Note that it currently requires editing to path of curated line detection lists
+    4. Run 10 Nodes at 64 tasks per Node for 2 hours
+    5. Combine into one file using merge option 
+        1. python3 /home1/05350/ecooper/hetdex_api/hetdex_tools/get_det_flags.py --merge
+11. Collect curated spectra into a single file
+    1. awk '{print "python3 make_spectra_file.py", $1$2}' /scratch/projects/hetdex/hdr4/survey/hdr4.use > run_make_table (Takes about 40 minutes on 1N at 64 tasks/N)
+    2. Using the following notebook: /work/05350/ecooper/stampede2/hdr4/convert_spectra_for_catalog+Diagnose-4.0.0.ipynb
+        * Combine into one spectra file per month 
+        * Combine into one spectra for full survey
+        * Convert to Diagnose friendly format
+    3. Put files in hdr4/catalogs/
+12. Run Diagnose on everything g<22
+13. Make Catalogs
+14. Make ML products
+
