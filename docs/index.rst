@@ -1,7 +1,7 @@
 Welcome to hetdex-api's documentation!
 ======================================
 
-.. automodule:: hetdex_api.hetdex_api
+.. automodule:: hetdex_api
     :members:
    
 .. toctree::
