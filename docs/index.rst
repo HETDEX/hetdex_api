@@ -10,7 +10,7 @@ Welcome to hetdex-api's documentation!
 
    install
    introduction
-   notebooks/FiberQueryExample.ipynb
+   ../notebooks/FiberQueryExample.ipynb
    cookbook
    support
    
