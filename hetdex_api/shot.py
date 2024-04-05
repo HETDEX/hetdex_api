@@ -908,7 +908,11 @@ def get_fibers_table(
             fibers_table["calfibe"].unit = intensityunit
             fibers_table["ra"].unit = u.deg
             fibers_table["dec"].unit = u.deg
-            fibers_table["wavelength"].unit = u.AA
+            try:
+                # do not store wavelength in PDRs
+                fibers_table["wavelength"].unit = u.AA
+            except:
+                pass
     else:
         fibers_table = None
 
