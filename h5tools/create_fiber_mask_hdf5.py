@@ -74,7 +74,7 @@ def main(argv=None):
     parser.add_argument(
         "-survey",
         "--survey",
-        help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5, pdr1, pdr2}""",
+        help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5}""",
         type=str,
         default="hdr4",
     )
