@@ -117,6 +117,8 @@ from collections.abc import Mapping
 from multiprocessing import Process, Manager
 import time
 
+import traceback
+
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
@@ -275,13 +277,16 @@ def get_source_spectra(shotid, args):
                 # get fiber info no matter what so we can flag
                 try:
                     # 20240403 DD per wavelength weights
-                    # fiber_info = np.array( [
-                    #     x for x in zip(fiberid,
-                    #                    multiframe,
-                    #                    ra,
-                    #                    dec,
-                    #                    np.sum(weights*mask, axis=1),
-                    #                    weights)])
+                    # strweights = [",".join(w) for w in weights[0].astype(str)]
+                    # fiber_info = np.array([ x for x in zip(fiberid,
+                    #                               multiframe,
+                    #                               ra,
+                    #                               dec,
+                    #                               np.sum(weights*mask, axis=1),
+                    #                               strweights,
+                    #                              )
+                    #                ])
+
 
                     fiber_info = np.array( [
                         x for x in zip(fiberid,
@@ -289,7 +294,8 @@ def get_source_spectra(shotid, args):
                                        ra,
                                        dec,
                                        np.sum(weights*mask, axis=1))])
-                except:
+                except Exception as E:
+                    print(f"Exception: {E}\n\n{traceback.format_exc()}")
                     fiber_info = []
 
                 if len(fiber_info) > 0:
@@ -311,6 +317,7 @@ def get_source_spectra(shotid, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                     else:
                         source_dict[args.ID[ind]] = dict()
@@ -321,6 +328,7 @@ def get_source_spectra(shotid, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -331,6 +339,7 @@ def get_source_spectra(shotid, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                     else:
                         source_dict[args.ID] = dict()
@@ -341,6 +350,7 @@ def get_source_spectra(shotid, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
 
         E.shoth5.close()
@@ -430,9 +440,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 # get fiber info no matter what so we can flag
                 try:
                     #20240403 DD per wavelength weights
-                    #fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights*mask, axis=1),weights)])
+                    # fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec,
+                    #                                       np.sum(weights*mask, axis=1),weights)])
                     fiber_info = np.array(
-                        [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights * mask, axis=1))])
+                       [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights * mask, axis=1))])
                 except:
                     args.log.warning('Could not get fiber info, no flagging created')
                     fiber_info = []
@@ -456,6 +467,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                     else:
                         source_dict[args.ID[ind]] = manager.dict()
@@ -466,6 +478,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -476,6 +489,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
                     else:
                         source_dict[args.ID] = manager.dict()
@@ -486,6 +500,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_weights,
                             fiber_info,
                             flags,
+                            weights,
                         ]
 
         E.shoth5.close()
@@ -507,6 +522,7 @@ def return_astropy_table(Source_dict,
     weights_arr = []
     fiber_weights_arr = []
     fiber_info_arr = []
+    fiber_wave_weights_arr = []
     gal_flag_arr = []
     meteor_flag_arr = []
     amp_flag_arr = []
@@ -537,6 +553,12 @@ def return_astropy_table(Source_dict,
             else:
                 meteor_flag, gal_flag, amp_flag, flag = Source_dict[ID][shotid][5]
 
+
+            try:
+                per_fiber_per_wave_weights = Source_dict[ID][shotid][6]
+            except:
+                per_fiber_per_wave_weights =  None
+
             sel = np.isfinite(spec)
             
             if np.sum(sel) > 0:
@@ -549,6 +571,7 @@ def return_astropy_table(Source_dict,
                 if fiberweights:
                     fiber_weights_arr.append(fiber_weights)
                 fiber_info_arr.append(fiber_info)
+                fiber_wave_weights_arr.append(per_fiber_per_wave_weights)
                 flag_arr.append(flag)
                 amp_flag_arr.append(amp_flag)
                 meteor_flag_arr.append(meteor_flag)
@@ -572,6 +595,7 @@ def return_astropy_table(Source_dict,
         output.add_column(Column(fiber_weights_arr), name="fiber_weights")
     if return_fiber_info:
         output.add_column(Column(fiber_info_arr, name="fiber_info"))
+        output.add_column(Column(fiber_wave_weights_arr, name="fiber_wavelength_weights"))
 
     return output
 
