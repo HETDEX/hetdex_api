@@ -252,12 +252,14 @@ def get_source_spectra(shotid, args):
 
                 # added by EMC 20210609. See Greg Zeimann's Remedy code
                 norm = np.sum(weights, axis=0)
-                weights = weights / norm 
+                weights = weights / norm
 
+                # 20240403 DD per wavelength weights and scleaned fluxes and errors
                 result = E.get_spectrum(data, error, mask, weights,
-                                        remove_low_weights = False)
+                                        remove_low_weights = False,
+                                        return_scleaned_mask = True)
                
-                spectrum_aper, spectrum_aper_error = [res for res in result]
+                spectrum_aper, spectrum_aper_error, sclean_mask, sclean_data, sclean_error, sclean_wave_mask = [res for res in result]
 
                 # apply aperture correction
                 spectrum_aper /= norm
@@ -276,17 +278,6 @@ def get_source_spectra(shotid, args):
 
                 # get fiber info no matter what so we can flag
                 try:
-                    # 20240403 DD per wavelength weights
-                    # strweights = [",".join(w) for w in weights[0].astype(str)]
-                    # fiber_info = np.array([ x for x in zip(fiberid,
-                    #                               multiframe,
-                    #                               ra,
-                    #                               dec,
-                    #                               np.sum(weights*mask, axis=1),
-                    #                               strweights,
-                    #                              )
-                    #                ])
-
 
                     fiber_info = np.array( [
                         x for x in zip(fiberid,
@@ -318,6 +309,9 @@ def get_source_spectra(shotid, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                     else:
                         source_dict[args.ID[ind]] = dict()
@@ -329,6 +323,9 @@ def get_source_spectra(shotid, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -340,6 +337,9 @@ def get_source_spectra(shotid, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                     else:
                         source_dict[args.ID] = dict()
@@ -351,6 +351,9 @@ def get_source_spectra(shotid, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
 
         E.shoth5.close()
@@ -417,9 +420,14 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                 norm = np.sum(weights, axis=0)
                 weights = weights / norm[np.newaxis, :]
 
-                result = E.get_spectrum(data, error, mask, weights, remove_low_weights = False)
+                # 20240403 DD per wavelength weights and scleaned fluxes and errors
+                result = E.get_spectrum(data, error, mask, weights,
+                                        remove_low_weights=False,
+                                        return_scleaned_mask=True)
 
-                spectrum_aper, spectrum_aper_error = [res for res in result]
+                spectrum_aper, spectrum_aper_error, sclean_mask, sclean_data, sclean_error, sclean_wave_mask = [res for
+                                                                                                                res in
+                                                                                                                result]
 
                 # apply aperture correction
                 spectrum_aper /= norm
@@ -439,9 +447,6 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     
                 # get fiber info no matter what so we can flag
                 try:
-                    #20240403 DD per wavelength weights
-                    # fiber_info = np.array( [x for x in zip(fiberid, multiframe, ra, dec,
-                    #                                       np.sum(weights*mask, axis=1),weights)])
                     fiber_info = np.array(
                        [x for x in zip(fiberid, multiframe, ra, dec, np.sum(weights * mask, axis=1))])
                 except:
@@ -468,6 +473,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                     else:
                         source_dict[args.ID[ind]] = manager.dict()
@@ -479,6 +487,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                 else:
                     if args.ID in source_dict:
@@ -490,6 +501,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
                     else:
                         source_dict[args.ID] = manager.dict()
@@ -501,6 +515,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             fiber_info,
                             flags,
                             weights,
+                            sclean_wave_mask,
+                            sclean_data,
+                            sclean_error,
                         ]
 
         E.shoth5.close()
@@ -523,6 +540,9 @@ def return_astropy_table(Source_dict,
     fiber_weights_arr = []
     fiber_info_arr = []
     fiber_wave_weights_arr = []
+    fiber_mask_arr = []
+    sclean_data_arr = []
+    sclean_err_arr = []
     gal_flag_arr = []
     meteor_flag_arr = []
     amp_flag_arr = []
@@ -559,6 +579,21 @@ def return_astropy_table(Source_dict,
             except:
                 per_fiber_per_wave_weights =  None
 
+            try:
+                per_fiber_mask = Source_dict[ID][shotid][7]
+            except:
+                per_fiber_mask =  None
+
+            try:
+                clean_fiber_fluxd = Source_dict[ID][shotid][8]
+            except:
+                clean_fiber_fluxd =  None
+
+            try:
+                clean_fiber_fluxd_err = Source_dict[ID][shotid][9]
+            except:
+                clean_fiber_fluxd_err =  None
+
             sel = np.isfinite(spec)
             
             if np.sum(sel) > 0:
@@ -572,6 +607,9 @@ def return_astropy_table(Source_dict,
                     fiber_weights_arr.append(fiber_weights)
                 fiber_info_arr.append(fiber_info)
                 fiber_wave_weights_arr.append(per_fiber_per_wave_weights)
+                fiber_mask_arr.append(per_fiber_mask)
+                sclean_data_arr.append(clean_fiber_fluxd)
+                sclean_err_arr.append(clean_fiber_fluxd_err)
                 flag_arr.append(flag)
                 amp_flag_arr.append(amp_flag)
                 meteor_flag_arr.append(meteor_flag)
@@ -596,6 +634,9 @@ def return_astropy_table(Source_dict,
     if return_fiber_info:
         output.add_column(Column(fiber_info_arr, name="fiber_info"))
         output.add_column(Column(fiber_wave_weights_arr, name="fiber_wavelength_weights"))
+        output.add_column(Column(fiber_mask_arr, name="fiber_wavelength_masks"))
+        output.add_column(Column(sclean_data_arr, name="clean_fluxd"))
+        output.add_column(Column(sclean_err_arr, name="clean_fluxd_err"))
 
     return output
 

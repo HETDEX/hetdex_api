@@ -1418,7 +1418,7 @@ class Extract:
             spectrum_error[sel] = np.nan
 
         if return_scleaned_mask:   
-            return spectrum, spectrum_error, scleaned
+            return spectrum, spectrum_error, scleaned, data, error, mask
         else:
             return spectrum, spectrum_error
 
