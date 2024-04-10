@@ -37,6 +37,7 @@ extensions = [
     "myst_nb",
 ]
 
+nb_execution_mode = "off"
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
