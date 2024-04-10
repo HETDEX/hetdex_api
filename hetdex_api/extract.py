@@ -557,14 +557,21 @@ class Extract:
                 spec = self.fibers.table.read_coordinates(idx, "calfib") / 2.0
 
             spece = self.fibers.table.read_coordinates(idx, "calfibe") / 2.0
-            ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
+
+            if self.survey.lower() in ['pdr1','pdr2','pdr3']:
+                pass
+            else:
+                ftf = self.fibers.table.read_coordinates(idx, "fiber_to_fiber")
 
             if self.survey == "hdr1":
                 mask = self.fibers.table.read_coordinates(idx, "Amp2Amp")
                 mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
             else:
                 mask = self.fibers.table.read_coordinates(idx, "calfibe")
-                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * (spec != 0)
+                if self.survey.lower() in ['pdr1','pdr2','pdr3']:
+                    mask = (mask > 1e-8) * (spec != 0)
+                else:
+                    mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * (spec != 0)
 
             expn = np.array(
                 self.fibers.table.read_coordinates(idx, "expnum"), dtype=int
@@ -617,7 +624,11 @@ class Extract:
             else:
                 spec = fib_table["calfib"]
             spece = fib_table["calfibe"]
-            ftf = fib_table["fiber_to_fiber"]
+            
+            if self.survey.lower() in ['pdr1','pdr2','pdr3']:
+                pass
+            else:
+                ftf = fib_table["fiber_to_fiber"]
             
             if self.survey == "hdr1":
                 mask = fib_table["Amp2Amp"]
@@ -626,7 +637,10 @@ class Extract:
                 mask = fib_table['mask']
             else:
                 mask = fib_table["calfibe"]
-                mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis]
+                if self.survey.lower() in ['pdr1','pdr2','pdr3']:
+                    mask = (mask > 1e-8) * (spec != 0)
+                else:
+                    mask = (mask > 1e-8) * (np.median(ftf, axis=1) > 0.5)[:, np.newaxis] * (spec != 0)
                 
             expn = np.array(fib_table["expnum"], dtype=int)
             mf_array = fib_table['multiframe'].astype(str)
