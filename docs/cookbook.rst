@@ -22,4 +22,4 @@ API Notebooks
    cookbook/flux_lim.rst
    cookbook/astrometry.rst
    cookbook/api-notebooks/How_to_open_the_machine_learning_H5_files/How_to_open_the_machine_learning_H5_files.rst
-   cookbook/query_widget.rst
+   notebooks/QueryWidget.ipynb
