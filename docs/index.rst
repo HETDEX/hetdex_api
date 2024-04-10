@@ -12,15 +12,6 @@ Welcome to hetdex-api's documentation!
    introduction
    cookbook
    support
-
-Notebook Examples
-=================
-
-.. toctree::
-   :maxdepth 2
-   :caption Notebook Examples
-
-   notebooks/FiberQueryExample.ipynb
    
 API Reference
 =============
@@ -28,7 +19,8 @@ API Reference
 .. toctree::
    :maxdepth: 2
    :caption: Reference
-hetdex_api
+
+   hetdex_api
    
 Indices and tables
 ==================
