@@ -291,6 +291,7 @@ class Extract:
         multiframe_array: numpy array (length of number of fibers
             array of amp IDs/multiframe values for each fiber.
             Return only if return_fiber_info is True
+
         """
 
         if not self.fibers:
@@ -1141,7 +1142,8 @@ class Extract:
         zarray: numpy 3d array
             An array with length 3 for the first axis: wavelength summed image
             across wrange in units of 10^-17/ergs/cm^2
-        xgrid, ygrid in relative arcsec from center coordinates
+        xgrid, ygrid : numpy 3d array
+            in relative arcsec from center coordinates
         
         """
         a, b = data.shape
@@ -1283,7 +1285,9 @@ class Extract:
         -------
         weights: numpy 2d array (len of fibers by wavelength dimension)
             Weights for each fiber as function of wavelength for extraction
-        I
+        I: PSF function
+            returns the PSF function to pass through for next iteration if
+            return_I_fac is set to True.
         """
         SX = np.zeros(len(ifux))
         SY = np.zeros(len(ifuy))
