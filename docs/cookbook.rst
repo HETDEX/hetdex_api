@@ -9,6 +9,7 @@ Data Access
    notebooks/Survey.ipynb
    notebooks/FiberIndex.ipynb
    notebooks/ElixerWidget.ipynb
+   notebooks/get_spectra.ipynb
    notebooks/make_narrowband_image.ipynb
    notebooks/make_data_cube.ipynb
    
