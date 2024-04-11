@@ -637,24 +637,23 @@ class Detections:
 
         # limits to be returned to query detections                                    
 
-          self.wave_low = None
-          self.wave_high = None
-          self.flux_low = None
-          self.flux_high = None
-          self.linewidth_low = None
-          self.linewidth_high = None
-          self.sn_low = None
-          self.sn_high = None
-          self.chi2_low = None
-          self.chi2_high = None
-          self.cont_low = None
-          self.cont_high = None
-          self.aperture_flag = False
-          self.ra = None
-          self.dec = None
-          self.rad = None
-          self.field = None
-
+        self.wave_low = None
+        self.wave_high = None
+        self.flux_low = None
+        self.flux_high = None
+        self.linewidth_low = None
+        self.linewidth_high = None
+        self.sn_low = None
+        self.sn_high = None
+        self.chi2_low = None
+        self.chi2_high = None
+        self.cont_low = None
+        self.cont_high = None
+        self.aperture_flag = False
+        self.ra = None
+        self.dec = None
+        self.rad = None
+        self.field = None
 
         Dictionary Description
         aperture_flat = when True, will query for defined aperture
