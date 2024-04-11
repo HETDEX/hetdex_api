@@ -283,12 +283,12 @@ class Extract:
             Calibrated spectra for each fiber
         spece: numpy 2d array (number of fibers by wavelength dimension)
             Error for calibrated spectra
-         mask: numpy 2d array (number of fibers by wavelength dimension)
+        mask: numpy 2d array (number of fibers by wavelength dimension)
             Mask of good values for each fiber and wavelength
         fiberid: numpy array (length of number of fibers)
             array of fiberids for fibers used in the extraction.
             Returned only if return_fiber_info is True
-        multiframe_array: numpy array (length of number of fibers
+        multiframe_array: numpy array (length of number of fibers)
             array of amp IDs/multiframe values for each fiber.
             Return only if return_fiber_info is True
 

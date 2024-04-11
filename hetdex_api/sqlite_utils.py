@@ -86,13 +86,16 @@ for v in DICT_DB_PATHS.keys():
 
 def get_elixer_report_db_path(detectid,report_type="report"):
     """
-    Return the top (first found) path to database file based on the detectid (assumes the HDR version is part of the
-    prefix, i.e. HDR1 files are 1000*, HDR2 are 2000*, and so on)
+    Return the top (first found) path to database file based on the detectid (assumes 
+    the HDR version is part of the prefix, i.e. HDR1 files are 1000*, HDR2 are 2000*, 
+    and so on)
+    
     :param detectid:
     :param report_type: choose one of "report" (normal ELiXer report image) [default]
                                "nei" (ELiXer neighborhood image)
                                "mini" (ELiXer mini-report image for phone app)
     :return: None or database filename
+    
     """
 
     detect_prefix = None

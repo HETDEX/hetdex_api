@@ -595,10 +595,12 @@ class FiberIndex:
         Parameters
         ----------
         FiberIndex Class
+
         Returns
         -------
         shot_flag: bool
             True if fiber is on a good shot
+
         """
         global config
 
