@@ -2,7 +2,7 @@
 """
 
 Widget to view data cubes. This is specifically designed
-To work with data cubes created by hetdex_toos.interpolate.make_data_cube
+To work with data cubes created by hetdex_tools.interpolate.make_data_cube
 
 Author: Erin Mentuch Cooper
 
@@ -21,7 +21,6 @@ import numpy as np
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.nddata import NDData
-#from astropy.visualization import ZScaleInterval
 
 from ginga.AstroImage import AstroImage
 from astrowidgets import ImageWidget

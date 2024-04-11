@@ -348,7 +348,7 @@ class Fibers:
         Saves a fiber spectrum at a defined index
 
         Parameters
-        ---------
+        ----------
         self
             Fibers class object
         idx
@@ -409,7 +409,7 @@ class Fibers:
         specific wavelength
 
         Parameters
-        ---------
+        ----------
         self
             fibers class object
         wave_obj
@@ -550,7 +550,7 @@ def get_fibers_table(
     Returns fiber specta for a given shot.
 
     Parameters
-    ---------
+    ----------
     shot
         either shotid or datevobs
     coords
@@ -589,6 +589,7 @@ def get_fibers_table(
         Set to True to apply mask to calfib, calfibe, calfib_ffsky and calfib_ffsky_rescor
     mask_value
         value to fill masked values. Default is np.nan
+
     Returns
     -------
     A table of fibers within the defined aperture. Will be an astropy table
@@ -992,7 +993,7 @@ def get_image2D_amp(
     a multiframe or a ifuslot/specid and amp combo
 
     Parameters
-    ---------
+    ----------
     multiframe
         unique amp identifier to display
     specid

@@ -626,16 +626,17 @@ class Detections:
 
     def query_by_dictionary(self, limits):
         """
+        Note: This function is pretty obsolete. You should
+        use the source catalog
+
         Takes a dictionary of query limits
         and reduces the detections database. This 
         can either be taken from the dictionary saved
         by detwidgets.py GUI or can take the following 
         form:
 
-
-        class Det_limits:
         # limits to be returned to query detections                                    
-        def __init__(self):
+
           self.wave_low = None
           self.wave_high = None
           self.flux_low = None
@@ -862,26 +863,9 @@ class Detections:
 
     def remove_bad_pix(self):
         """
-        Takes the post-hdr1 list of bad pixels 
-        in HETDEX_API/known_issues/hdr1/posthdr1badpix.list
-        
-        For current development we will use the one in EMC's 
-        directory as that will be most up to date:
-        
-        /work/05350/ecooper/stampede2/HETDEX_API/known_issues/hdr1
-        
-        and removes any detections within a Detections() class 
-        object in the defined regions when
-        either the .refine() or .remove_bad_pix() methods are 
-        called.
-        
-        Note: all previously know bad detections are stored in
-        
-        HETDEX_API/known_issues/hdr1/badpix.list 
-        
-        **** THESE SHOULD BE REMOVED WHEN USING THE SHOT H5 files
-        from HDR1
-        
+        Refines catalog based on badpixel lists found for
+        the release in hetdex-api:
+        https://github.com/HETDEX/hetdex_api/tree/master/known_issues/hdr4/badpix.list
         """
 
         if True:
@@ -903,7 +887,7 @@ class Detections:
 
             self.vis_class[mask] = 0
 
-        else:  # except:
+        else: #except:
             mask = np.zeros(np.size(self.detectid), dtype=bool)
 
         return np.invert(mask)
@@ -1040,7 +1024,7 @@ class Detections:
         Parameters
         ----------
         detectid: int
-        detectid (integer ID) of the detection you want to
+            detectid (integer ID) of the detection you want to
             get information for
         rawh5: bool
             if True, this will simply return the row from the detecth5

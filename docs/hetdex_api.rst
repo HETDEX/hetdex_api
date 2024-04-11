@@ -1,5 +1,5 @@
-APIR REFERENCE
-==============
+API REFERENCE
+=============
 
 hetdex\_api.amp\_widget module
 ------------------------------

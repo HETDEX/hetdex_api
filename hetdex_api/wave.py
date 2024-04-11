@@ -17,16 +17,16 @@ def get_bary_corr(shotid, units='km/s'):
     
     Parameters
     ----------
-    shotid
-    interger observation ID
-    units
-    string indicating units to be used. Must be readable to astropy units.
-                Defaults to km/s
+    shotid    interger 
+        observation ID
+    units string
+        indicating units to be used. Must be readable to astropy units.
+        Defaults to km/s
 
     Return
     ------
     vcor
-    radial velocity correction in units
+        radial velocity correction in units
     """
 
     global S, mcdonald
