@@ -181,20 +181,33 @@ class Fibers:
                     )
                     self.maskh5 = tb.open_file(fmask, "r")
             except:
+
                 print(
                     "Could not open mask h5 file for version {}.".format(
                         self.mask_version
                     )
                 )
+                self.maskh5 = None
+                add_mask = False
+                if args is not None:
+                    args.add_mask = False
+                    args.apply_mask = False
         else:
             self.maskh5 = None
             self.mask_version = None
+
+        try:
+            _ = self.maskh5 #sanity check
+        except:
+            self.maskh5 = None
+
 
         if add_rescor:
             filerescor = op.join(config.red_dir, "ffsky_rescor", str(shotid) + ".h5")
             try:
                 self.rescorh5 = tb.open_file(filerescor, "r")
             except:
+                self.rescorh5 = None
                 print(
                     "Could not open {}. Forcing add_rescor to False".format(filerescor)
                 )
@@ -733,10 +746,13 @@ def get_fibers_table(
         if verbose:
             print('Adding mask array using mask_version={}'.format(F.mask_version)) 
 
-        if len(idx) > 0:
-            bitmaskDQ = F.maskh5.root.CalfibDQ.read_coordinates( idx, 'calfib_dq')
+        if F.maskh5 is not None:
+            if len(idx) > 0:
+                bitmaskDQ = F.maskh5.root.CalfibDQ.read_coordinates( idx, 'calfib_dq')
+            else:
+                bitmaskDQ = F.maskh5.root.CalfibDQ.read()['calfib_dq']
         else:
-            bitmaskDQ = F.maskh5.root.CalfibDQ.read()['calfib_dq']
+            bitmaskDQ = None
 
         # get mask name dictionary                                                                      
         mask_names = []
@@ -775,7 +791,10 @@ def get_fibers_table(
         else:
             if verbose:
                 print('Masking everything. mask_options set to None')
-            bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True)
+            try:
+                bool_mask = bitmask.bitfield_to_boolean_mask(bitmaskDQ, good_mask_value=True)
+            except:
+                bool_mask = None
 
         fibers_table['mask'] = bool_mask
             
