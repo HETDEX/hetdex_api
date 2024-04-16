@@ -1,8 +1,5 @@
 Welcome to hetdex-api's documentation!
 ======================================
-
-.. automodule:: hetdex_api
-    :members:
    
 .. toctree::
    :maxdepth: 2
