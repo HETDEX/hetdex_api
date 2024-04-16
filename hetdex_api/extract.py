@@ -1195,8 +1195,8 @@ class Extract:
         )
 
         # propogate mask through to new grid image. Added by EMC 2024-04-16
-        
         grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest')
+        grid_z[~grid_mask] = np.nan
         
         if error is not None:
             grid_z_error = (
@@ -1209,10 +1209,9 @@ class Extract:
                 * scale ** 2
                 / area
             )
-
-        # mask image Added by EMC 2024-04-16
-        grid_z[~grid_mask] = np.nan
-        grid_z_error[~grid_mask] = np.nan
+            
+            # mask image Added by EMC 2024-04-16
+            grid_z_error[~grid_mask] = np.nan
         
         if convolve_image:
             grid_z = convolve(grid_z, G)
@@ -1225,10 +1224,9 @@ class Extract:
             image[np.isnan(image)] = fill_value
             zarray = np.array([image, xgrid - xc, ygrid - yc])
         else:
-            
             image = grid_z
             #Added by EMC 2024-04-16 
-            image[~grid_mask] = fill_value
+            image[np.isnan(image)] = fill_value
             image_error = grid_z_error
             image_error[np.isnan(image)] = fill_value
                                     
