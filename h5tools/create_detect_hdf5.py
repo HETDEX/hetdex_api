@@ -509,7 +509,7 @@ def main(argv=None):
                         pass #all good as is
                     else:
                         args.log.warning(f"Unexpected number of columns ({ncols}) in {specfile}")
-                except Exception as E:
+                except Exception as e:
                     args.log.warning('Possible problem with ' + specfile)
                     args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
 
