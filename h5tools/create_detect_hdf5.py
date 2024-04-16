@@ -602,7 +602,9 @@ def main(argv=None):
 
                 rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
                 rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
-                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+
+                if "spec1d_nc_ffsky" in dataspec.colnames:
+                    rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
                 rowspectra["wave1d"] = dataspec["wave1d"]
                 rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
                 rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
