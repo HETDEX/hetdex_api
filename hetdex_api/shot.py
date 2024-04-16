@@ -260,7 +260,7 @@ class Fibers:
         )
         self.wave_rect = 2.0 * np.arange(1036) + 3470.0
 
-    def query_region(self, coords, radius=3.5 * u.arcsec):
+    def query_region(self, coords, radius=None):
         """
         Returns an indexed fiber table for a defined aperture.
 
@@ -268,11 +268,13 @@ class Fibers:
         ----------
         self
             Fibers class object
-        coords
+        coords 
             astropy coordinate object
-        radius
+        radius : float or `~astropy.units.Quantity`
             astropy quantity. If no quantity given, assume arcsec
         """
+        if radius is None:
+            radius = 3.5 * u.arcsec
         try:
             idx = coords.separation(self.coords) < radius
         except:
@@ -544,7 +546,7 @@ def get_fibers_table(
     ifuslot=None,
     multiframe=None,
     expnum=None,
-    radius=3.5 * u.arcsec,
+    radius=None,
     survey=LATEST_HDR_NAME,
     astropy=True,
     verbose=False,
@@ -688,6 +690,11 @@ def get_fibers_table(
         except:
             print("Coords argument must be an astropy coordinates object")
 
+        if radius is None:
+            if verbose:
+                print('No radius set. Using 3.5 arcsec')
+            radius = 3.5 * u.arcsec
+            
         idx = F.query_region_idx(coords, radius=radius)
 
         if len(idx) > 0:
