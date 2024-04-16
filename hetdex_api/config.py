@@ -10,7 +10,7 @@ class HDRconfig:
 
     LATEST_HDR_NAME = 'hdr4'
 
-    LATEST_MASK_DICT = {'hdr4': '4.0.1',
+    LATEST_MASK_DICT = {'hdr4': '1.0',
                         'pdr1': '1.0'}
     
     def __init__(self, survey=LATEST_HDR_NAME):
