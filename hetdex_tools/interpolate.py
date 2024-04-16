@@ -39,20 +39,21 @@ def make_narrowband_image(
     imsize=30.0 * u.arcsec,
     wave_range=None,
     convolve_image=False,
-    ffsky=True,
+    ffsky=False,
     subcont=False,
     dcont=50.0,
     include_error=False,
     survey=LATEST_HDR_NAME,
     extract_class=None,
     fiber_flux_offset=None,
-    interp_kind='linear',
+    interp_kind="linear",
+    apply_mask=False,
+    fill_value=np.nan,
 ):
-
     """
     Function to make narrowband image from either a detectid or from a
     coordinate/shotid combination.
-    
+
     Paramaters
     ----------
     detectid: int
@@ -87,9 +88,16 @@ def make_narrowband_image(
     fiber_flux_offset: 1036 array
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
-        to None    
+        to None
     interp_kind: str
-        Kind of interpolation to pixelated grid from fiber intensity    
+        Kind of interpolation to pixelated grid from fiber intensity.
+        Options are 'linear', 'cubic', 'nearest'. Default is linear.
+    apply_mask: bool
+        Apply HETDEX fiber mask model. This will mask all fibers contributing
+        to the spectral extraction before summation. Masked in place as NaNs
+    fill_value: float, optional
+        Value used to fill in for requested points outside of coverage or in a mask
+        region. If not provided, then the default is nan.
 
     Returns
     -------
@@ -97,12 +105,13 @@ def make_narrowband_image(
         the 2D summed data array and associated 2d header
         Units are '10^-17 erg cm-2 s-1'
         If include_error=True will include addiional hdu
+
     Examples
     --------
 
     For a specific detectid:
     >>> hdu = make_narrowband_image(detectid=2101046271)
-    
+
     For a SkyCoords object. You must provide shotid and
     wavelength range
 
@@ -132,7 +141,6 @@ def make_narrowband_image(
             surveyh5 = tb.open_file(config.surveyh5, "r")
 
     if detectid is not None:
-
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
         elif (detectid >= 2100000000) * (detectid < 2190000000):
@@ -147,7 +155,6 @@ def make_narrowband_image(
             DET_FILE = CONFIG_HDR4.contsourceh5
 
         if OPEN_DET_FILE is None:
-
             DET_HANDLE = tb.open_file(DET_FILE, "r")
             OPEN_DET_FILE = DET_FILE
         else:
@@ -157,7 +164,7 @@ def make_narrowband_image(
                 DET_HANDLE.close()
                 OPEN_DET_FILE = DET_FILE
                 try:
-                    DET_HANDLE = tb.open_file(self.DET_FILE, "r")
+                    DET_HANDLE = tb.open_file(DET_FILE, "r")
                 except:
                     print("Could not open {}".format(self.det_file))
 
@@ -197,8 +204,13 @@ def make_narrowband_image(
     rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
 
     info_result = E.get_fiberinfo_for_coord(
-        coords, radius=rad, ffsky=ffsky, fiber_flux_offset=fiber_flux_offset
+        coords,
+        radius=rad,
+        ffsky=ffsky,
+        fiber_flux_offset=fiber_flux_offset,
+        add_mask=apply_mask,
     )
+
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
@@ -221,6 +233,7 @@ def make_narrowband_image(
             wrange=wave_range,
             convolve_image=convolve_image,
             interp_kind=interp_kind,
+            fill_value=fill_value,
         )
         imslice = zarray[0]
         imerror = zarray[1]
@@ -238,6 +251,7 @@ def make_narrowband_image(
             wrange=wave_range,
             convolve_image=convolve_image,
             interp_kind=interp_kind,
+            fill_value=fill_value,
         )
 
         imslice = zarray[0]
@@ -256,6 +270,7 @@ def make_narrowband_image(
             wrange=[wave_range[0] - dcont - 10, wave_range[0] - 10],
             convolve_image=convolve_image,
             interp_kind=interp_kind,
+            fill_value=fill_value,
         )
 
         zarray_red = E.make_narrowband_image(
@@ -271,6 +286,7 @@ def make_narrowband_image(
             wrange=[wave_range[1] + 10, wave_range[1] + dcont + 10],
             convolve_image=convolve_image,
             interp_kind=interp_kind,
+            fill_value=fill_value,
         )
 
         dwave = wave_range[1] - wave_range[0]
@@ -318,17 +334,18 @@ def make_data_cube(
     dwave=2.0,
     dcont=50.0,
     convolve_image=False,
-    ffsky=True,
+    ffsky=False,
     subcont=False,
     survey=LATEST_HDR_NAME,
     fiber_flux_offset=None,
-    interp_kind='linear',
+    interp_kind="linear",
+    apply_mask=False,
+    fill_value=np.nan,
 ):
-
     """
     Function to make a datacube from either a detectid or from a
     coordinate/shotid combination.
-    
+
     Paramaters
     ----------
     detectid: int
@@ -355,13 +372,16 @@ def make_data_cube(
         input wave_range
     dcont: float
         width in angstrom to measure the continuum. Default is to
-        measure 50 AA wide regions on either side of the line  
+        measure 50 AA wide regions on either side of the line
     fiber_flux_offset: 1036 array
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
-        to None    
+        to None
     interp_kind: str
-        Kind of interpolation to pixelated grid from fiber intensity
+        Kind of interpolation to pixelated grid from fiber intensity.
+        Options are 'linear', 'cubic', 'nearest'. Default is linear.
+    apply_mask: bool                                                                                            Apply HETDEX fiber mask model. This will mask all fibers contributing
+         to the spectral extraction before summation. Masked in place as NaNs                               fill_value: float, optional                                                                                Value used to fill in for requested points outside of coverage or in a mask                            region. If not provided, then the default is nan.
 
     Returns
     -------
@@ -383,7 +403,7 @@ def make_data_cube(
     >>> star_coords = SkyCoord(9.625181, -0.043587, unit='deg')
     >>> hdu = make_data_cube( coords=star_coords[0], shotid=20171016108, dwave=2.0)
     >>> hdu.writeto( 'star.fits', overwrite=True)
-    
+
     """
     global config, current_hdr, surveyh5
     global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
@@ -399,7 +419,6 @@ def make_data_cube(
             pass
 
     if detectid is not None:
-
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
         elif (detectid >= 2100000000) * (detectid < 2190000000):
@@ -407,10 +426,13 @@ def make_data_cube(
         elif (detectid >= 3000000000) * (detectid < 3090000000):
             DET_FILE = CONFIG_HDR3.detecth5
         elif (detectid >= 3090000000) * (detectid < 3100000000):
-            DET_FILE = CONFIG_HDR2.contsourceh5
-
+            DET_FILE = CONFIG_HDR3.contsourceh5
+        elif (detectid >= 4000000000) * (detectid < 4090000000):
+            DET_FILE = CONFIG_HDR4.detecth5
+        elif (detectid >= 4090000000) * (detectid < 4100000000):
+            DET_FILE = CONFIG_HDR4.contsourceh5
+            
         if OPEN_DET_FILE is None:
-
             OPEN_DET_FILE = DET_FILE
             DET_HANDLE = tb.open_file(DET_FILE, "r")
 
@@ -453,7 +475,7 @@ def make_data_cube(
     rad = imsize.to(u.arcsec).value
 
     info_result = E.get_fiberinfo_for_coord(
-        coords, radius=rad, ffsky=False, fiber_flux_offset=fiber_flux_offset
+        coords, radius=rad, ffsky=ffsky, fiber_flux_offset=fiber_flux_offset, add_mask=apply_mask,
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -508,6 +530,7 @@ def make_data_cube(
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
                 interp_kind=interp_kind,
+                fill_value=fill_value,
             )
 
             im_slice = im_src[0]
@@ -527,6 +550,7 @@ def make_data_cube(
                     wrange=[wave_i - dcont, wave_i],
                     convolve_image=convolve_image,
                     interp_kind=interp_kind,
+                    fill_value=fill_value,
                 )
                 zarray_red = E.make_narrowband_image(
                     ifux_cen,
@@ -542,6 +566,7 @@ def make_data_cube(
                     wrange=[wave_i + dwave, wave_i + dwave + dcont],
                     convolve_image=convolve_image,
                     interp_kind=interp_kind,
+                    fill_value=fill_value,
                 )
 
                 im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
