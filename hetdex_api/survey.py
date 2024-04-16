@@ -353,7 +353,7 @@ class FiberIndex:
     def query_region(
         self,
         coords,
-        radius=3.5 * u.arcsec,
+        radius=None,
         shotid=None,
         return_index=False,
         return_flags=True,
@@ -393,6 +393,9 @@ class FiberIndex:
         ra_obj = coords.ra.deg
         dec_obj = coords.dec.deg
 
+        if radius is None:
+            radius = 3.5*u.arcsec
+            
         ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
 
         vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
@@ -499,7 +502,7 @@ class FiberIndex:
             else:
                 return tab
 
-    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.0 * u.arcsec):
+    def get_closest_fiberid(self, coords, shotid=None, maxdistance=None):
         """
         Function to retrieve the closest fiberid in a shot
 
@@ -513,7 +516,7 @@ class FiberIndex:
         shotid
             Specific shotid (dtype=int) you want
         maxdistance
-            The max distance you want to search for a nearby fiber.
+            The max distance (an angle quantity) you want to search for a nearby fiber.
             Default is 8.*u.arcsec
 
         Returns
@@ -525,6 +528,9 @@ class FiberIndex:
 
         # start searching at small radius to search more efficiently
         search = 2.0 * u.arcsec
+
+        if maxdistance is None:
+            maxdistance = 8.0 * u.arcsec
 
         while search <= maxdistance:
             fiber_table = self.query_region(coords, radius=search, shotid=shotid)
@@ -699,12 +705,15 @@ class FiberIndex:
 
         return mask
 
-    def get_meteor_flag(self, streaksize=12.0 * u.arcsec):
+    def get_meteor_flag(self, streaksize=None):
         """
         Returns boolean mask with detections landing on meteor
         streaks masked. Use np.invert(mask) to find meteors
         """
 
+        if streaksize is None:
+            streaksize=12.0*u.arcsec
+            
         t0 = time.time()
         global config
 
@@ -834,7 +843,7 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
     return ellipse_reg
 
 
-def create_dummy_wcs(coords, pixscale=0.5 * u.arcsec, imsize=60.0 * u.arcmin):
+def create_dummy_wcs(coords, pixscale=None, imsize=None):
     """
     Create a simple fake WCS in order to use the regions subroutine.
     Adapted from John Feldmeiers galmask.py
@@ -844,11 +853,18 @@ def create_dummy_wcs(coords, pixscale=0.5 * u.arcsec, imsize=60.0 * u.arcmin):
     coords: a SkyCoord object
         center coordinates of WCS
     pixscale: astropy quantity
-        pixel scale of WCS in astropy angle quantity units
+        pixel scale of WCS in astropy angle quantity units. Will default
+        to 0.5 arcsec if not set
     imsize: astropy quantity
-        size of WCS in astropy angle quanity units
+        size of WCS in astropy angle quanity units. Will default to
+        60 arcsec if not set
     """
 
+    if pixscale is None:
+        pixscale=0.5*u.arcsec
+    if imsize is None:
+        imsize=60.0*u.arcsec
+        
     gridsize = imsize.to_value("arcsec")
     gridstep = pixscale.to_value("arcsec")
 
