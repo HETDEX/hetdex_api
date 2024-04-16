@@ -952,7 +952,7 @@ class Extract:
                     "PSF model StarID: {} on edge: {:4.2f}, {:4.2f}".format(starid[i], xc, yc)
                 )
                 continue
-            psfi = self.make__ollapsed_image(
+            psfi = self.make_collapsed_image(
                 xc,
                 yc,
                 ifux,
