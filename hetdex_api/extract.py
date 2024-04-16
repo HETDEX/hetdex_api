@@ -952,7 +952,7 @@ class Extract:
                     "PSF model StarID: {} on edge: {:4.2f}, {:4.2f}".format(starid[i], xc, yc)
                 )
                 continue
-            psfi = self.make_collapsed_image(
+            psfi = self.make__ollapsed_image(
                 xc,
                 yc,
                 ifux,
@@ -1102,6 +1102,7 @@ class Extract:
         nchunks=11,
         convolve_image=False,
         interp_kind="linear",
+        fill_value=np.nan,
     ):
         """
         Sum spectra across a wavelength range or filter to make a single image
@@ -1135,7 +1136,11 @@ class Extract:
         convolve_image: bool
             If true, the collapsed frame is smoothed at the seeing_fac scale
         interp_kind: str
-            Kind of interpolation to pixelated grid from fiber intensity
+            Kind of interpolation to pixelated grid from fiber intensity.
+            Options are 'linear', 'cubic', 'nearest'. Default is linear.
+        fill_value: float, optional
+            Value used to fill in for requested points outside of coverage or in a mask
+            region. If not provided, then the default is nan.
 
         Returns
         -------
@@ -1162,14 +1167,14 @@ class Extract:
             seeing = seeing_fac / scale
             G = Gaussian2DKernel(seeing / 2.35)
 
-        if interp_kind not in ["linear", "cubic"]:
-            self.log.warning('interp_kind must be "linear" or "cubic"')
+        if interp_kind not in ["linear", "cubic", "nearest"]:
+            self.log.warning('interp_kind must be "linear", "nearest" or "cubic"')
             self.log.warning('Using "linear" for interp_kind')
             interp_kind = "linear"
-
+        
         marray = np.ma.array(data[:, sel], mask=mask[:, sel] < 1e-8)
         image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
-
+            
         if error is not None:
             marray = np.ma.array(error[:, sel], mask=mask[:, sel] < 1e-8)
             error_image = np.sqrt(2.*np.ma.sum(marray**2, axis=1))
@@ -1189,6 +1194,10 @@ class Extract:
             / area
         )
 
+        # propogate mask through to new grid image. Added by EMC 2024-04-16
+        
+        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest')
+        
         if error is not None:
             grid_z_error = (
                 griddata(
@@ -1201,6 +1210,9 @@ class Extract:
                 / area
             )
 
+        # mask image Added by EMC 2024-04-16
+        grid_z[~grid_mask] = np.nan
+        grid_z_error[~grid_mask] = np.nan
         
         if convolve_image:
             grid_z = convolve(grid_z, G)
@@ -1209,14 +1221,16 @@ class Extract:
 
         if error is None:
             image = grid_z
-            image[np.isnan(image)] = 0.0
+            #Added by EMC 2024-04-16 
+            image[np.isnan(image)] = fill_value
             zarray = np.array([image, xgrid - xc, ygrid - yc])
         else:
             
             image = grid_z
-            image[np.isnan(image)] = 0.0
+            #Added by EMC 2024-04-16 
+            image[~grid_mask] = fill_value
             image_error = grid_z_error
-            image_error[np.isnan(image)] = 0.0
+            image_error[np.isnan(image)] = fill_value
                                     
             zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
 
