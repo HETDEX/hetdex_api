@@ -53,6 +53,8 @@ from hetdex_api.config import HDRconfig
 import warnings
 warnings.filterwarnings('ignore')
 
+import traceback
+
 def get_detectname(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
@@ -479,27 +481,52 @@ def main(argv=None):
 
             try:
                 specfile = op.join(args.detect_path, amp_i + ".spec")
+
+                # 20240416 dd - add some flexibility on whether .spec file has 11 or 12 columns
+                #check column count
+                expected_names = [
+                    "wave1d",
+                    "spec1d_nc",
+                    "spec1d_nc_err",
+                    "counts1d",
+                    "counts1d_err",
+                    "apsum_counts",
+                    "apsum_counts_err",
+                    "dummy",
+                    "apcor",
+                    "flag_pix",
+                    "src_index",
+                ]
+
+                try:
+                    ncols = -1
+                    with open(specfile) as f:
+                        ncols = len(f.readline().split())
+
+                    if ncols == 12:
+                        expected_names.append("spec1d_nc_ffsky")
+                    elif ncols == 11:
+                        pass #all good as is
+                    else:
+                        args.log.warning(f"Unexpected number of columns ({ncols}) in {specfile}")
+                except Exception as e:
+                    args.log.warning('Possible problem with ' + specfile)
+                    args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
+
                 spec_table = Table(
                     np.loadtxt(specfile),
-                    names=[
-                        "wave1d",
-                        "spec1d_nc",
-                        "spec1d_nc_err",
-                        "counts1d",
-                        "counts1d_err",
-                        "apsum_counts",
-                        "apsum_counts_err",
-                        "dummy",
-                        "apcor",
-                        "flag_pix",
-                        "src_index",
-                        "spec1d_nc_ffsky",
-                    ],
+                    names=expected_names
                 )
-            except Exception:
+
+            except Exception as e: #20240416 dd - add more debug info
                 args.log.warning('Could not ingest ' + specfile)
+                args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
                 ndet_sel.append( 0)
                 continue
+            # except Exception:
+            #     args.log.warning('Could not ingest ' + specfile)
+            #     ndet_sel.append( 0)
+            #     continue
 
             try:
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
@@ -575,7 +602,9 @@ def main(argv=None):
 
                 rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
                 rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
-                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+
+                if "spec1d_nc_ffsky" in dataspec.colnames:
+                    rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
                 rowspectra["wave1d"] = dataspec["wave1d"]
                 rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
                 rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]

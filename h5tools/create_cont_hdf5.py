@@ -453,29 +453,51 @@ def main(argv=None):
         try:
             inputid_i = row["inputid"]
             specfile = "./spec/{}.spec".format(inputid_i)
+
+            # 20240416 dd - add some flexibility on whether .spec file has 11 or 12 columns
+            # check column count
+            expected_names = [
+                "wave1d",
+                "spec1d_nc",
+                "spec1d_nc_err",
+                "counts1d",
+                "counts1d_err",
+                "apsum_counts",
+                "apsum_counts_err",
+                "dummy",
+                "apcor",
+                "flag_pix",
+                "obnum",
+            ]
+
+            try:
+                ncols = -1
+                with open(specfile) as f:
+                    ncols = len(f.readline().split())
+
+                if ncols == 12:
+                    expected_names.append("spec1d_nc_ffsky")
+                elif ncols == 11:
+                    pass  # all good as is
+                else:
+                    args.log.warning(f"Unexpected number of columns ({ncols}) in {specfile}")
+
+            except Exception as e:
+                args.log.warning('Possible problem with ' + specfile)
+                args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
+
+
             dataspec = Table(
                 np.loadtxt(specfile),
-                names=[
-                    "wave1d",
-                    "spec1d_nc",
-                    "spec1d_nc_err",
-                    "counts1d",
-                    "counts1d_err",
-                    "apsum_counts",
-                    "apsum_counts_err",
-                    "dummy",
-                    "apcor",
-                    "flag_pix",
-                    "obnum",
-                    "spec1d_nc_ffsky",
-                ],
+                names=expected_names
             )
 
             rowspectra = tableSpectra.row
             rowspectra["detectid"] = row["detectid"]
             rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
             rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
-            rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+            if "spec1d_nc_ffsky" in dataspec.colnames:
+                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
             rowspectra["wave1d"] = dataspec["wave1d"]
             rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
             rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
@@ -486,8 +508,9 @@ def main(argv=None):
             rowspectra["apcor"] = dataspec["apcor"]
             rowspectra["flag_pix"] = dataspec["flag_pix"]
             rowspectra.append()
-        except Exception:
+        except Exception as e:
             args.log.error("Could not ingest %s" % specfile)
+            args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
 
 
         # add fiber data
