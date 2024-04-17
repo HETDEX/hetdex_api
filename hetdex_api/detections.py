@@ -509,7 +509,7 @@ class Detections:
 
         return self[mask]
 
-    def query_by_coord(self, coord, radius=3.*u.arcsec, astropy=True):
+    def query_by_coord(self, coord, radius=None, astropy=True):
         """
         Returns list of detecitds or astropy table object
         based on a coordinate search
@@ -534,6 +534,8 @@ class Detections:
         -------
         Detectid or Table
         """
+        if radius is None:
+            radius = 3.*u.arcsec
 
         if self.catalog_type in ['lines', 'broad', 'continuum']:
             if self.loadtable:
@@ -586,7 +588,7 @@ class Detections:
                 return None
             
     def find_match(
-        self, coord, radius=5.0 * u.arcsec, wave=None, dwave=5.0, shotid=None
+        self, coord, radius=None, wave=None, dwave=5.0, shotid=None
     ):
         """
         Function to cross match another line detection
@@ -612,6 +614,8 @@ class Detections:
             index of matches
         """
 
+        if radius is None:
+            radius=5.0*u.arcsec
         selmatch = self.query_by_coord(coord, radius)
 
         if wave is not None:
