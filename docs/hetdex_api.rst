@@ -54,11 +54,3 @@ hetdex\_api.survey module
    :members:
    :undoc-members:
    :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: hetdex_api
-   :members:
-   :undoc-members:
-   :show-inheritance:
