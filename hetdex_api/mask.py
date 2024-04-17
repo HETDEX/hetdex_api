@@ -26,7 +26,7 @@ from hetdex_api.survey import FiberIndex
 
 config = HDRconfig()
 
-def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, shotid=None):
+def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=None, shotid=None):
     """
     Returns a boolean flag whether the amp has been flagged usable
 
@@ -69,6 +69,8 @@ def amp_flag_from_coords(coords, FibIndex, bad_amps_table, radius=3.*u.arcsec, s
     
     """
 
+    if radius is None:
+        radius = 3.*u.arcsec
     
     fiber_table = FibIndex.query_region(coords,
                                         radius=radius,
@@ -126,7 +128,7 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
 
 def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
                                 shotid=None,
-                                maxdistance=8.*u.arcsec):
+                                maxdistance=None):
     """
     Function to retrieve the amp flag for the closest fiberid in a shot
    
@@ -155,7 +157,9 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
         True if amp is usable
         False if any fiber in the defined region is flagged in a bad amp
 
-    """           
+    """
+    if maxdistance is None:
+        maxdistance = 8.0*u.arcsec
 
     fiberid = FibIndex.get_closest_fiberid(coords, shotid=shotid,
                                            maxdistance=maxdistance)
@@ -170,7 +174,7 @@ def amp_flag_from_closest_fiber(coords, FibIndex, bad_amps_table,
     return flag
 
     
-def meteor_flag_from_coords(coords, shotid=None, streaksize=12.*u.arcsec):
+def meteor_flag_from_coords(coords, shotid=None, streaksize=None):
     """
     Returns a boolean flag value to mask out meteors
 
@@ -199,6 +203,8 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=12.*u.arcsec):
 
     global config
 
+    if streaksize is None:
+        streaksize = 12.0*u.arcsec
     # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
 
     met_tab = Table.read(config.meteor, format='ascii')
@@ -265,7 +271,7 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=1.5):
     return ellipse_reg
 
 
-def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
+def create_dummy_wcs(coords, pixscale=None, imsize=None):
     """
     Create a simple fake WCS in order to use the regions subroutine.
     Adapted from John Feldmeiers galmask.py
@@ -279,6 +285,10 @@ def create_dummy_wcs(coords, pixscale=0.5*u.arcsec, imsize=60.*u.arcmin):
     imsize: astropy quantity
         size of WCS in astropy angle quanity units
     """
+    if imsize is None:
+        imsize=60.*u.arcmin
+    if pixscale is None:
+        pixscale=0.5*u.arcsec
 
     gridsize = imsize.to_value('arcsec')
     gridstep = pixscale.to_value('arcsec')
