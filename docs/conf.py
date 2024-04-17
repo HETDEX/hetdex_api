@@ -41,7 +41,7 @@ nb_execution_mode = "off"
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-autodoc_mock_imports = ['astrowidgets', 'astropy', 'dustmaps', 'regions']
+autodoc_mock_imports = ['astrowidgets', 'astropy', 'dustmaps', 'regions', 'speclite', 'nway','nwaylib']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
