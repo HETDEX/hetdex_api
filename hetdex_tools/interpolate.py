@@ -35,8 +35,8 @@ def make_narrowband_image(
     detectid=None,
     coords=None,
     shotid=None,
-    pixscale=0.25 * u.arcsec,
-    imsize=30.0 * u.arcsec,
+    pixscale=None,
+    imsize=None,
     wave_range=None,
     convolve_image=False,
     ffsky=False,
@@ -140,6 +140,12 @@ def make_narrowband_image(
         except AttributeError:
             surveyh5 = tb.open_file(config.surveyh5, "r")
 
+    if pixscale is None:
+        pixscale = 0.25 * u.arcsec
+
+    if imsize is None:
+        imsize = 30.0 * u.arcsec
+        
     if detectid is not None:
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
@@ -328,8 +334,8 @@ def make_data_cube(
     detectid=None,
     coords=None,
     shotid=None,
-    pixscale=0.25 * u.arcsec,
-    imsize=30.0 * u.arcsec,
+    pixscale=None,
+    imsize=None,
     wave_range=[3470, 5540],
     dwave=2.0,
     dcont=50.0,
@@ -409,6 +415,12 @@ def make_data_cube(
     global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
 
+    if pixscale is None:
+        pixscale = 0.25 * u.arcsec
+
+    if imsize is None:
+        imsize = 30.0 * u.arcsec
+        
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
