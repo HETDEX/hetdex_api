@@ -1,5 +1,5 @@
-API REFERENCE
-=============
+hetdex_api modules
+==================
 
 hetdex\_api.detections module
 -----------------------------
@@ -51,6 +51,17 @@ hetdex\_api.survey module
 -------------------------
 
 .. automodule:: hetdex_api.survey
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+hetdex-tools modules
+====================
+
+hetdex\_tools.interpolate
+-------------------------
+
+.. automodule:: hetdex_tools.interpolate
    :members:
    :undoc-members:
    :show-inheritance:
