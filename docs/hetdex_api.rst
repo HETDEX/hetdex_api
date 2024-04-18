@@ -61,6 +61,11 @@ hetdex-tools modules
 hetdex\_tools.interpolate
 -------------------------
 
+.. automodule:: hetdex_tools.get_spec
+   :members: 
+   :undoc-members:
+   :show-inheritance:
+      
 .. automodule:: hetdex_tools.interpolate
    :members:
    :undoc-members:
