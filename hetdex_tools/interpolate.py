@@ -28,8 +28,7 @@ DET_HANDLE = None
 DET_FILE = None
 
 current_hdr = LATEST_HDR_NAME
-surveyh5 = tb.open_file(config.surveyh5, "r")
-
+surveyh5 = None
 
 def make_narrowband_image(
     detectid=None,
@@ -128,6 +127,7 @@ def make_narrowband_image(
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
+
         try:
             surveyh5.close()
             surveyh5 = tb.open_file(config.surveyh5, "r")
