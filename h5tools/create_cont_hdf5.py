@@ -12,7 +12,7 @@ Examples
 
 To run continuum sources one month at a time:
 
->>> python3 create_cont_hdf5.py -d 20200523 -o 012 
+#>>> python3 create_cont_hdf5.py -d 20200523 -o 012
 
 To merge into one month
 
@@ -43,6 +43,7 @@ import astropy.units as u
 from hetdex_api.input_utils import setup_logging
 
 import warnings
+import traceback
 
 warnings.filterwarnings("ignore")
 
@@ -140,6 +141,8 @@ class Fibers(tb.IsDescription):
 
 
 def main(argv=None):
+
+
     """ Main Function """
     # Call initial parser from init_utils
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
@@ -235,6 +238,7 @@ def main(argv=None):
 
     index_buff = 4090000000 + 297876 + 1 # starting count post HDR3 detection indices 
     detectidx = index_buff
+    bad_ingest_files = []
     
     if args.merge:
         n_size = 300000
@@ -266,6 +270,8 @@ def main(argv=None):
 
         detectid_max = 0
 
+
+
         for file in files:
             
             args.log.info("Appending detect H5 file: %s" % file)
@@ -281,8 +287,10 @@ def main(argv=None):
                 tableFibers_i = fileh_i.root.Fibers.read()
                 tableSpectra_i = fileh_i.root.Spectra.read()
 
-            except Exception:
+            except Exception as e:
                 args.log.error('Could not append {}'.format(file))
+                args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
+                bad_ingest_files.append(file)
                 continue
                 
             tableMain_i["detectid"] += detectid_max
@@ -312,6 +320,22 @@ def main(argv=None):
         tableSpectra.flush()
         tableMain.flush()
         args.log.info("File finished: %s" % args.outfilename)
+
+        try:
+            if len(bad_ingest_files) > 0:
+                args.log.error("WARNING!!!! Some files failed to merge. See bad_merge_cont.rerun")
+                with open("bad_merge_cont.rerun", "w") as f:
+                    for bif in bad_ingest_files:
+                        bn = os.path.basename(bif).split("_")[1].split(".")[0]
+                        date = bn.split("v")[0]
+                        obs = bn.split("v")[1]
+                        f.write(f"ingest_cont {date} {obs}\n")
+            else:
+                args.log.info("All files merged.")
+
+        except Exception as e:
+            args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
+
         sys.exit()
     # open up datevobs tarball with ingestion data
 
