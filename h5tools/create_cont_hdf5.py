@@ -48,6 +48,13 @@ import traceback
 warnings.filterwarnings("ignore")
 
 
+DETECTID_BASE = int(5.09e9) #note the x.09 for continuum sources
+DETECTID_STEP = 1
+DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
+                           #start numbering DETECTID_STEP past this value (usually +1)
+                           #297876 for HDR4 extension to HDR3
+
+
 def get_detectname(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
@@ -236,7 +243,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    index_buff = 4090000000 + 297876 + 1 # starting count post HDR3 detection indices 
+    index_buff = DETECTID_BASE + DETECTID_OFFSET + DETECTID_STEP # starting count post HDR3 detection indices
     detectidx = index_buff
     bad_ingest_files = []
     
@@ -305,7 +312,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + DETECTID_STEP
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
@@ -430,7 +437,7 @@ def main(argv=None):
     detectid = []
 
     if args.append:
-        detectid_i = np.max(tableMain.cols.detectid[:]) + 1
+        detectid_i = np.max(tableMain.cols.detectid[:]) + DETECTID_STEP
     else:
         detectid_i = detectidx
     print(detectid_i)

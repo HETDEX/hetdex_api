@@ -55,6 +55,13 @@ warnings.filterwarnings('ignore')
 
 import traceback
 
+DETECTID_BASE = int(5e9)
+DETECTID_STEP = 1
+DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
+                           #start numbering DETECTID_STEP past this value (usually +1)
+                           #13843050 for HDR4 extension to HDR3
+DETECTID_BROADBASE_OFFSET = int(9.6e8)
+
 def get_detectname(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
@@ -277,18 +284,18 @@ def main(argv=None):
     
     if args.append:
         fileh = tb.open_file(args.outfilename, "a", "{} Detections Database".format(args.survey.upper()))
-        detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
+        detectidx = np.max(fileh.root.Detections.cols.detectid) + DETECTID_STEP
     else:
 
-        if args.broad:
+        if args.broad: #not really used anymore
             fileh = tb.open_file(outfilename, "w", "{} Broad Detections Database".format(args.survey.upper()))
-            index_buff = 4960000000
+            index_buff = DETECTID_BASE + DETECTID_BROADBASE_OFFSET + DETECTID_STEP
 #        elif args.continuum: (doing continuum separately for HDR3)
 #            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
             fileh = tb.open_file(outfilename, "w", "{} Detections Database".format(args.survey.upper()))
-            index_buff = 4000000000 + 13843050 + 1 # this is so last 8 from HDR3 are not used in HDR4 trailing 8 digits
+            index_buff = DETECTID_BASE + DETECTID_OFFSET + DETECTID_STEP # this is so last 8 from HDR3 are not used in HDR4 trailing 8 digits
 
         detectidx = index_buff
 
@@ -352,7 +359,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + DETECTID_STEP
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
