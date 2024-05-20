@@ -92,7 +92,7 @@ class Detections:
             This is quite slow on the full database so is only recommended when using
             curated_version option.
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4","hdr5"]
         catalog_type_options = ["lines", "continuum", "broad", 'index']
 
         if survey.lower() not in survey_options:
@@ -116,6 +116,8 @@ class Detections:
                 self.survey = "hdr3"
             elif curated_version[0] == "4":
                 self.survey = "hdr4"
+            elif curated_version[0] == "5":
+                self.survey = "hdr5"
             else:
                 self.survey = "hdr" + curated_version[0:3]
         else:
@@ -133,12 +135,15 @@ class Detections:
 
         if float(self.survey[3:])  >= 3.0: # == "hdr3":
             # open wd correction curve and create fit for quick assignment
-            self.wd_corr = Table.read(
-                self.config.wdcor, format="ascii.no_header", names=["wave", "corr"]
-            )
-            self.wd_corr_f = interpolate.interp1d(
-                self.wd_corr["wave"], self.wd_corr["corr"]
-            )
+            try:
+                self.wd_corr = Table.read(
+                    self.config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+                )
+                self.wd_corr_f = interpolate.interp1d(
+                    self.wd_corr["wave"], self.wd_corr["corr"]
+                )
+            except:  #right now this is pretty fatal ... will fail later
+                print(f"Could not locate WD correction file: {self.config.wdcor}")
 
         if catalog_type == "lines":
             self.filename = self.config.detecth5
@@ -155,7 +160,12 @@ class Detections:
             else:
                 self.filename = self.config.detectindexh5
 
-        self.hdfile = tb.open_file(self.filename, mode="r")
+        try:
+            self.hdfile = tb.open_file(self.filename, mode="r")
+        except Exception as e: #this is essentially fatal, set the file to None, but might still be able to get the survey
+            print(f"Could not locate catalog file: {self.filename}")
+            self.hdfile = None
+            raise e
 
         self.surveyh5 = tb.open_file(self.config.surveyh5, "r")
 
@@ -1043,6 +1053,7 @@ class Detections:
             column info given by det_info.dtype attribute
         """
 
+        #notice ... this is unhandled so caller gets the exception
         if self.catalog_type == 'index':
             det_row = self.hdfile.root.DetectIndex.read_where("detectid == detectid_i")
             return det_row

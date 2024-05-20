@@ -9,11 +9,20 @@ import os.path as op
 class HDRconfig:
 
     LATEST_HDR_NAME = 'hdr4'
+    LAST_GOOD_HDR_NAME = 'hdr4' #add for use when LATEST_HDR_NAME is overridden
 
     LATEST_MASK_DICT = {'hdr4': '1.0',
                         'pdr1': '1.0'}
     
     def __init__(self, survey=LATEST_HDR_NAME):
+
+        # a number of downstream operations use LATEST_HDR_NAME explicitly, regardless of
+        # what was pssed in for survey ...
+        # overwriting here should handle that _BUT_ might introduce other problems if we do actually want to
+        # use the pre-defined LATEST_HDR_NAME even if a different survey was requested.
+        if survey is not None:
+            self.LATEST_HDR_NAME=survey
+
         # Check stampede2 first
         if op.exists("/scratch/projects/hetdex"): #DD 2023-08-05
             self.host_dir = "/scratch/projects/hetdex"
@@ -119,7 +128,17 @@ class HDRconfig:
             self.badpix = op.join(self.bad_dir, "badpix.list")
 
         if survey in ["hdr2.1",'hdr3', 'hdr4', 'hdr5', 'pdr1']:
-            if op.exists("/home/jovyan/software/hetdex_api"):
+            if op.exists(f"/scratch/projects/hetdex/{survey}/software/hetdex_api/known_issues/"):
+                self.bad_dir = f"/scratch/projects/hetdex/{survey}/software/hetdex_api/known_issues/"
+                #some later versions have the survey as a subfolder
+                if op.exists(op.join(self.bad_dir,survey)):
+                    self.bad_dir = op.join(self.bad_dir,survey)
+            elif op.exists(f"/scratch/projects/hetdex/{self.LAST_GOOD_HDR_NAME}/software/hetdex_api/known_issues/"):
+                self.bad_dir = f"/scratch/projects/hetdex/{self.LAST_GOOD_HDR_NAME}/software/hetdex_api/known_issues/"
+                # some later versions have the survey as a subfolder
+                if op.exists(op.join(self.bad_dir,self.LAST_GOOD_HDR_NAME)):
+                    self.bad_dir = op.join(self.bad_dir,self.LAST_GOOD_HDR_NAME)
+            elif op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
             elif op.exists('/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)):
                 self.bad_dir = '/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)
