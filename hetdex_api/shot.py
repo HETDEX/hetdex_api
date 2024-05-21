@@ -152,7 +152,7 @@ class Fibers:
         self.hdfile = open_shot_file(shot, survey=survey)
 
         if re.search("v", str(shot)):
-            shotid = int(shot.replac("v", ""))
+            shotid = int(shot.replace("v", ""))
             datevobs = shot
         else:
             shotid = shot
