@@ -203,7 +203,7 @@ class Fibers:
 
 
         if add_rescor:
-            filerescor = op.join(config.red_dir, "ffsky_rescor", str(shotid) + ".h5")
+            filerescor = op.join(config.red_dir, "ffsky_rescor", "rc{}.h5".format( datevobs ))
             try:
                 self.rescorh5 = tb.open_file(filerescor, "r")
             except:
@@ -742,12 +742,11 @@ def get_fibers_table(
     if add_rescor:
         if verbose:
             print("Adding calfib_ffsky_rescor column")
-        ffsky_rescor = F.rescorh5.root.calfib_ffsky_rescor.read()
         
         if len(idx) > 0:
-            fibers_table["calfib_ffsky_rescor"] = ffsky_rescor[idx]
+            fibers_table["calfib_ffsky_rescor"] = F.rescorh5.root.calfib_ffsky_rescor.read_coordinates( idx, 'calfib_ffsky_rescor')
         else:
-            fibers_table["calfib_ffsky_rescor"] = ffsky_rescor
+            fibers_table["calfib_ffsky_rescor"] =  F.rescorh5.root.calfib_ffsky_rescor.read()['calfib_ffsky_rescor']
 
     if add_mask:
         if verbose:
