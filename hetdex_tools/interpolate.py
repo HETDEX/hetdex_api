@@ -129,7 +129,11 @@ def make_narrowband_image(
         current_hdr = survey
 
         try:
-            surveyh5.close()
+            if surveyh5 is not None:
+                try:
+                    surveyh5.close()
+                except:
+                    pass
             surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
