@@ -201,16 +201,25 @@ class Fibers:
         except:
             self.maskh5 = None
 
-
+        self.survey = survey.lower()
+        
         if add_rescor:
-            filerescor = op.join(config.red_dir, "ffsky_rescor", "rc{}.h5".format( datevobs ))
-            try:
-                self.rescorh5 = tb.open_file(filerescor, "r")
-            except:
+
+            if self.survey in ['hdr4','hdr5']:
+                
+                filerescor = op.join(config.red_dir, "ffsky_rescor", "rc{}.h5".format( datevobs ))
+                try:
+                    self.rescorh5 = tb.open_file(filerescor, "r")
+                except:
+                    self.rescorh5 = None
+                    print(
+                        "Could not open {}. Forcing add_rescor to False".format(filerescor)
+                    )
+            else:
+                print('Residual corrected fibers not available in {}'.format(self.survey))
+                add_rescor = False
                 self.rescorh5 = None
-                print(
-                    "Could not open {}. Forcing add_rescor to False".format(filerescor)
-                )
+                    
         else:
             self.rescorh5 = None
 
@@ -616,6 +625,11 @@ def get_fibers_table(
 
     update_F = False  # flag to update Fibers class object if needed
 
+    if add_rescor:
+        if survey.lower() not in ['hdr4', 'hdr5']:
+            print('Full frame calibrated fibers and residual corrected fibers not available for {}'.format(survey.lower()))
+            add_rescor=False
+
     if F is not None:
         fileh = F.hdfile
 
@@ -634,8 +648,13 @@ def get_fibers_table(
                 print('Updating mask_version to mask_version={}'.format(mask_version))
             update_F = True
 
-        if add_rescor and F.rescorh5 is None:
-            update_F = True
+        if add_rescor:
+            if survey.lower() not in ['hdr4', 'hdr5']:
+                print('Full frame calibrated fibers and residual corrected fibers not available for {}'.format(survey.lower()))
+                add_rescor=False
+            else:
+                if F.rescorh5 is None:
+                    update_F = True
 
         if update_F:
 
