@@ -787,7 +787,7 @@ def get_fibers_table(
 
         if mask_options is not None:
 
-            if mask_options == 'bitmask' or 'bitmask' in mask_options:
+            if np.any( mask_options.lower) == 'bitmask':# or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
                 bool_mask = bitmaskDQ
             else:
@@ -822,7 +822,16 @@ def get_fibers_table(
                 bool_mask = None
 
         fibers_table['mask'] = bool_mask
+
+        if mask_in_place:
             
+            fibers_table['calfib'][fibers_table['mask'] == False] = mask_value
+
+            if survey.lower() in ['hdr2.1', 'hdr3', 'hdr4', 'hdr5']:
+                fibers_table['calfib_ffsky'][fibers_table['mask'] == False] = mask_value
+            if add_rescor and survey.lower() in ['hdr4', 'hdr5']:
+                fibers_table['calfib_ffsky_rescor'][fibers_table['mask'] == False] = mask_value
+                              
     # down-select on expnum if desired
     if expnum is not None:
         if verbose:
