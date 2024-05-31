@@ -787,7 +787,7 @@ def get_fibers_table(
 
         if mask_options is not None:
 
-            if np.any( mask_options.lower) == 'bitmask':# or 'bitmask' in mask_options:
+            if np.any( mask_options.lower() ) == 'bitmask':# or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
                 bool_mask = bitmaskDQ
             else:
