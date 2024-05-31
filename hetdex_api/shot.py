@@ -786,12 +786,11 @@ def get_fibers_table(
                 mask_names.append(i)
 
         if mask_options is not None:
-
-            if np.any( mask_options.lower() ) == 'bitmask':# or 'bitmask' in mask_options:
+            
+            if mask_options.lower() == 'bitmask':# or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
                 bool_mask = bitmaskDQ
             else:
-
                 if verbose:
                     print('Creating bool mask with mask_options={}'.format(mask_options))
 
