@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created: 2019/01/25
+Created: 2024/06/13
 
 @author: Erin Mentuch Cooper
+modified by Owen Chase
 
-This file contains all information related to the HETDEX line detections
-catalog
+This file modifies create_detect_hdf5.py to generate .h5 files from
+the output of the synthetic source simulations used to generate
+random catalogs.
 
-Updated: 2020/06/03
+Updated: 
 
-Updated to read in Karl's new detection output that is organized by shot + amp
 
-NOTE: 2021/01/13
-
-Detections API is updated to fix flux and continuum values
-for aperture corrections. Be sure to consistent for HDR3
 
 Examples
 --------
@@ -415,26 +412,28 @@ def main(argv=None):
 
         #amp_stats = Table.read(config.badamp)
    
-        colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
+        #the first two rows of colnames are specific to the synthetic observations
+        colnames = ['ra_in', 'dec_in', 'wave_in', 'flux_in', 'amp_in', 'sim_run',
+                    'linewidth_in', 'delta_distance', 'delta_wave'
+                    'wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
                     'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight',
                     'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen','dummy']
         if args.date and args.observation:
-            mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
+            # simres_str matches files of the form det.20181106v016s666
+            simres_str = "det." + str(args.date) + "v" + str(args.observation).zfill(3) + "s???"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
-            #amp_stats = amp_stats[amp_stats['shotid'] == shotid]
         elif args.month:
-            mcres_str = str(args.month) + "*mc"
-            amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
-            #amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
+            simres_str = "det." + str(args.month) + "??v???s???"
         elif args.ifu:
-            mcres_str = "*" + args.ifu + ".mc"
+            #note this option must be done on the .mc files directly, not the .sim or det. files
+            simres_str = "*" + args.ifu + ".mc"
         else:
             args.log.warning('Please provide a date(YYYMMDD)+observation or month (YYYYMM')
             sys.exit()
 
-        catfiles =  sorted( glob.glob( op.join( args.detect_path, mcres_str)))
+        catfiles =  sorted( glob.glob( op.join( args.detect_path, simres_str)))
         
         det_cols = fileh.root.Detections.colnames
 
@@ -563,26 +562,8 @@ def main(argv=None):
 
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
-# taking this out for HDR4
-#                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
-#                    if (row['wave'] > 3540) and (row['wave'] < 3560):
-#                        continue
-#
-#                if multiframe in ['multi_032_094_028_RU']:
-#                    if (row['wave'] > 3530) and (row['wave'] < 3545):
-#                        continue
-                
-#                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-#                ampflag = bool(amp_stats['flag'][selamp])
-#               
-#                if np.size(ampflag) == 0:
-#                    args.log.error('No ampflag for '
-#                                   + str(rowMain['shotid'])
-#                                   + ' ' + multiframe)
-                # no longer removing bad amps
-#                if ampflag == False:
-#                    continue
-                
+
+
                 # check if Karl stored the same fiber as me:
                 fiber_id_Karl = str(rowMain["shotid"]) + "_" + str(row["exp"][4:5]) \
                                 + "_" + multiframe + "_" \
