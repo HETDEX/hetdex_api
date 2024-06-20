@@ -83,7 +83,6 @@ def gaussian(x,u1,s1,A1=1.0,y=0.0):
         return None
     return A1 * (np.exp(-np.power((x - u1) / s1, 2.) / 2.) / np.sqrt(2 * np.pi * s1 ** 2)) + y
 
-
 # This function converts the row data from the H5 file into an HDU FITS standard
 def get_hdu(detectid_obj):
     im_data = fileh.root.LineImages.read_where('detectid == detectid_obj')[0]
@@ -386,9 +385,19 @@ def fit_profile(detectid_obj=None,
             flux_fit =fit.mcmc_A[0]
             cont_fit = fit.mcmc_y[0]
             sn_line = fit.mcmc_snr
+
+            model_gauss = gaussian(wave_rect,u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
+
+            sel_wave = np.abs( wave_rect - wave_fit) < 50
+            y = spec_table['spec'][0][sel_wave]
+            fit = gaussian(wave_rect[sel_wave],u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
+            yerr = spec_table['spec_err'][0][sel_wave]
+            n_free = 3
+            N = np.sum(sel_wave)
             
-            model_gauss =gaussian(wave_rect,u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
-            plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f}'.format(sn_line, linewidth_fit))
+            chi2_line = 1.0/(N-n_free) * np.sum(((fit - y)/yerr)**2)
+            
+            plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f} chi2={:3.2f}'.format(sn_line, linewidth_fit, chi2_line))
             
         ymax = np.max( spec_table['spec'][0][ np.where( np.abs( wave_rect-wave_obj) < 100)[0]])
         ymin = np.min( spec_table['spec'][0][ np.where( np.abs( wave_rect-wave_obj) < 100)[0]])
@@ -476,7 +485,7 @@ def fit_profile(detectid_obj=None,
     if detectid_obj is not None:
         return detectid_obj, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth
     else:
-        return name, sn_max, moffat_x0, moffat_y0, chi2_moffat
+        return name, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth_fit
 
 
 
