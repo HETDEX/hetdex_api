@@ -164,7 +164,7 @@ class Extract:
         self.ADRy = np.sin(np.deg2rad(angle)) * ADR
 
     def load_shot(
-            self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True, add_mask=True,args=None,
+            self, shot_input, survey=LATEST_HDR_NAME, dither_pattern=None, fibers=True, add_mask=True, args=None,
     ):
         """
         Load fiber info from hdf5 for given shot_input
@@ -1442,5 +1442,10 @@ class Extract:
         """
         Close open shot h5 file if open
         """
+        
         if self.shoth5 is not None:
             self.shoth5.close()
+            
+        if self.fibers is not None:
+            self.fibers.close()
+

@@ -356,7 +356,7 @@ def get_source_spectra(shotid, args):
                             sclean_error,
                         ]
 
-        E.shoth5.close()
+        E.close()
         FibIndex.close()
         
     return source_dict
@@ -520,7 +520,7 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                             sclean_error,
                         ]
 
-        E.shoth5.close()
+        E.close()
         FibIndex.close()
         
     return source_dict
