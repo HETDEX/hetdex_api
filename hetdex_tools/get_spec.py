@@ -213,6 +213,9 @@ def get_source_spectra(shotid, args):
         else:
             E.load_shot(shotid, fibers=False, survey=args.survey, add_mask=args.apply_mask,args=args)
 
+        I = None
+        fac = None
+        
         for ind in args.matched_sources[shotid]:
             try:
                 info_result = E.get_fiberinfo_for_coord(
@@ -243,9 +246,6 @@ def get_source_spectra(shotid, args):
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
 
-                I = None
-                fac = None
-               
                 weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
                                                   I=I, fac=fac, return_I_fac = True)
 #                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
@@ -386,6 +386,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
         else:
             E.load_shot(shotid, fibers=False, survey=args.survey, add_mask=args.apply_mask)
 
+        I = None
+        fac = None
+
         for ind in args.matched_sources[shotid]:
             try:
                 info_result = E.get_fiberinfo_for_coord(
@@ -414,8 +417,10 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID)
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
-                                           
-                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+
+                weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
+                                                  I=I, fac=fac, return_I_fac = True)
+                #weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
                 # added by EMC 20210609
                 norm = np.sum(weights, axis=0)
                 weights = weights / norm[np.newaxis, :]
