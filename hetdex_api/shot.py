@@ -223,7 +223,7 @@ class Fibers:
                     
         else:
             self.rescorh5 = None
-
+        
         self.table = self.hdfile.root.Data.Fibers
 
         # Grab attributes from FiberIndex table if survey!='hdr1'
@@ -639,6 +639,9 @@ def get_fibers_table(
         if add_mask and F.maskh5 is None:
             update_F = True
 
+        if add_rescor and F.rescorh5 is None:
+            update_F = True
+
         if mask_version is None:
             mask_version = F.mask_version
             if verbose:
@@ -652,7 +655,7 @@ def get_fibers_table(
         if add_rescor:
             if survey.lower() not in ['hdr4', 'hdr5']:
                 print('Full frame calibrated fibers and residual corrected fibers not available for {}'.format(survey.lower()))
-                add_rescor=False
+                add_rescor = False
             else:
                 if F.rescorh5 is None:
                     update_F = True
@@ -675,6 +678,7 @@ def get_fibers_table(
             )
             
         close_F_at_end = False
+
     else:
         if verbose:
             print(
@@ -696,6 +700,13 @@ def get_fibers_table(
         fileh = F.hdfile
         close_F_at_end = True
 
+    # check if rescorh5 is not None
+
+    if F.rescorh5 is None:
+        if verbose:
+            print('No rescor file found, setting add_rescor to False')
+        add_rescor = False
+        
     config = HDRconfig(survey=survey.lower())
 
     #set index to None for logic later in code
