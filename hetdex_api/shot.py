@@ -215,6 +215,7 @@ class Fibers:
                     print(
                         "Could not open {}. Forcing add_rescor to False".format(filerescor)
                     )
+                    add_rescor = False
             else:
                 print('Residual corrected fibers not available in {}'.format(self.survey))
                 add_rescor = False
