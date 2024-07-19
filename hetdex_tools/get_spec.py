@@ -635,13 +635,14 @@ def return_astropy_table(Source_dict,
     output.add_column(Column(meteor_flag_arr, name='meteor_flag', dtype=int))
 
     if fiberweights:
-        output.add_column(Column(fiber_weights_arr), name="fiber_weights")
+        output.add_column(Column( np.array( fiber_weights_arr, dtype=object), name="fiber_weights"))
+    
     if return_fiber_info:
-        output.add_column(Column(fiber_info_arr, name="fiber_info"))
-        output.add_column(Column(fiber_wave_weights_arr, name="fiber_wavelength_weights"))
-        output.add_column(Column(fiber_mask_arr, name="fiber_wavelength_masks"))
-        output.add_column(Column(sclean_data_arr, name="clean_fluxd"))
-        output.add_column(Column(sclean_err_arr, name="clean_fluxd_err"))
+        output.add_column(Column( np.array( fiber_info_arr, dtype=object), name="fiber_info"))
+        output.add_column(Column( np.array( fiber_wave_weights_arr, dtype=object), name="fiber_wavelength_weights"))
+        output.add_column(Column( np.array( fiber_mask_arr, dtype=object), name="fiber_wavelength_masks"))
+        output.add_column(Column( np.array( sclean_data_arr, dtype=object), name="clean_fluxd"))
+        output.add_column(Column( np.array( sclean_err_arr, dtype=object), name="clean_fluxd_err"))
 
     return output
 
@@ -1235,6 +1236,6 @@ def get_spectra(
                                   fiberweights=args.fiberweights,
                                   return_fiber_info=args.return_fiber_info)
 
-    args.log.info("Retrieved " + str(np.size(output)) + " spectra.")
+    #args.log.info("Retrieved " + str(np.size(output)) + " spectra.")
 
     return output
