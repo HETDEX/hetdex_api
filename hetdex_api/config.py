@@ -128,17 +128,7 @@ class HDRconfig:
             self.badpix = op.join(self.bad_dir, "badpix.list")
 
         if survey in ["hdr2.1",'hdr3', 'hdr4', 'hdr5', 'pdr1']:
-            if op.exists(f"/scratch/projects/hetdex/{survey}/software/hetdex_api/known_issues/"):
-                self.bad_dir = f"/scratch/projects/hetdex/{survey}/software/hetdex_api/known_issues/"
-                #some later versions have the survey as a subfolder
-                if op.exists(op.join(self.bad_dir,survey)):
-                    self.bad_dir = op.join(self.bad_dir,survey)
-            elif op.exists(f"/scratch/projects/hetdex/{self.LAST_GOOD_HDR_NAME}/software/hetdex_api/known_issues/"):
-                self.bad_dir = f"/scratch/projects/hetdex/{self.LAST_GOOD_HDR_NAME}/software/hetdex_api/known_issues/"
-                # some later versions have the survey as a subfolder
-                if op.exists(op.join(self.bad_dir,self.LAST_GOOD_HDR_NAME)):
-                    self.bad_dir = op.join(self.bad_dir,self.LAST_GOOD_HDR_NAME)
-            elif op.exists("/home/jovyan/software/hetdex_api"):
+            if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
             elif op.exists('/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)):
                 self.bad_dir = '/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)
