@@ -104,6 +104,7 @@ def fit_profile(detectid=None,
                 shotid=None,
                 name=None,
                 extract_class=None,
+                apply_mask=False,
                 plot=False,
                 survey=LATEST_HDR_NAME):
 
@@ -153,7 +154,7 @@ def fit_profile(detectid=None,
             subcont=True,
             convolve_image=False,
             interp_kind='cubic',
-            apply_mask=True,
+            apply_mask=apply_mask,
             fill_value=0.0,
         )
         
@@ -318,7 +319,8 @@ def fit_profile(detectid=None,
 
         ax2 = subplots[1].subplots(1,1)# plt.subplot(142)
 
-        if detectid_obj is not None:
+        if detectid is not None:
+            detectid_obj = detectid
             spec_table = Table(fileh.root.Spec1D.read_where('detectid == detectid_obj'))
             spec_table.rename_column('spec1D','spec')
             spec_table.rename_column('spec1D_err', 'spec_err')
@@ -449,7 +451,8 @@ def fit_profile(detectid=None,
         plt.yscale('log')
 
 
-        if detectid_obj is not None:
+        if detectid is not None:
+            detectid = detectid_obj
             # plot each fiber for 4th object in example table
             obj_data = fileh.root.FiberImages.read_where('detectid == detectid_obj')[0]
             height=9 # in pixels
