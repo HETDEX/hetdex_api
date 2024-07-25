@@ -12,7 +12,6 @@ random catalogs.
 Updated: 
 
 
-
 Examples
 --------
 
@@ -70,7 +69,16 @@ def get_detectname(ra, dec):
         coord.dec.to_string(sep="", precision=1, alwayssign=True, pad=True))
 
 
-class Detections(tb.IsDescription):
+class SimDetections(tb.IsDescription):
+    ra_in = tb.Float32Col()
+    dec_in = tb.Float32Col()
+    wave_in = tb.Float32Col()
+    flux_in = tb.Float32Col()
+    amp_in = tb.StringCol((2))
+    sim_run = tb.Int32Col()
+    linewidth_in = tb.Float32Col()
+    delta_distance = tb.Float32Col()
+    delta_wave = tb.Float32Col()
     shotid = tb.Int64Col(pos=2)
     date = tb.Int32Col(pos=5)
     obsid = tb.Int32Col(pos=6)
