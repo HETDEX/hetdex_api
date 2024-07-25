@@ -97,7 +97,7 @@ def get_hdu(detectid_obj):
     return fits.HDUList([hdu, hdu_error, hdu_x, hdu_y])
 
 
-def fit_profile(detectid_obj=None,
+def fit_profile(detectid=None,
                 coords=None,
                 wave=None,
                 linewidth=None,
@@ -109,15 +109,15 @@ def fit_profile(detectid_obj=None,
 
     global config, fileh, D_hdr4, D_hdr3, imsize, pixscale
 
-    if detectid_obj is not None:
-        if str( detectid_obj)[0] == '3':
+    if detectid is not None:
+        if str( detectid)[0] == '3':
             D = D_hdr3
-        if str( detectid_obj)[0] == '4':
+        if str( detectid)[0] == '4':
             D = D_hdr4
-        if str( detectid_obj)[0] == '2':
+        if str( detectid)[0] == '2':
             D = Detections('hdr2.1')
-            
-        det_info = D.get_detection_info(detectid_obj)[0]
+        
+        det_info = D.get_detection_info(detectid)[0]
 
         wave_obj = det_info['wave']
         flux = det_info['flux']
@@ -126,15 +126,17 @@ def fit_profile(detectid_obj=None,
         sn_line = det_info['sn']
         chi2_line = det_info['chi2']
 
-        fwhm = D.get_survey_info(detectid_obj)['fwhm_virus'][0]
+        fwhm = D.get_survey_info(detectid)['fwhm_virus'][0]
 
-        if len(fileh.root.LineImages.read_where('detectid == detectid_obj')) == 0:
-            return None
+        detectid_obj = detectid
+        
+        #if len(fileh.root.LineImages.read_where('detectid == detectid_obj')) == 0:
+        #    return None
 
-        sn_im = fileh.root.LineImages.read_where('detectid == detectid_obj')[0]['sn_im']
+        #sn_im = fileh.root.LineImages.read_where('detectid == detectid_obj')[0]['sn_im']
 
         name = detectid
-        hdu = get_hdu(detectid_obj)
+        hdu = get_hdu(detectid)
 
     else:
         wave_obj = wave
@@ -292,7 +294,7 @@ def fit_profile(detectid_obj=None,
         #lon.set_ticklabel(exclude_overlapping=True)
         #plt.colorbar()
 
-        if detectid_obj is not None:
+        if detectid is not None:
             plt.text(
                 0.05,
                 0.05,
@@ -301,7 +303,7 @@ def fit_profile(detectid_obj=None,
                 color="black",
                 transform=ax1.transAxes
             )
-        #plt.title(str(detectid_obj))
+        #plt.title(str(detectid))
 
         plt.text(
             0.05,
@@ -338,7 +340,7 @@ def fit_profile(detectid_obj=None,
         plt.xlabel('wavelength (AA)')
         plt.ylabel('spec ergs/s/cm^2/AA')
 
-        if detectid_obj is not None:
+        if detectid is not None:
             model_gauss= gaussian(wave_rect,u1=wave_obj,s1=linewidth,A1=flux,y=cont)
             plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f} chi2={:3.2f}'.format(sn_line, linewidth, chi2_line))
 
@@ -485,8 +487,8 @@ def fit_profile(detectid_obj=None,
                 
         plt.savefig('figures/fits_{}.png'.format(name))
 
-    if detectid_obj is not None:
-        return detectid_obj, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth
+    if detectid is not None:
+        return detectid, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth
     else:
         return name, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth_fit
 
@@ -557,8 +559,8 @@ def main(argv=None):
         if r is None:
             continue
         
-        detectid_obj, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth = r
-        det_list.append(detectid_obj)
+        detectid, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth = r
+        det_list.append(detectid)
         sn_im_list.append(sn_im)
         sn_max_list.append(sn_max)
         moffat_x0_list.append(moffat_x0)
