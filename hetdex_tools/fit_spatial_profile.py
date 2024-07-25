@@ -67,8 +67,11 @@ plt.rcParams["ytick.direction"] = "in"
 plt.rcParams["xtick.labelsize"] = 12.0
 plt.rcParams["ytick.labelsize"] = 12.0
 
-global config, imsize, pixscale
+global config, imsize, pixscale, D_hdr3, D_hdr4
 
+D_hdr3 = Detections('hdr3')
+D_hdr4 = Detections('hdr4')
+    
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 except:
