@@ -52,6 +52,8 @@ from photutils.aperture import aperture_photometry, CircularAnnulus
 
 import pyimfit
 
+import logging
+from hetdex_api.input_utils import setup_logging
 
 #plotting preferences
 plt.style.use("default")
@@ -151,7 +153,7 @@ def fit_profile(detectid=None,
             include_error=True,
             ffsky=False,
             extract_class=extract_class,
-            subcont=True,
+            subcont=False,
             convolve_image=False,
             interp_kind='cubic',
             apply_mask=apply_mask,
@@ -358,7 +360,9 @@ def fit_profile(detectid=None,
         else:
             #instatiate an MCMC_Gauss object and populate
             #you can optionally pass a logger instance to the constructor, otherwise it will make its own 
-            fit = mcmc_gauss.MCMC_Gauss()
+            logger = setup_logging()
+            logger.setLevel(logging.WARNING)
+            fit = mcmc_gauss.MCMC_Gauss(logger=logger)
             #set the initial guesss
             #(here you can see it is set wrong to show we converge on the correct answer)
             fit.initial_A = 25
