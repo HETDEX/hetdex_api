@@ -515,7 +515,7 @@ def fit_profile(detectid=None,
         plt.savefig('figures/fits_{}.png'.format(name))
 
     if detectid is not None:
-        return detectid, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth
+        return detectid, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth
     else:
         return name, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth_fit
 
