@@ -132,14 +132,27 @@ def fit_profile(detectid=None,
         fwhm = D.get_survey_info(detectid)['fwhm_virus'][0]
 
         detectid_obj = detectid
-        
-        #if len(fileh.root.LineImages.read_where('detectid == detectid_obj')) == 0:
-        #    return None
-
-        #sn_im = fileh.root.LineImages.read_where('detectid == detectid_obj')[0]['sn_im']
-
         name = detectid
-        hdu = get_hdu(detectid)
+        
+        if len(fileh.root.LineImages.read_where('detectid == detectid_obj')) == 0:
+            # get hdu from make_narrowband_image
+            hdu = make_narrowband_image(
+                coords=coords,
+                wave_range=[wave - 2*linewidth, wave + 2*linewidth],
+                shotid=shotid,
+                survey=survey,
+                imsize= imsize * u.arcsec,
+                include_error=True,
+                ffsky=False,
+                extract_class=extract_class,
+                subcont=False,
+                convolve_image=False,
+                interp_kind='cubic',
+                apply_mask=apply_mask,
+                fill_value=0.0,
+            )
+        else:
+            hdu = get_hdu(detectid)
 
     else:
         wave_obj = wave
@@ -176,6 +189,10 @@ def fit_profile(detectid=None,
 
     mask = (image_data == 0) 
     mean, median, stddev = sigma_clipped_stats(hdu[0].data[~mask], sigma=2, maxiters=5)
+
+    #if median < 0:
+    #    image_data -= median
+    #print(median)
     
     im_x = hdu[2].data
     im_y = hdu[3].data
@@ -224,6 +241,7 @@ def fit_profile(detectid=None,
 
 
     imfit_fitter_moffat = pyimfit.Imfit(moffat_model_desc, psf=fiber_psf)
+    
     try:
         fit = imfit_fitter_moffat.fit( image_data, mask=mask, error=error)
     except:
