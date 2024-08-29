@@ -321,7 +321,7 @@ def fit_profile(detectid=None,
             plt.text(
                 0.05,
                 0.05,
-                "S/N im={:3.2f}".format(sn_im),
+                "S/N im={:3.2f}".format(sn_max),
                 size=18,
                 color="black",
                 transform=ax1.transAxes
