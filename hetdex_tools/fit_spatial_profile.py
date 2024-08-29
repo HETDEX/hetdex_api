@@ -69,11 +69,8 @@ plt.rcParams["ytick.direction"] = "in"
 plt.rcParams["xtick.labelsize"] = 12.0
 plt.rcParams["ytick.labelsize"] = 12.0
 
-global config, imsize, pixscale, D_hdr3, D_hdr4
+global config, imsize, pixscale, D_hdr3, D_hdr4, fileh
 
-D_hdr3 = Detections('hdr3')
-D_hdr4 = Detections('hdr4')
-    
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 except:
@@ -82,6 +79,11 @@ imsize=20
 pixscale=0.25
 
 config = HDRconfig('hdr4')
+D_hdr3 = Detections('hdr3')
+D_hdr4 = Detections('hdr4')
+mlfile = op.join( config.hdr_dir['hdr4'], 'catalogs','ml','detect_ml_4.0.0.h5')
+fileh = tb.open_file(mlfile, 'r')
+
 
 def gaussian(x,u1,s1,A1=1.0,y=0.0):
     if (x is None) or (u1 is None) or (s1 is None):
