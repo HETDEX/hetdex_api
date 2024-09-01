@@ -6,6 +6,8 @@ import os
 import os.path as op
 
 
+
+
 class HDRconfig:
 
     LATEST_HDR_NAME = 'hdr4'
@@ -13,6 +15,30 @@ class HDRconfig:
 
     LATEST_MASK_DICT = {'hdr4': '1.0',
                         'pdr1': '1.0'}
+
+
+    def find_host_directory(self):
+        # in descending priority
+        possible_directories = [
+            "/scratch/projects/hetdex",
+            "/scratch/03946/hetdex",
+            "/corral-repl/utexas/Hobby-Eberly-Telesco",
+            "/home/jovyan/Hobby-Eberly-Telesco",
+            "/home/idies/workspace/HETDEX",
+            "/data/hetdex/u/dfarrow/hetdex_data"
+        ]
+
+
+        def check_directory(directory):
+            return op.exists(directory) and os.access(directory, os.R_OK)
+    
+        for directory in possible_directories:
+            if check_directory(directory):
+                return directory
+    
+        print(f'Could not find a suitable directory path with read permission.')
+        return os.getcwd()
+
     
     def __init__(self, survey=LATEST_HDR_NAME):
 
@@ -23,22 +49,9 @@ class HDRconfig:
         if survey is not None:
             self.LATEST_HDR_NAME=survey
 
-        # Check stampede2 first
-        if op.exists("/scratch/projects/hetdex"): #DD 2023-08-05
-            self.host_dir = "/scratch/projects/hetdex"
-        elif op.exists("/scratch/03946/hetdex"):
-            self.host_dir = "/scratch/03946/hetdex"
-        elif op.exists("/corral-repl/utexas/Hobby-Eberly-Telesco"):
-            self.host_dir = "/corral-repl/utexas/Hobby-Eberly-Telesco"
-        elif op.exists("/home/jovyan/Hobby-Eberly-Telesco"):
-            self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
-        elif op.exists("/home/idies/workspace/HETDEX"):
-            self.host_dir = "/home/idies/workspace/HETDEX"
-        elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
-            self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
-        else:
-            self.host_dir = os.getcwd()
-            print('Could not find {} directory path'.format(survey))
+        # 
+
+        self.host_dir = self.find_host_directory()
 
         self.hdr_dir = {
             "hdr1": op.join(self.host_dir, "hdr1"),
