@@ -32,6 +32,7 @@ from hetdex_api.input_utils import setup_logging
 
 from hetdex_api.shot import open_shot_file
 from hetdex_api import config
+import traceback
 
 
 def define_field(objname):
@@ -120,15 +121,18 @@ def main(argv=None):
 
         if True:
             args.log.info('Ingesting ' + datevshot)
-            file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+            try:
+                file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
 
-            shottable = Table(file_obs.root.Shot.read())
+                shottable = Table(file_obs.root.Shot.read())
 
-            # updating field in survey file 
-            shottable['field'] = define_field(str(shottable['objid'][0]))
+                # updating field in survey file
+                shottable['field'] = define_field(str(shottable['objid'][0]))
 
-            survey = vstack([survey, shottable])
-            file_obs.close()
+                survey = vstack([survey, shottable])
+                file_obs.close()
+            except:
+                args.log.error(f"ould not ingest {shotid}",exc_info=True)
         else:#except:
             args.log.error("Could not ingest %s" % datevshot)
     
