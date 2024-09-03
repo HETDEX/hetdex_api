@@ -21,7 +21,8 @@ class HDRconfig:
         # in descending priority
         possible_directories = [
             "/scratch/projects/hetdex",
-            "/scratch/03946/hetdex",
+            #remove from possible options EMC 2024-09-03
+#            "/scratch/03946/hetdex",
             "/corral-repl/utexas/Hobby-Eberly-Telesco",
             "/home/jovyan/Hobby-Eberly-Telesco",
             "/home/idies/workspace/HETDEX",
