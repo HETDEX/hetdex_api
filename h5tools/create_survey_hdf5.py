@@ -132,7 +132,7 @@ def main(argv=None):
                 survey = vstack([survey, shottable])
                 file_obs.close()
             except:
-                args.log.error(f"ould not ingest {shotid}",exc_info=True)
+                args.log.error(f"Could not ingest {datevshot}",exc_info=True)
         else:#except:
             args.log.error("Could not ingest %s" % datevshot)
     
