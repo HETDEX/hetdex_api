@@ -639,8 +639,10 @@ def get_fibers_table(
         if add_mask and F.maskh5 is None:
             update_F = True
 
-        if add_rescor and F.rescorh5 is None:
-            update_F = True
+        if add_rescor:
+            if F is not None and F.rescorh5 is None:
+                print('Call preloaded Fibers class object with add_rescor=True option for best efficiency.')
+                update_F = True
 
         if mask_version is None:
             mask_version = F.mask_version
