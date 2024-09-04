@@ -669,7 +669,7 @@ def main(argv=None):
             shutil.move(outfile, args.outfilename)
         except:
             os.remove(args.outfilename)
-            shututil.move(outfile, args.outfilename)
+            shutil.move(outfile, args.outfilename)
 
 
 if __name__ == "__main__":
