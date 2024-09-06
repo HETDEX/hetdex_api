@@ -524,7 +524,8 @@ def load_shot_stats_pickle(shotid,path="./"):
                     shot_dict = pickle.load(f)
                     shot_dict_array.append(shot_dict)
             except:
-                print("load_shot_stats_pickle ", print(traceback.format_exc()))
+                pass
+                #print("load_shot_stats_pickle ", print(traceback.format_exc()))
 
         if isarray or len(shot_dict_array) == 0:
             return shot_dict_array
@@ -1031,17 +1032,22 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     chi2fib = tab['chi2'][sel_reg]
                     chi2_arr = np.array(chi2fib[:, 100:1000])
 
+                    chi2_gtzero = chi2_arr[chi2_arr > 0]
                     # similar to the orginal amp.dat chi, with a +/-1 count/index difference on fibers and wavelengths
                     #   both uses fibers 10 to 100
                     #   both use the same wavelength bins (100:1000)
                     # Original chi vs this one are very close (within less than about 1%)
-                    exp_dict['chi2fib_avg'] = biweight.biweight_location(chi2_arr[chi2_arr > 0])
+                    if np.size(chi2_gtzero) > 1:
+                        exp_dict['chi2fib_avg'] = biweight.biweight_location(chi2_gtzero)
 
-                    # combined these are similar to the Frac_c2, with a +/-1 count/index difference on fibers and wavelengths
-                    #   both uses fibers 10 to 100
-                    #   both use the same wavelength bins (100:1000)
-                    # Original Frac_c2 vs this one are very close (within less than about 1%)
-                    exp_dict['frac_c2'] = np.sum(chi2_arr > 2) / np.sum(chi2_arr > 0)
+                        # combined these are similar to the Frac_c2, with a +/-1 count/index difference on fibers and wavelengths
+                        #   both uses fibers 10 to 100
+                        #   both use the same wavelength bins (100:1000)
+                        # Original Frac_c2 vs this one are very close (within less than about 1%)
+                        exp_dict['frac_c2'] = np.sum(chi2_arr > 2.) / np.sum(chi2_gtzero)
+                    else:
+                        exp_dict['chi2fib_avg'] = np.nan
+                        exp_dict['frac_c2'] = np.nan
 
                     #####################################
                     # similar to original amp.dat stuff
