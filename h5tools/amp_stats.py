@@ -498,7 +498,7 @@ def get_shotids_in_path(path="./"):
 
     return shotids
 
-def load_shot_stats_pickle(shotid):
+def load_shot_stats_pickle(shotid,path="./"):
     """
 
     Parameters
@@ -520,7 +520,7 @@ def load_shot_stats_pickle(shotid):
         for s in shotid:
             try:
                 fn = f"{s}_stats.pickle"
-                with open(fn, "rb") as f:
+                with open(op.join(path,fn), "rb") as f:
                     shot_dict = pickle.load(f)
                     shot_dict_array.append(shot_dict)
             except:
