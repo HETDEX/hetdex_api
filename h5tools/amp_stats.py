@@ -14,10 +14,11 @@ Basic statistics with an amp+exposure as the functional unit with aggregation to
 import tables
 import os.path as op
 import numpy as np
+import glob
 
 import astropy.stats.biweight as biweight
 from astropy.table import Table
-from astropy.io import ascii
+#from astropy.io import ascii
 import copy
 import pickle
 from hetdex_api.config import HDRconfig
@@ -104,15 +105,21 @@ def stats_get_shot_h5(config=None, shotid=None, fqfn=None, append=False):
 
 def stats_shot_dict_to_table(shot_dict):
     """
-    useful for comparing maybe?
 
+    Parameters
+    ----------
+    shot_dict - single dictionary or an array or list of dictionaries
+
+    Returns
+    -------
+    astropy table version of the dictionary(ies)
 
     """
+
 
     try:
 
         # tun nested dictionaries into lists at the amp+exposure level
-
         if isinstance(shot_dict, dict):  # assume a single entry
             shot_dict_array = [shot_dict]
         else:
@@ -128,16 +135,21 @@ def stats_shot_dict_to_table(shot_dict):
         sky_sub_rms = []
         sky_sub_rms_rel = []
         dither_relflux = []
+        norm = []
         frac_0 = []
         n_lo = []
 
-        #         Nlo = []
-        #         Scale = []
-        #         Avg = []
-        #         Avg_orig = []
-        #         chi = []
-        #         Frac_c2 = []
-        #         Frac0 = []
+
+        #original amp.dat
+        #kNorm = []
+        kN_c = []
+        #kNlo = [] #same as n_lo
+        Scale = []
+        Avg = []
+        Avg_orig = []
+        kchi = []
+        #Frac_c2 = []
+        #Frac0 = []
 
         for sd in shot_dict_array:
 
@@ -157,8 +169,19 @@ def stats_shot_dict_to_table(shot_dict):
                         sky_sub_rms.append(exp['sky_sub_rms'])
                         sky_sub_rms_rel.append(exp['sky_sub_rms_rel'])
                         dither_relflux.append(exp['dither_relflux'])
+                        norm.append(exp['norm'])
                         frac_0.append(exp['frac_0'])
                         n_lo.append(exp['n_lo'])
+
+
+                        #tests (like original amp.dat)
+                        #kNorm.append(exp['kNorm'])
+                        kN_c.append(exp['kN_c'])
+                        #kNlo.append(exp['kNlo']) #same as n_lo
+                        Scale.append(exp['Scale'])
+                        Avg.append(exp['Avg'])
+                        Avg_orig.append(exp['Avg_orig'])
+                        kchi.append(exp['kchi'])
 
 
         output_tb = Table(
@@ -168,18 +191,28 @@ def stats_shot_dict_to_table(shot_dict):
                 exp_list,
                 im_median,
                 maskfraction,
+                Avg,  # Karl Average
+                Scale, #Karl Scale
                 chi2fib_avg,
                 frac_c2,
                 frac_0,
                 n_lo,
+                Avg_orig,
                 sky_sub_rms,
                 sky_sub_rms_rel,
                 dither_relflux,
+                norm,
+                #kNorm ,
+                kN_c ,
+                #kNlo, #same as n_lo
+                kchi,
 
 
             ],
-            names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", 'chi2fib_med', 'frac_c2', 'frac_0',
-                   'n_lo', 'sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux']
+            names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", "Avg",'Scale','chi2fib_med', 'frac_c2', 'frac_0',
+                   'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux','norm',
+                   'kN_c','kchi',
+                   ]
 
         )
 
@@ -194,39 +227,317 @@ def stats_shot_dict_to_table(shot_dict):
 # File handling
 ###########################################
 
-def stats_save_as_fits(shot_dict):
+def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False):
     """
-    just save the shot_dict as a table (in ascii format so is easy to cat files together) named for the shotid
+
+    Parameters
+    ----------
+    shot_dict - single dictionary or list or array of dictionries
+    outfile - optional output filename (include path if not ".")
+    format - astropy table format
+    overwrite - True (default) or False
+    oldstyle - if True, mimic the old amp.dat style with the columns in the same order (and newer columns follow)
+                (note: oldstyle, per amp.dat, DOES NOT HAVE COLUMN HEADERS)
+
+    Returns
+    -------
+    the astropy table that was written
+
     """
+
+
+    default_bad = np.nan
     tab = stats_shot_dict_to_table(shot_dict)
-    tab.write(shotid2datevshot(shot_dict['shotid'])+"_ampstats.dat",overwrite=True,format="ascii")
+    tab.sort(['shotid'])
+
+    if not oldstyle:
+        tab.write(outfile,overwrite=overwrite,format=format)
+    else: #try to mimic the older amp.dat stype, no column headings, short precision, different shotformat
+        if not overwrite:
+            if op.exists(outfile):
+                print(f"{outfile} exists and overwrite set to False.")
+                return None
+
+        #column order from amp.dat
+        #['shotid','multiframe','Factor','N_c', 'Avg', 'Scale', 'W0', 'W1', 'n_lo', 'Avg_orig', 'chi2fib_med',
+        # 'frac_c2', 'frac_0'])
+
+        # <TableColumns names=('shotid','multiframe','expnum','im_median','MaskFraction','chi2fib_med','frac_c2',
+        # 'frac_0','n_lo','sky_sub_rms','sky_sub_rms_rel','dither_relflux'
+        with open(outfile,"w") as f:
+            for row in tab:
+                try:
+                    dvse = f"d{str(row['shotid'])[0:8]}s{str(row['shotid'])[8:]}exp{str(row['expnum']).zfill(2)}"
+                    mf = row['multiframe'][6:]
+                except:
+                    #if could not build the datevshot string or the multiframe, move on to the next one
+                    print("stats_save_as ", print(traceback.format_exc()))
+                    continue
+
+                #if the column does not exist, use the default bad value
+                try:
+                    Factor = f"{0:0.3f}"
+                except:
+                    Factor = f"{default_bad}"
+
+                try:
+                    N_c = f"{0:d}"
+                except:
+                    N_c = f"{default_bad}"
+
+                try:
+                    Avg = f"{0:0.2f}"
+                except:
+                    Avg = f"{default_bad}"
+
+                try:
+                    Scale = f"{0:0.2f}"
+                except:
+                    Scale = f"{default_bad}"
+
+                try:
+                    W0 = f"{0:0.2f}"
+                except:
+                    W0 = f"{default_bad}"
+
+                try:
+                    W1 = f"{0:0.2f}"
+                except:
+                    W1 = f"{default_bad}"
+
+                try:
+                    n_lo = f"{row['n_lo']:d}"
+                except:
+                    n_lo = f"{default_bad}"
+
+                try:
+                    Avg_orig = f"{0:0.2f}"
+                except:
+                    Avg_orig = f"{default_bad}"
+
+                try:
+                    chi2fib_med = f"{row['chi2fib_med']:0.2f}"
+                except:
+                    chi2fib_med = f"{default_bad}"
+
+                try:
+                    frac_c2 = f"{row['frac_c2']:0.4f}"
+                except:
+                    frac_c2 = f"{default_bad}"
+
+                try:
+                    frac_0 = f"{row['frac_0']:0.4f}"
+                except:
+                    frac_0 = f"{default_bad}"
+
+
+                #newer columns (that do not have an older amp.dat equivalent)
+
+
+
+                try:
+                    im_median = f"{row['im_median']:0.4f}"
+                except:
+                    im_median = f"{default_bad}"
+
+                try:
+                    MaskFraction = f"{row['MaskFraction']:0.4f}"
+                except:
+                    MaskFraction = f"{default_bad}"
+
+                try:
+                    sky_sub_rms = f"{row['sky_sub_rms']:0.4f}"
+                except:
+                    sky_sub_rms = f"{default_bad}"
+
+                try:
+                    sky_sub_rms_rel = f"{row['sky_sub_rms_rel']:0.4f}"
+                except:
+                    sky_sub_rms_rel = f"{default_bad}"
+
+                try:
+                    #this one is really at a shot level, but has to be repeated at each amp
+                    dither_relflux = f"{row['dither_relflux']:0.4f}"
+                except:
+                    dither_relflux = f"{default_bad}"
+
+                try:
+                    norm = f"{row['norm']:0.4f}"
+                except:
+                    norm = f"{default_bad}"
+
+
+
+                # testing amp.dat-like columns (that DO have an older amp.dat equivalent)
+
+                # try:
+                #     kNorm = f"{row['kNorm']:0.4f}"
+                # except:
+                #     kNorm = f"{default_bad}"
+
+                try:
+                    kN_c = f"{row['kN_c']:0.4f}"
+                except:
+                    kN_c = f"{default_bad}"
+
+                try:
+                    Avg = f"{row['Avg']:0.4f}"
+                except:
+                    Avg = f"{default_bad}"
+
+                try:
+                    Scale = f"{row['Scale']:0.4f}"
+                except:
+                    Scale = f"{default_bad}"
+
+                # try:
+                #     kW0 = f"{row['kW0']:0.4f}"
+                # except:
+                #     kW0 = f"{default_bad}"
+                #
+                # try:
+                #     kW1 = f"{row['kW1']:0.4f}"
+                # except:
+                #     kW1 = f"{default_bad}"
+
+                try:
+                    Avg_orig = f"{row['Avg_orig']:0.4f}"
+                except:
+                    Avg_orig = f"{default_bad}"
+
+                try:
+                    kchi = f"{row['kchi']:0.4f}"
+                except:
+                    kchi = f"{default_bad}"
+
+                # try:
+                #     kNlo = f"{row['kNlo']:0.4f}"
+                # except:
+                #     kNlo = f"{default_bad}"
+
+                try:
+                    f.write(f"{dvse}\t{mf}\t"
+                            f"{Factor}\t{N_c}\t{Avg}\t{Scale}\t{W0}\t{W1}\t{n_lo}\t{Avg_orig}\t{chi2fib_med}\t"
+                            f"{frac_c2}\t{frac_0}\t"
+                            f"{im_median}\t{MaskFraction}\t{sky_sub_rms}\t{sky_sub_rms_rel}\t{dither_relflux}\t{norm}\t"
+                            f"{kN_c}\t{kchi}"
+                            f"\n")
+                except:
+                    print("stats_save_as ", print(traceback.format_exc()))
+                    continue
+
+
+    return tab
+
+
+
+# def stats_save_as_fits(shot_dict):
+#     """
+#     just save the shot_dict as a table (in ascii format so is easy to cat files together) named for the shotid
+#     """
+#     tab = stats_shot_dict_to_table(shot_dict)
+#     tab.write(shotid2datevshot(shot_dict['shotid'])+"_ampstats.dat",overwrite=True,format="ascii")
 
 
 
 def save_shot_stats_pickle(shot_dict):
-    fn = None
+    """
+
+    Parameters
+    ----------
+    shot_dict - single shotdict or list
+
+    Returns
+    -------
+    None
+    """
+
     try:
         # just save as a pickle
-        fn = f"{shot_dict['shotid']}_stats.pickle"
-        with open(fn, "wb+") as f:
-            pickle.dump(shot_dict, f)
+
+        if isinstance(shot_dict, dict):  # assume a single entry
+            shot_dict_array = [shot_dict]
+        else:
+            shot_dict_array = shot_dict
+
+        for sd in shot_dict_array:
+            fn = f"{sd['shotid']}_stats.pickle"
+            with open(fn, "wb+") as f:
+                pickle.dump(sd, f)
 
     except Exception as e:
         # todo: error handling
-        print(f"save_shot_stats_pickle ({fn}) ", print(traceback.format_exc()))
+        print(f"save_shot_stats_pickle  ", print(traceback.format_exc()))
 
 
-def load_shot_stats_pickle(shot):
-    fn = None
+def get_shotids_in_path(path="./"):
+    """
+    load a list of shotids that correspond to pickle files in the specified directory
+    Parameters
+    ----------
+    path
+
+    Returns
+    -------
+    list of shotids
+
+    """
+
+    shotids = []
     try:
-        fn = f"{shot}_stats.pickle"
-        with open(fn, "rb") as f:
-            shot_dict = pickle.load(f)
-        return shot_dict
+        fns = sorted(glob.glob(op.join(path,"*_stats.pickle")))
+        for fn in fns:
+            try:
+                shotid = int(op.basename(fn).split("_")[0])
+                shotids.append(shotid)
+            except:
+                print(f"Invalid name: {fn}")
+
+    except:
+        print(f"get_shotids_in_path ", print(traceback.format_exc()))
+
+    return shotids
+
+def load_shot_stats_pickle(shotid):
+    """
+
+    Parameters
+    ----------
+    shotid - single integer style shotid or an array of shotids
+
+    Returns
+    -------
+        single dictionary or array of dictionaries to match the passed in shot
+    """
+    isarray = True
+    shot_dict_array = []
+    try:
+
+        if isinstance(shotid, (int,np.integer)):  # assume a single entry
+            shotid = [shotid]
+            isarray = False #a single value was passed in
+
+        for s in shotid:
+            try:
+                fn = f"{s}_stats.pickle"
+                with open(fn, "rb") as f:
+                    shot_dict = pickle.load(f)
+                    shot_dict_array.append(shot_dict)
+            except:
+                print("load_shot_stats_pickle ", print(traceback.format_exc()))
+
+        if isarray or len(shot_dict_array) == 0:
+            return shot_dict_array
+        else: #should not be able to have isarray == False and len(shot_dict_array) > 1
+            return shot_dict_array[0]
+
     except Exception as e:
         # todo: error handling
-        print("save_shot_stats_flat ", print(traceback.format_exc()))
+        print("load_shot_stats_pickle ", print(traceback.format_exc()))
         return None
+
+
+
 
 def stats_update_shot(h5, shot_dict):
     """
@@ -234,6 +545,10 @@ def stats_update_shot(h5, shot_dict):
 
     new group, organized by multiframe + exposure, extra columns are the statistics/metrics and the interpreted results
     """
+
+
+    #DD 20240905 This is currently out of date
+    print("!!!!! This needs to be updated with new columns  !!!!!")
 
     try:
         # create the AmpStats table if it does not exist
@@ -563,17 +878,36 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                 row = h5.root.Data.Images.read_where(query)
 
                 if len(row) != 1:
-                    # print("Failure, Erin's stuff", target_mf, target_expnum )
-                    exp_dict['maskfraction'] = np.nan
-                    exp_dict['im_median'] = np.nan
+
+                    #from original amp.dat
+                    #exp_dict['kNorm'] = np.nan  #NOT COMPUTED YET
+                    exp_dict['kN_c'] = -1 #integer, so -1 is unset
+                    exp_dict['Avg'] = np.nan
+                    exp_dict['Scale'] = np.nan
+                    #exp_dict['kW0'] = np.nan
+                    #exp_dict['kW1'] = np.nan
+                    exp_dict['Avg_orig'] = np.nan
+
+                    exp_dict['kchi'] = np.nan
+                    #exp_dict['kNlo'] = np.nan #same as n_lo
+
+
+                    #in both
                     exp_dict['chi2fib_avg'] = np.nan
                     exp_dict['frac_c2'] = np.nan
+                    exp_dict['frac_0'] = np.nan
+                    exp_dict['n_lo'] = -1 # this is an integer, 0 is lowest possible so -1 is unset
+
+                    #newer only
+                    exp_dict['maskfraction'] = np.nan
+                    exp_dict['im_median'] = np.nan
                     exp_dict['sky_sub_rms'] = np.nan
                     exp_dict['sky_sub_rms_rel'] = np.nan  # gets added on shot rollup
-                    exp_dict['n_lo'] = -1  # this is an integer, 0 is lowest possible so -1 is unset
-                    exp_dict['frac_0'] = np.nan
+
                     # exp_dict['sky_sub_bws'] = -999.0
-                    exp_dict['dither_relflux'] = np.nan
+                    exp_dict['dither_relflux'] = np.nan #this is used for Norm
+                                                        #which is the max / min
+                    exp_dict['norm'] = np.nan
                 else:
 
                     # todo: need to add in:
@@ -583,6 +917,97 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     # N_cont
                     # nfib_bad
                     # norm
+
+                    # sky_sub_rms ~ Scale, but we use RMS, not stddev or biweight location?
+
+
+
+                    ###############################
+                    # used in various calcs below
+                    ###############################
+                    calfib = h5.root.Data.Fibers.read_where(query, field="calfib")
+                    calfib_counts = h5.root.Data.Fibers.read_where(query, field="calfib_counts")
+                    calfib_ffsky = h5.root.Data.Fibers.read_where(query, field="calfib_ffsky")
+
+                    calfib_ffsky_counts = flx2cts(calfib, calfib_counts, calfib_ffsky)
+
+                    #used as approximates for some older amp.dat columns
+                    chi2 = h5.root.Data.Fibers.read_where(query, field="chi2")
+                    spectrum = h5.root.Data.Fibers.read_where(query, field="spectrum")
+
+
+
+
+                    ############################################
+                    #try to get close to original amp.dat cols
+                    ############################################
+
+                    #exp_dict['kNorm'] = np.nan                      #NOT COMPUTED YET
+                    exp_dict['kN_c'] = -1 #integer, so -1 is unset #NOT COMPUTED YET
+                    exp_dict['Avg'] = np.nan
+                    exp_dict['Scale'] = np.nan
+                    #exp_dict['kW0'] = np.nan                        #NOT COMPUTED YET, unimportant, unsued
+                    #exp_dict['kW1'] = np.nan                        #NOT COMPUTED YET, unimportant, unsued
+                    exp_dict['Avg_orig'] = np.nan
+
+                    exp_dict['kchi'] = np.nan
+                    #exp_dict['kNlo'] = np.nan #same as n_lo
+
+                    # #Nlo  #same as n_lo later
+                    # M = calfib_ffsky_counts[:,299:800]
+                    # M0 = M[M != 0]
+                    # if np.size(M0) > 1:
+                    #     sddev = biweight.biweight_scale(M0)
+                    #
+                    #     ct = 0
+                    #     for i in range(len(M)):
+                    #         f = M[i][299:800]
+                    #         if np.count_nonzero(f) != 0:
+                    #             if biweight.biweight_location(f[f!=0]) <(-2 * sddev):
+                    #                 ct += 1
+                    #         #else:
+                    #         #    pass
+                    #
+                    #     exp_dict['kNlo'] = ct
+                    # else:
+                    #     exp_dict['kNlo'] = np.nan
+
+                    #Scale
+                    #a2a is 1036 long, but spectrum is 1032
+                    #a2a = np.loadtxt("/home/jovyan/Hobby-Eberly-Telesco/lib_calib/202407/i067aLLata.dat",usecols=[1],dtype=float)
+                    #M = (a2a*calfib_ffsky_counts[sel])[9:100,299:800]
+                    M = calfib_ffsky_counts[9:100,299:800]
+                    M0 = M[M != 0]
+                    if np.size(M0) > 1:
+                        sddev = biweight.biweight_scale(M0) #may need amp2amp, fiber2fiber normalization
+                        exp_dict['Scale'] = sddev
+                        exp_dict['Avg'] = biweight.biweight_location(M0)
+                    else:
+                        exp_dict['Scale'] = np.nan
+                        exp_dict['Avg'] = np.nan
+
+
+                    #Avg_orig (close but computation is not exact on the same array (post-corrections for amp2amp, fiber2fiber))
+                    M = spectrum[9:100,299:800]
+                    M0 = M[M != 0]
+                    if np.size(M0) > 1:
+                        exp_dict['Avg_orig'] = biweight.biweight_location(M0)
+                    else:
+                        exp_dict['Avg_orig'] = np.nan
+
+                    #chi arrays 100 to 1000, 10:100
+                    #    index   99   999
+                    M = chi2[9:100,99:1000]
+                    M0 = M[M > 0] #NOTICE >0 not !=0
+                    if np.size(M0) > 1:
+                        exp_dict['kchi'] = biweight.biweight_location(M0)
+                    else:
+                        exp_dict['kchi'] = np.nan
+
+                    ######################################################
+                    # new/replacement statistics apart from amp.dat
+                    #######################################################
+
 
                     # similar to what original amp.dat called Scale, but over a different range
                     # Scale is from ffsky counts instead of the "image"
@@ -622,11 +1047,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     # similar to original amp.dat stuff
                     #####################################
 
-                    # sky_sub_rms ~ Scale, but we use RMS, not stddev or biweight location?
-                    calfib = h5.root.Data.Fibers.read_where(query, field="calfib")
-                    calfib_counts = h5.root.Data.Fibers.read_where(query, field="calfib_counts")
-                    calfib_ffsky = h5.root.Data.Fibers.read_where(query, field="calfib_ffsky")
-                    calfib_ffsky_counts = flx2cts(calfib, calfib_counts, calfib_ffsky)
+
 
                     # because we are dividing out (in the shot level stats), it does not matter
                     #   if this is in flux or counts, however, for individual amp+exposures,
@@ -651,16 +1072,19 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     # Nlo (different M selection than frac_0)
                     # again, this is different than the original amp.dat, but may be a better calculation
                     M = calfib_ffsky_counts[:, 299:800]
-                    if np.count_nonzero(M) > 0:
-                        sddev = biweight.biweight_scale(M[M != 0])
+                    M0 = M[M != 0]
+                    if np.size(M0) > 1:
+                        sddev = biweight.biweight_scale(M0)
 
                         ct = 0
                         for i in range(len(M)):
                             f = M[i][299:800]
-                            if np.count_nonzero(f) > 0:
+                            if np.count_nonzero(f) != 0:
                                 if biweight.biweight_location(f[f != 0]) < (-2 * sddev):
                                     ct += 1
-
+                            else: # the counts are ALL zero? while not technically "low"
+                                  # by this definition, it IS a problem (and really, all zero is "low")
+                                ct += 1
                         exp_dict['n_lo'] = ct
                     else:
                         exp_dict['n_lo'] = -1
@@ -672,10 +1096,15 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     try:
                         dither_flux = h5.root.Shot.read(field="relflux_virus")
                         exp_dict['dither_relflux'] = dither_flux[0][int(target_expnum) - 1]
+                        exp_dict['norm'] = np.nanmax(dither_flux)/np.nanmin(dither_flux)
                     except:
+                        exp_dict['norm'] = np.nan
+                        exp_dict['dither_relflux'] = np.nan
                         print(f"stats_amp statisitcs, dither_flux: {dither_flux}", print(traceback.format_exc()))
 
                     exp_dict['sky_sub_rms_rel'] = np.nan  # gets a value at shot level feedback/rollup
+
+
 
                     # cleanup
                     del chi2_arr
@@ -684,6 +1113,8 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     del calfib_counts
                     del calfib_ffsky
                     del calfib_ffsky_counts
+                    del chi2      #extra h5 read for old amp.dat like columns
+                    del spectrum  #extra h5 read for old amp.dat like columns
 
 
             except Exception as e:
@@ -732,6 +1163,59 @@ def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None):
         # todo: error handling
         print("stats_ifu statisitcs", print(traceback.format_exc()))
 
+
+
+def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True):
+    """
+
+    Open a SINGLE shot file and build the full set of amp+exp and full shot statistics.
+    This can be done via the shotid and a lookup -OR- by specifying a path to a specific shot h5 file
+
+    NOTICE: there is NO option to append/update the new Group to the hdf5 file here! That needs to be used with
+            caution and so requires an explicit set of function calls to do it.
+
+    Parameters
+    ----------
+    shotid - SINGLE shotid in integer format
+    survey - if not specified, uses whatever is configured for LATEST. If specified, is string: e.g "hdr4" or "hdr5", etc
+    fqfn - path to an h5 file .. if specified us THIS h5 file. Ignores shotid and survey.
+    save - if TRUE (default) save the stats dictionary as a pickle
+
+    Returns
+    -------
+
+    """
+
+    try:
+
+        #get the config
+        if fqfn is None:
+            if survey:
+                HETDEX_API_CONFIG = HDRconfig(survey=survey)
+            else:
+                HETDEX_API_CONFIG = HDRconfig() #use "latest"
+
+            #load the h5
+            h5 = stats_get_shot_h5(config=HETDEX_API_CONFIG, shotid=shotid, fqfn=None, append=False)
+        else:
+            h5 = stats_get_shot_h5(config=None, shotid=None, fqfn=fqfn, append=False)
+            shotid = h5.root.Shot.read(field="shotid")[0]
+
+        if h5 is not None:
+            shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True)
+            if save and shot_dict is not None:
+                save_shot_stats_pickle(shot_dict)
+            else:
+                print(f"[{shotid}] Error. Could not assemble stats dictionary.")
+            h5.close()
+        else:
+            print(f"[{shotid}] Error. Could not find shot h5 file.")
+            shot_dict =  None
+
+        return shot_dict
+    except:
+        print("make_stats_for_shot", print(traceback.format_exc()))
+        return None
 
 def stats_shot(h5, expid=None, shot_dict=None, rollup=True):
     """
