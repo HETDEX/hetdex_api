@@ -523,8 +523,8 @@ def load_shot_stats_pickle(shotid,path="./"):
                 with open(op.join(path,fn), "rb") as f:
                     shot_dict = pickle.load(f)
                     shot_dict_array.append(shot_dict)
-            except Exception as E:
-                raise
+            except:
+                pass
                 #print("load_shot_stats_pickle ", print(traceback.format_exc()))
 
         if isarray or len(shot_dict_array) == 0:
