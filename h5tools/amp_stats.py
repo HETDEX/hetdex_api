@@ -227,7 +227,7 @@ def stats_shot_dict_to_table(shot_dict):
 # File handling
 ###########################################
 
-def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False):
+def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False,header=True):
     """
 
     Parameters
@@ -265,6 +265,20 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
         # <TableColumns names=('shotid','multiframe','expnum','im_median','MaskFraction','chi2fib_med','frac_c2',
         # 'frac_0','n_lo','sky_sub_rms','sky_sub_rms_rel','dither_relflux'
         with open(outfile,"w") as f:
+            if header:
+                # !!! make sure the order matches the write at the end !!!
+                try:
+                    f.write(f"#dateshot\tmultiframe\t"
+                            f"Factor\tN_c\tAvg\tScale\tW0\tW1\tn_lo\tAvg_orig\tchi2fib_med\t"
+                            f"frac_c2\tfrac_0\t"
+                            f"im_median\tMaskFraction\tsky_sub_rms\tsky_sub_rms_rel\tdither_relflux\tnorm\t"
+                            f"kN_c\tkchi"
+                            f"\n")
+                except:
+                    print("stats_save_as ", print(traceback.format_exc()))
+
+
+
             for row in tab:
                 try:
                     dvse = f"d{str(row['shotid'])[0:8]}s{str(row['shotid'])[8:]}exp{str(row['expnum']).zfill(2)}"
@@ -504,6 +518,7 @@ def load_shot_stats_pickle(shotid,path="./"):
     Parameters
     ----------
     shotid - single integer style shotid or an array of shotids
+    path = path underwhich to look for the pickle files
 
     Returns
     -------
