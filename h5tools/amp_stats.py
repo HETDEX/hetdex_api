@@ -17,7 +17,7 @@ import numpy as np
 import glob
 
 import astropy.stats.biweight as biweight
-from astropy.table import Table
+from astropy.table import Table, Row
 #from astropy.io import ascii
 import copy
 import pickle
@@ -593,6 +593,8 @@ def load_shot_stats_pickle(shotid,path="./"):
         # todo: error handling
         print("load_shot_stats_pickle ", print(traceback.format_exc()))
         return None
+
+
 
 
 
@@ -1356,57 +1358,125 @@ def stats_shot_rollup(h5, shot_dict):
         print("stats_shot statisitcs", print(traceback.format_exc()))
 
 
+
 #######################################
 # QC stuff
 #######################################
 
-def stats_qc_amp(amp_dict):
+def stats_qc(data,extend=False):
     """
-    todo: what consitutes a bad amp ...
+    todo: what constitutes a bad amp ...
     evaluate and set flag in the amp_dict
 
-    """
-
-    #     sel1 = ((amp_stats['background'].astype(float) > -10) * (amp_stats['background'].astype(float) < 100) ) | (np.isnan(amp_stats['background']))
-    #     sel2 = (amp_stats['sky_sub_rms_rel'] < 1.5) | (np.isnan(amp_stats['sky_sub_rms_rel']))
-    #     sel3 = (amp_stats['sky_sub_rms'] > 0.2)  | (np.isnan(amp_stats['sky_sub_rms_rel']))
-    #     sel4 = (amp_stats['im_median'] > 0.05 ) | (np.isnan(amp_stats['im_median']))
-    #     sel5 = (amp_stats['MaskFraction'] < 0.25) | (np.isnan(amp_stats['MaskFraction']))
-    #     sel6 = (amp_stats['N_cont'] < 35) | (np.isnan(amp_stats['N_cont']))
-    #     sel7 = (amp_stats['nfib_bad'] <= 1) | (np.isnan(amp_stats['nfib_bad']))
-    #     sel8 = (amp_stats['norm'] > 0.5) | (np.isnan(amp_stats['norm']))
-
-    #     sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] < 20210901)
-    #     sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] >= 20210901)
-
-    #     sel9 = sel9_hdr3 | sel9_hdr4
-
-    #     sel = sel1 & sel2 & sel3 & sel4 & sel5 & sel6 & sel7 & sel8 & sel9
-    #     #sel = sel1 & sel2 & sel3 & sel6 & sel7 & sel8
-
-    #     #sel_wiggles = amp_stats['ft_flag'] == 1
-    #     sel_manual = amp_stats['flag_manual'] == 1
-    #     amp_stats['flag'] = (sel * sel_manual ).astype(int)
-    #     amp_stats['flag'] = (sel * sel_manual ).astype(int)
-
-    pass
-
-
-def stats_qc_ifu(ifu_dict):
-    """
-    todo: what consitutes a bad IFU ...
-    operate on all amps in the ifu, calling into stats_qc_amp
-    evaluate and set flag in the amp_dict
+    Parameters
+    ----------
+    data - an stats dictionary or row from a table for a single amp+exposure
+    extend - if TRUE, add a flag column to the Table representation of data and return as the Table
+             (NOTICE: this IMPLICITY requires the return of an astropy Table
+    Returns
+    -------
+    single value OR array of values for status
 
     """
-    pass
+
+    single = True #used later to return a single or iterable objects
+    if isinstance(data,Row):
+        amp_stats = Table(data)
+    elif isinstance(data,Table):
+        #this is for one row, which one?
+        single = False
+        amp_stats = data
+    elif isinstance(data,dict):
+        #could be a single amp+exp dict or a whole shot
+        if 'ifu_dict_array' in data.keys(): #this is a whole shot
+            amp_stats = stats_shot_dict_to_table(data)
+            single = False
+        elif 'amp_dict_array' in data.keys(): #this is an IFU
+            print("Not ready for IFU only") # not read for this one yet
+            single = False
+        elif 'exposures' in data.keys(): #this is an amp with exposures
+            print("Not ready for amp with exposures")  # not read for this one yet
+            single = False
+        else:
+            amp_stats = Table([data])
+    else: #assume a list or array of dicts, but this could fail
+        amp_stats = Table(data)
+        single = False
+
+    #need date for subselection
+    amp_stats['date'] = [int(str(r['shotid'])[0:8]) for r in amp_stats]
+
+    flags = np.zeros(len(amp_stats))
 
 
-def stats_qc_shot(ifu_dict):
-    """
-    todo: what consitutes a bad Shot ...
-    operate on all IFUs in the shot, calling into stats_qc_ifu (which calls stats_qc_amp)
-    evaluate and set flag in the amp_dict
+    #cloned from Erin's bad_amp_hunting notebook
+    #note: 'background' is 'Avg'
+    #'MaskFraction' may be 'maskfraction', but is the newer definition (not MaskFraction_karl)
+    if 'maskfraction' in amp_stats.colnames:
+        amp_stats.rename_column('maskfraction','MaskFraction')
+    #"N_cont' is not currently computed ... not sure what to do with it
+    #'nfib_bad' is not currently computed
 
-    """
-    pass
+    sel1 = ((amp_stats['Avg'].astype(float) > -10) *
+            (amp_stats['Avg'].astype(float) < 100)) | (np.isnan(amp_stats['Avg']))
+    sel2 = (amp_stats['sky_sub_rms_rel'] < 1.5) | (np.isnan(amp_stats['sky_sub_rms_rel']))
+    sel3 = (amp_stats['sky_sub_rms'] > 0.2)  | (np.isnan(amp_stats['sky_sub_rms_rel']))
+    sel4 = (amp_stats['im_median'] > 0.05 ) | (np.isnan(amp_stats['im_median']))
+    sel5 = (amp_stats['MaskFraction'] < 0.25) | (np.isnan(amp_stats['MaskFraction']))
+    #sel6 = (amp_stats['N_cont'] < 35) | (np.isnan(amp_stats['N_cont']))
+    sel6 = np.full(len(amp_stats),True)
+    #sel7 = (amp_stats['nfib_bad'] <= 1) | (np.isnan(amp_stats['nfib_bad']))
+    sel7 = np.full(len(amp_stats),True)
+
+
+    sel8 = (amp_stats['norm'] > 0.5) | (np.isnan(amp_stats['norm']))
+
+    sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] < 20210901)
+    #next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+    sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] >= 20210901)
+
+    sel9 = sel9_hdr3 | sel9_hdr4
+
+    #GOOD selection
+    sel = sel1 & sel2 & sel3 & sel4 & sel5 & sel6 & sel7 & sel8 & sel9
+    #sel = sel1 & sel2 & sel3 & sel6 & sel7 & sel8
+
+    # sel_wiggles = amp_stats['ft_flag'] == 1
+    #todo: re-activate manual flagging
+
+    #sel_manual = amp_stats['flag_manual'] == 1
+    #sel = sel & sel_manual
+    #amp_stats['flag'] = (sel * sel_manual ).astype(int)
+
+    flags[sel] = 1
+
+    if extend:
+        amp_stats['flag'] = flags.astype(int)
+        return amp_stats
+    elif single:
+        del amp_stats
+        return flags[0]
+    else:
+        del amp_stats
+        return flags
+
+
+
+# def stats_qc_ifu(ifu_dict):
+#     """
+#     todo: what consitutes a bad IFU ...
+#     operate on all amps in the ifu, calling into stats_qc_amp
+#     evaluate and set flag in the amp_dict
+#
+#     """
+#     pass
+#
+#
+# def stats_qc_shot(ifu_dict):
+#     """
+#     todo: what consitutes a bad Shot ...
+#     operate on all IFUs in the shot, calling into stats_qc_ifu (which calls stats_qc_amp)
+#     evaluate and set flag in the amp_dict
+#
+#     """
+#     pass
