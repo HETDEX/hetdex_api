@@ -268,12 +268,38 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
             if header:
                 # !!! make sure the order matches the write at the end !!!
                 try: #note some extra tabs for formatting
-                    f.write(f"#dateshot\t\tmultiframe\t"
-                            f"Factor\tN_c\tAvg\tScale\tW0\tW1\tn_lo\tAvg_orig\tchi2fib_med\t"
-                            f"frac_c2\tfrac_0\t"
-                            f"im_median\tMaskFraction\tsky_sub_rms\tsky_sub_rms_rel\tdither_relflux\tnorm\t"
-                            f"kN_c\tkchi"
-                            f"\n")
+                    # f.write(f"#dateshot\tmultiframe\t"
+                    #         f"Factor\tN_c\tAvg\tScale\tW0\tW1\tn_lo\tAvg_orig\tchi2fib_med\t"
+                    #         f"frac_c2\tfrac_0\t"
+                    #         f"im_median\tMaskFraction\tsky_sub_rms\tsky_sub_rms_rel\tdither_relflux\tnorm\t"
+                    #         f"kN_c\tkchi"
+                    #         f"\n")
+
+                    #less efficient but easier to read
+                    i = 1
+                    f.write(f"#dateshot[{i}]\t"); i += 1
+                    f.write(f"multiframe[{i}]\t"); i += 1
+                    f.write(f"Factor[{i}]\t"); i += 1
+                    f.write(f"N_c[{i}]\t"); i += 1
+                    f.write(f"Avg[{i}]\t"); i += 1
+                    f.write(f"Scale[{i}]\t"); i += 1
+                    f.write(f"W0[{i}]\t"); i += 1
+                    f.write(f"W1[{i}]\t"); i += 1
+                    f.write(f"n_lo[{i}]\t"); i += 1
+                    f.write(f"Avg_orig[{i}]\t"); i += 1
+                    f.write(f"chi2fib_med[{i}]\t"); i += 1
+                    f.write(f"frac_c2[{i}]\t"); i += 1
+                    f.write(f"frac_0[{i}]\t"); i += 1
+                    f.write(f"im_median[{i}]\t"); i += 1
+                    f.write(f"MaskFraction[{i}]\t"); i += 1
+                    f.write(f"sky_sub_rms[{i}]\t"); i += 1
+                    f.write(f"sky_sub_rms_rel[{i}]\t"); i += 1
+                    f.write(f"dither_relflux[{i}]\t"); i += 1
+                    f.write(f"norm[{i}]\t"); i += 1
+                    f.write(f"kN_c[{i}]\t"); i += 1
+                    f.write(f"kchi[{i}]\t"); i += 1
+                    f.write("\n")
+
                 except:
                     print("stats_save_as ", print(traceback.format_exc()))
 
@@ -429,13 +455,29 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                 # except:
                 #     kNlo = f"{default_bad}"
 
-                try: #note there are some extra tabs for formatting
-                    f.write(f"{dvse}\t{mf}\t"
-                            f"{Factor}\t{N_c}\t{Avg}\t{Scale}\t{W0}\t{W1}\t{n_lo}\t{Avg_orig}\t{chi2fib_med}\t\t"
-                            f"{frac_c2}\t{frac_0}\t"
-                            f"{im_median}\t\t{MaskFraction}\t\t{sky_sub_rms}\t\t{sky_sub_rms_rel}\t\t{dither_relflux}\t\t{norm}\t"
-                            f"{kN_c}\t{kchi}"
-                            f"\n")
+                try:
+                    f.write(f"{dvse}\t")
+                    f.write(f"{mf}\t")
+                    f.write(f"{Factor}\t")
+                    f.write(f"{N_c}\t")
+                    f.write(f"{Avg}\t")
+                    f.write(f"{Scale}\t")
+                    f.write(f"{W0}\t")
+                    f.write(f"{W1}\t")
+                    f.write(f"{n_lo}\t")
+                    f.write(f"{Avg_orig}\t")
+                    f.write(f"{chi2fib_med}\t")
+                    f.write(f"{frac_c2}\t")
+                    f.write(f"{frac_0}\t")
+                    f.write(f"{im_median}\t")
+                    f.write(f"{MaskFraction}\t")
+                    f.write(f"{sky_sub_rms}\t")
+                    f.write(f"{sky_sub_rms_rel}\t")
+                    f.write(f"{dither_relflux}\t")
+                    f.write(f"{norm}\t")
+                    f.write(f"{kN_c}\t")
+                    f.write(f"{kchi}")
+                    f.write(f"\n")
                 except:
                     print("stats_save_as ", print(traceback.format_exc()))
                     continue
