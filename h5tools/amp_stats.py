@@ -267,8 +267,8 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
         with open(outfile,"w") as f:
             if header:
                 # !!! make sure the order matches the write at the end !!!
-                try:
-                    f.write(f"#dateshot\tmultiframe\t"
+                try: #note some extra tabs for formatting
+                    f.write(f"#dateshot\t\tmultiframe\t"
                             f"Factor\tN_c\tAvg\tScale\tW0\tW1\tn_lo\tAvg_orig\tchi2fib_med\t"
                             f"frac_c2\tfrac_0\t"
                             f"im_median\tMaskFraction\tsky_sub_rms\tsky_sub_rms_rel\tdither_relflux\tnorm\t"
@@ -429,11 +429,11 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                 # except:
                 #     kNlo = f"{default_bad}"
 
-                try:
+                try: #note there are some extra tabs for formatting
                     f.write(f"{dvse}\t{mf}\t"
-                            f"{Factor}\t{N_c}\t{Avg}\t{Scale}\t{W0}\t{W1}\t{n_lo}\t{Avg_orig}\t{chi2fib_med}\t"
+                            f"{Factor}\t{N_c}\t{Avg}\t{Scale}\t{W0}\t{W1}\t{n_lo}\t{Avg_orig}\t{chi2fib_med}\t\t"
                             f"{frac_c2}\t{frac_0}\t"
-                            f"{im_median}\t{MaskFraction}\t{sky_sub_rms}\t{sky_sub_rms_rel}\t{dither_relflux}\t{norm}\t"
+                            f"{im_median}\t\t{MaskFraction}\t\t{sky_sub_rms}\t\t{sky_sub_rms_rel}\t\t{dither_relflux}\t\t{norm}\t"
                             f"{kN_c}\t{kchi}"
                             f"\n")
                 except:
