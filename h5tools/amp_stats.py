@@ -1184,11 +1184,14 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     try:
                         dither_flux = h5.root.Shot.read(field="relflux_virus")
                         exp_dict['dither_relflux'] = dither_flux[0][int(target_expnum) - 1]
-                        exp_dict['norm'] = np.nanmax(dither_flux)/np.nanmin(dither_flux)
+                        if np.any(np.isnan(dither_flux)):
+                            exp_dict['norm'] = np.nan
+                        else:
+                            exp_dict['norm'] = np.nanmax(dither_flux)/np.nanmin(dither_flux)
                     except:
                         exp_dict['norm'] = np.nan
                         exp_dict['dither_relflux'] = np.nan
-                        print(f"stats_amp statisitcs, dither_flux: {dither_flux}", print(traceback.format_exc()))
+                        print(f"stats_amp statistics, dither_flux: {dither_flux}", print(traceback.format_exc()))
 
                     exp_dict['sky_sub_rms_rel'] = np.nan  # gets a value at shot level feedback/rollup
 
