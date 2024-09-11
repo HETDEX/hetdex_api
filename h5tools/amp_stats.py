@@ -1347,10 +1347,15 @@ def stats_shot_rollup(h5, shot_dict):
 
         for exp in shot_dict['exposures']:
             sel = np.array(T['expnum'] == exp)
+            if np.count_nonzero(sel) == 0:
+                continue
 
             # dither norms (should be the SAME VALUE for each amp for a given exposure)
             # so a mean should be redundant, but just to be safe, do it anyway
-            dither_relflux_array.append(np.nanmean(T['dither_relflux'][sel]))
+            if np.all(np.isnan(T['dither_relflux'][sel])):
+                dither_relflux_array.append(np.nan)
+            else:
+                dither_relflux_array.append(np.nanmean(T['dither_relflux'][sel]))
 
             x = np.nan_to_num(T['sky_sub_rms'][sel], nan=-999.0)
             data_sel = np.array(x != -999.)
