@@ -1301,7 +1301,7 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True):
             h5.close()
         else:
             print(f"[{shotid}] Error. Could not find shot h5 file.")
-            shot_dict =  None
+            shot_dict = None
 
         return shot_dict
     except:
@@ -1372,16 +1372,16 @@ def stats_shot_rollup(h5, shot_dict):
                     sel = shot_dict['exposures'] == exp['expid']
                     if np.count_nonzero(sel) != 1:
                         print(f"Fail! Bad rms selection.", exp, shot_dict['exposures'])
-                        exp['sky_sub_rms_rel'] = -999.0
+                        exp['sky_sub_rms_rel'] = np.nan
                         # exp['sky_sub_bws_rel'] = -999.0
                         continue
                     try:
                         exp['sky_sub_rms_rel'] = exp['sky_sub_rms'] / shot_dict['sky_sub_rms_median_exp'][sel][0]
                         # exp['sky_sub_bws_rel'] = exp['sky_sub_bws'] / shot_dict['sky_sub_bws_median_exp'][sel][0]
                     except Exception as e:
-                        exp['sky_sub_rms_rel'] = -999.0
+                        exp['sky_sub_rms_rel'] = np.nan
                         # exp['sky_sub_bws_rel'] = -999.0
-                        print("stats_shot statisitcs, sky_sub", print(traceback.format_exc()))
+                        print("stats_shot statistics, sky_sub", print(traceback.format_exc()))
         return shot_dict
 
     except Exception as e:
@@ -1393,6 +1393,15 @@ def stats_shot_rollup(h5, shot_dict):
 #######################################
 # QC stuff
 #######################################
+
+def is_masked(x): #masked or NaN
+    #if ANY entry is "masked" then the whole is "masked" and you
+    #only get back a SINGLE value (T/F) when running np.ma.is_masked
+    #so have to use list comprehension, which is comparitively slow
+    #NOTE: however, this gives the same results as just:  np.array(np.isnan(x))
+    #  which turns masked into NaN and yields True in those cases
+    #return np.isnan(x) | np.array([np.ma.is_masked(y) for y in x])
+    return np.array(np.isnan(x)) #| np.array([np.ma.is_masked(y) for y in x])
 
 def stats_qc(data,extend=False):
     """
@@ -1434,6 +1443,9 @@ def stats_qc(data,extend=False):
         amp_stats = Table(data)
         single = False
 
+
+
+
     #need date for subselection
     if 'shotid' in amp_stats.colnames:
         #this is the dateshot as integer format
@@ -1453,28 +1465,137 @@ def stats_qc(data,extend=False):
     #"N_cont' is not currently computed ... not sure what to do with it
     #'nfib_bad' is not currently computed
 
-    sel1 = ((amp_stats['Avg'].astype(float) > -10) *
-            (amp_stats['Avg'].astype(float) < 100)) | (np.isnan(amp_stats['Avg']))
-    sel2 = (amp_stats['sky_sub_rms_rel'] < 1.5) | (np.isnan(amp_stats['sky_sub_rms_rel']))
-    sel3 = (amp_stats['sky_sub_rms'] > 0.2)  | (np.isnan(amp_stats['sky_sub_rms_rel']))
-    sel4 = (amp_stats['im_median'] > 0.05 ) | (np.isnan(amp_stats['im_median']))
-    sel5 = (amp_stats['MaskFraction'] < 0.25) | (np.isnan(amp_stats['MaskFraction']))
-    #sel6 = (amp_stats['N_cont'] < 35) | (np.isnan(amp_stats['N_cont']))
-    sel6 = np.full(len(amp_stats),True)
-    #sel7 = (amp_stats['nfib_bad'] <= 1) | (np.isnan(amp_stats['nfib_bad']))
-    sel7 = np.full(len(amp_stats),True)
+
+    #todo: should we be allowing NaNs? if we could not compute the value and it is NaN, doesn't that
+    #      already mean it is a problem??
+
+    if True: #allow Nan or masked
+
+        # "Original"
+        # sel1 = ((amp_stats['Avg'].astype(float) > -10) *
+        #         (amp_stats['Avg'].astype(float) < 100)) | (is_masked(amp_stats['Avg']))
+        # sel2 = (amp_stats['sky_sub_rms_rel'] < 1.5) | (is_masked(amp_stats['sky_sub_rms_rel']))
+        # sel3 = (amp_stats['sky_sub_rms'] > 0.2) | (is_masked(amp_stats['sky_sub_rms_rel']))
+        # sel4 = (amp_stats['im_median'] > 0.05) | (is_masked(amp_stats['im_median']))
+        # sel5 = (amp_stats['MaskFraction'] < 0.25) | (is_masked(amp_stats['MaskFraction']))
+        # # sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
+        # sel6 = np.full(len(amp_stats), True)
+        # # sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
+        # sel7 = np.full(len(amp_stats), True)
+        #
+        # sel8 = (amp_stats['norm'] > 0.5) | (np.isnan(amp_stats['norm']))
+        #
+        # sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
+        # # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+        # sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
+        # sel9 = sel9_hdr3 | sel9_hdr4
+
+        sel1 = ((amp_stats['Avg'].astype(float) > -5.0) *
+                (amp_stats['Avg'].astype(float) < 100.0)) | (is_masked(amp_stats['Avg']))
+        #down to a max of 20 to 25 helps a little
 
 
-    sel8 = (amp_stats['norm'] > 0.5) | (np.isnan(amp_stats['norm']))
+        #should have an lower limit too? this is the sky_sub_rms / median(all the sky_sub_rms for the shot)
+        sel2 = ( (amp_stats['sky_sub_rms_rel'] > 0.6) & (amp_stats['sky_sub_rms_rel'] < 1.5)) | (is_masked(amp_stats['sky_sub_rms_rel']))
 
-    sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] < 20210901)
-    #next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
-    sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (np.isnan(amp_stats['frac_c2'])) ) * (amp_stats['date'] >= 20210901)
+        #should maybe have an upper limit? .. this is a biweight scale (so stddev like) ...
+        # maybe an upper limit based on the Avg? but  again consider if there is a bright object ... could be a huge
+        # range in counts that is legit ... SO NO. there should NOT be an upper limit ...tested, does not work
+        sel3 =  (amp_stats['sky_sub_rms'] > 0.2)  | (is_masked(amp_stats['sky_sub_rms_rel']))
 
-    sel9 = sel9_hdr3 | sel9_hdr4
+        #a low value is a good check, but a high value may not be... consider if we are on a large, bright galaxy,
+        # then the median would be naturally high
+        sel4 = (amp_stats['im_median'] > 0.05 ) | (is_masked(amp_stats['im_median']))
+
+        #could consider lowering ... 25% default may be too high, 20% seems a little better
+        sel5 = (amp_stats['MaskFraction'] < 0.20) | (is_masked(amp_stats['MaskFraction']))
+        # sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
+        sel6 = np.full(len(amp_stats), True)
+        # sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
+        sel7 = np.full(len(amp_stats), True)
+
+        #since norm is max(dither flux norms) / min(dither flux norms) MUST always be at least 1.0 (if the max == min)
+        #though this seems unusual that max == min would be the case
+        #if max/min is too large, there is likely something wrong. x3.0 seems to be about that spot
+        sel8 = ((amp_stats['norm'] > 1.0) & (amp_stats['norm'] < 3.0)) | (np.isnan(amp_stats['norm']))
+
+
+        sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
+        # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+        sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
+        sel9 = sel9_hdr3 | sel9_hdr4
+
+
+
+        #for a sub selection of wavelegths and fibers, the fraction that are zero valued
+        #(so frac_0 == 1.0 means ALL are zero)
+        #this helps and picks up a few more, but I think it HAS to be here
+        # does not matter if the threshold is 1.0 or down to 0.20 or maybe even lower
+        sel11 = (amp_stats['frac_0'] < 1.0) | (is_masked(amp_stats['frac_0']))
+
+        #lower limit of about 0.5 seems okay, less than that maybe implies abonormally uniform data
+        #upper limit somewhere 1.1 to 1.5 is good .. below 1.1 is TOO aggressive
+        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.1)) | (is_masked(amp_stats['chi2fib_med']))
+
+
+
+        # Not useful (at least not compared to others ... or may be redundant with others)
+        #n_lo does not seem to be useful
+        #sel10 = (amp_stats['n_lo'] < 50) | (is_masked(amp_stats['n_lo']))
+
+        #Scale is not useful
+        #sel13 =  ((amp_stats['Scale'] > 0) & (amp_stats['Scale'] < 30.0)) | (is_masked(amp_stats['Scale']))
+
+        #Avg_orig
+        # sel14 = ((amp_stats['Avg_orig'].astype(float) > 0.0) *
+        #         (amp_stats['Avg_orig'].astype(float) < 5000.0)) | (is_masked(amp_stats['Avg_orig']))
+
+        #basically redundant to chi2fib_med
+        #sel15 = ((amp_stats['kchi'] > 0.5) & (amp_stats['kchi'] < 1.2)) | (is_masked(amp_stats['kchi']))
+
+        #dither_relflux .. not useful ...probably redundant
+        # sel16 = ((amp_stats['dither_relflux'] > 0.5) & (amp_stats['dither_relflux'] < 1.5)) | (
+        #     is_masked(amp_stats['dither_relflux']))
+
+    else: #Prohibit Nan or masked (counts as BAD)
+        sel1 = ((amp_stats['Avg'].astype(float) > -10) *
+                (amp_stats['Avg'].astype(float) < 100)) & (~is_masked(amp_stats['Avg']))
+        sel2 = (amp_stats['sky_sub_rms_rel'] < 1.5) & (~is_masked(amp_stats['sky_sub_rms_rel']))
+        sel3 = (amp_stats['sky_sub_rms'] > 0.2)  & (~is_masked(amp_stats['sky_sub_rms_rel']))
+        sel4 = (amp_stats['im_median'] > 0.05 ) & (~is_masked(amp_stats['im_median']))
+        sel5 = (amp_stats['MaskFraction'] < 0.25) & (~is_masked(amp_stats['MaskFraction']))
+        # sel6 = (amp_stats['N_cont'] < 35) & (is_masked(amp_stats['N_cont']))
+        sel6 = np.full(len(amp_stats), True)
+        # sel7 = (amp_stats['nfib_bad'] <= 1) & (~is_masked(amp_stats['nfib_bad']))
+        sel7 = np.full(len(amp_stats), True)
+        sel8 = (amp_stats['norm'] > 0.5) & (~is_masked(amp_stats['norm']))
+
+        sel9_hdr3 = (amp_stats['frac_c2'] < 0.5) & (~is_masked(amp_stats['frac_c2']))  * (amp_stats['date'] < 20210901)
+        # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+        sel9_hdr4 = (amp_stats['frac_c2'] < 0.1) & (~is_masked(amp_stats['frac_c2'])) * (amp_stats['date'] >= 20210901)
+        sel9 = sel9_hdr3 | sel9_hdr4
+
+    # else: #ignore NaN
+    #     sel1 = ((amp_stats['Avg'].astype(float) > -10) * (amp_stats['Avg'].astype(float) < 100))
+    #     sel2 = amp_stats['sky_sub_rms_rel'] < 1.5
+    #     sel3 = amp_stats['sky_sub_rms'] > 0.2
+    #     sel4 = amp_stats['im_median'] > 0.05
+    #     sel5 = amp_stats['MaskFraction'] < 0.25
+    #     # sel6 = amp_stats['N_cont'] < 35)
+    #     sel6 = np.full(len(amp_stats), True)
+    #     # sel7 = amp_stats['nfib_bad'] <= 1
+    #     sel7 = np.full(len(amp_stats), True)
+    #     sel8 = amp_stats['norm'] > 0.5
+    #
+    #
+    #     sel9_hdr3 = (amp_stats['frac_c2'] < 0.5)  * (amp_stats['date'] < 20210901)
+    #     #next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+    #     sel9_hdr4 = (amp_stats['frac_c2'] < 0.1)  * (amp_stats['date'] >= 20210901)
+    #
+    #     sel9 = sel9_hdr3 | sel9_hdr4
 
     #GOOD selection
-    sel = sel1 & sel2 & sel3 & sel4 & sel5 & sel6 & sel7 & sel8 & sel9
+    sel = sel1 & sel2 & sel3 & sel4 & sel5 & sel6 & sel7 & sel8 & sel9 & sel11 & sel12
     #sel = sel1 & sel2 & sel3 & sel6 & sel7 & sel8
 
     # sel_wiggles = amp_stats['ft_flag'] == 1
