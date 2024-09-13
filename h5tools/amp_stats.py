@@ -138,6 +138,7 @@ def stats_shot_dict_to_table(shot_dict):
         norm = []
         frac_0 = []
         n_lo = []
+        N_cont = []
 
 
         #original amp.dat
@@ -172,6 +173,7 @@ def stats_shot_dict_to_table(shot_dict):
                         norm.append(exp['norm'])
                         frac_0.append(exp['frac_0'])
                         n_lo.append(exp['n_lo'])
+                        N_cont.append(exp['N_cont'])
 
 
                         #tests (like original amp.dat)
@@ -206,12 +208,13 @@ def stats_shot_dict_to_table(shot_dict):
                 kN_c ,
                 #kNlo, #same as n_lo
                 kchi,
+                N_cont
 
 
             ],
             names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", "Avg",'Scale','chi2fib_med', 'frac_c2', 'frac_0',
                    'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux','norm',
-                   'kN_c','kchi',
+                   'kN_c','kchi','N_cont'
                    ]
 
         )
@@ -321,6 +324,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"norm\t")
                     f.write(f"kN_c\t")
                     f.write(f"kchi\t")
+                    f.write(f"N_cont\t")
                     f.write("\n")
 
                 except:
@@ -372,6 +376,11 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     n_lo = f"{row['n_lo']:d}"
                 except:
                     n_lo = f"{default_bad}"
+
+                try:
+                    N_cont = f"{row['N_cont']:d}"
+                except:
+                    N_cont = f"{default_bad}"
 
                 try:
                     Avg_orig = f"{0:0.2f}"
@@ -500,6 +509,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"{norm}\t")
                     f.write(f"{kN_c}\t")
                     f.write(f"{kchi}")
+                    f.write(f"{N_cont}")
                     f.write(f"\n")
                 except:
                     print("stats_save_as ", print(traceback.format_exc()))
@@ -980,6 +990,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     exp_dict['frac_c2'] = np.nan
                     exp_dict['frac_0'] = np.nan
                     exp_dict['n_lo'] = -1 # this is an integer, 0 is lowest possible so -1 is unset
+                    exp_dict['N_cont'] = -1
 
                     #newer only
                     exp_dict['maskfraction'] = np.nan
@@ -1158,24 +1169,31 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                         exp_dict['sky_sub_rms'] = np.nan
 
                     # Nlo (different M selection than frac_0)
+                    # Also N_cont since just a variation coing the otherware
                     # again, this is different than the original amp.dat, but may be a better calculation
                     M = calfib_ffsky_counts[:, 299:800]
                     M0 = M[M != 0]
                     if np.size(M0) > 1:
                         sddev = biweight.biweight_scale(M0)
-
-                        ct = 0
-                        for i in range(len(M)):
-                            f = M[i][299:800]
+                        avg = biweight.biweight_location(M0)
+                        lo_ct = 0
+                        hi_ct = 0
+                        for i in range(len(M)): #work down all the 112 fibers
+                            f = M[i]
                             if np.count_nonzero(f) != 0:
-                                if biweight.biweight_location(f[f != 0]) < (-2 * sddev):
-                                    ct += 1
-                            else: # the counts are ALL zero? while not technically "low"
+                                bwl_f = biweight.biweight_location(f[f != 0])
+                                if bwl_f  < (avg - (2.0 * sddev)):
+                                    lo_ct += 1
+                                elif bwl_f  > (avg + (7.0 * sddev)):
+                                    hi_ct += 1
+                            #else: # the counts are ALL zero? while not technically "low"
                                   # by this definition, it IS a problem (and really, all zero is "low")
-                                ct += 1
-                        exp_dict['n_lo'] = ct
+                                #lo_ct += 1
+                        exp_dict['n_lo'] = lo_ct
+                        exp_dict['N_cont'] = hi_ct
                     else:
                         exp_dict['n_lo'] = -1
+                        exp_dict['N_cont'] = -1
 
                     ########################################
                     # used at shot level (may have feedback)
@@ -1463,7 +1481,7 @@ def stats_qc(data,extend=False):
     if 'maskfraction' in amp_stats.colnames:
         amp_stats.rename_column('maskfraction','MaskFraction')
     #"N_cont' is not currently computed ... not sure what to do with it
-    #'nfib_bad' is not currently computed
+    #'nfib_bad' is not currently computed ... may be n_lo
 
 
     #todo: should we be allowing NaNs? if we could not compute the value and it is NaN, doesn't that
@@ -1509,10 +1527,11 @@ def stats_qc(data,extend=False):
 
         #could consider lowering ... 25% default may be too high, 20% seems a little better
         sel5 = (amp_stats['MaskFraction'] < 0.20) | (is_masked(amp_stats['MaskFraction']))
-        # sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
-        sel6 = np.full(len(amp_stats), True)
+        sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
+        #sel6 = np.full(len(amp_stats), True)
         # sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
-        sel7 = np.full(len(amp_stats), True)
+        sel7 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
+        #sel7 = np.full(len(amp_stats), True)
 
         #since norm is max(dither flux norms) / min(dither flux norms) MUST always be at least 1.0 (if the max == min)
         #though this seems unusual that max == min would be the case
@@ -1540,8 +1559,13 @@ def stats_qc(data,extend=False):
 
 
         # Not useful (at least not compared to others ... or may be redundant with others)
-        #n_lo does not seem to be useful
-        #sel10 = (amp_stats['n_lo'] < 50) | (is_masked(amp_stats['n_lo']))
+        #n_lo does not seem to be useful ... SHOULD be a replacement for nfib_bad (sel7), but does not seem to work that way
+        # produces WAY too many hits?
+        sel10 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
+
+
+
+
 
         #Scale is not useful
         #sel13 =  ((amp_stats['Scale'] > 0) & (amp_stats['Scale'] < 30.0)) | (is_masked(amp_stats['Scale']))
