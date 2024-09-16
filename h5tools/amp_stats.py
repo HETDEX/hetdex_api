@@ -138,6 +138,7 @@ def stats_shot_dict_to_table(shot_dict):
         norm = []
         frac_0 = []
         n_lo = []
+        n_lo_ss = []
         N_cont = []
 
 
@@ -173,6 +174,7 @@ def stats_shot_dict_to_table(shot_dict):
                         norm.append(exp['norm'])
                         frac_0.append(exp['frac_0'])
                         n_lo.append(exp['n_lo'])
+                        n_lo_ss.append(exp['n_lo_ss'])
                         N_cont.append(exp['N_cont'])
 
 
@@ -208,13 +210,14 @@ def stats_shot_dict_to_table(shot_dict):
                 kN_c ,
                 #kNlo, #same as n_lo
                 kchi,
-                N_cont
+                N_cont,
+                n_lo_ss
 
 
             ],
             names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", "Avg",'Scale','chi2fib_med', 'frac_c2', 'frac_0',
                    'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux','norm',
-                   'kN_c','kchi','N_cont'
+                   'kN_c','kchi','N_cont','n_lo_ss'
                    ]
 
         )
@@ -325,6 +328,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"kN_c\t")
                     f.write(f"kchi\t")
                     f.write(f"N_cont\t")
+                    f.write(f"n_lo_ss\t")
                     f.write("\n")
 
                 except:
@@ -376,6 +380,11 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     n_lo = f"{row['n_lo']:d}"
                 except:
                     n_lo = f"{default_bad}"
+
+                try:
+                    n_lo_ss = f"{row['n_lo_ss']:d}"
+                except:
+                    n_lo_ss = f"{default_bad}"
 
                 try:
                     N_cont = f"{row['N_cont']:d}"
@@ -510,6 +519,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"{kN_c}\t")
                     f.write(f"{kchi}")
                     f.write(f"{N_cont}")
+                    f.write(f"{n_lo_ss}\t")
                     f.write(f"\n")
                 except:
                     print("stats_save_as ", print(traceback.format_exc()))
@@ -990,6 +1000,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     exp_dict['frac_c2'] = np.nan
                     exp_dict['frac_0'] = np.nan
                     exp_dict['n_lo'] = -1 # this is an integer, 0 is lowest possible so -1 is unset
+                    exp_dict['n_lo_ss'] = -1
                     exp_dict['N_cont'] = -1
 
                     #newer only
@@ -1028,8 +1039,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     #used as approximates for some older amp.dat columns
                     chi2 = h5.root.Data.Fibers.read_where(query, field="chi2")
                     spectrum = h5.root.Data.Fibers.read_where(query, field="spectrum")
-
-
+                    sky_subtracted = h5.root.Data.Fibers.read_where(query, field="sky_subtracted")
 
 
                     ############################################
@@ -1168,13 +1178,14 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     else:
                         exp_dict['sky_sub_rms'] = np.nan
 
-                    # Nlo (different M selection than frac_0)
-                    # Also N_cont since just a variation coing the otherware
-                    # again, this is different than the original amp.dat, but may be a better calculation
-                    M = calfib_ffsky_counts[:, 299:800]
+
+                    #####################
+                    #N_cont
+                    #####################
+                    M = calfib_ffsky_counts  #uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
                     M0 = M[M != 0]
                     if np.size(M0) > 1:
-                        sddev = biweight.biweight_scale(M0)
+                        sddev = biweight.biweight_scale(M0) /np.sqrt(900.) #yes, 900 not 1032 or 1036, per Karl ... empirircal
                         avg = biweight.biweight_location(M0)
                         lo_ct = 0
                         hi_ct = 0
@@ -1182,18 +1193,67 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                             f = M[i]
                             if np.count_nonzero(f) != 0:
                                 bwl_f = biweight.biweight_location(f[f != 0])
-                                if bwl_f  < (avg - (2.0 * sddev)):
-                                    lo_ct += 1
-                                elif bwl_f  > (avg + (7.0 * sddev)):
+                                if bwl_f > (avg + (7.0 * sddev)):
                                     hi_ct += 1
                             #else: # the counts are ALL zero? while not technically "low"
                                   # by this definition, it IS a problem (and really, all zero is "low")
                                 #lo_ct += 1
-                        exp_dict['n_lo'] = lo_ct
                         exp_dict['N_cont'] = hi_ct
                     else:
-                        exp_dict['n_lo'] = -1
                         exp_dict['N_cont'] = -1
+
+                    # Nlo (different M selection than frac_0)
+                    ##############
+                    # n_lo
+                    ##############
+                    # Nlo (different M selection than frac_0)
+                    # again, this is different than the original amp.dat, but may be a better calculation
+                    M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                    M0 = M[M != 0]
+                    if np.size(M0) > 1:
+                        sddev = biweight.biweight_scale(M0)
+                        avg = biweight.biweight_location(M0)
+                        lo_ct = 0
+                        for i in range(len(M)): #work down all the 112 fibers
+                            f = M[i]
+                            if np.count_nonzero(f) != 0:
+                                bwl_f = biweight.biweight_location(f[f != 0])
+                                if bwl_f < (avg - (2.0 * sddev)):
+                                    lo_ct += 1
+                            #else: # the counts are ALL zero? while not technically "low"
+                                  # by this definition, it IS a problem (and really, all zero is "low")
+                                #lo_ct += 1
+                        exp_dict['n_lo'] = lo_ct
+                    else:
+                        exp_dict['n_lo'] = -1
+
+
+                    ##############
+                    # n_lo (alternate)
+                    ##############
+                    # Nlo (different M selection than frac_0)
+                    # again, this is different than the original amp.dat, but may be a better calculation
+                    #M = calfib_ffsky_counts[:, 299:800]
+                    M = sky_subtracted[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                    M0 = M[M != 0]
+                    if np.size(M0) > 1:
+                        sddev = biweight.biweight_scale(M0)
+                        avg = biweight.biweight_location(M0)
+                        lo_ct = 0
+                        for i in range(len(M)): #work down all the 112 fibers
+                            f = M[i]
+                            if np.count_nonzero(f) != 0:
+                                bwl_f = biweight.biweight_location(f[f != 0])
+                                if bwl_f < (avg - (2.0 * sddev)):
+                                    lo_ct += 1
+                            #else: # the counts are ALL zero? while not technically "low"
+                                  # by this definition, it IS a problem (and really, all zero is "low")
+                                #lo_ct += 1
+                        exp_dict['n_lo_ss'] = lo_ct
+                    else:
+                        exp_dict['n_lo_ss'] = -1
+
+
 
                     ########################################
                     # used at shot level (may have feedback)
@@ -1529,7 +1589,7 @@ def stats_qc(data,extend=False):
         sel5 = (amp_stats['MaskFraction'] < 0.20) | (is_masked(amp_stats['MaskFraction']))
         sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
         #sel6 = np.full(len(amp_stats), True)
-        # sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
+        #sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
         sel7 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
         #sel7 = np.full(len(amp_stats), True)
 
@@ -1561,7 +1621,7 @@ def stats_qc(data,extend=False):
         # Not useful (at least not compared to others ... or may be redundant with others)
         #n_lo does not seem to be useful ... SHOULD be a replacement for nfib_bad (sel7), but does not seem to work that way
         # produces WAY too many hits?
-        sel10 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
+        #sel10 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
 
 
 
