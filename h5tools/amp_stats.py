@@ -1425,7 +1425,8 @@ def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,ima
             shot_dict = stats_shot_dict(h5, expid)
 
         # operate on all IFUs
-        for ifu_dict in tqdm(shot_dict['ifu_dict_array']):
+        #for ifu_dict in tqdm(shot_dict['ifu_dict_array']):
+        for ifu_dict in shot_dict['ifu_dict_array']:
             ifu_dict = stats_ifu(h5, ifu_dict=ifu_dict,fibers_table=fibers_table,images_table=images_table)
 
         #
