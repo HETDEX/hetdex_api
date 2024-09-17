@@ -1354,7 +1354,7 @@ def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None,fibers_table=None,i
 
 
 
-def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True):
+def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=True):
     """
 
     Open a SINGLE shot file and build the full set of amp+exp and full shot statistics.
@@ -1391,7 +1391,14 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True):
             shotid = h5.root.Shot.read(field="shotid")[0]
 
         if h5 is not None:
-            shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True)
+
+            if preload:
+                t_fib, t_img = stats_make_shot_tables(h5)
+            else:
+                t_fib, t_img = None, None
+
+            shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True, fibers_table=t_fib,images_table=t_img)
+
             if save and shot_dict is not None:
                 save_shot_stats_pickle(shot_dict)
             else:
