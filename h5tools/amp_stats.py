@@ -17,13 +17,15 @@ import numpy as np
 import glob
 
 import astropy.stats.biweight as biweight
-from astropy.table import Table, Row
+from astropy.table import Table, Row, join
 #from astropy.io import ascii
 import copy
 import pickle
 from hetdex_api.config import HDRconfig
 
 import traceback
+
+from tqdm import tqdm
 
 #########################################
 # helpers
@@ -930,7 +932,7 @@ def stats_shot_dict(h5, expid=None, ifu_dict_array=None):
 ###############################
 
 
-def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
+def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None, images_table=None):
     """
     This is the primary functional unit; most statistics/metrics are computed for each
       individual amp+exposure.
@@ -978,10 +980,15 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                 target_expnum = exp_dict['expid']
                 query = f"((multiframe==target_mf) & (expnum==target_expnum))"
 
-                row = h5.root.Data.Images.read_where(query)
+                if images_table is None:
+                    image = h5.root.Data.Images.read_where(query,field="image")
+                else:
+                    image_sel = np.array(images_table['multiframe']==target_mf) & np.array(images_table['expnum']==target_expnum)
+                    image = images_table['image'][image_sel]
+                #really only need "image" and "error" (don't use "clean_image" so there is some waste
 
-                if len(row) != 1:
-
+                if len(image) != 1:
+                    del image
                     #from original amp.dat
                     #exp_dict['kNorm'] = np.nan  #NOT COMPUTED YET
                     exp_dict['kN_c'] = -1 #integer, so -1 is unset
@@ -1015,31 +1022,54 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     exp_dict['norm'] = np.nan
                 else:
 
-                    # todo: need to add in:
-                    # background
-                    # sky_sub_rms
-                    # sky_sub_rms_rel
-                    # N_cont
-                    # nfib_bad
-                    # norm
-
-                    # sky_sub_rms ~ Scale, but we use RMS, not stddev or biweight location?
-
-
+                    if images_table is None:
+                        #image does == 1, but is 1x 1032x 1032 so just want the single
+                        image = image[0]
+                        #now also need the error for the image
+                        error = h5.root.Data.Images.read_where(query, field="error")[0]
+                        #NOTICE: image and error are just too big to read in ALL of them up front,
+                        #        so still need to read them just for the amp+exmposure here
+                    else: #note we aleady have image
+                        error = images_table['error'][image_sel][0]
+                        image = image[0]
 
                     ###############################
                     # used in various calcs below
                     ###############################
-                    calfib = h5.root.Data.Fibers.read_where(query, field="calfib")
-                    calfib_counts = h5.root.Data.Fibers.read_where(query, field="calfib_counts")
-                    calfib_ffsky = h5.root.Data.Fibers.read_where(query, field="calfib_ffsky")
+
+                    if fibers_table is None:
+                        clean_tab = True
+                        tab = Table(h5.root.Data.Fibers.read_where(query))  # '(multiframe == mf) & (expnum == expi)'))
+                    else:
+                        clean_tab = False
+                        tab = fibers_table
+
+                    # calfib = h5.root.Data.Fibers.read_where(query, field="calfib")
+                    # calfib_counts = h5.root.Data.Fibers.read_where(query, field="calfib_counts")
+                    # calfib_ffsky = h5.root.Data.Fibers.read_where(query, field="calfib_ffsky")
+                    #
+                    # calfib_ffsky_counts = flx2cts(calfib, calfib_counts, calfib_ffsky)
+                    #
+                    # #used as approximates for some older amp.dat columns
+                    # chi2 = h5.root.Data.Fibers.read_where(query, field="chi2")
+                    # spectrum = h5.root.Data.Fibers.read_where(query, field="spectrum")
+                    # sky_subtracted = h5.root.Data.Fibers.read_where(query, field="sky_subtracted")
+                    #
+                    #
+
+
+                    tab_sel = np.array(tab['multiframe']==target_mf) & np.array(tab['expnum']==target_expnum)
+
+                    calfib = np.array(tab['calfib'][tab_sel])
+                    calfib_counts = np.array(tab['calfib_counts'][tab_sel])
+                    calfib_ffsky = np.array(tab['calfib_ffsky'][tab_sel])
 
                     calfib_ffsky_counts = flx2cts(calfib, calfib_counts, calfib_ffsky)
 
                     #used as approximates for some older amp.dat columns
-                    chi2 = h5.root.Data.Fibers.read_where(query, field="chi2")
-                    spectrum = h5.root.Data.Fibers.read_where(query, field="spectrum")
-                    sky_subtracted = h5.root.Data.Fibers.read_where(query, field="sky_subtracted")
+                    chi2 = np.array(tab['chi2'][tab_sel])
+                    spectrum = np.array(tab['spectrum'][tab_sel])
+                    sky_subtracted = np.array(tab['sky_subtracted'][tab_sel])
 
 
                     ############################################
@@ -1112,28 +1142,27 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     # new/replacement statistics apart from amp.dat
                     #######################################################
 
-
                     # similar to what original amp.dat called Scale, but over a different range
                     # Scale is from ffsky counts instead of the "image"
                     #      and for fibers 10 to 100 (inclusive), wavebins 300 to 800 (inclusive)
                     #      and explicitly excludes 0 values
                     #      and uses biweight instead of median
-                    image = row["image"][0]
+                    #image = row["image"][0]
                     exp_dict['im_median'] = np.nanmedian(image[300:800, 300:800])
 
                     # similar to original amp.dat Frac0
                     # Frac0 is from ffsky counts instead of the "image"
                     #      and for fibers 10 to 100 (inclusive), wavebins 300 to 800 (inclusive)
                     #      and is the fraction of those wavelength bin values that == 0
-                    error = row["error"][0]
-                    sel_zero = error == 0
+                    #error = row["error"][0]
+
+                    sel_zero = np.array(error == 0)
                     exp_dict['maskfraction'] = np.sum(sel_zero) / np.size(sel_zero)
-
-                    tab = Table(h5.root.Data.Fibers.read_where(query))  # '(multiframe == mf) & (expnum == expi)'))
-
-                    sel_reg = (tab['fibnum'] >= 10) & (tab['fibnum'] <= 100)
-                    chi2fib = tab['chi2'][sel_reg]
-                    chi2_arr = np.array(chi2fib[:, 100:1000])
+                    del sel_zero
+                    #sel_reg = (tab['fibnum'] >= 10) & (tab['fibnum'] <= 100)
+                    #chi2fib = tab['chi2'][sel_reg]
+                    #chi2_arr = np.array(chi2fib[:, 100:1000])
+                    chi2_arr = np.array(chi2[9:100,299:800])
 
                     chi2_gtzero = chi2_arr[chi2_arr > 0]
                     # similar to the orginal amp.dat chi, with a +/-1 count/index difference on fibers and wavelengths
@@ -1253,8 +1282,6 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
                     else:
                         exp_dict['n_lo_ss'] = -1
 
-
-
                     ########################################
                     # used at shot level (may have feedback)
                     ########################################
@@ -1273,18 +1300,11 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
 
                     exp_dict['sky_sub_rms_rel'] = np.nan  # gets a value at shot level feedback/rollup
 
-
-
                     # cleanup
-                    del chi2_arr
-                    del tab
-                    del calfib
-                    del calfib_counts
-                    del calfib_ffsky
-                    del calfib_ffsky_counts
-                    del chi2      #extra h5 read for old amp.dat like columns
-                    del spectrum  #extra h5 read for old amp.dat like columns
+                    if clean_tab:
+                        del tab
 
+                    del calfib_ffsky_counts
 
             except Exception as e:
                 # todo: handle fail for this amp+exposure
@@ -1298,7 +1318,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None):
         print("stats_amp statisitcs", print(traceback.format_exc()))
 
 
-def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None):
+def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None,fibers_table=None,images_table=None):
     """
 
     Rollup of calls to stats_amp(). Normally 12 calls, one for each of 4 amps x 3 exposures
@@ -1325,7 +1345,7 @@ def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None):
 
         for amp_dict in ifu_dict['amp_dict_array']:
             # print(amp_dict)
-            stats_amp(h5, multiframe=None, expid=None, amp_dict=amp_dict)
+            stats_amp(h5, multiframe=None, expid=None, amp_dict=amp_dict,fibers_table=fibers_table,images_table=images_table)
 
         return ifu_dict
     except Exception as e:
@@ -1386,7 +1406,7 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True):
         print("make_stats_for_shot", print(traceback.format_exc()))
         return None
 
-def stats_shot(h5, expid=None, shot_dict=None, rollup=True):
+def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,images_table=None):
     """
     Rollup of calls to stats_ifu(), which calls stats_amp()
     Normally 78 ifus x 4 amps x 3 expsoures = 936 total calls to stats_amp()
@@ -1398,8 +1418,8 @@ def stats_shot(h5, expid=None, shot_dict=None, rollup=True):
             shot_dict = stats_shot_dict(h5, expid)
 
         # operate on all IFUs
-        for ifu_dict in shot_dict['ifu_dict_array']:
-            ifu_dict = stats_ifu(h5, ifu_dict=ifu_dict)
+        for ifu_dict in tqdm(shot_dict['ifu_dict_array']):
+            ifu_dict = stats_ifu(h5, ifu_dict=ifu_dict,fibers_table=fibers_table,images_table=images_table)
 
         #
         # shot level statistics, over all amps and exposures
@@ -1413,6 +1433,85 @@ def stats_shot(h5, expid=None, shot_dict=None, rollup=True):
         # todo: error handling
         print("stats_shot statisitcs", print(traceback.format_exc()))
 
+
+def stats_make_shot_tables(h5):
+    """
+    select the key fields from the h5 file and make a shot level table of the entire shot
+
+    Parameters
+    ----------
+    h5
+
+    Returns
+    -------
+    astropy tables or None, None
+    """
+
+    t_fibers, t_images = None, None
+    try:
+        #t_fibers = Table(h5.root.Data.Fibers.read())
+        #only keep the columns we need
+        #there is extra data here, but fewer read calls ... is that a good trade off for TACC?
+        #t_fibers.keep_columns(
+        #    ['multiframe', 'expnum', 'fibnum','calfib', 'calfib_counts', 'calfib_ffsky', 'chi2', 'spectrum', 'sky_subtracted'])
+
+
+        #alternate (one column at time)
+        multiframe = h5.root.Data.Fibers.read(field="multiframe")
+        expnum = h5.root.Data.Fibers.read(field="expnum")
+        fibnum = h5.root.Data.Fibers.read(field="fibnum")
+        calfib = h5.root.Data.Fibers.read(field="calfib")
+        calfib_counts = h5.root.Data.Fibers.read(field="calfib_counts")
+        calfib_ffsky = h5.root.Data.Fibers.read(field="calfib_ffsky")
+        chi2 = h5.root.Data.Fibers.read(field="chi2")
+        spectrum = h5.root.Data.Fibers.read(field="spectrum")
+        sky_subtracted = h5.root.Data.Fibers.read(field="sky_subtracted")
+
+        t_fibers = Table([multiframe, expnum, fibnum, calfib,calfib_counts,calfib_ffsky,chi2,spectrum,sky_subtracted],
+                  names=["multiframe", "expnum", "fibnum", "calfib","calfib_counts","calfib_ffsky","chi2","spectrum","sky_subtracted"])
+
+        t_fibers.add_index('multiframe')
+        t_fibers.add_index('expnum')
+
+
+        del multiframe
+        del expnum
+        del fibnum
+        del calfib
+        del calfib_counts
+        del calfib_ffsky
+        del chi2
+        del spectrum
+        del sky_subtracted
+
+    except Exception as e:
+        # todo: error handling
+        print("stats_make_shot_tables", print(traceback.format_exc()))
+        t_fibers = None
+
+    try:
+        #this might be too much
+        #cannot read all at once, so have to read the 4 columns we need individually
+        images_mf = h5.root.Data.Images.read(field="multiframe")
+        images_en = h5.root.Data.Images.read(field="expnum")
+        images_im = h5.root.Data.Images.read(field="image")
+        images_er = h5.root.Data.Images.read(field="error")
+
+        t_images = Table([images_mf, images_en, images_im, images_er], names=["multiframe", "expnum", "image", "error"])
+        t_images.add_index('multiframe')
+        t_images.add_index('expnum')
+
+        del images_mf
+        del images_en
+        del images_im
+        del images_er
+
+    except Exception as e:
+        # todo: error handling
+        print("stats_make_shot_tables", print(traceback.format_exc()))
+        t_images = None
+
+    return t_fibers, t_images
 
 def stats_shot_rollup(h5, shot_dict):
     # todo: shot specific or shot aggregate statistics
