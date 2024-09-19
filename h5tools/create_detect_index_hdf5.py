@@ -6,13 +6,13 @@ Created: 2020/03/29
 
 Combine Script to gather information for the FiberIndex Table. This provides
 a master look up table for of all fibers contained in a 
-HETDEX data release. Use the FiberIndex Class API provided in 
+HETDEX data release. Use the FiberIndex Class API provcd ..ided in 
 hetdex_api/survey.py to easily access data and query 
 astropy coordinates.
 
 To run:
 
-python3 create_detect_index_hdf5.py -of detect_index_hdr4.h5
+python3 create_detect_index_hdf5.py -of detect_index_hdr5.h5
 
 """
 
@@ -20,9 +20,6 @@ import numpy as np
 from numpy.lib.recfunctions import append_fields
 import tables as tb
 import argparse as ap
-import matplotlib
-
-matplotlib.use("agg")
 
 import healpy as hp
 
@@ -81,6 +78,8 @@ def main(argv=None):
         "/scratch/projects/hetdex/hdr3/detect/continuum_sources.h5",
         "/scratch/projects/hetdex/hdr4/detect/detect_hdr4.h5",
         "/scratch/projects/hetdex/hdr4/detect/continuum_sources.h5",
+        "/scratch/projects/hetdex/hdr5/detect/detect_hdr5.h5",
+        "/scratch/projects/hetdex/hdr5/detect/continuum_sources.h5",
     ]
 
     # set up HEALPIX options
@@ -102,9 +101,11 @@ def main(argv=None):
 
         if "hdr3" in file:
             tableDetects_i["survey"] = "hdr3".encode()
-        else:
+        elif "hdr4" in file:
             tableDetects_i["survey"] = "hdr4".encode()
-
+        elif "hdr5" in file:
+            tableDetects_i["survey"] = "hdr5".encode()
+            
         if firstfile:
 
             tableDetects = fileh.create_table(
