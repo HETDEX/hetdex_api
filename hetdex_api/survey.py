@@ -100,6 +100,12 @@ class Survey:
 
             self.fluxlimit_4540 = np.array(fluxlimit)
 
+        #added 2024-09-19 by EMC
+        #manually change field entry for 20190802012 and 20190803012 incorrectly given a fall objid
+
+        for s in [20190802012, 20190803012]:
+            self.field[ self.shotid == s] = 'dex-spring'
+        
     def __getitem__(self, indx):
         """
         This allows for slicing of the survey class
