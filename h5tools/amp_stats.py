@@ -1433,7 +1433,7 @@ def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,ima
     try:
         if shot_dict is None:
             if fibers_table is not None:
-                multiframes = np.array([mf.decode()[:-3] for mf in np.unique(np.array(fibers_table["multiframe"]))])
+                multiframes = np.unique([mf.decode()[:-3] for mf in np.array(fibers_table["multiframe"])])
             else:
                 multiframes = None
 
