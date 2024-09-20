@@ -862,7 +862,7 @@ def stats_ifu_dict(shotid, multiframe=None, num_exposures=3, expid=None, amp_dic
         print("stats_ifu_dict", print(traceback.format_exc()))
 
 
-def stats_shot_dict(h5, expid=None, ifu_dict_array=None):
+def stats_shot_dict(h5, expid=None, ifu_dict_array=None, multiframes=None, expid_array=None):
     """
     return a new stats dictionary
 
@@ -883,7 +883,8 @@ def stats_shot_dict(h5, expid=None, ifu_dict_array=None):
             # load from the h5 file
             # there are fewer Images entries, so read multiframe from there
             # [:-3] strips off the _<AMP> since we only care about the full IFU here
-            multiframes = np.unique([mf.decode()[:-3] for mf in h5.root.Data.Images.read(field="multiframe")])
+            if multiframes is None:
+                multiframes = np.unique([mf.decode()[:-3] for mf in h5.root.Data.Images.read(field="multiframe")])
             if len(multiframes) == 0:
                 status = -1
             # normally about 78x4 = 312 multiframes
@@ -891,7 +892,8 @@ def stats_shot_dict(h5, expid=None, ifu_dict_array=None):
             ifu_dict_array = []
 
             if expid is None:  # load them all
-                expid_array = h5.root.Shot.read(field="expnum")
+                if expid_array is None:
+                    expid_array = h5.root.Shot.read(field="expnum")[0]
                 num_exposures = len(expid_array)
 
                 # stats_ifu_dict(shotid, multiframe=None,num_exposures=3,expid=None,amp_dict_array=None):
@@ -932,7 +934,7 @@ def stats_shot_dict(h5, expid=None, ifu_dict_array=None):
 ###############################
 
 
-def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None, images_table=None):
+def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None, images_table=None, shot_table=None):
     """
     This is the primary functional unit; most statistics/metrics are computed for each
       individual amp+exposure.
@@ -981,6 +983,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                 query = f"((multiframe==target_mf) & (expnum==target_expnum))"
 
                 if images_table is None:
+                    print("amp level read")
                     image = h5.root.Data.Images.read_where(query,field="image")
                 else:
                     image_sel = np.array(images_table['multiframe']==target_mf) & np.array(images_table['expnum']==target_expnum)
@@ -1026,6 +1029,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                         #image does == 1, but is 1x 1032x 1032 so just want the single
                         image = image[0]
                         #now also need the error for the image
+                        print("amp level read")
                         error = h5.root.Data.Images.read_where(query, field="error")[0]
                         #NOTICE: image and error are just too big to read in ALL of them up front,
                         #        so still need to read them just for the amp+exmposure here
@@ -1039,6 +1043,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
 
                     if fibers_table is None:
                         clean_tab = True
+                        print("amp level read")
                         tab = Table(h5.root.Data.Fibers.read_where(query))  # '(multiframe == mf) & (expnum == expi)'))
                     else:
                         clean_tab = False
@@ -1287,7 +1292,11 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     ########################################
                     dither_flux = np.nan
                     try:
-                        dither_flux = h5.root.Shot.read(field="relflux_virus")
+                        # local read
+                        if shot_table is None:
+                            dither_flux = h5.root.Shot.read(field="relflux_virus")
+                        else:
+                            dither_flux = shot_table['relflux_virus']
                         exp_dict['dither_relflux'] = dither_flux[0][int(target_expnum) - 1]
                         if np.any(np.isnan(dither_flux)):
                             exp_dict['norm'] = np.nan
@@ -1318,7 +1327,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
         print("stats_amp statisitcs", print(traceback.format_exc()))
 
 
-def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None,fibers_table=None,images_table=None):
+def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None,fibers_table=None,images_table=None,shot_table=None):
     """
 
     Rollup of calls to stats_amp(). Normally 12 calls, one for each of 4 amps x 3 exposures
@@ -1345,7 +1354,8 @@ def stats_ifu(h5, multiframe=None, expid=None, ifu_dict=None,fibers_table=None,i
 
         for amp_dict in ifu_dict['amp_dict_array']:
             # print(amp_dict)
-            stats_amp(h5, multiframe=None, expid=None, amp_dict=amp_dict,fibers_table=fibers_table,images_table=images_table)
+            stats_amp(h5, multiframe=None, expid=None, amp_dict=amp_dict,
+                      fibers_table=fibers_table,images_table=images_table,shot_table=shot_table)
 
         return ifu_dict
     except Exception as e:
@@ -1393,11 +1403,11 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=T
         if h5 is not None:
 
             if preload:
-                t_fib, t_img = stats_make_shot_tables(h5)
+                t_fib, t_img, t_shot = stats_make_shot_tables(h5)
             else:
-                t_fib, t_img = None, None
+                t_fib, t_img, t_shot = None, None, None
 
-            shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True, fibers_table=t_fib,images_table=t_img)
+            shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True, fibers_table=t_fib,images_table=t_img, shot_table=t_shot)
 
             if save and shot_dict is not None:
                 save_shot_stats_pickle(shot_dict)
@@ -1413,7 +1423,7 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=T
         print("make_stats_for_shot", print(traceback.format_exc()))
         return None
 
-def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,images_table=None):
+def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,images_table=None,shot_table=None):
     """
     Rollup of calls to stats_ifu(), which calls stats_amp()
     Normally 78 ifus x 4 amps x 3 expsoures = 936 total calls to stats_amp()
@@ -1422,12 +1432,23 @@ def stats_shot(h5, expid=None, shot_dict=None, rollup=True,fibers_table=None,ima
 
     try:
         if shot_dict is None:
-            shot_dict = stats_shot_dict(h5, expid)
+            if fibers_table is not None:
+                multiframes = np.array([mf.decode()[:-3] for mf in np.unique(np.array(fibers_table["multiframe"]))])
+            else:
+                multiframes = None
+
+            if shot_table is not None:
+                expid_array = shot_table['expnum'][0] #usually [1,2,3]
+            else:
+                expid_array  = None
+
+            shot_dict = stats_shot_dict(h5, expid,multiframes=multiframes,expid_array=expid_array)
+
 
         # operate on all IFUs
         #for ifu_dict in tqdm(shot_dict['ifu_dict_array']):
         for ifu_dict in shot_dict['ifu_dict_array']:
-            ifu_dict = stats_ifu(h5, ifu_dict=ifu_dict,fibers_table=fibers_table,images_table=images_table)
+            ifu_dict = stats_ifu(h5, ifu_dict=ifu_dict,fibers_table=fibers_table,images_table=images_table,shot_table=shot_table)
 
         #
         # shot level statistics, over all amps and exposures
@@ -1455,7 +1476,22 @@ def stats_make_shot_tables(h5):
     astropy tables or None, None
     """
 
-    t_fibers, t_images = None, None
+    t_fibers, t_images, t_shot = None, None, None
+
+    try:
+        # expid_array = h5.root.Shot.read(field="expnum")
+        # dither_flux = h5.root.Shot.read(field="relflux_virus")
+        #
+        # t_shot = Table([expid_array, dither_flux], names=["expnum", "relflux_virus"])
+
+
+        #just read the whole thing. ... it is not that big and may have future useful  bits
+        t_shot = Table(h5.root.Shot.read())
+
+    except:
+        t_shot = None
+        print("stats_make_shot_tables", print(traceback.format_exc()))
+
     try:
         #t_fibers = Table(h5.root.Data.Fibers.read())
         #only keep the columns we need
@@ -1519,7 +1555,7 @@ def stats_make_shot_tables(h5):
         print("stats_make_shot_tables", print(traceback.format_exc()))
         t_images = None
 
-    return t_fibers, t_images
+    return t_fibers, t_images, t_shot
 
 def stats_shot_rollup(h5, shot_dict):
     # todo: shot specific or shot aggregate statistics
