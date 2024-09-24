@@ -983,7 +983,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                 query = f"((multiframe==target_mf) & (expnum==target_expnum))"
 
                 if images_table is None:
-                    print("amp level read")
+                    #print("amp level read")
                     image = h5.root.Data.Images.read_where(query,field="image")
                 else:
                     image_sel = np.array(images_table['multiframe']==target_mf) & np.array(images_table['expnum']==target_expnum)
@@ -1029,7 +1029,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                         #image does == 1, but is 1x 1032x 1032 so just want the single
                         image = image[0]
                         #now also need the error for the image
-                        print("amp level read")
+                        #print("amp level read")
                         error = h5.root.Data.Images.read_where(query, field="error")[0]
                         #NOTICE: image and error are just too big to read in ALL of them up front,
                         #        so still need to read them just for the amp+exmposure here
@@ -1043,7 +1043,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
 
                     if fibers_table is None:
                         clean_tab = True
-                        print("amp level read")
+                        #print("amp level read")
                         tab = Table(h5.root.Data.Fibers.read_where(query))  # '(multiframe == mf) & (expnum == expi)'))
                     else:
                         clean_tab = False
@@ -1075,6 +1075,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     chi2 = np.array(tab['chi2'][tab_sel])
                     spectrum = np.array(tab['spectrum'][tab_sel])
                     sky_subtracted = np.array(tab['sky_subtracted'][tab_sel])
+                    fiber_to_fiber = np.array(tab['fiber_to_fiber'][tab_sel])
 
 
                     ############################################
@@ -1216,22 +1217,24 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     #####################
                     #N_cont
                     #####################
-                    M = calfib_ffsky_counts  #uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
-                    M0 = M[M != 0]
+                    #M = calfib #_ffsky_counts  #uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
+                    M = sky_subtracted #[:,66:-66] * fiber_to_fiber[:,66:-66]
+                    M0 = M[M != 0] #slightly better with this 0 filter
+                    #M0 = M
                     if np.size(M0) > 1:
-                        sddev = biweight.biweight_scale(M0) /np.sqrt(900.) #yes, 900 not 1032 or 1036, per Karl ... empirircal
+                        sddev = biweight.biweight_scale(M0) /np.sqrt(900) #yes, 900 not 1032 or 1036, per Karl ... empirircal
                         avg = biweight.biweight_location(M0)
-                        lo_ct = 0
                         hi_ct = 0
                         for i in range(len(M)): #work down all the 112 fibers
                             f = M[i]
                             if np.count_nonzero(f) != 0:
                                 bwl_f = biweight.biweight_location(f[f != 0])
                                 if bwl_f > (avg + (7.0 * sddev)):
+                                #if bwl_f > (0.0 + (7.0 * sddev)):  #DEFINITELY NOT THIS ONE
                                     hi_ct += 1
-                            #else: # the counts are ALL zero? while not technically "low"
-                                  # by this definition, it IS a problem (and really, all zero is "low")
-                                #lo_ct += 1
+                            #else: #all zero? mark it?
+                            #    hi_ct += 1
+
                         exp_dict['N_cont'] = hi_ct
                     else:
                         exp_dict['N_cont'] = -1
@@ -1242,7 +1245,8 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     ##############
                     # Nlo (different M selection than frac_0)
                     # again, this is different than the original amp.dat, but may be a better calculation
-                    M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                   # M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                    M = sky_subtracted[:,299:800] #* fiber_to_fiber[:,299:800]
                     M0 = M[M != 0]
                     if np.size(M0) > 1:
                         sddev = biweight.biweight_scale(M0)
@@ -1254,9 +1258,9 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                                 bwl_f = biweight.biweight_location(f[f != 0])
                                 if bwl_f < (avg - (2.0 * sddev)):
                                     lo_ct += 1
-                            #else: # the counts are ALL zero? while not technically "low"
-                                  # by this definition, it IS a problem (and really, all zero is "low")
-                                #lo_ct += 1
+                            # else: #all zero? mark it?
+                            #     lo_ct += 1
+
                         exp_dict['n_lo'] = lo_ct
                     else:
                         exp_dict['n_lo'] = -1
