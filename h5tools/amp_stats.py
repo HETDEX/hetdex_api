@@ -25,6 +25,8 @@ from hetdex_api.config import HDRconfig
 
 import traceback
 
+
+
 from tqdm import tqdm
 
 #########################################
@@ -1066,6 +1068,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     tab_sel = np.array(tab['multiframe']==target_mf) & np.array(tab['expnum']==target_expnum)
 
                     calfib = np.array(tab['calfib'][tab_sel])
+                    #calfibe = np.array(tab['calfibe'][tab_sel])
                     calfib_counts = np.array(tab['calfib_counts'][tab_sel])
                     calfib_ffsky = np.array(tab['calfib_ffsky'][tab_sel])
 
@@ -1075,7 +1078,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     chi2 = np.array(tab['chi2'][tab_sel])
                     spectrum = np.array(tab['spectrum'][tab_sel])
                     sky_subtracted = np.array(tab['sky_subtracted'][tab_sel])
-                    fiber_to_fiber = np.array(tab['fiber_to_fiber'][tab_sel])
+                    #fiber_to_fiber = np.array(tab['fiber_to_fiber'][tab_sel])
 
 
                     ############################################
@@ -1214,57 +1217,130 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                         exp_dict['sky_sub_rms'] = np.nan
 
 
-                    #####################
-                    #N_cont
-                    #####################
-                    #M = calfib #_ffsky_counts  #uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
-                    M = sky_subtracted #[:,66:-66] * fiber_to_fiber[:,66:-66]
-                    M0 = M[M != 0] #slightly better with this 0 filter
-                    #M0 = M
-                    if np.size(M0) > 1:
-                        sddev = biweight.biweight_scale(M0) /np.sqrt(900) #yes, 900 not 1032 or 1036, per Karl ... empirircal
-                        avg = biweight.biweight_location(M0)
-                        hi_ct = 0
-                        for i in range(len(M)): #work down all the 112 fibers
-                            f = M[i]
-                            if np.count_nonzero(f) != 0:
-                                bwl_f = biweight.biweight_location(f[f != 0])
-                                if bwl_f > (avg + (7.0 * sddev)):
-                                #if bwl_f > (0.0 + (7.0 * sddev)):  #DEFINITELY NOT THIS ONE
-                                    hi_ct += 1
-                            #else: #all zero? mark it?
-                            #    hi_ct += 1
 
-                        exp_dict['N_cont'] = hi_ct
+                    if False:
+                        #####################
+                        # N_cont (compact)
+                        #####################
+                        M = calfib_ffsky_counts  #uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
+                        #M = sky_subtracted #[:,66:-66] * fiber_to_fiber[:,66:-66]
+                        M[M==0] = np.nan
+                        M[calfibe==0] = np.nan
+                        if np.any(M) and np.any(~np.isnan(M)):
+                            sddev = biweight.biweight_scale(M,ignore_nan=True) / 30.0 #i.e. np.sqrt(900) #yes, 900 not 1032 or 1036, per Karl ... empirircal
+                            avg = biweight.biweight_location(M,ignore_nan=True)
+
+                            bwl_f = biweight.biweight_location(M,axis=1,ignore_nan=True)
+                            hi_ct = np.count_nonzero(bwl_f > (avg + 7.0 * sddev))
+
+                            exp_dict['N_cont'] = hi_ct
+                        else:
+                            exp_dict['N_cont'] = -1
+
                     else:
-                        exp_dict['N_cont'] = -1
+                        ###############################
+                        #N_cont iterative
+                        ###############################
+                        #M = calfib_ffsky_counts  # uses all 112 x 1032 (or 1036 in this case) # [:, 299:800]
+                        M = sky_subtracted #[:,66:-66] * fiber_to_fiber[:,66:-66]
+                        M0 = M[M != 0]
+                        #Msel = np.array(M != 0) & np.array(calfibe != 0)
+                        #M0 = M[Msel] #slightly better with this 0 filter
+                        #M0 = M[calfibe !=0]
+                        #M0 = M0[M0 != 0]
 
-                    # Nlo (different M selection than frac_0)
-                    ##############
-                    # n_lo
-                    ##############
-                    # Nlo (different M selection than frac_0)
-                    # again, this is different than the original amp.dat, but may be a better calculation
-                   # M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
-                    M = sky_subtracted[:,299:800] #* fiber_to_fiber[:,299:800]
-                    M0 = M[M != 0]
-                    if np.size(M0) > 1:
-                        sddev = biweight.biweight_scale(M0)
-                        avg = biweight.biweight_location(M0)
-                        lo_ct = 0
-                        for i in range(len(M)): #work down all the 112 fibers
-                            f = M[i]
-                            if np.count_nonzero(f) != 0:
-                                bwl_f = biweight.biweight_location(f[f != 0])
-                                if bwl_f < (avg - (2.0 * sddev)):
-                                    lo_ct += 1
-                            # else: #all zero? mark it?
-                            #     lo_ct += 1
+                        if np.size(M0) > 1:
+                            sddev = biweight.biweight_scale(M0,ignore_nan=True) / 30.0  # i.e. np.sqrt(900) #yes, 900 not 1032 or 1036, per Karl ... empirircal
+                            avg = biweight.biweight_location(M0, ignore_nan=True)
 
-                        exp_dict['n_lo'] = lo_ct
+                            hi_ct = 0
+                            for i in range(len(M)): #work down all the 112 fibers
+                                f = M[i]
+                                #e = calfibe[i]
+                                #f = f[e!=0]
+                                f = f[f!=0]
+                                if np.count_nonzero(f) != 0:
+
+                                    bwl_f = biweight.biweight_location(f)
+                                    if bwl_f > (avg + (7.0 * sddev)):
+                                    #if bwl_f > (0.0 + (7.0 * sddev)):  #DEFINITELY NOT THIS ONE
+                                        hi_ct += 1
+                                #else: #all zero? mark it?
+                                #    hi_ct += 1
+
+                            exp_dict['N_cont'] = hi_ct
+                        else:
+                            exp_dict['N_cont'] = -1
+
+
+
+                    if False:
+                        # Nlo (different M selection than frac_0)
+                        ##############
+                        # n_lo
+                        ##############
+                        # Nlo (different M selection than frac_0)
+                        # again, this is different than the original amp.dat, but may be a better calculation
+                       # M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                        M = calfib_ffsky_counts[:,299:800] #* fiber_to_fiber[:,299:800]
+                        M[M == 0] = np.nan
+                        M[calfibe[:,299:800] == 0] = np.nan
+                        #M0 = M[M != 0]
+                        #if np.size(M0) > 1:
+                        if np.any(M) and np.any(~np.isnan(M)):
+                            sddev = biweight.biweight_scale(M,ignore_nan=True)
+                            avg = biweight.biweight_location(M,ignore_nan=True)
+
+                            bwl_f = biweight.biweight_location(M, axis=1, ignore_nan=True)
+                            lo_ct = np.count_nonzero(bwl_f < (avg - 2.0 * sddev))
+
+                            # lo_ct = 0
+                            # for i in range(len(M)): #work down all the 112 fibers
+                            #     f = M[i]
+                            #     if np.count_nonzero(f) != 0:
+                            #         bwl_f = biweight.biweight_location(f[f != 0])
+                            #         if bwl_f < (avg - (2.0 * sddev)):
+                            #             lo_ct += 1
+                            #     # else: #all zero? mark it?
+                            #     #     lo_ct += 1
+
+                            exp_dict['n_lo'] = lo_ct
+                        else:
+                            exp_dict['n_lo'] = -1
                     else:
-                        exp_dict['n_lo'] = -1
+                        #iterative version
+                        ##############
+                        # n_lo
+                        ##############
+                        # Nlo (different M selection than frac_0)
+                        # again, this is different than the original amp.dat, but may be a better calculation
+                        # M = calfib_ffsky_counts[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                        #M = calfib_ffsky_counts[:, 299:800]  # * fiber_to_fiber[:,299:800]
+                        M = sky_subtracted[:, 299:800]
+                        M0 = M[M!=0]
+                        #M0 = M[calfibe[:, 299:800] != 0]
+                        #M0 = M0[M0 != 0]
+                        # M0 = M[M != 0]
+                        if np.size(M0) > 1:
+                            sddev = biweight.biweight_scale(M0, ignore_nan=True)
+                            avg = biweight.biweight_location(M0, ignore_nan=True)
 
+                            lo_ct = 0
+                            for i in range(len(M)): #work down all the 112 fibers
+                                f = M[i]
+                                #e = calfibe[:, 299:800][i]
+                                #f = f[e != 0]
+                                f = f[f != 0]
+                                if np.count_nonzero(f) != 0:
+                                    bwl_f = biweight.biweight_location(f[f != 0])
+                                    if bwl_f < (avg - (2.0 * sddev)):
+                                        lo_ct += 1
+                                # else: #all zero? mark it?
+                                #     lo_ct += 1
+
+                            exp_dict['n_lo'] = lo_ct
+                        else:
+                            exp_dict['n_lo'] = -1
 
                     ##############
                     # n_lo (alternate)
@@ -1501,7 +1577,8 @@ def stats_make_shot_tables(h5):
         #only keep the columns we need
         #there is extra data here, but fewer read calls ... is that a good trade off for TACC?
         #t_fibers.keep_columns(
-        #    ['multiframe', 'expnum', 'fibnum','calfib', 'calfib_counts', 'calfib_ffsky', 'chi2', 'spectrum', 'sky_subtracted'])
+        #    ['multiframe', 'expnum', 'fibnum','calfib', 'calfibe', 'calfib_counts', 'calfib_ffsky', 'chi2', 'spectrum',
+        #    'sky_subtracted','fiber_to_fiber])
 
 
         #alternate (one column at time)
@@ -1515,8 +1592,15 @@ def stats_make_shot_tables(h5):
         spectrum = h5.root.Data.Fibers.read(field="spectrum")
         sky_subtracted = h5.root.Data.Fibers.read(field="sky_subtracted")
 
+        #fiber_to_fiber = h5.root.Data.Fibers.read(field="fiber_to_fiber")
+        #calfibe = h5.root.Data.Fibers.read(field="calfibe")
+
         t_fibers = Table([multiframe, expnum, fibnum, calfib,calfib_counts,calfib_ffsky,chi2,spectrum,sky_subtracted],
-                  names=["multiframe", "expnum", "fibnum", "calfib","calfib_counts","calfib_ffsky","chi2","spectrum","sky_subtracted"])
+                  names=["multiframe", "expnum", "fibnum", "calfib","calfib_counts","calfib_ffsky","chi2","spectrum",
+                         "sky_subtracted"])
+        #,"fiber_to_fiber","calfibe"]
+        # fiber_to_fiber,calfibe],
+
 
         t_fibers.add_index('multiframe')
         t_fibers.add_index('expnum')
@@ -1531,6 +1615,9 @@ def stats_make_shot_tables(h5):
         del chi2
         del spectrum
         del sky_subtracted
+
+        #del fiber_to_fiber
+        #del calfibe
 
     except Exception as e:
         # todo: error handling
