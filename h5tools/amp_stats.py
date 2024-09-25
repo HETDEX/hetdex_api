@@ -142,13 +142,13 @@ def stats_shot_dict_to_table(shot_dict):
         norm = []
         frac_0 = []
         n_lo = []
-        n_lo_ss = []
+        #n_lo_ss = []
         N_cont = []
 
 
         #original amp.dat
         #kNorm = []
-        kN_c = []
+        #kN_c = []
         #kNlo = [] #same as n_lo
         Scale = []
         Avg = []
@@ -178,13 +178,13 @@ def stats_shot_dict_to_table(shot_dict):
                         norm.append(exp['norm'])
                         frac_0.append(exp['frac_0'])
                         n_lo.append(exp['n_lo'])
-                        n_lo_ss.append(exp['n_lo_ss'])
+                        #n_lo_ss.append(exp['n_lo_ss'])
                         N_cont.append(exp['N_cont'])
 
 
                         #tests (like original amp.dat)
                         #kNorm.append(exp['kNorm'])
-                        kN_c.append(exp['kN_c'])
+                        #kN_c.append(exp['kN_c'])
                         #kNlo.append(exp['kNlo']) #same as n_lo
                         Scale.append(exp['Scale'])
                         Avg.append(exp['Avg'])
@@ -196,7 +196,7 @@ def stats_shot_dict_to_table(shot_dict):
             [
                 shotid * np.ones(len(exp_list), dtype=int),
                 mf_list,
-                exp_list,
+                np.array(exp_list).astype(np.int8),
                 im_median,
                 maskfraction,
                 Avg,  # Karl Average
@@ -204,24 +204,24 @@ def stats_shot_dict_to_table(shot_dict):
                 chi2fib_avg,
                 frac_c2,
                 frac_0,
-                n_lo,
+                np.array(n_lo).astype(np.int8),
                 Avg_orig,
                 sky_sub_rms,
                 sky_sub_rms_rel,
                 dither_relflux,
                 norm,
                 #kNorm ,
-                kN_c ,
+                #kN_c ,
                 #kNlo, #same as n_lo
                 kchi,
-                N_cont,
-                n_lo_ss
+                np.array(N_cont).astype(np.int8),
+                #n_lo_ss
 
 
             ],
             names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", "Avg",'Scale','chi2fib_med', 'frac_c2', 'frac_0',
                    'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux','norm',
-                   'kN_c','kchi','N_cont','n_lo_ss'
+                   'kchi','N_cont'
                    ]
 
         )
@@ -329,10 +329,10 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"sky_sub_rms_rel\t")
                     f.write(f"dither_relflux\t")
                     f.write(f"norm\t")
-                    f.write(f"kN_c\t")
+                    #f.write(f"kN_c\t")
                     f.write(f"kchi\t")
                     f.write(f"N_cont\t")
-                    f.write(f"n_lo_ss\t")
+                    #f.write(f"n_lo_ss\t")
                     f.write("\n")
 
                 except:
@@ -385,10 +385,10 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                 except:
                     n_lo = f"{default_bad}"
 
-                try:
-                    n_lo_ss = f"{row['n_lo_ss']:d}"
-                except:
-                    n_lo_ss = f"{default_bad}"
+                # try:
+                #     n_lo_ss = f"{row['n_lo_ss']:d}"
+                # except:
+                #     n_lo_ss = f"{default_bad}"
 
                 try:
                     N_cont = f"{row['N_cont']:d}"
@@ -460,10 +460,10 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                 # except:
                 #     kNorm = f"{default_bad}"
 
-                try:
-                    kN_c = f"{row['kN_c']:0.4f}"
-                except:
-                    kN_c = f"{default_bad}"
+                # try:
+                #     kN_c = f"{row['kN_c']:0.4f}"
+                # except:
+                #     kN_c = f"{default_bad}"
 
                 try:
                     Avg = f"{row['Avg']:0.4f}"
@@ -520,10 +520,10 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"{sky_sub_rms_rel}\t")
                     f.write(f"{dither_relflux}\t")
                     f.write(f"{norm}\t")
-                    f.write(f"{kN_c}\t")
+                    #f.write(f"{kN_c}\t")
                     f.write(f"{kchi}")
                     f.write(f"{N_cont}")
-                    f.write(f"{n_lo_ss}\t")
+                    #f.write(f"{n_lo_ss}\t")
                     f.write(f"\n")
                 except:
                     print("stats_save_as ", print(traceback.format_exc()))
@@ -996,7 +996,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     del image
                     #from original amp.dat
                     #exp_dict['kNorm'] = np.nan  #NOT COMPUTED YET
-                    exp_dict['kN_c'] = -1 #integer, so -1 is unset
+                    #exp_dict['kN_c'] = -1 #integer, so -1 is unset
                     exp_dict['Avg'] = np.nan
                     exp_dict['Scale'] = np.nan
                     #exp_dict['kW0'] = np.nan
@@ -1012,7 +1012,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     exp_dict['frac_c2'] = np.nan
                     exp_dict['frac_0'] = np.nan
                     exp_dict['n_lo'] = -1 # this is an integer, 0 is lowest possible so -1 is unset
-                    exp_dict['n_lo_ss'] = -1
+                   # exp_dict['n_lo_ss'] = -1
                     exp_dict['N_cont'] = -1
 
                     #newer only
@@ -1086,7 +1086,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     ############################################
 
                     #exp_dict['kNorm'] = np.nan                      #NOT COMPUTED YET
-                    exp_dict['kN_c'] = -1 #integer, so -1 is unset #NOT COMPUTED YET
+                    #exp_dict['kN_c'] = -1 #integer, so -1 is unset #NOT COMPUTED YET
                     exp_dict['Avg'] = np.nan
                     exp_dict['Scale'] = np.nan
                     #exp_dict['kW0'] = np.nan                        #NOT COMPUTED YET, unimportant, unsued
@@ -1348,24 +1348,24 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     # Nlo (different M selection than frac_0)
                     # again, this is different than the original amp.dat, but may be a better calculation
                     #M = calfib_ffsky_counts[:, 299:800]
-                    M = sky_subtracted[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
-                    M0 = M[M != 0]
-                    if np.size(M0) > 1:
-                        sddev = biweight.biweight_scale(M0)
-                        avg = biweight.biweight_location(M0)
-                        lo_ct = 0
-                        for i in range(len(M)): #work down all the 112 fibers
-                            f = M[i]
-                            if np.count_nonzero(f) != 0:
-                                bwl_f = biweight.biweight_location(f[f != 0])
-                                if bwl_f < (avg - (2.0 * sddev)):
-                                    lo_ct += 1
-                            #else: # the counts are ALL zero? while not technically "low"
-                                  # by this definition, it IS a problem (and really, all zero is "low")
-                                #lo_ct += 1
-                        exp_dict['n_lo_ss'] = lo_ct
-                    else:
-                        exp_dict['n_lo_ss'] = -1
+                    # M = sky_subtracted[:, 299:800] #uses clipped interior bit 300 to 800 inclusisve per Karl, so 299:800 for Python
+                    # M0 = M[M != 0]
+                    # if np.size(M0) > 1:
+                    #     sddev = biweight.biweight_scale(M0)
+                    #     avg = biweight.biweight_location(M0)
+                    #     lo_ct = 0
+                    #     for i in range(len(M)): #work down all the 112 fibers
+                    #         f = M[i]
+                    #         if np.count_nonzero(f) != 0:
+                    #             bwl_f = biweight.biweight_location(f[f != 0])
+                    #             if bwl_f < (avg - (2.0 * sddev)):
+                    #                 lo_ct += 1
+                    #         #else: # the counts are ALL zero? while not technically "low"
+                    #               # by this definition, it IS a problem (and really, all zero is "low")
+                    #             #lo_ct += 1
+                    #     exp_dict['n_lo_ss'] = lo_ct
+                    # else:
+                    #     exp_dict['n_lo_ss'] = -1
 
                     ########################################
                     # used at shot level (may have feedback)
@@ -1698,7 +1698,7 @@ def stats_shot_rollup(h5, shot_dict):
 
     except Exception as e:
         # todo: error handling
-        print("stats_shot statisitcs", print(traceback.format_exc()))
+        print("stats_shot statistics", print(traceback.format_exc()))
 
 
 
@@ -1926,7 +1926,15 @@ def stats_qc(data,extend=False):
     flags[sel] = 1
 
     if extend:
-        amp_stats['flag'] = flags.astype(int)
+        amp_stats['flag'] = flags.astype(np.int8)
+
+        if 'flag_manual' not in amp_stats.colnames:
+            flag_col_idx = list(amp_stats.colnames).index('flag')
+            amp_stats.add_column( np.full(len(amp_stats),np.int8(-1)),name="flag_manual",index=flag_col_idx+1)
+
+            if 'flag_manual_desc' not in amp_stats.colnames:
+                amp_stats.add_column(np.full( len(amp_stats), str(" ")*256), name="flag_manual_desc", index=flag_col_idx + 2)
+
         return amp_stats
     elif single:
         del amp_stats
@@ -1936,6 +1944,57 @@ def stats_qc(data,extend=False):
         return flags
 
 
+def stats_update_flag_manual(tab, shotid, multiframe=None,expnum=None,flag_manual=-1, flag_manual_desc=None):
+    """
+    Updates the flag_manual and/or flag_manual_desc column(s) for the row(s) matching the input
+      shotid, (optional) multiframe, and (optional) expnum
+
+    Creates the flag_manual and flag_manual_desc columns if they do not already exist
+
+    Parameters
+    ----------
+    tab - required, the amp data table to update
+    shotid - required
+    multiframe [optional] if not specfied ALL mutliframes for a shot are updated
+    expnum [optional] if not specified ALL exposures are updated; can be set independently of multiframe
+    flag_manual -1 = unset, 0 = bad, 1 = good
+    flag_manual_desc - string up to 256 characters; suggestion - have brief resason why the flag is set, who set it and when (date)
+
+    Returns the number of rows updated or -1 if an exception
+    -------
+
+    """
+
+    try:
+        rows_to_update = 0
+
+        if 'flag_manual' not in tab.colnames:
+            flag_col_idx = list(tab.colnames).index('flag')
+            tab.add_column( np.full(len(tab),np.int8(-1)),name="flag_manual",index=flag_col_idx+1)
+
+            if 'flag_manual_desc' not in tab.colnames:
+                tab.add_column(np.full( len(tab), str(" ")*256), name="flag_manual_desc", index=flag_col_idx + 2)
+
+
+
+        sel = np.array(tab['shotid']==shotid)
+        if multiframe is not None:
+            sel = sel &  np.array(tab['multiframe']==multiframe)
+        if expnum is not None:
+            sel = sel & np.array(tab['expnum']==expnum)
+
+        rows_to_update = np.count_nonzero(sel)
+        if rows_to_update > 0:
+            tab['flag_manual'][sel] = flag_manual
+            if flag_manual_desc is not None:
+                tab['flag_manual_desc'][sel] = flag_manual_desc
+
+    except Exception as e:
+        # todo: error handling
+        print("stats_update_manual_flag", print(traceback.format_exc()))
+        rows_to_update = -1
+
+    return rows_to_update
 
 # def stats_qc_ifu(ifu_dict):
 #     """
