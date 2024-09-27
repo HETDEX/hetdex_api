@@ -286,30 +286,6 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     #         f"\n")
 
                     #less efficient but easier to read
-                    # i = 1
-                    # f.write(f"#dateshot[{i}]\t"); i += 1
-                    # f.write(f"multiframe[{i}]\t"); i += 1
-                    # f.write(f"Factor[{i}]\t"); i += 1
-                    # f.write(f"N_c[{i}]\t"); i += 1
-                    # f.write(f"Avg[{i}]\t"); i += 1
-                    # f.write(f"Scale[{i}]\t"); i += 1
-                    # f.write(f"W0[{i}]\t"); i += 1
-                    # f.write(f"W1[{i}]\t"); i += 1
-                    # f.write(f"n_lo[{i}]\t"); i += 1
-                    # f.write(f"Avg_orig[{i}]\t"); i += 1
-                    # f.write(f"chi2fib_med[{i}]\t"); i += 1
-                    # f.write(f"frac_c2[{i}]\t"); i += 1
-                    # f.write(f"frac_0[{i}]\t"); i += 1
-                    # f.write(f"im_median[{i}]\t"); i += 1
-                    # f.write(f"MaskFraction[{i}]\t"); i += 1
-                    # f.write(f"sky_sub_rms[{i}]\t"); i += 1
-                    # f.write(f"sky_sub_rms_rel[{i}]\t"); i += 1
-                    # f.write(f"dither_relflux[{i}]\t"); i += 1
-                    # f.write(f"norm[{i}]\t"); i += 1
-                    # f.write(f"kN_c[{i}]\t"); i += 1
-                    # f.write(f"kchi[{i}]\t"); i += 1
-                    # f.write("\n")
-                    i = 1
                     f.write(f"#dateshot\t")
                     f.write(f"multiframe\t")
                     f.write(f"Factor\t")
@@ -1808,23 +1784,30 @@ def stats_qc(data,extend=False):
 
 
         #should have an lower limit too? this is the sky_sub_rms / median(all the sky_sub_rms for the shot)
-        sel2 = ( (amp_stats['sky_sub_rms_rel'] > 0.6) & (amp_stats['sky_sub_rms_rel'] < 1.5)) | (is_masked(amp_stats['sky_sub_rms_rel']))
+        #originally was 1.5 max, but 1.7 is working better to not include good amps
+        #sel2 = ( (amp_stats['sky_sub_rms_rel'] >= 0.0) & (amp_stats['sky_sub_rms_rel'] < 1.7)) | (is_masked(amp_stats['sky_sub_rms_rel']))
+        sel2 = (amp_stats['sky_sub_rms_rel'] < 1.7) | (is_masked(amp_stats['sky_sub_rms_rel']))
 
         #should maybe have an upper limit? .. this is a biweight scale (so stddev like) ...
         # maybe an upper limit based on the Avg? but  again consider if there is a bright object ... could be a huge
         # range in counts that is legit ... SO NO. there should NOT be an upper limit ...tested, does not work
-        sel3 =  (amp_stats['sky_sub_rms'] > 0.2)  | (is_masked(amp_stats['sky_sub_rms_rel']))
+        #upper limit does not seem to help any ... only cuts into "good"
+        #sel3 = ((amp_stats['sky_sub_rms'] > 0.2) & (amp_stats['sky_sub_rms'] < 40.0)) | (is_masked(amp_stats['sky_sub_rms']))
+        #not finding this to be helpful ... the sky_sub_rms_rel works well though
+        #sel3 = (amp_stats['sky_sub_rms'] > 0.2) | (is_masked(amp_stats['sky_sub_rms'])) #original
 
         #a low value is a good check, but a high value may not be... consider if we are on a large, bright galaxy,
         # then the median would be naturally high
-        sel4 = (amp_stats['im_median'] > 0.05 ) | (is_masked(amp_stats['im_median']))
+        sel4 = (amp_stats['im_median'] > 0.05) | (is_masked(amp_stats['im_median']))
 
         #could consider lowering ... 25% default may be too high, 20% seems a little better
         sel5 = (amp_stats['MaskFraction'] < 0.20) | (is_masked(amp_stats['MaskFraction']))
-        sel6 = (amp_stats['N_cont'] < 35) | (is_masked(amp_stats['N_cont']))
+
+        sel6 = (amp_stats['N_cont'] < 37)  #| (is_masked(amp_stats['N_cont'])) #original is 35 but 37 is a better balance
+                                           #between flagging more amps and adding maybe good ones
         #sel6 = np.full(len(amp_stats), True)
         #sel7 = (amp_stats['nfib_bad'] <= 1) | (is_masked(amp_stats['nfib_bad']))
-        sel7 = (amp_stats['n_lo'] <= 1) | (is_masked(amp_stats['n_lo']))
+        sel7 = (amp_stats['n_lo'] <= 1)    #| (is_masked(amp_stats['n_lo']))
         #sel7 = np.full(len(amp_stats), True)
 
         #since norm is max(dither flux norms) / min(dither flux norms) MUST always be at least 1.0 (if the max == min)
@@ -1835,6 +1818,7 @@ def stats_qc(data,extend=False):
 
         sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
         # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+        #sel9 for hdr4+ is pretty insensitive until you get to < 0.08 or so (that is < .1 vs < 0.5 is almost no difference)
         sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
         sel9 = sel9_hdr3 | sel9_hdr4
 
@@ -1844,11 +1828,12 @@ def stats_qc(data,extend=False):
         #(so frac_0 == 1.0 means ALL are zero)
         #this helps and picks up a few more, but I think it HAS to be here
         # does not matter if the threshold is 1.0 or down to 0.20 or maybe even lower
+        # this one REALLY needs the masked check
         sel11 = (amp_stats['frac_0'] < 1.0) | (is_masked(amp_stats['frac_0']))
 
         #lower limit of about 0.5 seems okay, less than that maybe implies abonormally uniform data
-        #upper limit somewhere 1.1 to 1.5 is good .. below 1.1 is TOO aggressive
-        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.1)) | (is_masked(amp_stats['chi2fib_med']))
+        #upper limit somewhere 1.03 to 1.5 is good .. below 1.03  gets too aggressive
+        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.03)) | (is_masked(amp_stats['chi2fib_med']))
 
 
 
@@ -1913,7 +1898,8 @@ def stats_qc(data,extend=False):
     #     sel9 = sel9_hdr3 | sel9_hdr4
 
     #GOOD selection
-    sel = sel1 & sel2 & sel3 & sel4 & sel5 & sel6 & sel7 & sel8 & sel9 & sel11 & sel12
+    sel = sel1 & sel2 &  sel4 & sel5 & sel6 & sel7 & sel8 & sel9 & sel11 & sel12
+    #sel = sel1 & sel2 & sel3 & sel4 & sel5         & sel7 & sel8 & sel9 & sel11 & sel12
     #sel = sel1 & sel2 & sel3 & sel6 & sel7 & sel8
 
     # sel_wiggles = amp_stats['ft_flag'] == 1
