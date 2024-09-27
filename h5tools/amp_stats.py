@@ -1459,14 +1459,17 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=T
         if h5 is not None:
 
             if preload:
+                print(f"{shotid} preload read ...")
                 t_fib, t_img, t_shot = stats_make_shot_tables(h5)
             else:
                 t_fib, t_img, t_shot = None, None, None
 
+            print(f"{shotid} building stats ...")
             shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True, fibers_table=t_fib,images_table=t_img, shot_table=t_shot)
 
             if save and shot_dict is not None:
                 save_shot_stats_pickle(shot_dict)
+                print(f"{shotid} done.")
             else:
                 print(f"[{shotid}] Error. Could not assemble stats dictionary.")
             h5.close()
