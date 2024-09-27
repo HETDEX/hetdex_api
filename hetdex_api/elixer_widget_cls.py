@@ -150,10 +150,14 @@ class ElixerWidget:
         if img_dir is not None:
             if op.exists(img_dir):
                 self.elix_dir = img_dir
+                self.elixer_conn_mgr.extra_db_paths += self.elix_dir
                 # also prepend to the database search directories
                 # so will look there for alternate databases
-                for key in sql.DICT_DB_PATHS.keys():
-                    sql.DICT_DB_PATHS[key].insert(0, self.elix_dir)
+                # for key in sql.DICT_DB_PATHS.keys():
+                #     if self.elix_dir not in sql.DICT_DB_PATHS[key]:
+                #         sql.DICT_DB_PATHS[key].insert(0, self.elix_dir)
+
+
 
         if detect_h5 is not None:
             if op.isfile(detect_h5):
@@ -461,11 +465,16 @@ class ElixerWidget:
                             + "\n"
                             + traceback.format_exc()
                             + "\n"
-                            + fname
                         )
                         # print("Cannot load ELiXer Report image: ", fname)
                 else:
-                    self.status_box.value = str(e) + "\n" + traceback.format_exc()
+                    # dbpaths = ""
+                    # for key in sql.DICT_DB_PATHS.keys():
+                    #     dbpaths += str(sql.DICT_DB_PATHS[key])
+
+                    self.status_box.value = str(e) + "\n" + traceback.format_exc() #+ "\n" + dbpaths
+
+
                     # print("Cannot load ELiXer Report image: ", str(detectid))
         except Exception as e:
             self.status_box.value = (
