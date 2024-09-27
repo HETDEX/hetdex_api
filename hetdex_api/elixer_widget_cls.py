@@ -54,25 +54,25 @@ try:  # using HDRconfig
     HETDEX_DETECT_HDF5_HANDLE = None
     CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
     CONT_H5_HANDLE = None
-    HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
-    ELIXER_H5 = None
-    elix_dir = None
+    #HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
+    #ELIXER_H5 = None
+    #elix_dir = None
     
 except Exception as e:
     HETDEX_API_CONFIG = None
     # needed only if detection observered wavelength is not supplied
     try:
         HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr2.1/detect/detect_hdr2.1.h5"
-        HETDEX_ELIXER_HDF5 = "/work/03946/hetdex/hdr2.1/elixer.h5"
+        #HETDEX_ELIXER_HDF5 = "/work/03946/hetdex/hdr2.1/elixer.h5"
     except:
         HETDEX_DETECT_HDF5_FN = None
         HETDEX_ELIXER_HDF5_HANDLE = None
 
     HETDEX_DETECT_HDF5_HANDLE = None
-    ELIXER_H5 = None
+    #ELIXER_H5 = None
     
 OPEN_DET_FILE = None
-elix_dir = None
+#elix_dir = None
 
 # set up classification dictionary and associated widget
 # the widget takes an optional detection list as input either
@@ -124,7 +124,8 @@ class ElixerWidget:
         cutoutpath=None,
     ):
 
-        global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5
+        #global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5
+        global HETDEX_DETECT_HDF5_FN
 
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
@@ -137,14 +138,22 @@ class ElixerWidget:
         self.comment = []
         self.counterpart = []
         self.cutoutpath = cutoutpath
+
+        self.HETDEX_ELIXER_HDF5 = None
+        try:
+            self.HETDEX_API_CONFIG.elixerh5
+        except:
+            pass
+        self.elix_dir = None
+        self.ELIXER_H5 = None
         
         if img_dir is not None:
             if op.exists(img_dir):
-                elix_dir = img_dir
+                self.elix_dir = img_dir
                 # also prepend to the database search directories
                 # so will look there for alternate databases
                 for key in sql.DICT_DB_PATHS.keys():
-                    sql.DICT_DB_PATHS[key].insert(0, elix_dir)
+                    sql.DICT_DB_PATHS[key].insert(0, self.elix_dir)
 
         if detect_h5 is not None:
             if op.isfile(detect_h5):
@@ -152,7 +161,7 @@ class ElixerWidget:
 
         if elixer_h5 is not None:
             if op.isfile(elixer_h5):
-                HETDEX_ELIXER_HDF5 = elixer_h5
+                self.HETDEX_ELIXER_HDF5 = elixer_h5
 
 
         #change order, attempt to load the savedfile first. If it exists, ignore the detectfile and detectlist,
@@ -328,9 +337,14 @@ class ElixerWidget:
 
         interact(self.main_display, x=self.detectbox)
 
+    # def interact(self):
+    #     self.setup_widget()
+    #     interact(self.main_display, x=self.detectbox)
+
     def main_display(self, x):
 
-        global ELIXER_H5, HETDEX_ELIXER_HDF5
+        #global ELIXER_H5, HETDEX_ELIXER_HDF5
+
 
         detectid = np.int64(x)
         show_selection_buttons = True
@@ -436,8 +450,8 @@ class ElixerWidget:
 
             except Exception as e:
 
-                if elix_dir:
-                    fname = op.join(elix_dir, "%d.png" % (detectid))
+                if self.elix_dir:
+                    fname = op.join(self.elix_dir, "%d.png" % (detectid))
                     if op.exists(fname):
                         display(Image(fname))
                     else:  # try the archive location
@@ -463,24 +477,24 @@ class ElixerWidget:
             # pass
             # print("Cannot load ELiXer Report image: ", str(detectid))
 
-        if ELIXER_H5 is None:
-            if op.exists(HETDEX_ELIXER_HDF5):
+        if self.ELIXER_H5 is None:
+            if self.HETDEX_ELIXER_HDF5 is not None and op.exists(self.HETDEX_ELIXER_HDF5):
                 try:
-                    ELIXER_H5 = tables.open_file(HETDEX_ELIXER_HDF5, "r")
+                    self.ELIXER_H5 = tables.open_file(self.HETDEX_ELIXER_HDF5, "r")
                 except Exception as e:
                     self.status_box.value = str(e) + "\n" + traceback.format_exc()
-                    ELIXER_H5 = None
+                    self.ELIXER_H5 = None
             else:
                 pass
-                # print('No counterparts found in ' + HETDEX_ELIXER_HDF5)
+                # print('No counterparts found in ' + self.HETDEX_ELIXER_HDF5)
                 # return
 
         # only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
-        if ELIXER_H5:
+        if self.ELIXER_H5:
             detectid_i = detectid
 
             try:
-                self.CatalogMatch = ELIXER_H5.root.CatalogMatch.read_where(
+                self.CatalogMatch = self.ELIXER_H5.root.CatalogMatch.read_where(
                     "detectid == detectid_i"
                 )
 
@@ -1243,11 +1257,11 @@ class ElixerWidget:
         else:#except Exception as e:
             # self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
-            if elix_dir:
-                path = op.join(elix_dir, "%d_nei.png" % (detectid))
+            if self.elix_dir:
+                path = op.join(self.elix_dir, "%d_nei.png" % (detectid))
 
                 if not op.isfile(path):
-                    path = op.join(elix_dir, "%dnei.png" % (detectid))  # try w/o '_'
+                    path = op.join(self.elix_dir, "%dnei.png" % (detectid))  # try w/o '_'
                     if not op.isfile(path):
                         print("%s not found" % path)
                 else:
