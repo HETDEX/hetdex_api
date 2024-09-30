@@ -278,12 +278,6 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
             if header:
                 # !!! make sure the order matches the write at the end !!!
                 try: #note some extra tabs for formatting
-                    # f.write(f"#dateshot\tmultiframe\t"
-                    #         f"Factor\tN_c\tAvg\tScale\tW0\tW1\tn_lo\tAvg_orig\tchi2fib_med\t"
-                    #         f"frac_c2\tfrac_0\t"
-                    #         f"im_median\tMaskFraction\tsky_sub_rms\tsky_sub_rms_rel\tdither_relflux\tnorm\t"
-                    #         f"kN_c\tkchi"
-                    #         f"\n")
 
                     #less efficient but easier to read
                     f.write(f"#dateshot\t")
@@ -2019,6 +2013,7 @@ def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual
                 rows_to_update = -1
         elif interactive:
             print("No records match the input. No update made.")
+            print(f"shotid {shotid}, multiframe {multiframe}, expnum {expnum}")
 
     except Exception as e:
         # todo: error handling
