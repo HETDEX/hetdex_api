@@ -1121,6 +1121,9 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     # new/replacement statistics apart from amp.dat
                     #######################################################
 
+                    #im_media, maskfraction, chi2fib, frac_c2 based on:
+                    #/home1/05350/ecooper/work/stampede2/hdr3/get_im_values.py
+
                     # similar to what original amp.dat called Scale, but over a different range
                     # Scale is from ffsky counts instead of the "image"
                     #      and for fibers 10 to 100 (inclusive), wavebins 300 to 800 (inclusive)
@@ -1141,7 +1144,8 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     #sel_reg = (tab['fibnum'] >= 10) & (tab['fibnum'] <= 100)
                     #chi2fib = tab['chi2'][sel_reg]
                     #chi2_arr = np.array(chi2fib[:, 100:1000])
-                    chi2_arr = np.array(chi2[9:100,299:800])
+                    #chi2_arr = np.array(chi2[9:100,299:800])
+                    chi2_arr = np.array(chi2[9:100, 100:1000])
 
                     chi2_gtzero = chi2_arr[chi2_arr > 0]
                     # similar to the orginal amp.dat chi, with a +/-1 count/index difference on fibers and wavelengths
