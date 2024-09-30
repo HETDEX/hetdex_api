@@ -138,6 +138,7 @@ def stats_shot_dict_to_table(shot_dict):
         frac_c2 = []
         sky_sub_rms = []
         sky_sub_rms_rel = []
+        sky_sub_rms_median_exp = []
         dither_relflux = []
         norm = []
         frac_0 = []
@@ -174,6 +175,12 @@ def stats_shot_dict_to_table(shot_dict):
 
                         sky_sub_rms.append(exp['sky_sub_rms'])
                         sky_sub_rms_rel.append(exp['sky_sub_rms_rel'])
+                        try:
+                            #not all versions have this in the exp_dict
+                            sky_sub_rms_median_exp.append(exp['sky_sub_rms_median']) #the one actually used in the calculation
+                        except:
+                            sky_sub_rms_median_exp.append(np.nan)
+                            #sky_sub_rms_median_exp.append(np.nanmedian(sd['sky_sub_rms_median_exp']))
                         dither_relflux.append(exp['dither_relflux'])
                         norm.append(exp['norm'])
                         frac_0.append(exp['frac_0'])
@@ -208,6 +215,7 @@ def stats_shot_dict_to_table(shot_dict):
                 Avg_orig,
                 sky_sub_rms,
                 sky_sub_rms_rel,
+                sky_sub_rms_median_exp,
                 dither_relflux,
                 norm,
                 #kNorm ,
@@ -220,7 +228,7 @@ def stats_shot_dict_to_table(shot_dict):
 
             ],
             names=["shotid", "multiframe", "expnum", "im_median", "MaskFraction", "Avg",'Scale','chi2fib_med', 'frac_c2', 'frac_0',
-                   'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel', 'dither_relflux','norm',
+                   'n_lo', 'Avg_orig','sky_sub_rms', 'sky_sub_rms_rel','sky_sub_rms_median','dither_relflux','norm',
                    'kchi','N_cont'
                    ]
 
@@ -297,6 +305,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"MaskFraction\t")
                     f.write(f"sky_sub_rms\t")
                     f.write(f"sky_sub_rms_rel\t")
+                    f.write(f"sky_sub_rms_median_exp\t")
                     f.write(f"dither_relflux\t")
                     f.write(f"norm\t")
                     #f.write(f"kN_c\t")
@@ -411,6 +420,11 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     sky_sub_rms_rel = f"{default_bad}"
 
                 try:
+                    sky_sub_rms_median_exp = f"{row['sky_sub_rms_median_exp']:0.4f}"
+                except:
+                    sky_sub_rms_median_exp = f"{default_bad}"
+
+                try:
                     #this one is really at a shot level, but has to be repeated at each amp
                     dither_relflux = f"{row['dither_relflux']:0.4f}"
                 except:
@@ -488,6 +502,7 @@ def stats_save_as(shot_dict,outfile,format="ascii",overwrite=True,oldstyle=False
                     f.write(f"{MaskFraction}\t")
                     f.write(f"{sky_sub_rms}\t")
                     f.write(f"{sky_sub_rms_rel}\t")
+                    f.write(f"{sky_sub_rms_median_exp}\t")
                     f.write(f"{dither_relflux}\t")
                     f.write(f"{norm}\t")
                     #f.write(f"{kN_c}\t")
@@ -989,6 +1004,7 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                     exp_dict['maskfraction'] = np.nan
                     exp_dict['im_median'] = np.nan
                     exp_dict['sky_sub_rms'] = np.nan
+                    exp_dict['sky_sub_rms_median'] = np.nan #gets added on shot rollup
                     exp_dict['sky_sub_rms_rel'] = np.nan  # gets added on shot rollup
 
                     # exp_dict['sky_sub_bws'] = -999.0
@@ -1665,7 +1681,10 @@ def stats_shot_rollup(h5, shot_dict):
                         # exp['sky_sub_bws_rel'] = -999.0
                         continue
                     try:
-                        exp['sky_sub_rms_rel'] = exp['sky_sub_rms'] / shot_dict['sky_sub_rms_median_exp'][sel][0]
+                        #different from Erin's original method in that the median used is the median for THIS exposure
+                        #rather than the median over all 3 exposures
+                        exp['sky_sub_rms_median'] = shot_dict['sky_sub_rms_median_exp'][sel][0] #record the one we used
+                        exp['sky_sub_rms_rel'] = exp['sky_sub_rms'] / exp['sky_sub_rms_median']
                         # exp['sky_sub_bws_rel'] = exp['sky_sub_bws'] / shot_dict['sky_sub_bws_median_exp'][sel][0]
                     except Exception as e:
                         exp['sky_sub_rms_rel'] = np.nan
