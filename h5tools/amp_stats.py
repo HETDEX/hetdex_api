@@ -1933,7 +1933,7 @@ def stats_qc(data,extend=False):
         return flags
 
 
-def stats_update_flag_manual(tab, shotid, multiframe=None,expnum=None,flag_manual=-1, flag_manual_desc=None):
+def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual=-1, flag_manual_desc=None, interactive=True):
     """
     Updates the flag_manual and/or flag_manual_desc column(s) for the row(s) matching the input
       shotid, (optional) multiframe, and (optional) expnum
@@ -1942,12 +1942,13 @@ def stats_update_flag_manual(tab, shotid, multiframe=None,expnum=None,flag_manua
 
     Parameters
     ----------
-    tab - required, the amp data table to update
+    db - required, the amp data table to update or full path to table to update
     shotid - required
     multiframe [optional] if not specfied ALL mutliframes for a shot are updated
     expnum [optional] if not specified ALL exposures are updated; can be set independently of multiframe
     flag_manual -1 = unset, 0 = bad, 1 = good
     flag_manual_desc - string up to 256 characters; suggestion - have brief resason why the flag is set, who set it and when (date)
+    interactive = if True (default) prompt the user to confirm
 
     Returns the number of rows updated or -1 if an exception
     -------
@@ -1957,14 +1958,34 @@ def stats_update_flag_manual(tab, shotid, multiframe=None,expnum=None,flag_manua
     try:
         rows_to_update = 0
 
+        if isinstance(db, str): #assume this is a filename
+            try:
+                tab = Table.read(db)
+            except Exception as e:
+                if interactive:
+                    print(f"Unable to open file {db}. Cannot update.")
+                    print(traceback.format_exc())
+                return -1
+        elif isinstance(db,Table):
+            tab = db
+        else:
+            if interactive:
+                print("Unknown database type. Cannot update.")
+            return -1
+
+
+        if 'flag' not in tab.colnames:
+            if interactive:
+                print("Input is missing flagging. Will apply now ... ")
+            tab = stats_qc(tab,extend=True)
+
+
         if 'flag_manual' not in tab.colnames:
             flag_col_idx = list(tab.colnames).index('flag')
             tab.add_column( np.full(len(tab),np.int8(-1)),name="flag_manual",index=flag_col_idx+1)
 
             if 'flag_manual_desc' not in tab.colnames:
                 tab.add_column(np.full( len(tab), str(" ")*256), name="flag_manual_desc", index=flag_col_idx + 2)
-
-
 
         sel = np.array(tab['shotid']==shotid)
         if multiframe is not None:
@@ -1974,9 +1995,24 @@ def stats_update_flag_manual(tab, shotid, multiframe=None,expnum=None,flag_manua
 
         rows_to_update = np.count_nonzero(sel)
         if rows_to_update > 0:
-            tab['flag_manual'][sel] = flag_manual
-            if flag_manual_desc is not None:
-                tab['flag_manual_desc'][sel] = flag_manual_desc
+            if interactive:
+                i = input(f"Records to update = {rows_to_update}. Proceed (y/n)?")
+                if len(i) > 0 and i.upper() == "Y":
+                    proceed = True
+                else:
+                    proceed = False
+            else:
+                proceed = True
+
+            if proceed:
+                tab['flag_manual'][sel] = flag_manual
+                if flag_manual_desc is not None:
+                    tab['flag_manual_desc'][sel] = flag_manual_desc
+            else:
+                print("Update cancelled.")
+                rows_to_update = -1
+        elif interactive:
+            print("No records match the input. No update made.")
 
     except Exception as e:
         # todo: error handling
