@@ -196,7 +196,7 @@ def stats_shot_dict_to_table(shot_dict):
             [
                 shotid * np.ones(len(exp_list), dtype=int),
                 mf_list,
-                np.array(exp_list).astype(np.int8),
+                np.array(exp_list).astype(np.int32), # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
                 im_median,
                 maskfraction,
                 Avg,  # Karl Average
@@ -204,7 +204,7 @@ def stats_shot_dict_to_table(shot_dict):
                 chi2fib_avg,
                 frac_c2,
                 frac_0,
-                np.array(n_lo).astype(np.int8),
+                np.array(n_lo).astype(np.int32),
                 Avg_orig,
                 sky_sub_rms,
                 sky_sub_rms_rel,
@@ -214,7 +214,7 @@ def stats_shot_dict_to_table(shot_dict):
                 #kN_c ,
                 #kNlo, #same as n_lo
                 kchi,
-                np.array(N_cont).astype(np.int8),
+                np.array(N_cont).astype(np.int32),
                 #n_lo_ss
 
 
@@ -647,7 +647,7 @@ def stats_update_shot(h5, shot_dict):
 
         class AmpStats(tables.IsDescription):
             multiframe = tables.StringCol(itemsize=20, pos=0)
-            expnum = tables.Int32Col(pos=1)  # could be an int8, but keep it this was to be consistent with other tables
+            expnum = tables.Int32Col(pos=1)  # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
             status = tables.Int32Col(
                 pos=2)  # a status indicator, TBD ... could be a value or a bitmapped mask (-1 bad, 0 unchecked, 1 good?)
             im_median = tables.Float32Col()
@@ -1915,11 +1915,11 @@ def stats_qc(data,extend=False):
     flags[sel] = 1
 
     if extend:
-        amp_stats['flag'] = flags.astype(np.int8)
+        amp_stats['flag'] = flags.astype(np.int32) # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
 
         if 'flag_manual' not in amp_stats.colnames:
             flag_col_idx = list(amp_stats.colnames).index('flag')
-            amp_stats.add_column( np.full(len(amp_stats),np.int8(-1)),name="flag_manual",index=flag_col_idx+1)
+            amp_stats.add_column( np.full(len(amp_stats),np.int32(-1)),name="flag_manual",index=flag_col_idx+1)
 
             if 'flag_manual_desc' not in amp_stats.colnames:
                 amp_stats.add_column(np.full( len(amp_stats), str(" ")*256), name="flag_manual_desc", index=flag_col_idx + 2)
@@ -1933,7 +1933,7 @@ def stats_qc(data,extend=False):
         return flags
 
 
-def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual=-1, flag_manual_desc=None, interactive=True):
+def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual=-1, flag_manual_desc=None, savefmt=None,interactive=True):
     """
     Updates the flag_manual and/or flag_manual_desc column(s) for the row(s) matching the input
       shotid, (optional) multiframe, and (optional) expnum
@@ -1942,15 +1942,17 @@ def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual
 
     Parameters
     ----------
-    db - required, the amp data table to update or full path to table to update
+    db - required, the amp data table to update or full path to table to update. NOTE: will NOT save if db is a table in memory.
     shotid - required
     multiframe [optional] if not specfied ALL mutliframes for a shot are updated
     expnum [optional] if not specified ALL exposures are updated; can be set independently of multiframe
     flag_manual -1 = unset, 0 = bad, 1 = good
     flag_manual_desc - string up to 256 characters; suggestion - have brief resason why the flag is set, who set it and when (date)
+    savefmt = if None, do not save, otherwise save using the astropy format specified (str). Only applies if db is a string (filename)
     interactive = if True (default) prompt the user to confirm
 
-    Returns the number of rows updated or -1 if an exception
+    Returns the number of rows updated or -1 if an exception,
+       !!!NOTICE!!! This modifies the table in memory  BUT DOES NOT write out to disk
     -------
 
     """
@@ -1982,7 +1984,8 @@ def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual
 
         if 'flag_manual' not in tab.colnames:
             flag_col_idx = list(tab.colnames).index('flag')
-            tab.add_column( np.full(len(tab),np.int8(-1)),name="flag_manual",index=flag_col_idx+1)
+            # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
+            tab.add_column( np.full(len(tab),np.int32(-1)),name="flag_manual",index=flag_col_idx+1)
 
             if 'flag_manual_desc' not in tab.colnames:
                 tab.add_column(np.full( len(tab), str(" ")*256), name="flag_manual_desc", index=flag_col_idx + 2)
@@ -2008,6 +2011,9 @@ def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual
                 tab['flag_manual'][sel] = flag_manual
                 if flag_manual_desc is not None:
                     tab['flag_manual_desc'][sel] = flag_manual_desc
+
+                if savefmt is not None and isinstance(db,str):
+                    tab.write(db,overwrite=True,format=savefmt)
             else:
                 print("Update cancelled.")
                 rows_to_update = -1
