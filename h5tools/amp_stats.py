@@ -2045,21 +2045,114 @@ def stats_update_flag_manual(db, shotid, multiframe=None,expnum=None,flag_manual
 
     return rows_to_update
 
-# def stats_qc_ifu(ifu_dict):
-#     """
-#     todo: what consitutes a bad IFU ...
-#     operate on all amps in the ifu, calling into stats_qc_amp
-#     evaluate and set flag in the amp_dict
-#
-#     """
-#     pass
-#
-#
-# def stats_qc_shot(ifu_dict):
-#     """
-#     todo: what consitutes a bad Shot ...
-#     operate on all IFUs in the shot, calling into stats_qc_ifu (which calls stats_qc_amp)
-#     evaluate and set flag in the amp_dict
-#
-#     """
-#     pass
+def stats_make_simple_amp_flag_file(db,outname="amp_flag",overwrite=False):
+    """
+    Simplifies amp statistics to just shotid + multiframe + flag
+    Saves as two output files (fits and ascii format tables)
+
+    Parameters
+    ----------
+    db = astropy table or filename of the amp statistics to simplify
+    outname = basename of the files to save. The ".fits" and ".tab" extensions are added in this code
+    overwrite = set to True if you want to replace files that already exist
+
+    Returns
+    -------
+    the simplified table or None if the function fails
+
+    """
+
+    try:
+        if isinstance(db, str): #assume this is a filename
+            try:
+                tab = Table.read(db)
+            except Exception as e:
+                print(f"Unable to open file {db}. Cannot output simple file.")
+                print(traceback.format_exc())
+                return -1
+        elif isinstance(db,Table):
+            tab = copy.copy(db)
+        else:
+            print("Unknown database type. Cannot output simple file.")
+            return -1
+
+        if "flag" not in tab.colnames:
+            print("flag column not present. Cannot build simple flag file.")
+            return -1
+
+        flag_manual_check = "flag_manual" in tab.colnames
+        tab.keep_columns(["shotid","multiframe","expnum","flag","flag_manual"])
+
+        #combine over all exposures ... if any exposure has the flag, then the whole amp is flagged (for all exposures)
+        #a flag of 0 is "bad"; all others (1 or even unset, -1) are assumed "good"
+        exposures = np.unique(tab['expnum'])
+
+        Tsimple = None
+
+        for expnum in exposures:
+            if Tsimple is None:
+                Tsimple = tab[tab['expnum'] == expnum]
+                Tsimple.remove_column('expnum')
+                # make sure we have only 1 or 0 (anything not == 0 goes to 1)
+                # here, 1 is "good"
+                sn0 = np.array(Tsimple['flag'] != 0)
+                Tsimple['flag'][sn0] = 1
+                # now flip s|t 0 is good and -1 is bad
+                Tsimple['flag'][~sn0] = -1
+                Tsimple['flag'][sn0] = 0
+
+                if flag_manual_check:
+                    sn0 = np.array(Tsimple['flag_manual'] != 0)
+                    Tsimple['flag_manual'][sn0] = 1
+                    # now flip s|t 0 is good and -1 is bad
+                    Tsimple['flag_manual'][~sn0] = -1
+                    Tsimple['flag_manual'][sn0] = 0
+
+                    # if either flag or flag_manual is set to bad, make it bad (HERE not 0 is bad)
+                    Tsimple['flag'] = np.array(Tsimple['flag']) + np.array(Tsimple['flag_manual'])
+                    Tsimple.remove_column('flag_manual')
+
+
+            else:
+                T2b = tab[tab['expnum'] == expnum]
+                T2b.remove_column('expnum')
+                # make sure we have only 1 or 0 (anything not == 0 goes to 1)
+                # here, 1 is "good"
+                sn0 = np.array(T2b['flag'] != 0)
+                T2b['flag'][sn0] = 1
+                # now flip s|t 0 is good and -1 is bad
+                T2b['flag'][~sn0] = -1
+                T2b['flag'][sn0] = 0
+
+                if flag_manual_check:
+                    sn0 = np.array(T2b['flag_manual'] != 0)
+                    T2b['flag_manual'][sn0] = 1
+                    # now flip s|t 0 is good and -1 is bad
+                    T2b['flag_manual'][~sn0] = -1
+                    T2b['flag_manual'][sn0] = 0
+
+                    # if either flag or flag_manual is set to bad, make it bad (HERE not 0 is bad)
+                    T2b['flag'] = np.array(T2b['flag']) + np.array(T2b['flag_manual'])
+                    T2b.remove_column('flag_manual')
+                    T2b.rename_column('flag', 'next_flag')
+
+                # join and add up flag column
+                Tsimple = join(Tsimple, T2b, keys=["shotid", "multiframe"])
+                Tsimple['flag'] = np.array(Tsimple['flag']) + np.array(Tsimple['next_flag'])
+                Tsimple.remove_column('next_flag')
+
+        # lastly make < 0 become "bad" and == 0 while what was 0 becomes 1
+        s = np.array(Tsimple['flag'] == 0)
+        Tsimple['flag'][s] = 1  # now good
+        Tsimple['flag'][~s] = 0  # now bad
+
+        if outname is not None:
+            Tsimple.write(outname+".fits",overwrite=overwrite,format="fits")
+            Tsimple.write(outname+".tab",overwrite=overwrite,format='ascii')
+
+
+        return Tsimple
+    except Exception as e:
+        print("stats_make_simple_amp_flag_file", print(traceback.format_exc()))
+        return None
+
