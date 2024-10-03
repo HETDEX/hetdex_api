@@ -155,7 +155,7 @@ def main(argv=None):
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5, pdr1}""",
         type=str,
         default="hdr4"
     )

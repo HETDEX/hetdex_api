@@ -1,6 +1,8 @@
 """
 cloned from make_catalogs_hdr4.py
 
+FUTURE todo: update for HDR5 ... the make_catalogs_hdr4.py is still being edited (2024-10-03)
+
 """
 
 

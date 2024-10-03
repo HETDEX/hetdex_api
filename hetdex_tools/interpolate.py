@@ -18,6 +18,7 @@ try:  # using HDRconfig
     CONFIG_HDR2 = HDRconfig("hdr2.1")
     CONFIG_HDR3 = HDRconfig("hdr3")
     CONFIG_HDR4 = HDRconfig("hdr4")
+    CONFIG_HDR5 = HDRconfig("hdr5")
 
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -121,7 +122,7 @@ def make_narrowband_image(
                                     wave_range=[wave_obj-10, wave_obj+10])
     """
     global config, current_hdr, surveyh5
-    global CONFIG_HDR2, CONFIG_HDR3, CONFIG_HDR4, OPEN_DET_FILE, DET_HANDLE
+    global CONFIG_HDR2, CONFIG_HDR3, CONFIG_HDR4, CONFIG_HDR5, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
 
     if survey != current_hdr:
@@ -163,6 +164,11 @@ def make_narrowband_image(
             DET_FILE = CONFIG_HDR4.detecth5
         elif (detectid >= 4090000000) * (detectid < 4100000000):
             DET_FILE = CONFIG_HDR4.contsourceh5
+        elif (detectid >= 5000000000) * (detectid < 5090000000):
+            DET_FILE = CONFIG_HDR5.detecth5
+        elif (detectid >= 5090000000) * (detectid < 5100000000):
+            DET_FILE = CONFIG_HDR5.contsourceh5
+
 
         if OPEN_DET_FILE is None:
             DET_HANDLE = tb.open_file(DET_FILE, "r")
@@ -447,6 +453,10 @@ def make_data_cube(
             DET_FILE = CONFIG_HDR4.detecth5
         elif (detectid >= 4090000000) * (detectid < 4100000000):
             DET_FILE = CONFIG_HDR4.contsourceh5
+        elif (detectid >= 5000000000) * (detectid < 5090000000):
+            DET_FILE = CONFIG_HDR5.detecth5
+        elif (detectid >= 5090000000) * (detectid < 5100000000):
+            DET_FILE = CONFIG_HDR5.contsourceh5
             
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = DET_FILE

@@ -45,8 +45,12 @@ detlist = D.hdfile.root.Detections.read_where("shotid == shotid_use")['detectid'
 
 if survey == 'hdr3':
     curated_list = np.loadtxt('/work2/05350/ecooper/stampede2/hdr3/catalogs/line_hdr3.0.3.dets', dtype=int)
-else:
+elif survey == 'hdr4':
     curated_list = np.loadtxt('/scratch/projects/hetdex/hdr4/catalogs/line_hdr4.0.0.dets', dtype=int)
+elif survey == 'hdr5':
+    curated_list = np.loadtxt('/scratch/projects/hetdex/hdr5/catalogs/line_hdr5.0.0.dets', dtype=int)
+else:
+    print(f"Unsupported survey {survey}")
 
 common_list_det = set( detlist).intersection(curated_list)
 
@@ -74,8 +78,12 @@ detlist = C.hdfile.root.Detections.read_where("shotid == shotid_use")['detectid'
 
 if survey == 'hdr3':
     curated_list = np.loadtxt('/work2/05350/ecooper/stampede2/hdr3/catalogs/cont_hdr3.0.3.dets', dtype=int)
-else:
+elif survey == 'hdr4':
     curated_list = np.loadtxt('/scratch/projects/hetdex/hdr4/catalogs/cont_hdr4.0.0.dets', dtype=int)
+elif survey == 'hdr5':
+    curated_list = np.loadtxt('/scratch/projects/hetdex/hdr5/catalogs/cont_hdr5.0.0.dets', dtype=int)
+else:
+    print(f"Unsupported survey {survey}")
 
 common_list_cont = set( detlist).intersection(curated_list)
 

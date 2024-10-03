@@ -69,7 +69,7 @@ plt.rcParams["ytick.direction"] = "in"
 plt.rcParams["xtick.labelsize"] = 12.0
 plt.rcParams["ytick.labelsize"] = 12.0
 
-global config, imsize, pixscale, D_hdr3, D_hdr4, fileh
+global config, imsize, pixscale, D_hdr3, D_hdr4, D_hdr5, fileh
 
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
@@ -81,6 +81,7 @@ pixscale=0.25
 config = HDRconfig('hdr4')
 D_hdr3 = Detections('hdr3')
 D_hdr4 = Detections('hdr4')
+D_hdr5 = Detections('hdr5')
 mlfile = op.join( config.hdr_dir['hdr4'], 'catalogs','ml','detect_ml_4.0.0.h5')
 fileh = tb.open_file(mlfile, 'r')
 
@@ -112,14 +113,17 @@ def fit_profile(detectid=None,
                 plot=False,
                 survey=LATEST_HDR_NAME):
 
-    global config, fileh, D_hdr4, D_hdr3, imsize, pixscale
+    global config, fileh, D_hdr5, D_hdr4, D_hdr3, imsize, pixscale
 
     if detectid is not None:
-        if str( detectid)[0] == '3':
-            D = D_hdr3
-        if str( detectid)[0] == '4':
+
+        if str( detectid)[0] == '5':
+            D = D_hdr5
+        elif str( detectid)[0] == '4':
             D = D_hdr4
-        if str( detectid)[0] == '2':
+        elif str( detectid)[0] == '3':
+            D = D_hdr3
+        elif str( detectid)[0] == '2':
             D = Detections('hdr2.1')
         
         det_info = D.get_detection_info(detectid)[0]
@@ -555,10 +559,11 @@ def main(argv=None):
 
     filename = 'fit_profile/output_{}_{}.fits'.format(args.start, args.end)
 
-    global config, D_hdr3, D_hdr4, fileh
+    global config, D_hdr3, D_hdr4, D_hdr5, fileh
 
     D_hdr3 = Detections('hdr3')
     D_hdr4 = Detections('hdr4')
+    D_hdr5 = Detections('hdr5')
 
     mlfile = op.join( config.hdr_dir['hdr4'], 'catalogs','ml','detect_ml_4.0.0.h5')
     fileh = tb.open_file(mlfile, 'r') 
@@ -615,6 +620,7 @@ def main(argv=None):
     t1 = time.time()
 
     fileh.close()
+    D_hdr5.close()
     D_hdr4.close()
     D_hdr3.close()
     

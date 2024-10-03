@@ -483,7 +483,7 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""", type=str, default="hdr4"
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5}""", type=str, default="hdr4"
     )
 
     parser.add_argument(
