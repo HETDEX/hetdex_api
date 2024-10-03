@@ -205,7 +205,7 @@ class Fibers:
         
         if add_rescor:
 
-            if self.survey in ['hdr4','hdr5']:
+            if self.survey in ['hdr4','hdr5','pdr1']:
                 
                 filerescor = op.join(config.red_dir, "ffsky_rescor", "rc{}.h5".format( datevobs ))
                 try:
@@ -627,7 +627,7 @@ def get_fibers_table(
     update_F = False  # flag to update Fibers class object if needed
 
     if add_rescor:
-        if survey.lower() not in ['hdr4', 'hdr5']:
+        if survey.lower() not in ['hdr4', 'hdr5','pdr1']:
             print('Full frame calibrated fibers and residual corrected fibers not available for {}'.format(survey.lower()))
             add_rescor=False
 
@@ -655,7 +655,7 @@ def get_fibers_table(
             update_F = True
 
         if add_rescor:
-            if survey.lower() not in ['hdr4', 'hdr5']:
+            if survey.lower() not in ['hdr4', 'hdr5','pdr1']:
                 print('Full frame calibrated fibers and residual corrected fibers not available for {}'.format(survey.lower()))
                 add_rescor = False
             else:
@@ -840,9 +840,9 @@ def get_fibers_table(
             
             fibers_table['calfib'][fibers_table['mask'] == False] = mask_value
 
-            if survey.lower() in ['hdr2.1', 'hdr3', 'hdr4', 'hdr5']:
+            if survey.lower() in ['hdr2.1', 'hdr3', 'hdr4', 'hdr5','pdr1']:
                 fibers_table['calfib_ffsky'][fibers_table['mask'] == False] = mask_value
-            if add_rescor and survey.lower() in ['hdr4', 'hdr5']:
+            if add_rescor and survey.lower() in ['hdr4', 'hdr5','pdr1']:
                 fibers_table['calfib_ffsky_rescor'][fibers_table['mask'] == False] = mask_value
                               
     # down-select on expnum if desired

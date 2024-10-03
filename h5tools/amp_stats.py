@@ -1853,7 +1853,7 @@ def stats_qc(data,extend=False):
 
         #lower limit of about 0.5 seems okay, less than that maybe implies abonormally uniform data
         #upper limit somewhere 1.03 to 1.5 is good .. below 1.03  gets too aggressive
-        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.03)) | (is_masked(amp_stats['chi2fib_med']))
+        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.05)) | (is_masked(amp_stats['chi2fib_med']))
 
 
 

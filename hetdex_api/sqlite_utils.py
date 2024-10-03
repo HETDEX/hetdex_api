@@ -62,6 +62,11 @@ BASE_DICT_DB_PATHS = {
                       "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr4/detect/image_db",
                       "/scratch/03946/hetdex/hdr4/detect/image_db",
                       ],
+                50: ["/scratch/projects/hetdex/hdr5/detect/image_db",
+                     "/home/jovyan/Hobby-Eberly-Telesco/hdr5/detect/image_db",
+                     "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr5/detect/image_db",
+                     "/scratch/03946/hetdex/hdr5/detect/image_db",
+                     ],
                  #note: 31 is just temporary as the 30 detectIDs were named as 31 detectids
                  # 31: ["/scratch/03261/polonius/hdr3/detect/image_db",
                  #      "/work/03261/polonius/hdr3/detect/image_db",

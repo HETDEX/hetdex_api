@@ -63,6 +63,7 @@ class Detections:
         verbose=False,
         searchable=False,
         recentbadamp=False,
+        pdr=False,
     ):
         """
         Initialize the detection catalog class for a given data release
@@ -91,8 +92,11 @@ class Detections:
             add in any recent bad amps that have not yet been added to amp_flag.fits.
             This is quite slow on the full database so is only recommended when using
             curated_version option.
+        pdr: bool
+            if TRUE the curated version string applies to the PDR (Public Data Release) instead
+            of the internal HDR (HETDEX Data Release)
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4","hdr5"]
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4","hdr5","pdr1"]
         catalog_type_options = ["lines", "continuum", "broad", 'index']
 
         if survey.lower() not in survey_options:
@@ -111,15 +115,19 @@ class Detections:
         if curated_version is not None:
             self.version = curated_version
             self.loadtable = False
-            if curated_version[0] == "3":
-                # for now I'm assuming we don't have to do hdr3.0
-                self.survey = "hdr3"
-            elif curated_version[0] == "4":
-                self.survey = "hdr4"
-            elif curated_version[0] == "5":
-                self.survey = "hdr5"
+
+            if pdr:
+                self.survey = "pdr" + curated_version #[0:3]
             else:
-                self.survey = "hdr" + curated_version[0:3]
+                if curated_version[0] == "3":
+                    # for now I'm assuming we don't have to do hdr3.0
+                    self.survey = "hdr3"
+                elif curated_version[0] == "4":
+                    self.survey = "hdr4"
+                elif curated_version[0] == "5":
+                    self.survey = "hdr5"
+                else:
+                    self.survey = "hdr" + curated_version #[0:3]
         else:
             self.version = None
             self.survey = survey
@@ -155,7 +163,7 @@ class Detections:
             except:
                 print("Could not locate broad line catalog")
         elif catalog_type ==  'index':
-            if self.survey not in ['hdr4', 'hdr5','hdr6']:
+            if self.survey not in ['hdr4', 'hdr5','pdr1']:
                 print('The Detection Index file only exists beyond hdr3')
             else:
                 self.filename = self.config.detectindexh5
@@ -1291,7 +1299,7 @@ class Detections:
                     if verbose:
                         print("Noise model adjustment not required")
 
-        elif float(self.survey[3:]) >= 4.0: # == "hdr4":
+        elif float(self.survey[3:]) >= 4.0 or (self.survey[0:3]).lower() =='pdr': # == "hdr4":
             if rawh5 is False:
                 if verbose:
                     print("Applying spectral correction")

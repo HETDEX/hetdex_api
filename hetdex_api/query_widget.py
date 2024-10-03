@@ -42,6 +42,7 @@ try:  # using HDRconfig
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
     CONFIG_HDR4 = HDRconfig('hdr4')
+    CONFIG_HDR5 = HDRconfig('hdr5')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -209,6 +210,10 @@ class QueryWidget:
             self.det_file = CONFIG_HDR4.detecth5
         elif (self.detectid >= 4090000000) * (self.detectid < 4100000000):
             self.det_file = CONFIG_HDR4.contsourceh5
+        elif (self.detectid >= 5000000000) * (self.detectid < 5090000000):
+            self.det_file = CONFIG_HDR5.detecth5
+        elif (self.detectid >= 5090000000) * (self.detectid < 5100000000):
+            self.det_file = CONFIG_HDR5.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file

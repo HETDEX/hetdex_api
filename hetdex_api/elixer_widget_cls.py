@@ -38,6 +38,7 @@ try:
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
     CONFIG_HDR4 = HDRconfig('hdr4')
+    CONFIG_HDR5 = HDRconfig('hdr5')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -965,7 +966,7 @@ class ElixerWidget:
             # so use the last good index:
             #print(e)
             self.status_box.value += "EXCEPTION"
-            self.status_box.value += e.str()
+            self.status_box.value += str(e)
             ix = self.current_idx
 
         self.rest_widget_values(idx=ix)
@@ -1139,7 +1140,7 @@ class ElixerWidget:
 
     def sm1_button_click(self, b):
         global line_id_dict_lae
-        self.line_id_drop.value == line_id_dict_default
+        self.line_id_drop.value = line_id_dict_default
         self.wave_box.value = -1.0
         self.z_box.value = -1.0
 
@@ -1169,7 +1170,7 @@ class ElixerWidget:
         global line_id_dict_lae
         if self.is_consistent_with_lae():
             # NOT okay, if you say is not LAE
-            self.line_id_drop.value == line_id_dict_default
+            self.line_id_drop.value = line_id_dict_default
             self.wave_box.value = -1.0
             self.z_box.value = -1.0
         else:
@@ -1182,7 +1183,7 @@ class ElixerWidget:
 
         if self.is_consistent_with_lae():
             # NOT okay, if you say is not LAE
-            self.line_id_drop.value == line_id_dict_default
+            self.line_id_drop.value = line_id_dict_default
             self.wave_box.value = -1.0
             self.z_box.value = -1.0
         else:
@@ -1199,7 +1200,7 @@ class ElixerWidget:
         if self.is_consistent_with_lae():
             pass  # already okay, could be CIV, etc
         else:  # not consistent with LAE, so reset
-            self.line_id_drop.value == line_id_dict_default
+            self.line_id_drop.value = line_id_dict_default
             self.wave_box.value = -1.0
             self.z_box.value = -1.0
 
@@ -1211,7 +1212,7 @@ class ElixerWidget:
         if self.is_consistent_with_lae():
             pass  # already okay, could be CIV, etc
         else:  # not consistent with LAE, so reset
-            self.line_id_drop.value == line_id_dict_default
+            self.line_id_drop.value = line_id_dict_default
             self.wave_box.value = -1.0
             self.z_box.value = -1.0
 
@@ -1397,6 +1398,10 @@ class ElixerWidget:
             self.det_file = CONFIG_HDR4.detecth5
         elif (detid >= 4090000000) & (detid < 4100000000):
             self.det_file = CONFIG_HDR4.contsourceh5
+        elif (detid >= 5000000000) & (detid < 5090000000):
+            self.det_file = CONFIG_HDR5.detecth5
+        elif (detid >= 5090000000) & (detid < 5100000000):
+            self.det_file = CONFIG_HDR5.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file
