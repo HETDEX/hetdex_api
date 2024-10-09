@@ -1501,7 +1501,14 @@ class Detections:
 #        plt.show()
 
     def __len__(self):
-        return len(self.ra)
+        try:
+            #if instatiated w/loadtable=False, there is no length (no records are loaded, self.ra does not exist)
+            #NOTICE: other calls will also fail, like remove_bad_amps(), etc
+            return len(self.ra)
+        except:
+            #could alternately use None or np.nan, but 0 may be the preferred use case.
+            #treat as empty rather than an undefined length
+            return 0
 
     def close(self):
         self.hdfile.close()
