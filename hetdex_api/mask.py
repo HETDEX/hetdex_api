@@ -269,13 +269,13 @@ def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
     sel_shot = sat_tab['shotid'] == shotid
 
     if np.sum(sel_shot) > 0:
-        slope = met_tab['slope'][sel_shot]
-        intercept = met_tab['intercept'][sel_shot]
+        slope = sat_tab['slope'][sel_shot]
+        intercept = sat_tab['intercept'][sel_shot]
 
-        ra_met = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
-        dec_met = (intercept + ra_met.deg*slope ) * u.deg
+        ra_sat = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
+        dec_sat = (intercept + ra_sat.deg*slope ) * u.deg
 
-        sat_coords = SkyCoord(ra=ra_met, dec=dec_met)
+        sat_coords = SkyCoord(ra=ra_sat, dec=dec_sat)
 
         sat_match = sat_coords.separation(coords) < streaksize
 
