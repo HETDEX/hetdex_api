@@ -196,3 +196,4 @@ class HDRconfig:
 
             #added 20241004: average fit to p-cygni like feature from bad sky calibration at 5200 A
             self.cal_issue = op.join(self.bad_dir, 'spec5200fit.npy')
+            self.satellite = op.join(self.bad_dir, 'satellite_tracks.txt')
