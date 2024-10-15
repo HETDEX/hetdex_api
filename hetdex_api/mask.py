@@ -232,6 +232,63 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=None):
     return flag
 
 
+def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
+    """                                                                                                                   
+    Returns a boolean flag value to mask out satellites                                                                      
+                                                                                                                          
+    Parameters                                                                                                            
+    ----------                                                                                                            
+    coords                                                                                                                
+        an astropy.coordinates SkyCoord object                                                                            
+    shotid                                                                                                                
+        shotid to search. If none it will search all shots at once. If                                                    
+        any are flagged bad then it will return False for all.                                                            
+    streaksize                                                                                                            
+        an astropy quantity object defining how far off the                                                               
+        perpendicular line of the meteor streak to mask out. Default                                                      
+        is 12*u.arcsec                                                                                                    
+                                                                                                                          
+    Returns                                                                                                               
+    -------                                                                                                               
+    bool                                                                                                                  
+        True if no satellite track falls in the aperture                                                                           
+        False if a satellite track falls in the aperture                                                                           
+                                                                                                                          
+    Example                                                                                                               
+    -------                                                                                                               
+                                                                                                                          
+    """
+
+    global config
+
+    if streaksize is None:
+        streaksize = 12.0*u.arcsec
+    # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file                                             
+
+    sat_tab = Table.read(config.satellite, format='ascii', names=['shotid', 'expnum', 'slope', 'intercept'])
+    sel_shot = sat_tab['shotid'] == shotid
+
+    if np.sum(sel_shot) > 0:
+        slope = met_tab['slope'][sel_shot]
+        intercept = met_tab['intercept'][sel_shot]
+
+        ra_met = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
+        dec_met = (intercept + ra_met.deg*slope ) * u.deg
+
+        sat_coords = SkyCoord(ra=ra_met, dec=dec_met)
+
+        sat_match = sat_coords.separation(coords) < streaksize
+
+
+        if np.any(sat_match):
+            flag = False
+        else:
+            flag = True
+    else:
+        flag = True
+
+    return flag
+
 def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=1.5):
     """
     Similar to galmask.py/ellreg but can take a galaxy name as input.
