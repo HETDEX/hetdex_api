@@ -261,6 +261,8 @@ def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
 
     global config
 
+    flag = True
+    
     if streaksize is None:
         streaksize = 12.0*u.arcsec
     # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file                                             
@@ -269,24 +271,22 @@ def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
     sel_shot = sat_tab['shotid'] == shotid
 
     if np.sum(sel_shot) > 0:
-        slope = sat_tab['slope'][sel_shot]
-        intercept = sat_tab['intercept'][sel_shot]
 
-        ra_sat = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
-        dec_sat = (intercept + ra_sat.deg*slope ) * u.deg
+        for row in sat_tab[sel_shot]:
+            slope = row['slope']
+            intercept = row['intercept']
 
-        sat_coords = SkyCoord(ra=ra_sat, dec=dec_sat)
+            ra_sat = coords.ra + np.arange(-180, 180, 0.1)*u.arcsec
+            dec_sat = (intercept + ra_sat.deg*slope ) * u.deg
+            
+            sat_coords = SkyCoord(ra=ra_sat, dec=dec_sat)
+            
+            sat_match = sat_coords.separation(coords) < streaksize
 
-        sat_match = sat_coords.separation(coords) < streaksize
-
-
-        if np.any(sat_match):
-            flag = False
-        else:
-            flag = True
-    else:
-        flag = True
-
+            if np.any(sat_match):
+                flag = False
+                return flag
+            
     return flag
 
 def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=1.5):
