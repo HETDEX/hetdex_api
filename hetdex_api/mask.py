@@ -246,7 +246,7 @@ def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
     streaksize                                                                                                            
         an astropy quantity object defining how far off the                                                               
         perpendicular line of the meteor streak to mask out. Default                                                      
-        is 12*u.arcsec                                                                                                    
+        is 6*u.arcsec                                                                                                    
                                                                                                                           
     Returns                                                                                                               
     -------                                                                                                               
@@ -264,8 +264,8 @@ def satellite_flag_from_coords(coords, shotid=None, streaksize=None):
     flag = True
     
     if streaksize is None:
-        streaksize = 12.0*u.arcsec
-    # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file                                             
+        streaksize = 6.0*u.arcsec
+    # satellites are found with +/- X arcsec of the line DEC=a+RA*b in this file                                             
 
     sat_tab = Table.read(config.satellite, format='ascii', names=['shotid', 'expnum', 'slope', 'intercept'])
     sel_shot = sat_tab['shotid'] == shotid
