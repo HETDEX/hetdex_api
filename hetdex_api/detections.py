@@ -74,7 +74,7 @@ class Detections:
             Data release you would like to load, i.e., 'hdr2','HDR1'
             This is case insensitive.
         catalog_type : string
-            Catalog to laod up. Either 'lines' or 'continuum'. Default is 
+            Catalog to laod up. Either 'lines' or 'continuum'. Default is
             'lines'.
         curated_version: string
             upload the curated detection catalog. e.g. '2.1.3'. This is
@@ -96,8 +96,8 @@ class Detections:
             if TRUE the curated version string applies to the PDR (Public Data Release) instead
             of the internal HDR (HETDEX Data Release)
         """
-        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4","hdr5","pdr1"]
-        catalog_type_options = ["lines", "continuum", "broad", 'index']
+        survey_options = ["hdr1", "hdr2", "hdr2.1", "hdr3", "hdr4", "hdr5", "pdr1"]
+        catalog_type_options = ["lines", "continuum", "broad", "index"]
 
         if survey.lower() not in survey_options:
             print("survey not in survey options")
@@ -117,7 +117,7 @@ class Detections:
             self.loadtable = False
 
             if pdr:
-                self.survey = "pdr" + curated_version #[0:3]
+                self.survey = "pdr" + curated_version  # [0:3]
             else:
                 if curated_version[0] == "3":
                     # for now I'm assuming we don't have to do hdr3.0
@@ -127,7 +127,7 @@ class Detections:
                 elif curated_version[0] == "5":
                     self.survey = "hdr5"
                 else:
-                    self.survey = "hdr" + curated_version #[0:3]
+                    self.survey = "hdr" + curated_version  # [0:3]
         else:
             self.version = None
             self.survey = survey
@@ -138,10 +138,11 @@ class Detections:
         self.badpix = None
         self.galaxy_cat = None
         self.badfib = None
-
+        self.badfib_transient = None
+        
         self.config = HDRconfig(survey=self.survey)
 
-        if float(self.survey[3:])  >= 3.0: # == "hdr3":
+        if float(self.survey[3:]) >= 3.0:  # == "hdr3":
             # open wd correction curve and create fit for quick assignment
             try:
                 self.wd_corr = Table.read(
@@ -150,7 +151,7 @@ class Detections:
                 self.wd_corr_f = interpolate.interp1d(
                     self.wd_corr["wave"], self.wd_corr["corr"]
                 )
-            except:  #right now this is pretty fatal ... will fail later
+            except:  # right now this is pretty fatal ... will fail later
                 print(f"Could not locate WD correction file: {self.config.wdcor}")
 
         if catalog_type == "lines":
@@ -162,15 +163,17 @@ class Detections:
                 self.filename = self.config.detectbroadh5
             except:
                 print("Could not locate broad line catalog")
-        elif catalog_type ==  'index':
-            if self.survey not in ['hdr4', 'hdr5','pdr1']:
-                print('The Detection Index file only exists beyond hdr3')
+        elif catalog_type == "index":
+            if self.survey not in ["hdr4", "hdr5", "pdr1"]:
+                print("The Detection Index file only exists beyond hdr3")
             else:
                 self.filename = self.config.detectindexh5
 
         try:
             self.hdfile = tb.open_file(self.filename, mode="r")
-        except Exception as e: #this is essentially fatal, set the file to None, but might still be able to get the survey
+        except (
+            Exception
+        ) as e:  # this is essentially fatal, set the file to None, but might still be able to get the survey
             print(f"Could not locate catalog file: {self.filename}")
             self.hdfile = None
             raise e
@@ -178,9 +181,7 @@ class Detections:
         self.surveyh5 = tb.open_file(self.config.surveyh5, "r")
 
         if self.version is not None:
-
             try:
-
                 if self.survey == "hdr2.1":
                     catfile = op.join(
                         self.config.detect_dir,
@@ -188,7 +189,6 @@ class Detections:
                         "detect_hdr{}.fits".format(self.version),
                     )
                 else:
-
                     catfile = op.join(
                         self.config.hdr_dir[self.survey],
                         "catalogs",
@@ -209,39 +209,50 @@ class Detections:
                 return None
 
         elif self.loadtable:
-
-            if catalog_type == 'index':
+            if catalog_type == "index":
                 colnames = self.hdfile.root.DetectIndex.colnames
 
                 for name in colnames:
-                    
-                    if isinstance(getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_):
-                        if name == 'survey':
-                            outname = 'hdr'
+                    if isinstance(
+                        getattr(self.hdfile.root.DetectIndex.cols, name)[0], np.bytes_
+                    ):
+                        if name == "survey":
+                            outname = "hdr"
                         else:
                             outname = name
-                        setattr(self,
-                                outname,
-                                getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(str),
+                        setattr(
+                            self,
+                            outname,
+                            getattr(self.hdfile.root.DetectIndex.cols, name)[:].astype(
+                                str
+                            ),
                         )
                     else:
                         setattr(
-                            self, name, getattr(self.hdfile.root.DetectIndex.cols, name)[:]
+                            self,
+                            name,
+                            getattr(self.hdfile.root.DetectIndex.cols, name)[:],
                         )
             else:
                 colnames = self.hdfile.root.Detections.colnames
                 for name in colnames:
-                    if isinstance(getattr(self.hdfile.root.Detections.cols, name)[0], np.bytes_):
+                    if isinstance(
+                        getattr(self.hdfile.root.Detections.cols, name)[0], np.bytes_
+                    ):
                         setattr(
                             self,
                             name,
-                            getattr(self.hdfile.root.Detections.cols, name)[:].astype(str),
+                            getattr(self.hdfile.root.Detections.cols, name)[:].astype(
+                                str
+                            ),
                         )
                     else:
                         setattr(
-                            self, name, getattr(self.hdfile.root.Detections.cols, name)[:]
+                            self,
+                            name,
+                            getattr(self.hdfile.root.Detections.cols, name)[:],
                         )
-                        
+
             if self.survey == "hdr3":
                 if catalog_type == "lines":
                     if verbose:
@@ -270,7 +281,7 @@ class Detections:
                     self.continuum /= self.wd_corr_f(self.wave)
                     self.continuum_err /= self.wd_corr_f(self.wave)
                     self.flux_noise_1sigma /= self.wd_corr_f(self.wave)
-            elif  float(self.survey[3:]) >= 4.0:# == "hdr3":
+            elif float(self.survey[3:]) >= 4.0:  # == "hdr3":
                 if verbose:
                     print("Applying HDR4 and up WD flux corrections")
 
@@ -293,7 +304,6 @@ class Detections:
                 self.apcor = apcor_array
 
                 if catalog_type == "lines":
-
                     # remove E(B-V)=0.02 screen extinction
                     fix = get_2pt1_extinction_fix()
 
@@ -341,7 +351,6 @@ class Detections:
 
             # add in the elixer probabilties and associated info:
             if self.survey == "hdr1" and catalog_type == "lines":
-
                 self.hdfile_elix = tb.open_file(self.config.elixerh5, mode="r")
                 colnames2 = self.hdfile_elix.root.Classifications.colnames
                 for name2 in colnames2:
@@ -374,7 +383,6 @@ class Detections:
                                 )[:],
                             )
             else:
-
                 # add elixer info if node exists
                 try:
                     colnames = self.hdfile.root.Elixer.colnames
@@ -463,9 +471,8 @@ class Detections:
                     )
 
         elif searchable:
-
-            if catalog_type == 'index':
-                # just get coordinates, wavelength and detectid                          
+            if catalog_type == "index":
+                # just get coordinates, wavelength and detectid
                 self.detectid = self.hdfile.root.DetectIndex.cols.detectid[:]
                 self.ra = self.hdfile.root.DetectIndex.cols.ra[:]
                 self.dec = self.hdfile.root.DetectIndex.cols.dec[:]
@@ -484,13 +491,13 @@ class Detections:
             )
 
     def __getitem__(self, indx):
-        """ 
+        """
         This allows for slicing of the Detections class
         object so that a mask can be applied to
         every attribute automatically by:
-        
+
         detections_sliced = detects[indx]
-        
+
         """
 
         p = copy.copy(self)
@@ -504,7 +511,7 @@ class Detections:
 
     def refine(self, gmagcut=None, remove_large_gal=True, d25scale=1.5):
         """
-        Masks out bad and bright detections 
+        Masks out bad and bright detections
         and returns a refined Detections class
         object
 
@@ -547,67 +554,68 @@ class Detections:
         astropy bool
            if True will return an astropy table of detection info
            if False will return detectid list
-           
+
         Returns
         -------
         Detectid or Table
         """
         if radius is None:
-            radius = 3.*u.arcsec
+            radius = 3.0 * u.arcsec
 
-        if self.catalog_type in ['lines', 'broad', 'continuum']:
+        if self.catalog_type in ["lines", "broad", "continuum"]:
             if self.loadtable:
                 sep = self.coords.separation(coord)
-                
+
                 maskcoords = sep < radius
-                
+
                 if astropy:
                     return self[maskcoords].return_astropy_table()
                 else:
-                    return self.detectid[ maskcoords]
+                    return self.detectid[maskcoords]
             else:
-                print('You must use loadtable==True for catolog_type=={}'.format(self.catalog_type))
+                print(
+                    "You must use loadtable==True for catolog_type=={}".format(
+                        self.catalog_type
+                    )
+                )
 
-        elif self.catalog_type == 'index':
-            Nside = 2 ** 15
-            
+        elif self.catalog_type == "index":
+            Nside = 2**15
+
             ra_obj = coord.ra.deg
             dec_obj = coord.dec.deg
-            
+
             ra_sep = radius.to(u.degree).value + 6.0 / 3600.0
-            
+
             vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
 
             pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
-            
+
             seltab = Table()
-            
+
             for hpix in pix_region:
-                tab = Table( self.hdfile.root.DetectIndex.read_where('healpix == hpix'))
-                seltab = vstack( [seltab, tab])
+                tab = Table(self.hdfile.root.DetectIndex.read_where("healpix == hpix"))
+                seltab = vstack([seltab, tab])
 
             # query sub-table based on coordinates
 
-            tab_coords = SkyCoord(ra=seltab['ra']*u.deg, dec=seltab['dec']*u.deg)
+            tab_coords = SkyCoord(ra=seltab["ra"] * u.deg, dec=seltab["dec"] * u.deg)
             sep = tab_coords.separation(coord)
-            seltab['separation'] = sep.arcsec
+            seltab["separation"] = sep.arcsec
             maskcoords = sep < radius
 
             tab = seltab[maskcoords]
-            tab.sort('detectid')
+            tab.sort("detectid")
 
             if len(tab) > 0:
-            
                 if astropy:
                     return tab
                 else:
-                    return list( tab['detectid'])
+                    return list(tab["detectid"])
             else:
                 return None
-            
-    def find_match(
-        self, coord, radius=None, wave=None, dwave=5.0, shotid=None
-    ):
+
+    def find_match(self, coord, radius=None, wave=None, dwave=5.0, shotid=None):
         """
         Function to cross match another line detection
 
@@ -625,7 +633,7 @@ class Detections:
             delta wavelength to search
         shotid
             optional shotid for a specific observation
-        
+
         Returns
         -------
         match_index
@@ -633,7 +641,7 @@ class Detections:
         """
 
         if radius is None:
-            radius=5.0*u.arcsec
+            radius = 5.0 * u.arcsec
         selmatch = self.query_by_coord(coord, radius)
 
         if wave is not None:
@@ -652,12 +660,12 @@ class Detections:
         use the source catalog
 
         Takes a dictionary of query limits
-        and reduces the detections database. This 
+        and reduces the detections database. This
         can either be taken from the dictionary saved
-        by detwidgets.py GUI or can take the following 
+        by detwidgets.py GUI or can take the following
         form:
 
-        # limits to be returned to query detections                                    
+        # limits to be returned to query detections
 
         self.wave_low = None
         self.wave_high = None
@@ -683,7 +691,7 @@ class Detections:
         dec = declination of aperture in degrees
         rad = radius of aperture in arcmin
         field =  ('all', 'dex-spring', 'dex-fall', 'cosmos', 'egs', 'goods-n', 'other')
-        
+
         others should be obvious
         """
 
@@ -748,16 +756,16 @@ class Detections:
 
     def query_by_pickle(self, picklefile):
         """
-        
+
         this function queries the Detections class
         object based on query made with detwidgets.py
-        
+
         Input
-        
+
         self = a detections class object
         picklefile = string filename for a pickle
         created in detwidget.py
-        
+
         """
         # if locally encoded and opened (same version of python)
         if PYTHON_MAJOR_VERSION < 3:
@@ -833,7 +841,6 @@ class Detections:
 
             return np.logical_not(mask)
         else:
-
             # first read in amp_flag.fits file
             badamps = Table.read(self.config.badamp)
 
@@ -845,7 +852,7 @@ class Detections:
             # this is needed to match with detection class object sorting
             join_tab.sort("detectid")
 
-            mask1 = (join_tab["flag"] != 0)
+            mask1 = join_tab["flag"] != 0
 
             del det_table, join_tab
 
@@ -908,15 +915,15 @@ class Detections:
 
             self.vis_class[mask] = 0
 
-        else: #except:
+        else:  # except:
             mask = np.zeros(np.size(self.detectid), dtype=bool)
 
         return np.invert(mask)
 
     def remove_shots(self):
         """
-        Takes a list of bad shots and removes them. Assigns -2 
-        to detections in these shots so they are not used 
+        Takes a list of bad shots and removes them. Assigns -2
+        to detections in these shots so they are not used
         in any MLing analysis
         """
 
@@ -929,17 +936,19 @@ class Detections:
 
         self.vis_class[mask] = -2
 
-        if self.survey == 'hdr4':
+        if self.survey == "hdr4":
             # remove shots that were incorrectly included
-            hdr4_shots_to_remove = [20190802013,
-                                    20190802026,
-                                    20190802027,
-                                    20190802028,
-                                    20190802029]
+            hdr4_shots_to_remove = [
+                20190802013,
+                20190802026,
+                20190802027,
+                20190802028,
+                20190802029,
+            ]
             for shot in hdr4_shots_to_remove:
                 maskshot = self.shotid == shot
                 mask = np.logical_or(maskshot, mask)
-        
+
         return np.invert(mask)
 
     def remove_balmerdip_stars(self):
@@ -979,7 +988,7 @@ class Detections:
     def remove_ccd_features(self):
         """
         Remove all objects with very at the
-        edges of the detectors and denotes 
+        edges of the detectors and denotes
         them as artifacts in vis_class
         """
 
@@ -1041,7 +1050,7 @@ class Detections:
         Returns Detections table information from H5 file
         Applies relevent corrections such as noise model fix
         and spectral adjustment if rawh5 is False
-        
+
         Parameters
         ----------
         detectid: int
@@ -1061,8 +1070,8 @@ class Detections:
             column info given by det_info.dtype attribute
         """
 
-        #notice ... this is unhandled so caller gets the exception
-        if self.catalog_type == 'index':
+        # notice ... this is unhandled so caller gets the exception
+        if self.catalog_type == "index":
             det_row = self.hdfile.root.DetectIndex.read_where("detectid == detectid_i")
             return det_row
         else:
@@ -1103,8 +1112,8 @@ class Detections:
                 det_row["continuum_err"] /= self.wd_corr_f(det_row["wave"])
                 det_row["flux_noise_1sigma"] /= self.wd_corr_f(det_row["wave"])
             elif (self.catalog_type == "lines") and float(self.survey[3:]) >= 4.0:
-                #specifically HDR3 handled just above, but only the lines catalog
-                #since these are not the spectra, just the emission line
+                # specifically HDR3 handled just above, but only the lines catalog
+                # since these are not the spectra, just the emission line
                 if verbose:
                     print("Applying HDR4 and up WD flux corrections")
                 det_row["flux"] /= self.wd_corr_f(det_row["wave"])
@@ -1177,7 +1186,7 @@ class Detections:
         fiber_info: ndarray object
             table of fiber information for the specific
             detection. Use fiber_info.dtype to get column info
-            
+
         """
 
         fib_info = self.hdfile.root.Fibers.read_where("detectid == detectid_i")
@@ -1194,7 +1203,6 @@ class Detections:
         verbose=False,
         ffsky=False,
     ):
-
         """
         Grabs the 1D spectrum used to measure fitted parameters.
 
@@ -1218,12 +1226,12 @@ class Detections:
             provide info statements if set to True. Default is False
         ffsky: bool
             option to use full frame sky calibration. Default is False
-        
+
         Returns
         -------
         spec_table: astropy table
             2 or 3 column astropy table with spectral data
-        
+
         """
         spectra = self.hdfile.root.Spectra
         spectra_table = spectra.read_where("detectid == detectid_i")
@@ -1231,9 +1239,9 @@ class Detections:
         data = Table()
 
         if rawh5:
-            intensityunit = u.erg / (u.cm ** 2 * u.s * 2 * u.AA)
+            intensityunit = u.erg / (u.cm**2 * u.s * 2 * u.AA)
         else:
-            intensityunit = u.erg / (u.cm ** 2 * u.s * u.AA)
+            intensityunit = u.erg / (u.cm**2 * u.s * u.AA)
 
         data["wave1d"] = Column(spectra_table["wave1d"][0], unit=u.AA)
 
@@ -1299,7 +1307,9 @@ class Detections:
                     if verbose:
                         print("Noise model adjustment not required")
 
-        elif float(self.survey[3:]) >= 4.0 or (self.survey[0:3]).lower() =='pdr': # == "hdr4":
+        elif (
+            float(self.survey[3:]) >= 4.0 or (self.survey[0:3]).lower() == "pdr"
+        ):  # == "hdr4":
             if rawh5 is False:
                 if verbose:
                     print("Applying spectral correction")
@@ -1336,7 +1346,7 @@ class Detections:
         """
         Calculates g-band magnitude from spec1d for
         each detectid in the Detections class instance
-        If the gmags.pickle file and pickle=True is 
+        If the gmags.pickle file and pickle=True is
         given then it will just load from previous computation
         """
         if loadpickle:
@@ -1368,9 +1378,9 @@ class Detections:
                     self.gmag[idx] = np.nan
 
     def get_hetdex_mag(self, detectid_i, filter="sdss2010-g"):
-        """ 
+        """
         filter = can be any filter used in the speclite
-                 package 
+                 package
                  https://speclite.readthedocs.io/en/latest/api.html
 
         """
@@ -1485,29 +1495,30 @@ class Detections:
             ascii.write(spec_data, "spec_" + str(detectid_i) + ".dat", overwrite=True)
 
     def plot_spectrum(self, detectid_i, xlim=None, ylim=None):
-        print('We have removed this code bit from the API for efficiency')
-#        spec_data = self.get_spectrum(detectid_i)
-#        plt.figure(figsize=(8, 6))
-#        plt.errorbar(
-#            spec_data["wave1d"], spec_data["spec1d"], yerr=spec_data["spec1d_err"]
-#        )
-#        plt.title("DetectID " + str(detectid_i))
-#        plt.xlabel("wave (AA)")
-#        plt.ylabel("flux (1e-17 erg/s/cm^2/AA)")
-#        if xlim is not None:
-#            plt.xlim(xlim)
-#            if ylim is not None:
-#                plt.ylim(ylim)
-#        plt.show()
+        print("We have removed this code bit from the API for efficiency")
+
+    #        spec_data = self.get_spectrum(detectid_i)
+    #        plt.figure(figsize=(8, 6))
+    #        plt.errorbar(
+    #            spec_data["wave1d"], spec_data["spec1d"], yerr=spec_data["spec1d_err"]
+    #        )
+    #        plt.title("DetectID " + str(detectid_i))
+    #        plt.xlabel("wave (AA)")
+    #        plt.ylabel("flux (1e-17 erg/s/cm^2/AA)")
+    #        if xlim is not None:
+    #            plt.xlim(xlim)
+    #            if ylim is not None:
+    #                plt.ylim(ylim)
+    #        plt.show()
 
     def __len__(self):
         try:
-            #if instatiated w/loadtable=False, there is no length (no records are loaded, self.ra does not exist)
-            #NOTICE: other calls will also fail, like remove_bad_amps(), etc
+            # if instatiated w/loadtable=False, there is no length (no records are loaded, self.ra does not exist)
+            # NOTICE: other calls will also fail, like remove_bad_amps(), etc
             return len(self.ra)
         except:
-            #could alternately use None or np.nan, but 0 may be the preferred use case.
-            #treat as empty rather than an undefined length
+            # could alternately use None or np.nan, but 0 may be the preferred use case.
+            # treat as empty rather than an undefined length
             return 0
 
     def close(self):
@@ -1521,7 +1532,7 @@ class Detections:
 
         F: Fibers class object
         Optional to pass through the Fibers class so that it does not have to be reopen for each detectid
-        
+
         Returns
         -------
         flag diction
@@ -1531,17 +1542,21 @@ class Detections:
 
         # close Fiber class object at end if not passed in
         closeF = False
-        
+
         if F is None:
             closeF = True
 
-        flag_dict = {'flag_badamp': 1,
-                     'flag_badpix': 1,
-                     'flag_badfib': 1,
-                     'flag_pixmask': 1,
-                     'flag_meteor': 1,
-                     'flag_largegal': 1,
-                     'flag_chi2fib': 1}
+        flag_dict = {
+            "flag_badamp": 1,
+            "flag_badpix": 1,
+            "flag_badfib": 1,
+            "flag_pixmask": 1,
+            "flag_meteor": 1,
+            "flag_largegal": 1,
+            "flag_chi2fib": 1,
+            "flag_satellite": 1,
+            "flag_badcalib": 1,
+        }
 
         det_info = self.get_detection_info(detectid)[0]
         det_fib_info = self.get_fiber_info(detectid)
@@ -1550,13 +1565,20 @@ class Detections:
 
         # find detection wavelength index
         wave = det_info["wave"]
-        #wave_i = np.argmin(np.abs(wave_rect - wave))
+        # wave_i = np.argmin(np.abs(wave_rect - wave))
 
         if self.galaxy_cat is None:
             self.galaxy_cat = Table.read(self.config.rc3cat, format="ascii")
 
-        flag_dict['flag_largegal'] = int(gal_flag_from_coords(det_coords, self.galaxy_cat))
-        flag_dict['flag_meteor'] = int(meteor_flag_from_coords(det_coords, shotid=shotid))
+        flag_dict["flag_largegal"] = int(
+            gal_flag_from_coords(det_coords, self.galaxy_cat)
+        )
+        flag_dict["flag_meteor"] = int(
+            meteor_flag_from_coords(det_coords, shotid=shotid)
+        )
+        flag_dict["flag_satellite"] = int(
+            satellite_flag_from_coords(det_coords, shotid=shotid)
+        )
 
         if F is None:
             F = Fibers(shotid, survey=self.survey)
@@ -1578,15 +1600,14 @@ class Detections:
             self.badamps = Table.read(self.config.badamp)
 
         for mf in np.unique(mfs):
-
             sel_row = (self.badamps["multiframe"] == mf) & (
                 self.badamps["shotid"] == shotid
             )
 
             if np.any(self.badamps["flag"][sel_row] == 0):
-                flag_dict['flag_badamp'] = 0
+                flag_dict["flag_badamp"] = 0
             elif np.sum(sel_row) == 0:
-                flag_dict['flag_badamp'] = 0
+                flag_dict["flag_badamp"] = 0
 
         # check for flag_badpix and flag_badfib
         if self.badpix is None:
@@ -1599,6 +1620,13 @@ class Detections:
         if self.badfib is None:
             self.badfib = Table.read(self.config.badfib, format="ascii")
 
+        if self.badfib_transient is None:
+            self.badfib_transient = Table.read(
+                self.config.badfib_transient,
+                format="ascii",
+                names=["multiframe", "fibnum", "date_start", "date_end"],
+            )
+
         for i in np.arange(0, 2):
             sel_mf = self.badpix["multiframe"] == mfs[i]
             sel_x = (xs[i] >= self.badpix["x1"]) & (xs[i] <= self.badpix["x2"])
@@ -1606,24 +1634,35 @@ class Detections:
             sel_badpix = sel_mf & sel_x & sel_y
 
             if np.sum(sel_badpix) > 0:
-                flag_dict['flag_badpix'] = 0
+                flag_dict["flag_badpix"] = 0
 
-            sel_fib = (self.badfib["multiframe"] == mfs[i]) & ( self.badfib["fibnum"] == fibnums[i])
-            
+            sel_fib = (self.badfib["multiframe"] == mfs[i]) & (
+                self.badfib["fibnum"] == fibnums[i]
+            )
+
             if np.sum(sel_fib) > 0:
-                flag_dict['flag_badfib'] = 0
+                flag_dict["flag_badfib"] = 0
+
+            sel_fib2 = (self.badfib_transient["multiframe"] == mfs[i]) & (
+                self.badfib_transient["fibnum"] == fibnums[i]
+            )
+            sel_date = (det_info["date"] >= self.badfib_transient["date_start"]) * (
+                det_info["date"] <= self.badfib_transient["date_end"]
+            )
+
+            if np.sum(sel_fib2 * sel_date) > 0:
+                flag_dict["flag_badfib"] = 0
 
         # flag detection if any 3 spectral resolution elements are masked
 
-        chi2fib = np.ndarray((3,3))
+        chi2fib = np.ndarray((3, 3))
 
         for i, fib_i in enumerate(fiberids):
-
             sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
 
             if len(sel_fib) == 0:
                 continue
-                
+
             # access native wavelength and spectrum
             wavelength = fibers_table["wavelength"][sel_fib][0]
             spectrum = fibers_table["spectrum"][sel_fib][0]
@@ -1633,18 +1672,18 @@ class Detections:
             wave_io = np.argmin(np.abs(wavelength - wave))
 
             if np.any(spectrum[wave_io - 1 : wave_io + 2] == 0.0):
-                flag_dict['flag_pixmask'] = 0
+                flag_dict["flag_pixmask"] = 0
 
             selwave = np.abs(wavelength - wave) < 5
-            if np.sum(selwave)>0:
+            if np.sum(selwave) > 0:
                 chi2fib[i] = np.max(chi2[np.where(selwave)])
 
-        flag_dict['chi2fib'] = chi2fib
-            
+        flag_dict["chi2fib"] = chi2fib
+
         if np.max(chi2fib) >= 4.5:
-            flag_dict['flag_chi2fib'] = 0
+            flag_dict["flag_chi2fib"] = 0
 
         if closeF:
             F.close()
-            
+
         return flag_dict
