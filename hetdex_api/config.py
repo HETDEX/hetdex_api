@@ -156,6 +156,7 @@ class HDRconfig:
                 )
 
             self.badfib = op.join(self.bad_dir, "badfib.tab")
+            self.badfib_transient = op.join(self.bad_dir, 'badfib_bydate.tab')
             self.baddetect = op.join(self.bad_dir, "baddetects.list")
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.hdr_dir[survey], "survey", "amp_flag.fits")
