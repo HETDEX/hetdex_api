@@ -591,7 +591,7 @@ class FiberIndex:
         # quick check to make sure columns match
 
         for idx in np.random.random_integers(
-            0, high=len(self.hdfile.root.FiberIndex), size=5000
+            0, high=len(self.fiber_table), size=500
         ):
             if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
                 print("Something went wrong. fiber_id columns don't match")
@@ -630,6 +630,20 @@ class FiberIndex:
 
         return shot_flag
 
+    def get_badfiber_flag(self):
+        """
+        Flag bad fibers
+        
+        Parameters
+        ----------
+        FiberIndex Class
+
+        Returns
+        -------
+        bad_fiber_mask
+        """
+        return
+    
     def get_throughput_flag(self, throughput_threshold=0.08):
         """
         Generate throughput flag for each fiber in the survey
@@ -678,7 +692,7 @@ class FiberIndex:
         S = Survey(self.survey)
         galaxy_cat = Table.read(config.rc3cat, format="ascii")
 
-        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+        mask = np.ones(len(self.fiber_table), dtype=bool)
         # Loop over each galaxy
 
         for idx in np.arange(len(galaxy_cat)):
@@ -698,7 +712,7 @@ class FiberIndex:
                 dummy_wcs = create_dummy_wcs(
                     galregion.center, imsize=2 * galregion.height
                 )
-                galflag = np.zeros(len(self.hdfile.root.FiberIndex), dtype=bool)
+                galflag = np.zeros(len(self.fiber_table), dtype=bool)
                 galflag[down_select] = galregion.contains(
                     self.coords[down_select], dummy_wcs
                 )
@@ -728,7 +742,7 @@ class FiberIndex:
 
         met_tab = Table.read(config.meteor, format="ascii")
 
-        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+        mask = np.ones(len(self.fiber_table), dtype=bool)
 
         for row in met_tab:
             sel_shot = np.where(
@@ -762,6 +776,58 @@ class FiberIndex:
 
         return mask
 
+    
+    def get_satellite_flag(self, streaksize=None):
+        """
+        Returns boolean mask with detections landing on meteor
+        streaks masked. Use np.invert(mask) to find meteors
+        """
+
+        if streaksize is None:
+            streaksize=6.0*u.arcsec
+            
+        t0 = time.time()
+        global config
+
+        S = Survey()
+        # satellites are found with +/- X arcsec of the line DEC=a+RA*b in this file
+
+        sat_tab = Table.read(config.satellite, format='ascii', names=['shotid', 'expnum', 'slope', 'intercept'])
+
+        mask = np.ones(len(self.fiber_table), dtype=bool)
+
+        for row in sat_tab:
+            sel_shot = np.where(
+                (self.fiber_table["shotid"] == row["shotid"])
+                & (np.isfinite(self.fiber_table["ra"]))
+                & (np.isfinite(self.fiber_table["dec"]))
+            )[0]
+
+            if np.sum(sel_shot) > 0:
+                a = row["slope"]
+                b = row["intercept"]
+
+                sel_shot_survey = S.shotid == row["shotid"]
+                shot_coords = S.coords[sel_shot_survey]
+                
+                ra_sat = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                dec_sat = (b + ra_sat.deg * a) * u.deg
+                
+                sat_coords = SkyCoord(ra=ra_sat, dec=dec_sat)
+                
+                idxc, idxcatalog, d2d, d3d = sat_coords.search_around_sky(
+                    self.coords[sel_shot], streaksize
+                )
+                mask_index = [sel_shot][0][idxc]
+                mask[mask_index] = False
+
+        S.close()
+        t1 = time.time()
+
+        print("Satellite mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
+
+        return mask
+    
     def get_fiber_flags(self, coord=None, shotid=None):
         """
         Returns boolean mask values for a coord/shotid combo
@@ -848,7 +914,7 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
 
     return ellipse_reg
 
-
+ 
 def create_dummy_wcs(coords, pixscale=None, imsize=None):
     """
     Create a simple fake WCS in order to use the regions subroutine.
