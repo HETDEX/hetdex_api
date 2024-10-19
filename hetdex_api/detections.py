@@ -1628,13 +1628,16 @@ class Detections:
             )
 
         for i in np.arange(0, 2):
-            sel_mf = self.badpix["multiframe"] == mfs[i]
-            sel_x = (xs[i] >= self.badpix["x1"]) & (xs[i] <= self.badpix["x2"])
-            sel_y = (ys[i] >= self.badpix["y1"]) & (ys[i] <= self.badpix["y2"])
-            sel_badpix = sel_mf & sel_x & sel_y
 
-            if np.sum(sel_badpix) > 0:
-                flag_dict["flag_badpix"] = 0
+            # only check for bad pix for line sources
+            if self.catalog_type == 'lines':
+                sel_mf = self.badpix["multiframe"] == mfs[i]
+                sel_x = (xs[i] >= self.badpix["x1"]) & (xs[i] <= self.badpix["x2"])
+                sel_y = (ys[i] >= self.badpix["y1"]) & (ys[i] <= self.badpix["y2"])
+                sel_badpix = sel_mf & sel_x & sel_y
+
+                if np.sum(sel_badpix) > 0:
+                    flag_dict["flag_badpix"] = 0
 
             sel_fib = (self.badfib["multiframe"] == mfs[i]) & (
                 self.badfib["fibnum"] == fibnums[i]
@@ -1654,34 +1657,34 @@ class Detections:
                 flag_dict["flag_badfib"] = 0
 
         # flag detection if any 3 spectral resolution elements are masked
+        if self.catalog_type == 'lines': # not needed for continuum sources
+            chi2fib = np.ndarray((3, 3))
+            
+            for i, fib_i in enumerate(fiberids):
+                sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
 
-        chi2fib = np.ndarray((3, 3))
+                if len(sel_fib) == 0:
+                    continue
 
-        for i, fib_i in enumerate(fiberids):
-            sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
+                # access native wavelength and spectrum
+                wavelength = fibers_table["wavelength"][sel_fib][0]
+                spectrum = fibers_table["spectrum"][sel_fib][0]
+                chi2 = fibers_table["chi2"][sel_fib][0]
+                # error1D = fibers_table['error1D'][sel_fib][0]
 
-            if len(sel_fib) == 0:
-                continue
+                wave_io = np.argmin(np.abs(wavelength - wave))
 
-            # access native wavelength and spectrum
-            wavelength = fibers_table["wavelength"][sel_fib][0]
-            spectrum = fibers_table["spectrum"][sel_fib][0]
-            chi2 = fibers_table["chi2"][sel_fib][0]
-            # error1D = fibers_table['error1D'][sel_fib][0]
+                if np.any(spectrum[wave_io - 1 : wave_io + 2] == 0.0):
+                    flag_dict["flag_pixmask"] = 0
 
-            wave_io = np.argmin(np.abs(wavelength - wave))
+                selwave = np.abs(wavelength - wave) < 5
+                if np.sum(selwave) > 0:
+                    chi2fib[i] = np.max(chi2[np.where(selwave)])
 
-            if np.any(spectrum[wave_io - 1 : wave_io + 2] == 0.0):
-                flag_dict["flag_pixmask"] = 0
+            flag_dict["chi2fib"] = chi2fib
 
-            selwave = np.abs(wavelength - wave) < 5
-            if np.sum(selwave) > 0:
-                chi2fib[i] = np.max(chi2[np.where(selwave)])
-
-        flag_dict["chi2fib"] = chi2fib
-
-        if np.max(chi2fib) >= 4.5:
-            flag_dict["flag_chi2fib"] = 0
+            if np.max(chi2fib) >= 4.5:
+                flag_dict["flag_chi2fib"] = 0
 
         if closeF:
             F.close()
