@@ -640,9 +640,35 @@ class FiberIndex:
 
         Returns
         -------
-        bad_fiber_mask
+        badfiber_mask
         """
-        return
+
+        global config
+        
+        print("Adding bad fiber flag")
+
+        t0 = time.time()
+        badfib = Table.read(config.badfib, format="ascii")
+
+        badfib_transient = Table.read(
+            config.badfib_transient,
+            format="ascii",
+            names=["multiframe", "fibnum", "date_start", "date_end"],
+        )
+
+        mask = np.ones(len(self.fiber_table), dtype=bool)
+
+        for row in badfib:
+            sel_fib = ( self.fiber_table == row['multiframe']) * ( self.fiber_table == row['fibnum'] )
+            mask[sel_fib] = 0
+
+        for row in badfib_transient:
+            sel_fib = ( self.fiber_table['multiframe'] == row['multiframe']) * ( self.fiber_table['fibnum'] == row['fibnum'] )
+            sel_date = ( self.fiber_table['date'] >= row['date_start']) * (self.fiber_table['date'] <= row['date_end'])
+        t1 = time.time()
+        print("Shot flags added in {:4.2f}".format((t1 - t0) / 60))
+        
+        return mask
     
     def get_throughput_flag(self, throughput_threshold=0.08):
         """
@@ -944,7 +970,7 @@ def create_dummy_wcs(coords, pixscale=None, imsize=None):
     ra_cen = coords.ra.deg
     dec_cen = coords.dec.deg
 
-    ndim = np.int(2 * gridsize / gridstep + 1)
+    ndim = int(2 * gridsize / gridstep + 1)
     center = ndim / 2
     w = wcs.WCS(naxis=2)
     w.wcs.crval = [ra_cen, dec_cen]
