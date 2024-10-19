@@ -296,7 +296,7 @@ class Survey:
 
 
 class FiberIndex:
-    def __init__(self, survey=LATEST_HDR_NAME, load_fiber_table=False, loadall=False):
+    def __init__(self, survey=LATEST_HDR_NAME, load_fiber_table=False, loadall=False, keep_mask=True):
         """
         Initialize the Fiber class for a given data release
 
@@ -325,11 +325,14 @@ class FiberIndex:
         self.filename = config.fiberindexh5
         self.hdfile = tb.open_file(self.filename, mode="r")
         self.fiber_table = None
-        try:
-            self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
-        except:
-            print("Could not find fiber mask file in {}".format(config.fibermaskh5))
-            self.fibermaskh5 = None
+        self.fibermaskh5 = None
+        
+        if keep_mask:
+            try:
+                self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
+            except:
+                print("Could not find fiber mask file in {}".format(config.fibermaskh5))
+                self.fibermaskh5 = None
 
         if load_fiber_table:
             self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
@@ -341,20 +344,21 @@ class FiberIndex:
 
             # add masking info if found
             if self.fibermaskh5 is not None:
-                self.mask_table = Table(self.fibermaskh5.root.Flags.read())
-                self.fiber_table = hstack([self.fiber_table, self.mask_table])
+                if keep_mask:
+                    self.mask_table = Table(self.fibermaskh5.root.Flags.read())
+                    self.fiber_table = hstack([self.fiber_table, self.mask_table])
 
-                for row in self.fiber_table:
-                    if row["fiber_id_1"] == row["fiber_id_2"]:
-                        continue
-                    else:
-                        print(
-                            "Something is wrong. Mismatcheded fiber:{} and {}".format(
-                                row["fiber_id_1"], row["fiber_id_2"]
+                    for row in self.fiber_table:
+                        if row["fiber_id_1"] == row["fiber_id_2"]:
+                            continue
+                        else:
+                            print(
+                                "Something is wrong. Mismatcheded fiber:{} and {}".format(
+                                    row["fiber_id_1"], row["fiber_id_2"]
+                                )
                             )
-                        )
-                self.fiber_table.rename_column("fiber_id_1", "fiber_id")
-                self.fiber_table.remove_column("fiber_id_2")
+                    self.fiber_table.rename_column("fiber_id_1", "fiber_id")
+                    self.fiber_table.remove_column("fiber_id_2")
 
     def query_region(
         self,
