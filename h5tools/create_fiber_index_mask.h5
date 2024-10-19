@@ -1,0 +1,56 @@
+import sys
+
+import tables as tb
+import numpy as np
+
+from astropy.table import Table, join, hstack, unique
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+
+from hetdex_api.survey import Survey, FiberIndex
+from hetdex_api.config import HDRconfig
+
+from hetdex_api.shot import Fibers
+import healpy as hp
+
+import time
+
+survey = sys.argsv[0]
+mask_version = sys.argv[1]
+
+config = HDRconfig(survey)
+
+
+t0 = time.time()
+FibIndex = FiberIndex(load_fiber_table=True, survey=survey, keep_mask=False) # don't load previous mask
+t1 = time.time()
+print('Loaded fibers table in {:3.2f} min.'.format( (t1-t0)/60 )
+
+sat_flag = FibIndex.get_satellite_flag()
+shot_flag = FibIndex.get_shot_flag()
+throughput_flag = FibIndex.get_throughput_flag()
+amp_flag = FibIndex.get_amp_flag()
+gal_flag = FibIndex.get_gal_flag()
+meteor_flag = FibIndex.get_meteor_flag()
+badfib_flag = FibIndex.get_badfiber_flag()
+
+FibIndex.fiber_table['shot_flag'] = shot_flag
+FibIndex.fiber_table['throughput_flag'] = throughput_flag
+FibIndex.fiber_table['amp_flag'] = amp_flag
+FibIndex.fiber_table['gal_flag'] = gal_flag
+FibIndex.fiber_table['meteor_flag'] = meteor_flag
+FibIndex.fiber_table['satellite_flag'] = sat_flag
+FibIndex.fiber_table['badfiber_flag'] = badfib_flag
+
+FibIndex.fiber_table['flag'] = amp_flag * gal_flag * meteor_flag * shot_flag * throughput_flag *badfib_flag * satellite_flag
+
+flag_table = FibIndex.fiber_table['fiber_id', 'flag','amp_flag', 'badfiber_flag','meteor_flag', 'satellite_flag', 'gal_flag', 'shot_flag', 'throughput_flag']
+
+print('Fraction of flagged fibers is: {:5.3f}'.format(np.sum(flag_table['flag']) /len(flag_table))
+
+# save bool table to H5 
+
+fileh = tb.open_file('fiber_mask_{}.h5'.format(version), 'w')
+#groupFlags = fileh.create_group(fileh.root, 'flags', 'flag info')
+tableflags = fileh.create_table(fileh.root, 'Flags', flag_table.as_array() )
+fileh.close()
