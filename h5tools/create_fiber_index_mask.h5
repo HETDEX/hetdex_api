@@ -73,7 +73,7 @@ FibIndex.fiber_table["flag"] = (
     * shot_flag
     * throughput_flag
     * badfib_flag
-    * satellite_flag
+    * sat_flag
 )
 
 flag_table = FibIndex.fiber_table[
@@ -96,7 +96,7 @@ print(
 
 # save bool table to H5
 print('Saving to output file.')
-fileh = tb.open_file('fiber_mask_{}.h5'.format(version), 'w')
+fileh = tb.open_file('fiber_mask_{}.h5'.format(mask_version), 'w')
 tableflags = fileh.create_table(fileh.root, 'Flags', flag_table.as_array() )
 fileh.close()
 print('Done')
