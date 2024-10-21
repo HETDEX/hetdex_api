@@ -663,14 +663,20 @@ class FiberIndex:
         mask = np.ones(len(self.fiber_table), dtype=bool)
 
         for row in badfib:
-            sel_fib = ( self.fiber_table == row['multiframe']) * ( self.fiber_table == row['fibnum'] )
-            mask[sel_fib] = 0
+            sel_fib = ( self.fiber_table['multiframe'] == row['multiframe']) * ( self.fiber_table['fibnum'] == row['fibnum'] )
+
+            if np.sum(sel_fib) > 0:
+                #print('Adding badfiber flag', row['multiframe'], row['fibnum'])
+                mask = mask * np.invert( sel_fib)
 
         for row in badfib_transient:
             sel_fib = ( self.fiber_table['multiframe'] == row['multiframe']) * ( self.fiber_table['fibnum'] == row['fibnum'] )
             sel_date = ( self.fiber_table['date'] >= row['date_start']) * (self.fiber_table['date'] <= row['date_end'])
+            if np.sum(sel_fib*sel_date) > 0:
+                mask = mask * np.invert( sel_fib)
+            
         t1 = time.time()
-        print("Shot flags added in {:4.2f}".format((t1 - t0) / 60))
+        print("Bad fiber flags added in {:4.2f}".format((t1 - t0) / 60))
         
         return mask
     
