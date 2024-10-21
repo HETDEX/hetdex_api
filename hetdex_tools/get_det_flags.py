@@ -13,7 +13,7 @@ merge = True
 if merge:
     version='4.0.0'
 #    version='3.0.3'
-    flag_cols = ['detectid','flag_pixmask', 'flag_badamp', 'flag_badpix', 'flag_badfib', 'flag_meteor', 'flag_largegal', 'flag_chi2fib' ]
+    flag_cols = ['detectid','flag_pixmask', 'flag_badamp', 'flag_badpix', 'flag_badfib', 'flag_meteor', 'flag_largegal', 'flag_chi2fib', 'flag_satellite', 'flag_cal']
     
     detflagfiles = glob.glob('/scratch/05350/ecooper/det_flags/det*')
     detflagfiles.sort()
