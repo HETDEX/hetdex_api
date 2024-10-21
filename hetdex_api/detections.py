@@ -139,7 +139,9 @@ class Detections:
         self.galaxy_cat = None
         self.badfib = None
         self.badfib_transient = None
-        
+        self.cal5200 = None
+        self.cal5460 = None
+
         self.config = HDRconfig(survey=self.survey)
 
         if float(self.survey[3:]) >= 3.0:  # == "hdr3":
@@ -1555,13 +1557,14 @@ class Detections:
             "flag_largegal": 1,
             "flag_chi2fib": 1,
             "flag_satellite": 1,
-            "flag_badcalib": 1,
+            "flag_cal": 1,
         }
 
         det_info = self.get_detection_info(detectid)[0]
         det_fib_info = self.get_fiber_info(detectid)
         det_coords = self.get_coord(detectid)
         shotid = det_info["shotid"]
+        expnum = det_info["expnum"]
 
         # find detection wavelength index
         wave = det_info["wave"]
@@ -1628,9 +1631,8 @@ class Detections:
             )
 
         for i in np.arange(0, 2):
-
             # only check for bad pix for line sources
-            if self.catalog_type == 'lines':
+            if self.catalog_type == "lines":
                 sel_mf = self.badpix["multiframe"] == mfs[i]
                 sel_x = (xs[i] >= self.badpix["x1"]) & (xs[i] <= self.badpix["x2"])
                 sel_y = (ys[i] >= self.badpix["y1"]) & (ys[i] <= self.badpix["y2"])
@@ -1657,9 +1659,9 @@ class Detections:
                 flag_dict["flag_badfib"] = 0
 
         # flag detection if any 3 spectral resolution elements are masked
-        if self.catalog_type == 'lines': # not needed for continuum sources
+        if self.catalog_type == "lines":  # not needed for continuum sources
             chi2fib = np.ndarray((3, 3))
-            
+
             for i, fib_i in enumerate(fiberids):
                 sel_fib = np.where(fibers_table["fiber_id"] == fib_i)[0]
 
@@ -1685,6 +1687,36 @@ class Detections:
 
             if np.max(chi2fib) >= 4.5:
                 flag_dict["flag_chi2fib"] = 0
+
+        # add calflagging
+        if self.catalog_type == "lines":
+            if self.cal5200 is None:
+                # open table if not yet opened
+                self.cal5200_tab = Table.read(
+                    self.config.cal5200,
+                    format="ascii",
+                    names=["shotid", "multiframe", "expnum"],
+                )
+
+            if self.cal5460 is None:
+                # open table if not yet opened
+                self.cal5460_tab = Table.read(
+                    self.config.cal5460,
+                    format="ascii",
+                    names=["shotid", "multiframe", "expnum"],
+                )
+
+            for mf in np.unique(mfs):
+                flag_cal = cal_flag_for_amp_wave(
+                    wave,
+                    mf,
+                    shotid,
+                    cal5460_tab=self.cal5460_tab,
+                    cal5200_tab=self.cal5200_tab,
+                )
+
+                if flag_cal is False:
+                    flag_dict["flag_cal"] = 0
 
         if closeF:
             F.close()
