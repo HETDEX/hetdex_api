@@ -16,7 +16,10 @@
 8. Find new meteors (Note this step requires the Elixer Run on the curated line catalog)
     1. /work/05350/ecooper/stampede2/hdr4/meteors.ipynb
 9. Run fiber index masking (This requires as much updates to masking as possible, but is not a requisite to anything except the mask version will match the catalog version)
-    1.  /work/05350/ecooper/stampede2/hdr4/making_fiber_mask.ipynb
+    1.  /work/05350/ecooper/stampede2/hdr4/making_fiber_mask.ipynb (old way)
+    2. Can also run this on dev node or a slurm job. Currently takes about 2 hours in serial
+    python3 ~/hetdex_api/h5tools/create_fiber_index_mask.h5 hdr4 4.0.1
+
 10. Get detection flags (This requires as much updates to masking as possible)
     1. awk '{print "python3 get_det_flags.py", $1$2}' /scratch/projects/hetdex/hdr4/survey/hdr4.use > run_shot
     2. Code is at hetdex_api/hetdex_tools/get_det_flags.py 
