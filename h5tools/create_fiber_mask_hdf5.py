@@ -45,8 +45,8 @@ class CALFIB_DQ(BitFlagNameMap):
     BADSHOT = 128
     THROUGHPUT = 256
     BADFIB = 512
-    SAT = 1024
-
+    SATELLITE = 1024
+    BADCAL = 2048
 
 def main(argv=None):
     """Main Function"""
@@ -101,7 +101,7 @@ def main(argv=None):
     badpix = Table.read(
         config.badpix, format="ascii", names=["multiframe", "x1", "x2", "y1", "y2"]
     )
-    badfib = Table.read(config.badfib, format="ascii")
+    
     badshot = np.loadtxt(config.badshot, dtype=int)
 
     # Intiate the FiberIndex class from hetdex_api.survey:
@@ -226,25 +226,22 @@ def main(argv=None):
             sel_reg_y = (trace_data >= row["y1"]) & (trace_data <= row["y2"])
             mask_badpix[sel_mf * sel_reg_x * sel_reg_y] = False
 
-    # get bad fiber mask
-    mask_badfib = np.ones_like(calfib, dtype=bool)
-    for row in badfib:
-        sel_bad_fib = (spec_tab["fibnum"] == row["fibnum"]) * (
-            spec_tab["multiframe"] == row["multiframe"]
-        )
-        mask_badfib[sel_bad_fib] = False
-
     mask_main = (calfibe > 1e-8) | (calfib != 0.0)
     mask_ftf_per_fib = np.median(ftf, axis=1) > 0.5  # only one per fiber
     mask_ftf = np.dstack([mask_ftf_per_fib] * 1036)[0]
     mask_chi2fib = chi2fib < 150
 
-    # Add full fiber flags 'amp_flag', 'meteor_flag', 'gal_flag', 'shot_flag', 'throughput_flag'
+    # add badcal mask
+    mask_badcal = 
+    
+    # Add full fiber flags 'amp_flag', 'meteor_flag', 'gal_flag', 'shot_flag', 'throughput_flag',
     mask_amp = np.dstack([spec_tab["amp_flag"]] * 1036)[0]
     mask_gal = np.dstack([spec_tab["gal_flag"]] * 1036)[0]
     mask_meteor = np.dstack([spec_tab["meteor_flag"]] * 1036)[0]
     mask_shot = np.dstack([spec_tab["shot_flag"]] * 1036)[0]
     mask_throughput = np.dstack([spec_tab["throughput_flag"]] * 1036)[0]
+    mask_satellite = np.dstack([spec_tab['satellite_flag']] * 1036)[0]
+    mask_badfib = np.dstack([spec_tab['badfiber_flag']] * 1036)[0]
 
     CALFIB_NET = (
         CALFIB_DQ.MAIN * np.invert(mask_main)
@@ -257,6 +254,9 @@ def main(argv=None):
         + CALFIB_DQ.BADSHOT * np.invert(mask_shot)
         + CALFIB_DQ.THROUGHPUT * np.invert(mask_throughput)
         + CALFIB_DQ.BADFIB * np.invert(mask_badfib)
+        + CALFIB_DQ.SATELLITE * np.invert(mask_satellite)
+        + CALFIB_DQ.BADCAL * np.invert(mask_badcal)
+        
     )
 
     flags = fileh.create_table(
