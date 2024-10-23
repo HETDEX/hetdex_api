@@ -595,7 +595,7 @@ def return_astropy_table(Source_dict,
                 amp_flag_arr.append(amp_flag)
                 badfib_flag_arr.append(badfib_flag)
                 meteor_flag_arr.append(meteor_flag)
-                satellite_flag_arra.append(satellite_flag)
+                satellite_flag_arr.append(satellite_flag)
                 gal_flag_arr.append(gal_flag)
                 shot_flag_arr.append(shot_flag)
                 throughput_flag_arr.append(throughput_flag)
