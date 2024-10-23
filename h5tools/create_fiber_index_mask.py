@@ -58,13 +58,13 @@ gal_flag = FibIndex.get_gal_flag()
 meteor_flag = FibIndex.get_meteor_flag()
 badfib_flag = FibIndex.get_badfiber_flag()
 
-FibIndex.fiber_table["shot_flag"] = shot_flag
-FibIndex.fiber_table["throughput_flag"] = throughput_flag
-FibIndex.fiber_table["amp_flag"] = amp_flag
-FibIndex.fiber_table["gal_flag"] = gal_flag
-FibIndex.fiber_table["meteor_flag"] = meteor_flag
-FibIndex.fiber_table["satellite_flag"] = sat_flag
-FibIndex.fiber_table["badfiber_flag"] = badfib_flag
+FibIndex.fiber_table["flag_shot"] = shot_flag
+FibIndex.fiber_table["flag_throughput"] = throughput_flag
+FibIndex.fiber_table["flag_badamp"] = amp_flag
+FibIndex.fiber_table["flag_largegal"] = gal_flag
+FibIndex.fiber_table["flag_meteor"] = meteor_flag
+FibIndex.fiber_table["flag_satellite"] = sat_flag
+FibIndex.fiber_table["flag_badfib"] = badfib_flag
 
 FibIndex.fiber_table["flag"] = (
     amp_flag
@@ -79,13 +79,13 @@ FibIndex.fiber_table["flag"] = (
 flag_table = FibIndex.fiber_table[
     "fiber_id",
     "flag",
-    "amp_flag",
-    "badfiber_flag",
-    "meteor_flag",
-    "satellite_flag",
-    "gal_flag",
-    "shot_flag",
-    "throughput_flag",
+    "flag_badamp",
+    "flag_badfib",
+    "flag_meteor",
+    "flag_satellite",
+    "flag_largegal",
+    "flag_shot",
+    "flag_throughput",
 ]
 
 print(
