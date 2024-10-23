@@ -532,13 +532,24 @@ def return_astropy_table(Source_dict,
                 fiber_info = None
 
             if Source_dict[ID][shotid][5] is None:
-                amp_flag = True
-                gal_flag = True
-                meteor_flag = True
-                flag = True
+                flag = 1
+                amp_flag = 1
+                badfib_flag = 1
+                meteor_flag = 1
+                satellite_flag = 1
+                gal_flag = 1
+                shot_flag = 1
+                throughput_flag = 1
             else:
-                meteor_flag, gal_flag, amp_flag, flag = Source_dict[ID][shotid][5]
-
+                flag_dict = Source_dict[ID][shotid][5]
+                flag = flag_dict['flag']
+                amp_flag = flag_dict['flag_badamp']
+                badfib_flag = flag_dict['flag_badfib']
+                meteor_flag = flag_dict['flag_meteor']
+                satellite_flag = flag_dict['flag_satellite']
+                gal_flag = flag_dict['flag_largegal']
+                shot_flag = flag_dict['flag_shot']
+                throughput_flag = flag_dict['flag_throughput']
 
             try:
                 per_fiber_per_wave_weights = Source_dict[ID][shotid][6]
@@ -578,8 +589,13 @@ def return_astropy_table(Source_dict,
                 sclean_err_arr.append(clean_fiber_fluxd_err)
                 flag_arr.append(flag)
                 amp_flag_arr.append(amp_flag)
+                badfib_flag_arr.append(badfib_flag)
                 meteor_flag_arr.append(meteor_flag)
+                satellite_flag_arra.append(satellite_flag)
                 gal_flag_arr.append(gal_flag)
+                shot_flag_arr.append(shot_flag)
+                throughput_flag_arr.append(throughput_flag)
+                
 
     output = Table()
     fluxden_u = 1e-17 * u.erg * u.s ** (-1) * u.cm ** (-2) * u.AA ** (-1)
@@ -591,10 +607,14 @@ def return_astropy_table(Source_dict,
     output.add_column(Column(spec_err_arr, unit=fluxden_u, name="spec_err"))
     output.add_column(Column(weights_arr), name="apcor")
     output.add_column(Column(flag_arr, name='flag', dtype=int))
-    output.add_column(Column(gal_flag_arr, name='gal_flag', dtype=int))
-    output.add_column(Column(amp_flag_arr, name='amp_flag', dtype=int))
-    output.add_column(Column(meteor_flag_arr, name='meteor_flag', dtype=int))
-
+    output.add_column(Column(amp_flag_arr, name='flag_badamp', dtype=int))
+    output.add_column(Column(badfib_flag_arr, name='flag_badfib', dtype=int))
+    output.add_column(Column(meteor_flag_arr, name='flag_meteor', dtype=int))
+    output.add_column(Column(satellite_flag_arr, name='flag_satellite', dtype=int))
+    output.add_column(Column(gal_flag_arr, name='flag_largegal', dtype=int))
+    output.add_column(Column(shot_flag_arr, name='flag_shot', dtype=int))
+    output.add_column(Column(throughput_flag_arr, name='flag_throughput', dtype=int))
+    
     if fiberweights:
         output.add_column(Column( np.array( fiber_weights_arr, dtype=object), name="fiber_weights"))
     
