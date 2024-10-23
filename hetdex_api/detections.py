@@ -1557,7 +1557,7 @@ class Detections:
             "flag_largegal": 1,
             "flag_chi2fib": 1,
             "flag_satellite": 1,
-            "flag_cal": 1,
+            "flag_badcal": 1,
         }
 
         det_info = self.get_detection_info(detectid)[0]
@@ -1716,7 +1716,7 @@ class Detections:
                 )
 
                 if flag_cal is False:
-                    flag_dict["flag_cal"] = 0
+                    flag_dict["flag_badcal"] = 0
 
         if closeF:
             F.close()
