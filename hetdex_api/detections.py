@@ -1580,7 +1580,7 @@ class Detections:
         flag_dict_FI = FI.get_fiber_flags(det_coords, shotid=shotid)
 
         for key in ['flag_meteor', 'flag_satellite', 'flag_largegal','flag_throughput', 'flag_shot']:
-            flag_dict[col] = flag_dict_FI[col]
+            flag_dict[key] = flag_dict_FI[key]
 
 
         if F is None:
