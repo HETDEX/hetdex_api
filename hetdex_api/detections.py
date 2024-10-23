@@ -1526,7 +1526,7 @@ class Detections:
     def close(self):
         self.hdfile.close()
 
-    def get_detection_flags(self, detectid, F=None):
+    def get_detection_flags(self, detectid, F=None, FI=None):
         """
         Parameters
         ----------
@@ -1534,6 +1534,8 @@ class Detections:
 
         F: Fibers class object
         Optional to pass through the Fibers class so that it does not have to be reopen for each detectid
+        FI : FiberIndex class object
+        Optional to use for flagging 
 
         Returns
         -------
@@ -1558,6 +1560,8 @@ class Detections:
             "flag_chi2fib": 1,
             "flag_satellite": 1,
             "flag_badcal": 1,
+            'flag_throughput': 1,
+            'flag_shot': 1,
         }
 
         det_info = self.get_detection_info(detectid)[0]
@@ -1570,18 +1574,14 @@ class Detections:
         wave = det_info["wave"]
         # wave_i = np.argmin(np.abs(wave_rect - wave))
 
-        if self.galaxy_cat is None:
-            self.galaxy_cat = Table.read(self.config.rc3cat, format="ascii")
+        if FI is None:
+            FI = FiberIndex(self.survey)
 
-        flag_dict["flag_largegal"] = int(
-            gal_flag_from_coords(det_coords, self.galaxy_cat)
-        )
-        flag_dict["flag_meteor"] = int(
-            meteor_flag_from_coords(det_coords, shotid=shotid)
-        )
-        flag_dict["flag_satellite"] = int(
-            satellite_flag_from_coords(det_coords, shotid=shotid)
-        )
+        flag_dict_FI = FI.get_fiber_flags(det_coords, shotid=shotid)
+
+        for key in ['flag_meteor', 'flag_satellite', 'flag_largegal','flag_throughput', 'flag_shot']:
+            flag_dict[col] = flag_dict_FI[col]
+
 
         if F is None:
             F = Fibers(shotid, survey=self.survey)
