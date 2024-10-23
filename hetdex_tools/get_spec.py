@@ -513,6 +513,10 @@ def return_astropy_table(Source_dict,
     meteor_flag_arr = []
     amp_flag_arr = []
     flag_arr = []
+    satellite_flag_arr = []
+    badfib_arr = []
+    throughput_flag_arr = []
+    shot_flag_arr = []
 
     # loop over every ID/observation combo:
 
