@@ -903,7 +903,7 @@ class FiberIndex:
             if col == 'fiber_id':
                 continue
             else:
-                flag_dict[col] = np.all(mask_table[col])
+                flag_dict[col] = int( np.all(mask_table[col]))
 
         return flag_dict
 
