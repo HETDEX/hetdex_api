@@ -877,14 +877,8 @@ class FiberIndex:
 
         Returns
         -------
-        meteor_flag: bool
-            False if location is on meteor streak
-        gal_flag: bool
-            False if location is within a large galaxy
-        amp_flag: bool
-            False if location is on a bad quality amplifier
-        flag: bool
-            False if any of the above flags are False
+        flag_dict :  dictionary
+        1 if good, 0 if flagged bad
         """
 
         if self.fibermaskh5 is None:
@@ -894,15 +888,24 @@ class FiberIndex:
         table, table_index = self.query_region(coord, return_index=True, shotid=shotid)
         mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
 
-        flag = np.all(mask_table["flag"])
+        flag_dict = {
+            'flag' : 1,
+            "flag_badamp": 1,
+            "flag_badfib": 1,
+            "flag_meteor": 1,
+            "flag_satellite": 1,
+            'flag_largegal': 1,
+            'flag_shot' : 1,
+            "flag_throughput": 1,
+        }
 
-        meteor_flag = np.all(mask_table["meteor_flag"])
+        for col in mask_table.columns:
+            if col == 'fiber_id':
+                continue
+            else:
+                flag_dict[col] = np.all(mask_table[col])
 
-        gal_flag = np.all(mask_table["gal_flag"])
-
-        amp_flag = np.all(mask_table["amp_flag"])
-
-        return meteor_flag, gal_flag, amp_flag, flag
+        return flag_dict
 
     def close(self):
         """
