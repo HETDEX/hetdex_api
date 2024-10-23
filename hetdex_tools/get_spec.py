@@ -514,7 +514,7 @@ def return_astropy_table(Source_dict,
     amp_flag_arr = []
     flag_arr = []
     satellite_flag_arr = []
-    badfib_arr = []
+    badfib_flag_arr = []
     throughput_flag_arr = []
     shot_flag_arr = []
 
