@@ -758,7 +758,7 @@ def main(argv=None):
     )
 
     # now assigned selected det flag to LAE sample
-    # for lzg and oii galaxies, this will be the brightest OII line (not doing resolved OII right now)
+    # for agn, stars, lzg and oii galaxies will use detectid closest to FOF center
 
     sel_lae_line = (source_table["line_id"] == "Lya") & (
         source_table["source_type"] == "lae"
@@ -1087,12 +1087,19 @@ def main(argv=None):
     # update all AGN detections inspected by Chenxu to good
     flag_best[source_table["z_agn"] > 0] = 1
 
+    flag_best  = flag_best.filled(1)
+    
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
 
-    rres_vals = Table.read('/work/05350/ecooper/hdr4/all_rres_4.0.1.txt', 
+    rres_vals = Table.read('/work/05350/ecooper/stampede2/hdr4/all_rres_4.0.1.txt', 
                        format='ascii', 
                        names=['detectid', 'rres_line', 'rres_cont'])
+
+    source_table2 = join(source_table, rres_vals, join_type='left')
+
+    print('Table sizes before and after rres join: {} {}'.format(len(source_table), len(source_table2)))
+    source_table = source_table2
     
     sel_rres = source_table['rres_line']>=1.05
     source_table['sn_res'] = source_table['sn']
