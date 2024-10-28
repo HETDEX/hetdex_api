@@ -272,6 +272,50 @@ def zcluster_forshotid(shotid, star=False):
     zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
     return zdetfriend_all
 
+def zclusteragn_forshotid(shotid):
+    global source_table
+
+    sel = source_table["shotid"] == shotid
+
+    uniq_table = unique(source_table[sel], keys=["source_id"])
+
+    kdtree, r = fof.mktree(
+        np.array(uniq_table["ra_mean"]),
+        np.array(uniq_table["dec_mean"]),
+        np.array(uniq_table["z_hetdex"]),
+        dsky=10,
+        dwave=0.1,
+    )
+
+    zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
+
+    if len(zfriend_lst) == 0:
+        return None
+
+    zfriend_table = fof.process_group_list(
+        zfriend_lst,
+        np.array(uniq_table["source_id"]),
+        np.array(uniq_table["ra_mean"]),
+        np.array(uniq_table["dec_mean"]),
+        np.array(uniq_table["z_hetdex"]),
+        np.array(uniq_table["flux_g"]),
+    )
+
+    memberlist = []
+    friendlist = []
+    for row in zfriend_table:
+        friendid = row["id"]
+        members = np.array(row["members"])
+        friendlist.extend(friendid * np.ones_like(members))
+        memberlist.extend(members)
+
+    zfriend_table.remove_column("members")
+
+    zdetfriend_tab = Table()
+    zdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
+    zdetfriend_tab.add_column(Column(memberlist, name="source_id"))
+    zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
+    return zdetfriend_all
 
 def zclusterstars_forshotid(shotid):
     global source_table
@@ -694,6 +738,9 @@ def main(argv=None):
         sel = source_table["source_id"] == sid
         source_table["source_type"][sel] = "oii"
 
+    #update OII line list
+    sel_oii_line = source_table["line_id"] == "OII"
+    
     sel_star = source_table["source_type"] == "star"
     sel_oii = source_table["source_type"] == "oii"
     sel_lae = source_table["source_type"] == "lae"
@@ -716,7 +763,7 @@ def main(argv=None):
     sel_lae_line = (source_table["line_id"] == "Lya") & (
         source_table["source_type"] == "lae"
     )
-    # sel_z = source_table['z_hetdex'] > 1.87
+
     lae_tab = source_table[sel_lae_line]
     lae_tab.sort("sn", reverse=True)
 
@@ -730,10 +777,11 @@ def main(argv=None):
     uniq_obs_oii["selected_det"] = True
 
     # assign selected det flag to brightest Lya line if available
-
+    # commented this out 2024-10-21 going back to using brightest detectid
     sel_agn_with_lya = (source_table["line_id"] == "Lya") & (
         source_table["source_type"] == "agn"
     )
+
     agn_with_lya = source_table[sel_agn_with_lya]
     agn_with_lya.sort("sn", reverse=True)
 
@@ -758,13 +806,13 @@ def main(argv=None):
     agn_without_lya.sort("gmag")
 
     uniq_agn_without_lya = unique(agn_without_lya, keys="source_id")
+
     uniq_agn_without_lya["selected_det"] = True
 
     # now assign brightest detectid to star, agn, lzg groups
     sel_rest = (
         (source_table["source_type"] != "lae")
         & (source_table["source_type"] != "oii")
-        & (source_table["source_type"] != "agn")
     )
 
     rest_tab = source_table[sel_rest]
@@ -886,11 +934,12 @@ def main(argv=None):
     source_table["flag_dee_tsne"][source_table["source_type"] == "agn"] = 1
 
     source_table["flag_lowlw"] = (
-        (source_table["linewidth"] > 1.7) | (source_table["det_type"] == "cont")
+        (source_table["linewidth"] >= 1.7) | (source_table["det_type"] == "cont")
     ).astype(int)
     source_table["flag_apcor"] = np.invert(source_table["apcor"] < 0.45) & (
         source_table["det_type"] == "line"
     ).astype(int)
+
     # we can keep the AGN vetted detections with low apcor
     source_table["flag_apcor"][source_table["z_agn"] > 0] = 1
     # also keep all continuum sources
@@ -900,18 +949,13 @@ def main(argv=None):
         (source_table["wave"] >= 3510) * (source_table["wave"] <= 5496)
     ).astype(int)
     source_table["flag_wave"][source_table["det_type"] == "cont"] = 1
+
     source_table["flag_3540"] = (
         (source_table["wave"] < 3534)
-        | (source_table["wave"] > 3548)  # changed 2023-10-28
+        | (source_table["wave"] > 3556)  # changed 2024-10-28
     ).astype(int)
 
     source_table["flag_3540"][source_table["z_agn"] > 0] = 1
-
-    source_table["flag_5200"] = (
-        (source_table["wave"] < 5200) | (source_table["wave"] > 5204)
-    ).astype(int)
-
-    source_table["flag_5200"][source_table["z_agn"] > 0] = 1
 
     source_table["flag_seldet"] = source_table["selected_det"].astype(int)
     source_table["flag_fwhm"] = (source_table["fwhm"] <= 2.66).astype(int)
@@ -1022,19 +1066,6 @@ def main(argv=None):
 
     source_table.add_column(Column(flag_erin, name="flag_erin_cuts", dtype=int))
 
-    # one final loop through manually set bad detections:
-
-    baddets = np.loadtxt(config.baddetect, dtype=int)
-    current_good_dets = np.array(source_table["detectid"][source_table["flag_baddet"] == 1])
-    update_det = np.intersect1d( current_good_dets, baddets)
-
-    print("Updating bad detects flag for {} detections".format(len(update_det)))
-
-    for baddet in update_det:
-        sel_det = source_table["detectid"] == baddet
-        if source_table["flag_baddet"][sel_det] == 1:
-            source_table["flag_baddet"][sel_det] = 0
-
     flag_best = (
         source_table["flag_badamp"]
         * source_table["flag_badfib"]
@@ -1042,21 +1073,30 @@ def main(argv=None):
         * source_table["flag_apcor"]
         * source_table["flag_wave"]
         * source_table["flag_3540"]
-        * source_table["flag_5200"]
         * source_table["flag_baddet"]
         * source_table["flag_meteor"]
         * source_table["flag_largegal"]
-        * source_table["flag_raic"]
+#        * source_table["flag_raic"]
         * source_table["flag_chi2fib"]
         * source_table["flag_pixmask"]
         * source_table["flag_lowlw"]
-        * np.invert(source_table["flag_dee"] == 0)
+        * source_table['flag_satellite']
+        * source_table['flag_cal']
+#        * np.invert(source_table["flag_dee"] == 0)
     )
     # update all AGN detections inspected by Chenxu to good
     flag_best[source_table["z_agn"] > 0] = 1
 
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
+
+    rres_vals = Table.read('/work/05350/ecooper/hdr4/all_rres_4.0.1.txt', 
+                       format='ascii', 
+                       names=['detectid', 'rres_line', 'rres_cont'])
+    
+    sel_rres = source_table['rres_line']>=1.05
+    source_table['sn_res'] = source_table['sn']
+    source_table['sn_res'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
     # Fill in masked values
 
     for col in source_table.columns:
@@ -1093,8 +1133,6 @@ def main(argv=None):
     sel_sa22 = source_table["field"] == "ssa22"
     sel_notsa22 = np.invert(sel_sa22)
 
-    sel_hdr3 = (source_table["date"] < 20210901) & (source_table["detectid"] < 4e9)
-
     source_table[sel_notsa22].write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
     )
@@ -1104,14 +1142,6 @@ def main(argv=None):
     source_table[sel_sa22].write(
         "source_catalog_{}_sa22.fits".format(version), overwrite=True
     )
-
-    source_table[sel_notsa22 * sel_hdr3].write(
-        "source_catalog_{}.fits".format("3.0.3"), overwrite=True
-    )
-    source_table[sel_notsa22 * sel_hdr3].write(
-        "source_catalog_{}.tab".format("3.0.3"), format="ascii", overwrite=True
-    )
-
 
 if __name__ == "__main__":
     main()
