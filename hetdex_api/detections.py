@@ -139,8 +139,8 @@ class Detections:
         self.galaxy_cat = None
         self.badfib = None
         self.badfib_transient = None
-        self.cal5200 = None
-        self.cal5460 = None
+        self.cal5200_tab = None
+        self.cal5460_tab = None
 
         self.config = HDRconfig(survey=self.survey)
 
@@ -1690,7 +1690,7 @@ class Detections:
 
         # add calflagging
         if self.catalog_type == "lines":
-            if self.cal5200 is None:
+            if self.cal5200_tab is None:
                 # open table if not yet opened
                 self.cal5200_tab = Table.read(
                     self.config.cal5200,
@@ -1698,7 +1698,7 @@ class Detections:
                     names=["shotid", "multiframe", "expnum"],
                 )
 
-            if self.cal5460 is None:
+            if self.cal5460_tab is None:
                 # open table if not yet opened
                 self.cal5460_tab = Table.read(
                     self.config.cal5460,
