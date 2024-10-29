@@ -870,12 +870,15 @@ def get_fibers_table(
         if survey.lower() == "hdr3":
             if verbose:
                 print("Applying spectral correction from WD modelling")
-            wd_corr = Table.read(
-                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
-            )
-            fibers_table["calfib"] /= wd_corr["corr"]
-            fibers_table["calfib_ffsky"] /= wd_corr["corr"]
-            fibers_table["calfibe"] /= wd_corr["corr"]
+            try:
+                wd_corr = Table.read(
+                    config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+                )
+                fibers_table["calfib"] /= wd_corr["corr"]
+                fibers_table["calfib_ffsky"] /= wd_corr["corr"]
+                fibers_table["calfibe"] /= wd_corr["corr"]
+            except:
+                print("Warning! Cannot apply wd_corr.")
 
             if verbose:
                 print("Adjusting noise values by 7% where applicable")
@@ -915,12 +918,15 @@ def get_fibers_table(
         elif float(survey.lower()[3:]) >= 4.0:  # only HDR4 and up
             if verbose:
                 print("Applying spectral correction from WD modelling")
-            wd_corr = Table.read(
-                config.wdcor, format="ascii.no_header", names=["wave", "corr"]
-            )
-            fibers_table["calfib"] /= wd_corr["corr"]
-            fibers_table["calfib_ffsky"] /= wd_corr["corr"]
-            fibers_table["calfibe"] /= wd_corr["corr"]
+            try:
+                wd_corr = Table.read(
+                    config.wdcor, format="ascii.no_header", names=["wave", "corr"]
+                )
+                fibers_table["calfib"] /= wd_corr["corr"]
+                fibers_table["calfib_ffsky"] /= wd_corr["corr"]
+                fibers_table["calfibe"] /= wd_corr["corr"]
+            except:
+                print("Warning! Cannot apply wd_corr")
 
             if shot < 20210901000:
                 early_2019_hdr4 = np.loadtxt(
