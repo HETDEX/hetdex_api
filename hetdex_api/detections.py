@@ -1284,8 +1284,13 @@ class Detections:
             if rawh5 is False:
                 if verbose:
                     print("Applying spectral correction")
-                data["spec1d"] /= self.wd_corr["corr"]
-                data["spec1d_err"] /= self.wd_corr["corr"]
+                try:
+                    data["spec1d"] /= self.wd_corr["corr"]
+                    data["spec1d_err"] /= self.wd_corr["corr"]
+                except:
+                    print("Warning! Could not apply wd_corr.")
+
+
 
                 # Apply HDR3 noise model correction
                 if verbose:
@@ -1315,8 +1320,11 @@ class Detections:
             if rawh5 is False:
                 if verbose:
                     print("Applying spectral correction")
-                data["spec1d"] /= self.wd_corr["corr"]
-                data["spec1d_err"] /= self.wd_corr["corr"]
+                try:
+                    data["spec1d"] /= self.wd_corr["corr"]
+                    data["spec1d_err"] /= self.wd_corr["corr"]
+                except:
+                    print("Warning! Could not apply wd_corr.")
 
         if deredden:
             if verbose:
