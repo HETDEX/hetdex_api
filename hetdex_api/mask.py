@@ -174,7 +174,7 @@ def amp_flag_from_closest_fiber(
     return flag
 
 
-def cal_flag5200_for_amp(amp, shotid, expnum, cal5200_tab=None):
+def cal_flag5200_for_amp(amp, shotid, expnum=None, cal5200_tab=None):
     """
     Function to indicate whether to flag the amp at 5200
     """
