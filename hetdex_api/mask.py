@@ -241,7 +241,7 @@ def cal_flag_for_amp_wave(
     flag5200 = cal_flag5200_for_amp(amp, shotid, expnum, cal5200_tab=cal5200_tab)
 
     if flag5200 == False:
-        if ((wave >= 5194) * (wave <= 5197)) | ((wave >= 5200) | (wave <= 5205)):
+        if ((wave >= 5194) * (wave <= 5197)) | ((wave >= 5200) * (wave <= 5205)):
             flag = False
 
     flag5460 = cal_flag5460_for_amp(amp, shotid, expnum, cal5460_tab=cal5460_tab)
