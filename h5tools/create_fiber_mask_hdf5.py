@@ -9,7 +9,7 @@ calibrated fiber in the data release
 
 Example command line use:
 
-python create_fibermask_hdf5.py -s 20170222007
+python create_fiber_mask_hdf5.py -s 20170222007
 
 """
 
@@ -48,6 +48,7 @@ class CALFIB_DQ(BitFlagNameMap):
     SATELLITE = 1024
     BADCAL = 2048
 
+    
 def main(argv=None):
     """Main Function"""
     # Call initial parser from init_utils
@@ -87,7 +88,7 @@ def main(argv=None):
 
     date = str(shotid_obj)[0:8]
     obs = str(shotid_obj)[-3:]
-    outfilename = "{}v{}.h5".format(date, obs)
+    outfilename = "m{}v{}.h5".format(date, obs)
 
     fileh = tb.open_file(
         outfilename,
@@ -166,11 +167,13 @@ def main(argv=None):
             fib_tab[
                 "fiber_id",
                 "flag",
-                "amp_flag",
-                "meteor_flag",
-                "gal_flag",
-                "shot_flag",
-                "throughput_flag",
+                "flag_badamp",
+                "flag_badfib",
+                "flag_meteor",
+                "flag_satellite",
+                "flag_largegal",
+                "flag_shot",
+                "flag_throughput",
             ],
         ]
     )
@@ -229,19 +232,41 @@ def main(argv=None):
     mask_main = (calfibe > 1e-8) | (calfib != 0.0)
     mask_ftf_per_fib = np.median(ftf, axis=1) > 0.5  # only one per fiber
     mask_ftf = np.dstack([mask_ftf_per_fib] * 1036)[0]
+
     mask_chi2fib = chi2fib < 150
 
     # add badcal mask
-    mask_badcal = 
+    mask_badcal =  np.ones_like(calfib, dtype=bool)
+
+    cal5200_tab = Table.read(
+        config.cal5200,
+        format="ascii",
+        names=["shotid", "multiframe", "expnum"],
+    )
+    cal5460_tab = Table.read(
+        config.cal5460,
+        format="ascii",
+        names=["shotid", "multiframe", "expnum"],
+    )
     
-    # Add full fiber flags 'amp_flag', 'meteor_flag', 'gal_flag', 'shot_flag', 'throughput_flag',
-    mask_amp = np.dstack([spec_tab["amp_flag"]] * 1036)[0]
-    mask_gal = np.dstack([spec_tab["gal_flag"]] * 1036)[0]
-    mask_meteor = np.dstack([spec_tab["meteor_flag"]] * 1036)[0]
-    mask_shot = np.dstack([spec_tab["shot_flag"]] * 1036)[0]
-    mask_throughput = np.dstack([spec_tab["throughput_flag"]] * 1036)[0]
-    mask_satellite = np.dstack([spec_tab['satellite_flag']] * 1036)[0]
-    mask_badfib = np.dstack([spec_tab['badfiber_flag']] * 1036)[0]
+    for	row in cal5200_tab[ cal5200_tab['shotid'] == 1]:
+        sel_mf = mf_array == row["multiframe"]
+        sel_wave =  ((wave_rect >= 5194) * (wave_rect <= 5197)) | ((wave_rect >= 5200) * (wave_rect <= 5205))
+        mask_badcal[sel_mf][sel_wave] = 0
+        
+    for row in cal5460_tab[ cal5460_tab['shotid'] == 1]:
+        sel_mf = mf_array == row["multiframe"]
+        sel_wave =  (wave_rect >= 5456) * (wave_rect <= 5466)
+        mask_badcal[sel_mf][sel_wave] =	0
+        
+    # Add full fiber flags 
+    mask_amp = np.dstack([spec_tab["flag_badamp"]] * 1036)[0]
+    mask_gal = np.dstack([spec_tab["flag_largegal"]] * 1036)[0]
+    mask_meteor = np.dstack([spec_tab["flag_meteor"]] * 1036)[0]
+    mask_shot = np.dstack([spec_tab["flag_shot"]] * 1036)[0]
+    mask_throughput = np.dstack([spec_tab["flag_throughput"]] * 1036)[0]
+    mask_satellite = np.dstack([spec_tab['flag_satellite']] * 1036)[0]
+    mask_badfib = np.dstack([spec_tab['flag_badfib']] * 1036)[0]
 
     CALFIB_NET = (
         CALFIB_DQ.MAIN * np.invert(mask_main)
