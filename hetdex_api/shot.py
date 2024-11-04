@@ -177,7 +177,7 @@ class Fibers:
                 if self.mask_version is not None:
                     # compose the file handle
                     fmask = op.join(
-                        config.mask_dir, self.mask_version, "{}.h5".format(datevobs)
+                        config.mask_dir, self.mask_version, "m{}.h5".format(datevobs)
                     )
                     self.maskh5 = tb.open_file(fmask, "r")
             except:
