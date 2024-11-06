@@ -172,7 +172,8 @@ class Fibers:
                     if args is not None:
                         args.add_mask = False
                         args.apply_mask = False
-                    print("Fiber masking not allowed for version {}.".format(survey))
+                        if verbose:
+                            print("Fiber masking not available for version {}.".format(survey))
 
                 if self.mask_version is not None:
                     # compose the file handle
