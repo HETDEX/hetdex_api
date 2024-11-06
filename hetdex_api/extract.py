@@ -23,7 +23,6 @@ matplotlib.use("agg")
 
 NWAY_IMPORTED = False
 
-
 from hetdex_api.shot import Fibers, open_shot_file, get_fibers_table
 from hetdex_api.input_utils import setup_logging
 
@@ -302,6 +301,7 @@ class Extract:
             raise Exception("fiber_lower_limit must be greater than 2")
 
         if not NWAY_IMPORTED:
+            import nwaylib
             from nwaylib import _create_match_table
             from nwaylib.logger import NormalLogger, NullOutputLogger
             NWAY_IMPORTED = True
