@@ -237,7 +237,7 @@ class CubeWidget(ImageWidget):
                 self.line_plot.data = []
             
             self.line_plot.add_trace(
-                go.Scatter(x = self.wavelengths, y=self.spectrum, hover_data=self.wavelengths,
+                go.Scatter(x = self.wavelengths, y=self.spectrum, 
                            mode="lines", name="X={} Y={}".format(self._cur_ix, self._cur_iy)),
             )
             self.line_plot.update_traces(hoverinfo="text+name", mode="lines")
