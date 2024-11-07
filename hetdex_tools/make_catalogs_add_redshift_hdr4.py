@@ -765,25 +765,23 @@ def main(argv=None):
     )
 
     lae_tab = source_table[sel_lae_line]
-    lae_tab.sort("sn", reverse=True)
+    lae_tab.sort("flux", reverse=True)
 
     uniq_obs_lae = unique(lae_tab, keys="source_id")
     uniq_obs_lae["selected_det"] = True
 
     oii_tab = source_table[sel_oii_line]
-    oii_tab.sort("sn", reverse=True)
+    oii_tab.sort("flux", reverse=True)
 
     uniq_obs_oii = unique(oii_tab, keys="source_id")
     uniq_obs_oii["selected_det"] = True
 
-    # assign selected det flag to brightest Lya line if available
-    # commented this out 2024-10-21 going back to using brightest detectid
     sel_agn_with_lya = (source_table["line_id"] == "Lya") & (
         source_table["source_type"] == "agn"
     )
 
     agn_with_lya = source_table[sel_agn_with_lya]
-    agn_with_lya.sort("sn", reverse=True)
+    agn_with_lya.sort("flux", reverse=True)
 
     uniq_agn_with_lya = unique(agn_with_lya, keys="source_id")
     uniq_agn_with_lya["selected_det"] = True
@@ -809,12 +807,14 @@ def main(argv=None):
 
     uniq_agn_without_lya["selected_det"] = True
 
-    # now assign brightest detectid to star, agn, lzg groups
+    # now assign brightest detectid to star, lzg groups
     sel_rest = (
         (source_table["source_type"] != "lae")
         & (source_table["source_type"] != "oii")
+        & (source_table["source_type"] != "agn")
     )
 
+    # sort the rest of catalog using the brightest gmag 
     rest_tab = source_table[sel_rest]
     rest_tab.sort("gmag")
 
@@ -922,9 +922,29 @@ def main(argv=None):
         combined, fit_2D["detectid", "sn_im", "sn_moffat", "chi2_moffat"], join_type="left"
     )
 
-    print(len(combined), len(source_table2))
+    # add sn_elixer for p_real
 
-    source_table = unique(source_table2, keys="detectid")
+    elixh5 = tb.open_file(config.elixerh5, 'r')
+    elix_line_fit = Table( elixh5.root.SpectraLines.read())
+    elix_line_fit.rename_column('sn','sn_elix')
+    
+    src2 = join(source_table, elix_line_fit['detectid','wavelength', 'sn_elix'], keys='detectid')
+    sel_wave_match = np.abs( src2['wavelength'] - src2['wave'] ) < 10
+
+    elix_lines = src2['detectid','sn_elix'][sel_wave_match]
+
+    source_table3 = join( source_table2, elix_lines, join_type='left')
+
+    # fill in sn value for any mask sn_elix values
+    for i in np.where( source_table3['sn_elix'].mask == True ):
+        source_table3['sn_elix'][i] = source_table3['sn'][i]
+        
+    for i in np.where( np.isnan( source_table3['sn_elix'] )):
+        source_table3['sn_elix'][i] = source_table3['sn'][i]
+    
+    print(len(combined), len(source_table2), len(source_table3))
+
+    source_table = unique(source_table3, keys="detectid")
     # finalize flags
 
     source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
@@ -936,6 +956,7 @@ def main(argv=None):
     source_table["flag_lowlw"] = (
         (source_table["linewidth"] >= 1.7) | (source_table["det_type"] == "cont")
     ).astype(int)
+    
     source_table["flag_apcor"] = np.invert(source_table["apcor"] < 0.45) & (
         source_table["det_type"] == "line"
     ).astype(int)
@@ -945,6 +966,8 @@ def main(argv=None):
     # also keep all continuum sources
     source_table["flag_apcor"][source_table["det_type"] == "cont"] = 1
 
+    source_table['flag_continuum'] = (source_table['continuum'] > -1).astype(int)
+    
     source_table["flag_wave"] = (
         (source_table["wave"] >= 3510) * (source_table["wave"] <= 5496)
     ).astype(int)
@@ -964,7 +987,6 @@ def main(argv=None):
 
     raic_cat_cont = Table.read(
         "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_cont_labels_20231108_hdr4.0.0.fits"
-        # "/work/05350/ecooper/stampede2/line_images/hdr3/cont_full_all_cat_20230322.csv"
     )
 
     # sort by score, will take unique label for highest score
@@ -978,7 +1000,6 @@ def main(argv=None):
     # add RAIC line data
     raic_cat = Table.read(
         "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_line_labels_20231107_hdr4.0.0.fits"
-        # "/work/05350/ecooper/stampede2/line_images/hdr3/streaks_20230328.csv"
     )
 
     raic_cat.sort("Score")
@@ -1073,16 +1094,17 @@ def main(argv=None):
         * source_table["flag_apcor"]
         * source_table["flag_wave"]
         * source_table["flag_3540"]
+        * source_table['flag_continuum']
         * source_table["flag_baddet"]
         * source_table["flag_meteor"]
         * source_table["flag_largegal"]
-#        * source_table["flag_raic"]
+        * source_table["flag_raic"]
         * source_table["flag_chi2fib"]
         * source_table["flag_pixmask"]
         * source_table["flag_lowlw"]
         * source_table['flag_satellite']
         * source_table['flag_cal']
-#        * np.invert(source_table["flag_dee"] == 0)
+        * np.invert(source_table["flag_dee"] == 0)
     )
     # update all AGN detections inspected by Chenxu to good
     flag_best[source_table["z_agn"] > 0] = 1
@@ -1102,8 +1124,8 @@ def main(argv=None):
     source_table = source_table2
     
     sel_rres = source_table['rres_line']>=1.05
-    source_table['sn_res'] = source_table['sn']
-    source_table['sn_res'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
+    source_table['sn_rres'] = source_table['sn']
+    source_table['sn_rres'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
     # Fill in masked values
 
     for col in source_table.columns:
@@ -1134,21 +1156,32 @@ def main(argv=None):
             except:
                 pass
 
+    import joblib 
+
+    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_2.0_20241106.joblib") 
+
+    X =  np.array( [x[:] for x in source_table[clf.columns]] )
+
+    p_real = clf.predict_proba(X)[:,1]
+
+    source_table['p_real'] = p_real
+
     # remove nonsense metadata
     source_table.meta = {}
 
-    sel_sa22 = source_table["field"] == "ssa22"
-    sel_notsa22 = np.invert(sel_sa22)
+    # can include SA22 as of 2024-11-05
+#    sel_sa22 = source_table["field"] == "ssa22"
+#    sel_notsa22 = np.invert(sel_sa22)
 
-    source_table[sel_notsa22].write(
+    source_table.write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
     )
-    source_table[sel_notsa22].write(
+    source_table.write(
         "source_catalog_{}.z.tab".format(version), format="ascii", overwrite=True
     )
-    source_table[sel_sa22].write(
-        "source_catalog_{}_sa22.fits".format(version), overwrite=True
-    )
+#    source_table[sel_sa22].write(
+#        "source_catalog_{}_sa22.fits".format(version), overwrite=True
+#    )
 
 if __name__ == "__main__":
     main()
