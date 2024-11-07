@@ -440,7 +440,7 @@ def create_source_catalog(version="4.0.0", update=False):
             "continuum_" + version + ".tab", overwrite=True, format="ascii"
         )
         detects_cont_hdr3.close()
-        detects_cont_hdr4.close
+        detects_cont_hdr4.close()
 
     else:
         detects_cont_table = Table.read("continuum_" + version + ".fits")
