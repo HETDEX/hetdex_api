@@ -1,10 +1,8 @@
 """
-cloned from make_catalogs_hdr4.py
-
-FUTURE todo: update for HDR5 ... the make_catalogs_hdr4.py is still being edited (2024-10-03)
+Cloned from make_catalogs_hdr4.py on 2024-11-07. This replaces previous clone from 2024-10-03
+as many updates were done
 
 """
-
 
 import sys
 import numpy as np
@@ -41,7 +39,7 @@ from hetdex_api.extinction import *
 import extinction
 
 catlib = catalogs.CatalogLibrary()
-config = HDRconfig("hdr4")
+config = HDRconfig("hdr5")
 
 wavelya = 1215.67
 waveoii = 3727.8
@@ -52,7 +50,6 @@ add_agn = True
 
 
 def make_friend_table_for_shot(shotid):
-
     global detect_table, dsky_2D
     sel_shot = detect_table["shotid"] == shotid
     kdtree, r = fof.mktree(
@@ -92,7 +89,6 @@ def make_friend_table_for_shot(shotid):
 
 
 def make_wfriend_table_for_shot(shotid):
-
     global detect_table, dsky_3D, dwave
 
     sel_shot = (detect_table["shotid"] == shotid) & (detect_table["det_type"] == "line")
@@ -107,7 +103,6 @@ def make_wfriend_table_for_shot(shotid):
     wfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
 
     if len(wfriend_lst) > 0:
-
         wfriend_table = fof.process_group_list(
             wfriend_lst,
             detect_table["detectid"][sel_shot],
@@ -139,13 +134,18 @@ def make_wfriend_table_for_shot(shotid):
 
 
 def add_elixer_cat_info(detect_table):
-
     global config
 
-    elixer_file = op.join(config.detect_dir, "elixer_hdr3_hdr4_all_cat.h5")
-    elixer_cat = tb.open_file(elixer_file, "r")
-        
-    elix_tab = Table(elixer_cat.root.Detections.read())
+    elixer_file1 = op.join(config.hdr_dir['hdr4'],'detect', "elixer_hdr3_hdr4_all_cat.h5")
+    elixer_file2 = op.join(config.hdr_dir['hdr5'],'detect', "elixer_hdr5_all_cat.h5")
+    
+    elixer_cat1 = tb.open_file(elixer_file1, "r")
+    elixer_cat2 = tb.open_file(elixer_file2, "r")
+
+    elix_tab1 = Table(elixer_cat1.root.Detections.read())
+    elix_tab2 = Table(elixer_cat2.root.Detections.read())
+
+    elix_tab = vstack( [ elix_tab1, elix_tab2] )
 
     sel_det_col = [
         "detectid",
@@ -168,9 +168,13 @@ def add_elixer_cat_info(detect_table):
     )
 
     catalog.rename_column("mag_g_wide", "gmag")
-    catalog.rename_column("z_best_2","best_z")
+    catalog.rename_column("z_best_2", "best_z")
     catalog.rename_column("z_best_pz_2", "best_pz")
-    extracted_objects = Table(elixer_cat.root.ExtractedObjects.read())
+    
+    extracted_objects1 = Table(elixer_cat1.root.ExtractedObjects.read())
+    extracted_objects2 = Table(elixer_cat2.root.ExtractedObjects.read())
+
+    extracted_objects = vstack( [ extracted_objects1, extracted_objects2] )
     selected1 = (extracted_objects["selected"] == True) & (
         extracted_objects["filter_name"] == b"r"
     )
@@ -192,7 +196,10 @@ def add_elixer_cat_info(detect_table):
     eo_tab.rename_column("image_depth_mag", "counterpart_image_depth_mag")
     eo_tab["elixer_cat_src"] = "ExtractedObjects"
 
-    aper_tab = Table(elixer_cat.root.Aperture.read())
+    aper_tab1 = Table(elixer_cat1.root.Aperture.read())
+    aper_tab2 = Table(elixer_cat2.root.Aperture.read())
+
+    aper_tab = vstack( [ aper_tab1, aper_tab2] )
     # check if there is an aperture tab value
     sel_cat = (aper_tab["catalog_name"] == "HSC-SSP") | (
         aper_tab["catalog_name"] == "HSC-DEX"
@@ -229,8 +236,9 @@ def add_elixer_cat_info(detect_table):
 
     catalog2 = join(catalog, elix_stack_tab, keys="detectid", join_type="left")
 
-    elixer_cat.close()
-
+    elixer_cat1.close()
+    elixer_cat2.close()
+    
     catalog2.rename_column("best_z", "z_elixer")
 
     # fill mask values with nans
@@ -239,12 +247,11 @@ def add_elixer_cat_info(detect_table):
             catalog2[col] = catalog2[col].filled(np.nan)
         except Exception:
             pass
-            
+
     return catalog2
 
 
 def merge_wave_groups(wid):
-
     global expand_table
 
     try:
@@ -288,44 +295,48 @@ def merge_wave_groups(wid):
 
 
 def create_source_catalog(version="5.0.0", update=False):
-
     global config
 
     if update:
-
         print("Creating curated detection catalog version={}".format(version))
 
-        print('Opening HDR3 Lines Database')
+        print("Opening HDR3 Lines Database")
         D_hdr3 = Detections(survey="hdr3", loadtable=True)
 
-        # get masking info for each detection                                                                                                                  
+        # get masking info for each detection
         mask_badamp = D_hdr3.remove_bad_amps()
         mask_badshots = D_hdr3.remove_shots()
         mask_tp = D_hdr3.throughput >= 0.08
         # downselect badamps and badshots
 
         sel_date = D_hdr3.date <= 20210901
-        
+
         D_hdr3 = D_hdr3[mask_badamp & mask_badshots & mask_tp & sel_date]
 
         mask_baddet_hdr3 = D_hdr3.remove_bad_detects()
 
         sel_cut1 = (D_hdr3.sn >= 4.8) & (D_hdr3.chi2 <= 2.5)
-        sel_cont = (D_hdr3.continuum > -3)
+        sel_cont = D_hdr3.continuum > -3
         sel_chi2fib = D_hdr3.chi2fib < 4.5
         sel_lw = (D_hdr3.linewidth <= 14) & (D_hdr3.linewidth >= 1.6)
 
         sel_cat = sel_cut1 & sel_cont & sel_chi2fib * sel_lw
 
         detects_line_table_hdr3 = D_hdr3[sel_cat].return_astropy_table()
-        detects_line_table_hdr3.add_column(Column(str("line"), name="det_type", dtype=str))
+        detects_line_table_hdr3.add_column(
+            Column(str("line"), name="det_type", dtype=str)
+        )
+
+        detects_line_table_hdr3.add_column(
+            Column(str("hdr3"), name="survey", dtype=str)
+        )
 
         detects_line_table_hdr3.add_column(
             Column(mask_baddet_hdr3[sel_cat].astype(int), name="flag_baddet", dtype=int)
         )
 
-        print('Opening HDR4 Lines Database')
-        
+        print("Opening HDR4 Lines Database")
+
         D_hdr4 = Detections(survey="hdr4", loadtable=True)
 
         # get masking info for each detection
@@ -338,99 +349,168 @@ def create_source_catalog(version="5.0.0", update=False):
         mask_baddet_hdr4 = D_hdr4.remove_bad_detects()
 
         sel_cut1 = (D_hdr4.sn >= 4.8) & (D_hdr4.chi2 <= 2.5)
-        sel_cont = (D_hdr4.continuum > -3)
+        sel_cont = D_hdr4.continuum > -3
         sel_chi2fib = D_hdr4.chi2fib < 4.5
         sel_lw = (D_hdr4.linewidth <= 14) & (D_hdr4.linewidth >= 1.6)
 
-        sel_cat = sel_cut1 & sel_cont & sel_chi2fib * sel_lw 
+        sel_cat = sel_cut1 & sel_cont & sel_chi2fib * sel_lw
 
         detects_line_table_hdr4 = D_hdr4[sel_cat].return_astropy_table()
 
-        detects_line_table_hdr4.add_column(Column(str("line"), name="det_type", dtype=str))
-
+        detects_line_table_hdr4.add_column(
+            Column(str("line"), name="det_type", dtype=str)
+        )
+        detects_line_table_hdr4.add_column(
+            Column(str("hdr4"), name="survey", dtype=str)
+        )
         detects_line_table_hdr4.add_column(
             Column(mask_baddet_hdr4[sel_cat].astype(int), name="flag_baddet", dtype=int)
         )
 
-        detects_line_table = vstack( [detects_line_table_hdr3, detects_line_table_hdr4] )
+        print("Opening HDR5 Lines Database")
 
+        D_hdr5 = Detections(survey="hdr5", loadtable=True)
 
+        # get masking info for each detection                                                                                 
+        mask_badamp = D_hdr5.remove_bad_amps()
+        mask_badshots = D_hdr5.remove_shots()
+        mask_tp = D_hdr5.throughput >= 0.08
+        # downselect badamps and badshots                                                                                     
+        D_hdr5 = D_hdr5[mask_badamp & mask_badshots & mask_tp]
 
-        #todo: HDR5 stuff here
+        mask_baddet_hdr5 = D_hdr5.remove_bad_detects()
 
+        sel_cut1 = (D_hdr5.sn >= 4.8) & (D_hdr5.chi2 <= 2.5)
+        sel_cont = D_hdr5.continuum > -3
+        sel_chi2fib = D_hdr5.chi2fib < 4.5
+        sel_lw = (D_hdr5.linewidth <= 14) & (D_hdr5.linewidth >= 1.6)
 
+        sel_cat = sel_cut1 & sel_cont & sel_chi2fib * sel_lw
 
-        print('Adding Elixer Info')
+        detects_line_table_hdr5 = D_hdr5[sel_cat].return_astropy_table()
+
+        detects_line_table_hdr5.add_column(
+            Column(str("line"), name="det_type", dtype=str)
+        )
+        detects_line_table_hdr5.add_column(
+            Column(str("hdr5"), name="survey", dtype=str)
+        )
+        detects_line_table_hdr5.add_column(
+            Column(mask_baddet_hdr5[sel_cat].astype(int), name="flag_baddet", dtype=int)
+        )
+
+        detects_line_table = vstack([detects_line_table_hdr3, detects_line_table_hdr4, detects_line_table_hdr5])
+
+        print("Adding Elixer Info")
         print(len(detects_line_table))
-        
+
         detects_line_table = add_elixer_cat_info(detects_line_table)
         print(len(detects_line_table))
-        
+
         detects_line_table.write("detect_hdr{}.fits".format(version), overwrite=True)
         detects_line_table.write(
             "detect_hdr{}.tab".format(version), format="ascii", overwrite=True
         )
-        #np.savetxt('line_hdr{}.dets'.format(version), detects_line_table['detectid'], fmt="%i")
-        #np.savetxt('hdr{}.shots'.format(version), np.unique(detects_line_table['shotid']), fmt="%i")
-        
     else:
         detects_line_table = Table.read("detect_hdr{}.fits".format(version))
 
+
     if update:
-        print('Opening HDR3 Continuum Database')
+        print("Opening HDR3 Continuum Database")
         detects_cont_hdr3 = Detections(
             catalog_type="continuum", survey="hdr3", loadtable=True
         )
 
         mask_badamp_cont = detects_cont_hdr3.remove_bad_amps()
         mask_badshot_cont = detects_cont_hdr3.remove_shots()
-        mask_tp_cont =  detects_cont_hdr3.throughput > 0.08
+        mask_tp_cont = detects_cont_hdr3.throughput > 0.08
         sel_date = detects_cont_hdr3.date <= 20210901
 
-        detects_cont_hdr3 = detects_cont_hdr3[mask_badamp_cont & mask_badshot_cont & mask_tp_cont & sel_date]
+        detects_cont_hdr3 = detects_cont_hdr3[
+            mask_badamp_cont & mask_badshot_cont & mask_tp_cont & sel_date
+        ]
 
         mask_baddet_cont = detects_cont_hdr3.remove_bad_detects()
-        
+
         detects_cont_table_hdr3 = detects_cont_hdr3.return_astropy_table()
 
-        
-        detects_cont_table_hdr3.add_column(Column(str("cont"), name="det_type", dtype=str))
+        detects_cont_table_hdr3.add_column(
+            Column(str("cont"), name="det_type", dtype=str)
+        )
+        detects_cont_table_hdr3.add_column(
+            Column(str("hdr3"), name="survey", dtype=str)
+        )
         detects_cont_table_hdr3.add_column(
             Column(mask_baddet_cont.astype(int), name="flag_baddet", dtype=int)
         )
-        
-        print('Opening HDR4 Continuum Database')
+
+        print("Opening HDR4 Continuum Database")
         detects_cont_hdr4 = Detections(
             catalog_type="continuum", survey="hdr4", loadtable=True
         )
 
         mask_badamp_cont = detects_cont_hdr4.remove_bad_amps()
         mask_badshot_cont = detects_cont_hdr4.remove_shots()
-        mask_tp_cont =  detects_cont_hdr4.throughput > 0.08
+        mask_tp_cont = detects_cont_hdr4.throughput > 0.08
 
-        detects_cont_hdr4 = detects_cont_hdr4[mask_badamp_cont & mask_badshot_cont & mask_tp_cont ]
+        detects_cont_hdr4 = detects_cont_hdr4[
+            mask_badamp_cont & mask_badshot_cont & mask_tp_cont
+        ]
 
         mask_baddet_cont = detects_cont_hdr4.remove_bad_detects()
 
         detects_cont_table_hdr4 = detects_cont_hdr4.return_astropy_table()
-        
-        detects_cont_table_hdr4.add_column(Column(str("cont"), name="det_type", dtype=str))
+
+        detects_cont_table_hdr4.add_column(
+            Column(str("cont"), name="det_type", dtype=str)
+        )
+        detects_cont_table_hdr4.add_column(
+            Column(str("hdr4"), name="survey", dtype=str)
+        )
         detects_cont_table_hdr4.add_column(
             Column(mask_baddet_cont.astype(int), name="flag_baddet", dtype=int)
         )
-        
-        print('Combining Continuum Databases')
 
-        detects_cont_table = vstack([ detects_cont_table_hdr3, detects_cont_table_hdr4])
-        
+        print("Opening HDR5 Continuum Database")
+
+        detects_cont_hdr5 = Detections(
+            catalog_type="continuum", survey="hdr5", loadtable=True
+        )
+
+        mask_badamp_cont = detects_cont_hdr5.remove_bad_amps()
+        mask_badshot_cont = detects_cont_hdr5.remove_shots()
+        mask_tp_cont = detects_cont_hdr5.throughput > 0.08
+
+        detects_cont_hdr5 = detects_cont_hdr5[
+            mask_badamp_cont & mask_badshot_cont & mask_tp_cont
+        ]
+
+        mask_baddet_cont = detects_cont_hdr5.remove_bad_detects()
+
+        detects_cont_table_hdr5 = detects_cont_hdr5.return_astropy_table()
+
+        detects_cont_table_hdr5.add_column(
+            Column(str("cont"), name="det_type", dtype=str)
+        )
+        detects_cont_table_hdr5.add_column(
+            Column(str("hdr5"), name="survey", dtype=str)
+        )
+        detects_cont_table_hdr5.add_column(
+            Column(mask_baddet_cont.astype(int), name="flag_baddet", dtype=int)
+        )
+
+        print("Combining Continuum Databases")
+
+        detects_cont_table = vstack([detects_cont_table_hdr3, detects_cont_table_hdr4, detects_cont_hdr5])
+
         # set columns to 0 that are not relevent to continuum catalog
-        for col in ['apcor','flux_noise_1sigma','sn_3fib','sn_3fib_cen','sn_cen']:
+        for col in ["apcor", "flux_noise_1sigma", "sn_3fib", "sn_3fib_cen", "sn_cen"]:
             detects_cont_table[col] = 0.0
-       
+
         full_cont_table = detects_cont_table.copy()
 
-        print('Adding Elixer info to combined continuum catalog')
-       
+        print("Adding Elixer info to combined continuum catalog")
+
         detects_cont_table = add_elixer_cat_info(detects_cont_table)
         print(len(detects_cont_table))
         detects_cont_table.write("continuum_" + version + ".fits", overwrite=True)
@@ -438,8 +518,9 @@ def create_source_catalog(version="5.0.0", update=False):
             "continuum_" + version + ".tab", overwrite=True, format="ascii"
         )
         detects_cont_hdr3.close()
-        detects_cont_hdr4.close
-        #np.savetxt('cont_hdr{}.dets'.format(version), detects_cont_table['detectid'], fmt="%i")
+        detects_cont_hdr4.close()
+        detects_cont_hdr5.close()
+
     else:
         detects_cont_table = Table.read("continuum_" + version + ".fits")
 
@@ -448,18 +529,34 @@ def create_source_catalog(version="5.0.0", update=False):
         if add_agn:
             full_line_table_hdr3 = D_hdr3.return_astropy_table()
             full_line_table_hdr3.add_column(
+                Column(str("hdr3"), name="survey", dtype=str)
+            )
+            full_line_table_hdr3.add_column(
                 Column(mask_baddet_hdr3.astype(int), name="flag_baddet", dtype=int)
             )
-            
+
             full_line_table_hdr4 = D_hdr4.return_astropy_table()
             full_line_table_hdr4.add_column(
-		Column(mask_baddet_hdr4.astype(int), name="flag_baddet", dtype=int)
+                Column(str("hdr4"), name="survey", dtype=str)
+            )
+            full_line_table_hdr4.add_column(
+                Column(mask_baddet_hdr4.astype(int), name="flag_baddet", dtype=int)
             )
 
-            full_line_table = vstack( [full_line_table_hdr3, full_line_table_hdr4] )
-            
+            full_line_table_hdr5 = D_hdr5.return_astropy_table()
+            full_line_table_hdr5.add_column(
+                Column(str("hdr5"), name="survey", dtype=str)
+            )
+            full_line_table_hdr4.add_column(
+                Column(mask_baddet_hdr4.astype(int), name="flag_baddet", dtype=int)
+            )
+            full_line_table = vstack(
+                [full_line_table_hdr3,
+                 full_line_table_hdr4,
+                 full_line_table_hdr5]])
+
             full_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
-            
+
             agn_tab = Table.read(
                 config.agncat,
                 format="ascii",
@@ -467,6 +564,7 @@ def create_source_catalog(version="5.0.0", update=False):
             )
             agn_tab.rename_column("vis_class", "agn_vis_class")
             agn_tab.rename_column("z", "z_agn")
+
             detects_agn = join(
                 agn_tab,
                 vstack([full_cont_table, full_line_table]),
@@ -474,15 +572,16 @@ def create_source_catalog(version="5.0.0", update=False):
             )
             detects_agn = add_elixer_cat_info(detects_agn)
 
-            detects_agn.sort('gmag')
-            detects_agn = unique( detects_agn, keys='detectid')
-            print('Final AGN length: {}'.format( len(detects_agn)))
+            detects_agn.sort("gmag")
+            detects_agn = unique(detects_agn, keys="detectid")
+            print("Final AGN length: {}".format(len(detects_agn)))
             detects_agn.write("agn_" + version + ".fits", overwrite=True)
         else:
             print("No updated AGN catalog created")
         D_hdr3.close()
         D_hdr4.close()
-        
+        D_hdr5.close()
+
     else:
         if add_agn:
             detects_agn = Table.read("agn_" + version + ".fits")
@@ -498,68 +597,67 @@ def create_source_catalog(version="5.0.0", update=False):
             vstack([detects_agn, detects_cont_table, detects_line_table]),
             keys="detectid",
         )
-        detect_table['z_agn'] = detect_table['z_agn'].filled(-1)
-        detect_table['agn_vis_class'] = detect_table['agn_vis_class'].filled(-1)
+        detect_table["z_agn"] = detect_table["z_agn"].filled(-1)
+        detect_table["agn_vis_class"] = detect_table["agn_vis_class"].filled(-1)
 
         del detects_cont_table, detects_line_table, detects_agn
     else:
-
         detect_table = unique(
             vstack([detects_cont_table, detects_line_table]), keys="detectid"
         )
 
         del detects_cont_table, detects_line_table
 
-    #save the continuum and line emission dets in separate files for det flag calculations
-    
-    np.savetxt('line_{}.dets'.format(version), detect_table['detectid'][ detect_table['det_type']=='line'], fmt="%i")
-    np.savetxt('cont_{}.dets'.format(version), detect_table['detectid'][ detect_table['det_type']=='cont'], fmt="%i")
-    np.savetxt('shots_{}.txt', np.unique(detect_table['shotid']), fmt="%i")
-    
-    #also add in HDR3.0.3
+    # save the continuum and line emission dets in separate files for det flag calculations
 
-    #detect_line_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/detect_hdr3.0.3.fits')
-    #detect_cont_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/continuum_3.0.3.fits')
-    #detect_agn_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/agn_3.0.3.fits')
+    for survey in ["hdr3", "hdr4", "hdr5"]:
+        np.savetxt(
+            "line_{}_{}.dets".format(survey, version),
+            detect_table["detectid"][
+                (detect_table["det_type"] == "line")
+                * (detect_table["survey"] == survey)
+            ],
+            fmt="%i",
+        )
+        np.savetxt(
+            "cont_{}_{}.dets".format(survey, version),
+            detect_table["detectid"][
+                (detect_table["det_type"] == "cont")
+                * (detect_table["survey"] == survey)
+            ],
+            fmt="%i",
+        )
+        np.savetxt(
+            "shots_{}_{}.txt".format(survey, version),
+            np.unique(detect_table["shotid"][detect_table["survey"] == survey]),
+            fmt="%i",
+        )
 
-    # exclude data past 20210831 for the HDR3 catalgos
-    #detect_line_hdr3 = detect_line_hdr3[ detect_line_hdr3['date'] < 20210901]
-    #detect_cont_hdr3 = detect_cont_hdr3[ detect_cont_hdr3['date'] < 20210901]
-    #detect_agn_hdr3 = detect_agn_hdr3[ detect_agn_hdr3['date'] < 20210901]
-    
-    #detect_table_all = unique( vstack([detect_line_hdr3, detect_cont_hdr3, detect_agn_hdr3, detect_table]), keys='detectid')
-
-    #detect_table_all = unique( vstack([detect_line_hdr3, detect_cont_hdr3, detect_agn_hdr3, detect_table]), keys='detectid') 
-    #detect_table = detect_table_all.copy()
-    
-    #del detect_line_hdr3, detect_cont_hdr3, detect_agn_hdr3, detect_table_all
-    
     gc.collect()
 
     # add det flags table
 
-    detflags_tab_hdr3 = Table.read('/scratch/projects/hetdex/hdr3/catalogs/det_flags_3.0.3.fits')
-    # ignore detections after 20210831
-    detflags_tab_hdr3 = detflags_tab_hdr3[ detflags_tab_hdr3['detectid'] < 3013799514 ]
-    
-    detflags_tab_hdr4 = Table.read('/scratch/projects/hetdex/hdr4/catalogs/det_flags_4.0.0.fits')
-    
-    detflags_tab = vstack([ detflags_tab_hdr3, detflags_tab_hdr4] )
-    
-    print('Adding det flags to full catalog. Size is {}'.format(len(detect_table)))
-    detect_table2 = join(
-        detect_table, detflags_tab, keys="detectid", join_type="left"
-    )
+    detflags_tab = Table.read('/scratch/projects/hetdex/hdr4/catalogs/det_flags_{}.fits'.format(version) )
+
+    print("Adding det flags to full catalog. Size is {}".format(len(detect_table)))
+    detect_table2 = join(detect_table, detflags_tab, keys="detectid", join_type="left")
     detect_table = unique(detect_table2, keys="detectid")
-    
-    print(
-        "Size after combining with detflags_tab: {}".format(len(detect_table))
-    )
+
+    print("Size after combining with detflags_tab: {}".format(len(detect_table)))
 
     # fill mask values with nans
     for col in detect_table.columns:
         try:
-            if col in ['flag_pixmask', 'flag_badamp', 'flag_badpix', 'flag_badfib', 'flag_meteor', 'flag_largegal', 'flag_chi2fib','flag_baddetect']:
+            if col in [
+                "flag_pixmask",
+                "flag_badamp",
+                "flag_badpix",
+                "flag_badfib",
+                "flag_meteor",
+                "flag_largegal",
+                "flag_chi2fib",
+                "flag_baddetect",
+            ]:
                 detect_table[col] = detect_table[col].filled(1)
                 print("Replacing masked values with 1 for {}".format(col))
             else:
@@ -567,8 +665,8 @@ def create_source_catalog(version="5.0.0", update=False):
                 print("Replacing masked values with np.nan for {}".format(col))
         except Exception:
             pass
-            print('no', col)
-    
+            print("no", col)
+
     # calculate ebv and av for every detections
     all_coords = SkyCoord(ra=detect_table["ra"], dec=detect_table["dec"], unit="deg")
     sfd = SFDQuery()
@@ -601,12 +699,11 @@ def create_source_catalog(version="5.0.0", update=False):
     res = P.map(make_wfriend_table_for_shot, shotlist)
     P.close()
 
-    wstart = int(version.replace(".", "", 2)) * 10 ** 6
+    wstart = int(version.replace(".", "", 2)) * 10**6
     wdetfriend_all = Table()
 
     firstid = True
     for r in res:
-
         if r is None:
             continue
         else:
@@ -644,16 +741,15 @@ def create_source_catalog(version="5.0.0", update=False):
     print("Performing FOF in 2D space with dlink={}".format(dsky_2D))
 
     t0 = time.time()
-    P = Pool(24)
+    P = Pool(20)
     res = P.map(make_friend_table_for_shot, shotlist)
     P.close()
 
-    sid_start = int(version.replace(".", "", 2)) * 10 ** 10
+    sid_start = int(version.replace(".", "", 2)) * 10**10
 
     firstid = True
     detfriend_all = Table()
     for r in res:
-
         if firstid:
             r["id"] = r["id"] + sid_start
             firstid = False
@@ -682,7 +778,7 @@ def create_source_catalog(version="5.0.0", update=False):
     # update source properties
 
     del joinfriend
-   
+
     print("Combining nearby wavegroups and detections")
 
     t0 = time.time()
@@ -748,7 +844,7 @@ def create_source_catalog(version="5.0.0", update=False):
             print("yes", col)
         except:
             pass
-            print('no', col)
+            print("no", col)
     return expand_table
 
 
@@ -758,11 +854,11 @@ def plot_source_group(
     """
     Plot a unique source group from the HETDEX
     unique source catalog
-    
+
     Parameters
     ----------
     source_id: int
-    
+
     """
 
     if source_table is None:
@@ -961,7 +1057,7 @@ def plot_source_group(
 
 
 def get_parser():
-    """ function that returns a parser from argparse """
+    """function that returns a parser from argparse"""
 
     parser = ap.ArgumentParser(
         description="""Extracts 1D spectrum at specified RA/DEC""", add_help=True
@@ -1022,7 +1118,7 @@ def get_source_name(ra, dec):
 
 
 def main(argv=None):
-    """ Main Function """
+    """Main Function"""
 
     parser = get_parser()
     args = parser.parse_args(argv)
