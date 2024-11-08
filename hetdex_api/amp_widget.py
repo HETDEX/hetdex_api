@@ -379,7 +379,7 @@ class AmpWidget:
         elif (self.detectid >= 5000000000) * (self.detectid < 5090000000):
             self.det_file = CONFIG_HDR5.detecth5
         elif (self.detectid >= 5090000000) * (self.detectid < 5100000000):
-	    self.det_file = CONFIG_HDR5.contsourceh5
+            self.det_file = CONFIG_HDR5.contsourceh5
 
         if OPEN_DET_FILE is None:
 
