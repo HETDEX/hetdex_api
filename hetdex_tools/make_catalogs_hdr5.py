@@ -501,7 +501,7 @@ def create_source_catalog(version="5.0.0", update=False):
 
         print("Combining Continuum Databases")
 
-        detects_cont_table = vstack([detects_cont_table_hdr3, detects_cont_table_hdr4, detects_cont_hdr5])
+        detects_cont_table = vstack([detects_cont_table_hdr3, detects_cont_table_hdr4, detects_cont_table_hdr5])
 
         # set columns to 0 that are not relevent to continuum catalog
         for col in ["apcor", "flux_noise_1sigma", "sn_3fib", "sn_3fib_cen", "sn_cen"]:
@@ -527,6 +527,7 @@ def create_source_catalog(version="5.0.0", update=False):
     if update:
         # create an agn table with detection info added
         if add_agn:
+            print('Combining AGN catalog with full database info.')
             full_line_table_hdr3 = D_hdr3.return_astropy_table()
             full_line_table_hdr3.add_column(
                 Column(str("hdr3"), name="survey", dtype=str)
@@ -547,13 +548,15 @@ def create_source_catalog(version="5.0.0", update=False):
             full_line_table_hdr5.add_column(
                 Column(str("hdr5"), name="survey", dtype=str)
             )
-            full_line_table_hdr4.add_column(
-                Column(mask_baddet_hdr4.astype(int), name="flag_baddet", dtype=int)
+            
+            full_line_table_hdr5.add_column(
+                Column(mask_baddet_hdr5.astype(int), name="flag_baddet", dtype=int)
             )
             full_line_table = vstack(
                 [full_line_table_hdr3,
                  full_line_table_hdr4,
-                 full_line_table_hdr5]])
+                 full_line_table_hdr5]
+            )
 
             full_line_table.add_column(Column(str("line"), name="det_type", dtype=str))
 
@@ -593,6 +596,8 @@ def create_source_catalog(version="5.0.0", update=False):
     global detect_table
 
     if add_agn:
+        print('Adding AGN table')
+        
         detect_table = unique(
             vstack([detects_agn, detects_cont_table, detects_line_table]),
             keys="detectid",
@@ -637,7 +642,7 @@ def create_source_catalog(version="5.0.0", update=False):
 
     # add det flags table
 
-    detflags_tab = Table.read('/scratch/projects/hetdex/hdr4/catalogs/det_flags_{}.fits'.format(version) )
+    detflags_tab = Table.read('/scratch/projects/hetdex/hdr5/catalogs/det_flags_{}.fits'.format(version) )
 
     print("Adding det flags to full catalog. Size is {}".format(len(detect_table)))
     detect_table2 = join(detect_table, detflags_tab, keys="detectid", join_type="left")
@@ -784,7 +789,7 @@ def create_source_catalog(version="5.0.0", update=False):
     t0 = time.time()
     sel = expand_table["wave_group_id"] > 0
     wid_list = np.unique(expand_table["wave_group_id"][sel])
-    p = Pool(20)
+    p = Pool(16)#reduced from 20 20241109
     res = p.map(merge_wave_groups, wid_list)
     p.close()
 
