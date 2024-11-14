@@ -494,7 +494,10 @@ def main(argv=None):
         diagnose_tab_hdr4 = Table.read(
             "/work/05350/ecooper/stampede2/redshift-tests/hdr4.0.0_lt23/diagnose_4.0.0_lt23.fits"
         )
-        diagnose_tab = vstack([diagnose_tab_hdr3, diagnose_tab_hdr4])
+        diagnose_tab_hdr5 = Table.read(
+            "/work/05350/ecooper/stampede2/hdr5/diagnose/diagnose_5.0.0_lt23.fits"
+        )
+        diagnose_tab = vstack([diagnose_tab_hdr3, diagnose_tab_hdr4, diagnose_tab_hdr5])
 
         diagnose_tab.rename_column("z_best", "z_diagnose")
         diagnose_tab.rename_column("classification", "cls_diagnose")
@@ -572,7 +575,7 @@ def main(argv=None):
 
         src_list = uniq_table["source_id"]
 
-        ntask = 24
+        ntask = 20
         print("Adding z_hetdex using {} cores".format(ntask))
         t0 = time.time()
         p = Pool(ntask)
@@ -632,8 +635,10 @@ def main(argv=None):
     print(
         "Updating z_hetdex to best_z for {} detectids".format(len(clustered_lae_index))
     )
-
-    sid_index = 4010030000000
+    
+    vs = version.split('.')
+    sid_index = int( vs[0]) * 10**13 + int(vs[1])*10**12 + int(vs[2])*10**11 + 3*10**9
+    #sid_index = 4010030000000
 
     for c_ind in clustered_lae_index:
         source_table["source_id"][c_ind] = sid_index
