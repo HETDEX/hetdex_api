@@ -300,11 +300,10 @@ class Extract:
         if fiber_lower_limit < 2:
             raise Exception("fiber_lower_limit must be greater than 2")
 
-        if not NWAY_IMPORTED:
-            import nwaylib
-            from nwaylib import _create_match_table
-            from nwaylib.logger import NormalLogger, NullOutputLogger
-            NWAY_IMPORTED = True
+        import nwaylib
+        from nwaylib import _create_match_table
+        from nwaylib.logger import NormalLogger, NullOutputLogger
+        NWAY_IMPORTED = True
 
         # remove NaN fibers
         notnan = np.isfinite(self.fibers.coords.ra.value) & np.isfinite(self.fibers.coords.dec.value)
