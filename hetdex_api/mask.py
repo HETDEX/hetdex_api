@@ -296,7 +296,10 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=None):
         ra_met = coords.ra + np.arange(-180, 180, 0.1) * u.arcsec
         dec_met = (a + ra_met.deg * b) * u.deg
 
-        met_coords = SkyCoord(ra=ra_met, dec=dec_met)
+        # added 20241115 to handle vertical streak on 
+        sel = (dec_met > -90*u.deg) * (dec_met< 90*u.deg)
+
+        met_coords = SkyCoord(ra=ra_met[sel_met], dec=dec_met[sel_met])
 
         meteor_match = met_coords.separation(coords) < streaksize
 
