@@ -290,10 +290,13 @@ def meteor_flag_from_coords(coords, shotid=None, streaksize=None):
     sel_shot = met_tab["shotid"] == shotid
 
     if np.sum(sel_shot) > 0:
-        a = met_tab["a"][sel_shot]
-        b = met_tab["b"][sel_shot]
+        a = met_tab["a"][sel_shot]# this is the intercept
+        b = met_tab["b"][sel_shot]# this is the slope
 
-        ra_met = coords.ra + np.arange(-180, 180, 0.1) * u.arcsec
+        if np.abs(b) < 500:
+            ra_met = coords.ra + np.arange(-180, 180, 0.1) * u.arcsec
+        else:# for very large slopes we needed higher resolution
+            ra_met = coords.ra + np.arange(-30, 30, 0.001) * u.arcsec
         dec_met = (a + ra_met.deg * b) * u.deg
 
         # added 20241115 to handle vertical streak on 
