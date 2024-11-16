@@ -497,7 +497,10 @@ def main(argv=None):
         diagnose_tab_hdr5 = Table.read(
             "/work/05350/ecooper/stampede2/hdr5/diagnose/diagnose_5.0.0_lt23.fits"
         )
-        diagnose_tab = vstack([diagnose_tab_hdr3, diagnose_tab_hdr4, diagnose_tab_hdr5])
+        diagnose_tab_sa22 = Table.read(
+            "/work/05350/ecooper/stampede2/redshift-tests/sa22/diagnose_sa22_lt23.fits"
+            )
+        diagnose_tab = unique( vstack([diagnose_tab_sa22, diagnose_tab_hdr3, diagnose_tab_hdr4, diagnose_tab_hdr5]), keys='detectid')
 
         diagnose_tab.rename_column("z_best", "z_diagnose")
         diagnose_tab.rename_column("classification", "cls_diagnose")
