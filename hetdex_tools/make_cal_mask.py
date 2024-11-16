@@ -11,13 +11,14 @@ from astropy.stats import sigma_clipped_stats
 from hetdex_api.config import HDRconfig
 from hetdex_api.shot import get_fibers_table
 
-config = HDRconfig()
+survey = 'hdr5'
+config = HDRconfig( survey)
 
 spec_median = np.load(config.cal_issue)
 
 def get_mask_for_shotid(shotid, savefig=True, ifuslot=None):
     
-    fibtab = get_fibers_table(shotid)['fiber_id','multiframe', 'expnum','ifuslot','calfib']
+    fibtab = get_fibers_table(shotid, survey=survey)['fiber_id','multiframe', 'expnum','ifuslot','calfib']
     
     # 5200 Feature
     start_index = 700 # too many peaks in the blue
@@ -27,7 +28,7 @@ def get_mask_for_shotid(shotid, savefig=True, ifuslot=None):
     mask = np.zeros_like( np.array( fibtab['calfib']) )
     
     mean, median, stddev = sigma_clipped_stats( np.sum(fiber_specs, axis=1))
-    print(mean + 3*stddev)
+    #print(mean + 3*stddev)
     for i, fiber_spec in enumerate( fiber_specs):
         if np.sum(fiber_spec) > mean + 3*stddev:
             continue
