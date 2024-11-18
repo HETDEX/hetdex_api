@@ -1199,9 +1199,9 @@ class Extract:
             / area
         )
 
-        # propogate mask through to new grid image. Added by EMC 2024-04-16
-        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest')
-        print(grid_mask)
+        # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
+        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest').astype(bool)
+
         grid_z[~grid_mask] = np.nan
         
         if error is not None:
