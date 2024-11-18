@@ -1201,6 +1201,7 @@ class Extract:
 
         # propogate mask through to new grid image. Added by EMC 2024-04-16
         grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest')
+        print(grid_mask)
         grid_z[~grid_mask] = np.nan
         
         if error is not None:
