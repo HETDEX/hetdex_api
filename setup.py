@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-install_requires = ['numpy', 'astropy>=4.3', 'astroquery',
-                    'scipy>=1.4', 'regions','photutils', 'tables', 'speclite',
+install_requires = ['numpy<2', 'astropy>=4.3', 'astroquery',
+                    'scipy>=1.4', 'regions','photutils<2', 'tables', 'speclite',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
