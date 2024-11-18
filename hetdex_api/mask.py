@@ -250,6 +250,10 @@ def cal_flag_for_amp_wave(
         if (wave >= 5456) * (wave <= 5466):
             flag = False
 
+    # flag for 3540 sky line
+    if (wave >= 3534) * (wave <= 3556):
+        flag = False
+    
     return flag
 
 
