@@ -7,9 +7,9 @@ healpy>=1.16.0
 ipywidgets>=7.6.1
 matplotlib>=3.2.1
 myst-nb==1.0.0
-numpy>=1.18.5
+numpy==1.26.4
 nway==4.5.2
-photutils>=1.11.0
+photutils==1.11
 plotly==5.20.0
 regions==0.4
 sep>=1.2.1
