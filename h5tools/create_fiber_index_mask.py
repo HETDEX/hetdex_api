@@ -42,6 +42,7 @@ mask_version = sys.argv[2]
 
 config = HDRconfig(survey)
 
+make_ascii_tables = True # flag in code whether to make ascii tables or not
 
 t0 = time.time()
 FibIndex = FiberIndex(
@@ -58,13 +59,13 @@ gal_flag = FibIndex.get_gal_flag()
 meteor_flag = FibIndex.get_meteor_flag()
 badfib_flag = FibIndex.get_badfiber_flag()
 
-FibIndex.fiber_table["flag_shot"] = shot_flag
-FibIndex.fiber_table["flag_throughput"] = throughput_flag
-FibIndex.fiber_table["flag_badamp"] = amp_flag
-FibIndex.fiber_table["flag_largegal"] = gal_flag
-FibIndex.fiber_table["flag_meteor"] = meteor_flag
-FibIndex.fiber_table["flag_satellite"] = sat_flag
-FibIndex.fiber_table["flag_badfib"] = badfib_flag
+FibIndex.fiber_table["flag_shot"] = shot_flag.astype(int)
+FibIndex.fiber_table["flag_throughput"] = throughput_flag.astype(int)
+FibIndex.fiber_table["flag_badamp"] = amp_flag.astype(int)
+FibIndex.fiber_table["flag_largegal"] = gal_flag.astype(int)
+FibIndex.fiber_table["flag_meteor"] = meteor_flag.astype(int)
+FibIndex.fiber_table["flag_satellite"] = sat_flag.astype(int)
+FibIndex.fiber_table["flag_badfib"] = badfib_flag.astype(int)
 
 FibIndex.fiber_table["flag"] = (
     amp_flag
@@ -74,7 +75,7 @@ FibIndex.fiber_table["flag"] = (
     * throughput_flag
     * badfib_flag
     * sat_flag
-)
+).astype(int)
 
 flag_table = FibIndex.fiber_table[
     "fiber_id",
@@ -99,4 +100,5 @@ print('Saving to output file.')
 fileh = tb.open_file('fiber_mask_{}.h5'.format(mask_version), 'w')
 tableflags = fileh.create_table(fileh.root, 'Flags', flag_table.as_array() )
 fileh.close()
+
 print('Done')
