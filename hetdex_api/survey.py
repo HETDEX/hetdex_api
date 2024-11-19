@@ -773,7 +773,7 @@ class FiberIndex:
         t0 = time.time()
         global config
 
-        S = Survey()
+        S = Survey(self.survey)
         # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
 
         met_tab = Table.read(config.meteor, format="ascii")
@@ -794,10 +794,16 @@ class FiberIndex:
                 sel_shot_survey = S.shotid == row["shotid"]
                 shot_coords = S.coords[sel_shot_survey]
 
-                ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                # add in special handling for vertical streak
+                if np.abs(b) < 500:
+                    ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                else:# for very large slopes we needed higher resolution
+                    ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.001) * u.arcsec
+                    
                 dec_met = (a + ra_met.deg * b) * u.deg
 
-                met_coords = SkyCoord(ra=ra_met, dec=dec_met)
+                sel_met = (dec_met > -90*u.deg) * ( dec_met < 90.*u.deg)
+                met_coords = SkyCoord(ra=ra_met[sel_met], dec=dec_met[sel_met])
 
                 idxc, idxcatalog, d2d, d3d = met_coords.search_around_sky(
                     self.coords[sel_shot], streaksize
@@ -825,7 +831,7 @@ class FiberIndex:
         t0 = time.time()
         global config
 
-        S = Survey()
+        S = Survey(self.survey)
         # satellites are found with +/- X arcsec of the line DEC=a+RA*b in this file
 
         sat_tab = Table.read(config.satellite, format='ascii', names=['shotid', 'expnum', 'slope', 'intercept'])
