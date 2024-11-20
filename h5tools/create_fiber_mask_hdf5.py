@@ -77,7 +77,7 @@ def main(argv=None):
         "--survey",
         help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5, pdr1}""",
         type=str,
-        default="hdr4",
+        default="hdr5",
     )
 
     args = parser.parse_args(argv)
@@ -238,6 +238,9 @@ def main(argv=None):
     # add badcal mask
     mask_badcal =  np.ones_like(calfib, dtype=bool)
 
+    sel_wave =  (wave_rect >= 3534) * (wave_rect <= 3556)
+    mask_badcal[:, sel_wave] = 0
+    
     cal5200_tab = Table.read(
         config.cal5200,
         format="ascii",
@@ -248,16 +251,17 @@ def main(argv=None):
         format="ascii",
         names=["shotid", "multiframe", "expnum"],
     )
+
+    mfs = np.array( spec_tab['multiframe']).astype(str)
     
-    for	row in cal5200_tab[ cal5200_tab['shotid'] == 1]:
-        sel_mf = mf_array == row["multiframe"]
-        sel_wave =  ((wave_rect >= 5194) * (wave_rect <= 5197)) | ((wave_rect >= 5200) * (wave_rect <= 5205))
-        mask_badcal[sel_mf][sel_wave] = 0
+    for	row in cal5200_tab[ cal5200_tab['shotid'] == shotid_obj]:
+        sel_mf = mfs == row["multiframe"]
+        if np.sum(sel_mf)>0:
+            mask_badcal[sel_mf, 862:868] = False
         
-    for row in cal5460_tab[ cal5460_tab['shotid'] == 1]:
-        sel_mf = mf_array == row["multiframe"]
-        sel_wave =  (wave_rect >= 5456) * (wave_rect <= 5466)
-        mask_badcal[sel_mf][sel_wave] =	0
+    for row in cal5460_tab[ cal5460_tab['shotid'] == shotid_obj]:
+        sel_mf = mfs == row["multiframe"]
+        mask_badcal[sel_mf, 993: 998] = 0
         
     # Add full fiber flags 
     mask_amp = np.dstack([spec_tab["flag_badamp"]] * 1036)[0]
