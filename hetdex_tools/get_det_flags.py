@@ -9,8 +9,8 @@ from hetdex_api.survey import FiberIndex
 from hetdex_api.detections import Detections
 from hetdex_api.shot import Fibers
 
-merge = True
-version = "4.0.1"
+merge = False
+version = "5.0.0" # will match mask version from now on
 
 flag_cols = [
     "detectid",
@@ -43,15 +43,20 @@ if merge:
 shotid_use = int(sys.argv[1])
 
 if shotid_use in np.loadtxt(
-    "/scratch/projects/hetdex/hdr4/catalogs/shots_hdr3_{}.txt".format(version),
+    "/scratch/projects/hetdex/hdr5/catalogs/shots_hdr3_{}.txt".format(version),
     dtype=int,
 ):
     survey = "hdr3"
 elif shotid_use in np.loadtxt(
-    "/scratch/projects/hetdex/hdr4/catalogs/shots_hdr4_{}.txt".format(version),
+    "/scratch/projects/hetdex/hdr5/catalogs/shots_hdr4_{}.txt".format(version),
     dtype=int,
 ):
     survey = "hdr4"
+elif shotid_use in np.loadtxt(
+    "/scratch/projects/hetdex/hdr5/catalogs/shots_hdr5_{}.txt".format(version),
+    dtype=int,
+):
+    survey = "hdr5"
 else:
     print("Something's wrong. {} not in shot list".format(shotid_use))
     sys.exit()
@@ -62,17 +67,18 @@ detlist = D.hdfile.root.Detections.read_where("shotid == shotid_use")["detectid"
 
 if survey == "hdr3":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr4/catalogs/line_hdr3_{}.dets".format(version),
+        "/scratch/projects/hetdex/hdr5/catalogs/line_hdr3_{}.dets".format(version),
         dtype=int,
     )
 elif survey == "hdr4":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr4/catalogs/line_hdr4_{}.dets".format(version),
+        "/scratch/projects/hetdex/hdr5/catalogs/line_hdr4_{}.dets".format(version),
         dtype=int,
     )
 elif survey == "hdr5":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr5/catalogs/line_hdr5.0.0.dets", dtype=int
+        "/scratch/projects/hetdex/hdr5/catalogs/line_hdr5_{}.dets".format(version),
+        dtype=int
     )
 else:
     print(f"Unsupported survey {survey}")
@@ -133,17 +139,18 @@ detlist = C.hdfile.root.Detections.read_where("shotid == shotid_use")["detectid"
 
 if survey == "hdr3":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr4/catalogs/cont_hdr3_{}.dets".format(version),
+        "/scratch/projects/hetdex/hdr5/catalogs/cont_hdr3_{}.dets".format(version),
         dtype=int,
     )
 elif survey == "hdr4":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr4/catalogs/cont_hdr4_{}.dets".format(version),
+        "/scratch/projects/hetdex/hdr5/catalogs/cont_hdr4_{}.dets".format(version),
         dtype=int,
     )
 elif survey == "hdr5":
     curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr5/catalogs/cont_hdr5.0.0.dets", dtype=int
+        "/scratch/projects/hetdex/hdr5/catalogs/cont_hdr5_{}.dets".format(version),
+        dtype=int
     )
 else:
     print(f"Unsupported survey {survey}")
