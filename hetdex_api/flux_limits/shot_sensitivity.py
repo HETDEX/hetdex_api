@@ -681,7 +681,7 @@ class ShotSensitivity(object):
                                                      sclean_bad = self.sclean_bad,
                                                      return_scleaned_mask = True)
 
-                spectrum_aper, spectrum_aper_error, scleaned, data, error, mask = [res for res in result]
+                spectrum_aper, spectrum_aper_error, scleaned, data, error, fiber_mask = [res for res in result]
                 # Changed by EMC 2024-11-05 to allow for update of Extract April 10 commit 8ffdf34
                 #spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
  
