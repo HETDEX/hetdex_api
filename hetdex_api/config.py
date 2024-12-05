@@ -13,7 +13,9 @@ class HDRconfig:
     LATEST_HDR_NAME = 'hdr4'
     LAST_GOOD_HDR_NAME = 'hdr4' #add for use when LATEST_HDR_NAME is overridden
 
-    LATEST_MASK_DICT = {'hdr4': '1.0',
+    LATEST_MASK_DICT = {'hdr3': '1.0',
+                        'hdr4': '1.0',
+                        'hdr5': '1.0',
                         'pdr1': '1.0'}
 
 
