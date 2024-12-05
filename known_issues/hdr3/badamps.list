@@ -332,3 +332,14 @@ ifuslot ampid multiframe date_start date_end
 95 RL multi_426_095_004_RL 20240312 20240312
 94 RU multi_509_094_028_RU 20240312 20240312
 94 RL multi_509_094_028_RL 20240312 20240312
+# moth: next 8 entries (2 IFUS, 4 amps) removed due to moth 20240509 to 20240731 (and after), but mark whole month
+# as calibration is moth biased and messes up the first few days (pre-moth)
+46 LU multi_309_046_005_LU 20240501 20240731
+46 LL multi_309_046_005_LL 20240501 20240731
+46 RU multi_309_046_005_RU 20240501 20240731
+46 LL multi_309_046_005_RL 20240501 20240731
+36 LU multi_302_036_041_LU 20240501 20240731
+36 LL multi_302_036_041_LL 20240501 20240731
+36 RU multi_302_036_041_RU 20240501 20240731
+36 RL multi_302_036_041_RL 20240501 20240731
+# end moth
