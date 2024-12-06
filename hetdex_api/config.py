@@ -13,10 +13,11 @@ class HDRconfig:
     LATEST_HDR_NAME = 'hdr4'
     LAST_GOOD_HDR_NAME = 'hdr4' #add for use when LATEST_HDR_NAME is overridden
 
-    LATEST_MASK_DICT = {'hdr3': '1.0',
-                        'hdr4': '1.0',
-                        'hdr5': '1.0',
-                        'pdr1': '1.0'}
+# Will just use current for now but I'll leave this here in case we go back 2024-12-06 - EMC
+#    LATEST_MASK_DICT = {'hdr3': '1.0',
+#                        'hdr4': '1.0',
+#                        'hdr5': '1.0',
+#                        'pdr1': '1.0'}
 
 
     def find_host_directory(self):
@@ -70,7 +71,7 @@ class HDRconfig:
         self.software_dir = op.join(self.hdr_dir[survey], "software")
         self.red_dir = op.join(self.hdr_dir[survey], "reduction")
         self.data_dir = op.join(self.red_dir, "data")
-        self.mask_dir = op.join(self.red_dir, "mask")
+        self.mask_dir = op.join(self.host_dir, 'hdr5/reduction/mask')
         self.tp_dir = op.join(self.red_dir, "throughput")
         #self.calib_dir = op.join(self.hdr_dir[survey], "calib") #DD 2023-08-05
         self.calib_dir = op.join(self.host_dir, "lib_calib")
