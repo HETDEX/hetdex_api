@@ -168,8 +168,8 @@ class Fibers:
                     if args is not None:
                         args.add_mask = False
                         args.apply_mask = False
-                        if verbose:
-                            print("Fiber masking not available for version {}.".format(survey))
+                        #if verbose: #verbose not set for Fiber class
+                        print("Fiber masking not available for version {}.".format(survey))
 
                 elif mask_version is not None:
                     self.mask_version = mask_version
@@ -606,10 +606,11 @@ def get_fibers_table(
     add_mask
         option to add mask column. Defaults to False for now.
     mask_options
-        string array options to select to mask. Default None will select all flags.
-        Set this to 'BITMASK' to return the full bitmask array
+        string or array of strings as options to select to mask. Default None will select all flags.
+        Set this to 'BITMASK' to return the full bitmask array.
         Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
         'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
+        If BITMASK appears as any element in the list, it overrides all others and returns the full bitmask array.
     ignore_mask
         Option to provide a list of flag names that should be ingored in the mask model
     mask_in_place
@@ -802,8 +803,19 @@ def get_fibers_table(
                 mask_names.append(i)
 
         if mask_options is not None:
-            
-            if mask_options.lower() == 'bitmask':# or 'bitmask' in mask_options:
+
+            try:
+                if isinstance(mask_options,str): #for consistency, always make a list
+                    mask_options = [mask_options]
+                #otherwise, assume it is a list (or array) of strings
+                #always make lowercase for easier comparisons
+                mask_options = [mo.lower() for mo in mask_options]
+            except:
+                print("Warning! mask_options unclear. Will assume 'BITMASK'")
+                mask_options = ['bitmask']
+
+            #if mask_options.lower() == 'bitmask':  # or 'bitmask' in mask_options:
+            if 'bitmask' in mask_options:  # or 'bitmask' in mask_options:
                 #return the mask the full bitmask array
                 bool_mask = bitmaskDQ
             else:
