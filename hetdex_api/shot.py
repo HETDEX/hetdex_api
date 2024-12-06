@@ -160,11 +160,7 @@ class Fibers:
 
         if add_mask:
             try:
-                if mask_version is not None:
-                    self.mask_version = mask_version
-                elif survey in config.LATEST_MASK_DICT.keys():
-                    self.mask_version = config.LATEST_MASK_DICT[survey]
-                else:
+                if survey.lower() not in ['pdr1', 'pdr2', 'hdr3', 'hdr4', 'hdr5']:
                     self.mask_version = None
                     self.maskh5 = None
                     self.mask_version = None
@@ -175,6 +171,11 @@ class Fibers:
                         if verbose:
                             print("Fiber masking not available for version {}.".format(survey))
 
+                elif mask_version is not None:
+                    self.mask_version = mask_version
+                else:
+                    self.mask_version = 'current'
+                
                 if self.mask_version is not None:
                     # compose the file handle
                     fmask = op.join(
