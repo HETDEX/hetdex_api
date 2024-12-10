@@ -11,6 +11,7 @@ from astropy.table import Table
 from hetdex_api.config import HDRconfig
 from hetdex_api.extract import Extract
 
+import datetime
 
 try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
@@ -30,6 +31,7 @@ DET_FILE = None
 
 current_hdr = LATEST_HDR_NAME
 surveyh5 = None
+
 
 def make_narrowband_image(
     detectid=None,
@@ -150,7 +152,7 @@ def make_narrowband_image(
 
     if imsize is None:
         imsize = 30.0 * u.arcsec
-        
+
     if detectid is not None:
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
@@ -168,7 +170,6 @@ def make_narrowband_image(
             DET_FILE = CONFIG_HDR5.detecth5
         elif (detectid >= 5090000000) * (detectid < 5100000000):
             DET_FILE = CONFIG_HDR5.contsourceh5
-
 
         if OPEN_DET_FILE is None:
             DET_HANDLE = tb.open_file(DET_FILE, "r")
@@ -326,15 +327,54 @@ def make_narrowband_image(
 
     w.wcs.pc = [[np.cos(rrot), np.sin(rrot)], [-1.0 * np.sin(rrot), np.cos(rrot)]]
 
-    hdu = fits.PrimaryHDU(imslice, header=w.to_header())
+    header = w.to_header()
+
+    # add chosen variable info
+    header["FILETIME"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    header["SURVEY"] = str(survey)
+    header["MASK"] = str(apply_mask)
+    header["CONVOLVE"] = str(convolve_image)
+    header["INTERP"] = interp_kind
+    header["SUBCONT"] = str(subcont)
+    header["FFSKY"] = str(ffsky)
+
+    # Copy Shot table info
+    shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
+    for col in shot_info_table.colnames:
+        if col.startswith("x") or col.startswith("y"):
+            continue
+        if "nstars" in col:
+            continue
+        if "darktime" in col:
+            continue
+        if "response" in col:
+            header["RESPONSE"] = shot_info_table[col][0]
+        elif "virus" in col:
+            headername = col.replace("_virus", "")
+            try:
+                header[headername.upper()] = shot_info_table[col][0]
+            except:
+                header[headername.upper() + "1"] = shot_info_table[col][0][0]
+                header[headername.upper() + "2"] = shot_info_table[col][0][1]
+                header[headername.upper() + "3"] = shot_info_table[col][0][2]
+        else:
+            headername = str
+            try:
+                header[col.upper()] = shot_info_table[col][0]
+            except:
+                header[col.upper() + "1"] = shot_info_table[col][0][0]
+                header[col.upper() + "2"] = shot_info_table[col][0][1]
+                header[col.upper() + "3"] = shot_info_table[col][0][2]
+
+    hdu = fits.PrimaryHDU(imslice, header=header)
 
     if extract_class is None:
         E.close()
 
     if include_error:
-        hdu_error = fits.ImageHDU(imerror, header=w.to_header())
-        hdu_x = fits.ImageHDU(zarray[2], header=w.to_header())
-        hdu_y = fits.ImageHDU(zarray[3], header=w.to_header())
+        hdu_error = fits.ImageHDU(imerror, header=header)
+        hdu_x = fits.ImageHDU(zarray[2], header=header)
+        hdu_y = fits.ImageHDU(zarray[3], header=header)
         return fits.HDUList([hdu, hdu_error, hdu_x, hdu_y])
     else:
         return hdu
@@ -430,15 +470,26 @@ def make_data_cube(
 
     if imsize is None:
         imsize = 30.0 * u.arcsec
-        
+    
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
+
         try:
-            surveyh5.close()  # just in case it does not exist yet
+            if surveyh5 is not None:
+                try:
+                    surveyh5.close()
+                except:
+                    pass
             surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
+    else:
+        # check to see if survey file is closed and open if so                                                                   
+        try:
+            surveyh5.root
+        except AttributeError:
+            surveyh5 = tb.open_file(config.surveyh5, "r")
 
     if detectid is not None:
         if (detectid >= 2100000000) * (detectid < 2190000000):
@@ -457,7 +508,7 @@ def make_data_cube(
             DET_FILE = CONFIG_HDR5.detecth5
         elif (detectid >= 5090000000) * (detectid < 5100000000):
             DET_FILE = CONFIG_HDR5.contsourceh5
-            
+
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = DET_FILE
             DET_HANDLE = tb.open_file(DET_FILE, "r")
@@ -501,7 +552,11 @@ def make_data_cube(
     rad = imsize.to(u.arcsec).value
 
     info_result = E.get_fiberinfo_for_coord(
-        coords, radius=rad, ffsky=ffsky, fiber_flux_offset=fiber_flux_offset, add_mask=apply_mask,
+        coords,
+        radius=rad,
+        ffsky=ffsky,
+        fiber_flux_offset=fiber_flux_offset,
+        add_mask=apply_mask,
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -512,8 +567,6 @@ def make_data_cube(
     )
 
     # get FWHM and PA
-
-    surveyh5 = tb.open_file(config.surveyh5, "r")
     shotid_obj = shotid
 
     pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
@@ -522,8 +575,6 @@ def make_data_cube(
         fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
     else:
         fwhm = 1.8  # just a dummy variable as convolve_image=False
-
-    surveyh5.close()
 
     # add in rotation
     sys_rot = 1.55
@@ -605,7 +656,47 @@ def make_data_cube(
         wave_i += dwave
         i += 1
 
-    hdu = fits.PrimaryHDU(im_cube, header=w.to_header())
+    # CREATE HEADER
+    header = w.to_header()
+
+    # add chosen variable info
+    header["FILETIME"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    header["SURVEY"] = str(survey)
+    header["MASK"] = str(apply_mask)
+    header["CONVOLVE"] = str(convolve_image)
+    header["INTERP"] = interp_kind
+    header["SUBCONT"] = str(subcont)
+    header["FFSKY"] = str(ffsky)
+
+    # Copy Shot table info
+    shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
+    for col in shot_info_table.colnames:
+        if col.startswith("x") or col.startswith("y"):
+            continue
+        if "nstars" in col:
+            continue
+        if "darktime" in col:
+            continue
+        if "response" in col:
+            header["RESPONSE"] = shot_info_table[col][0]
+        elif "virus" in col:
+            headername = col.replace("_virus", "")
+            try:
+                header[headername.upper()] = shot_info_table[col][0]
+            except:
+                header[headername.upper() + "1"] = shot_info_table[col][0][0]
+                header[headername.upper() + "2"] = shot_info_table[col][0][1]
+                header[headername.upper() + "3"] = shot_info_table[col][0][2]
+        else:
+            headername = str
+            try:
+                header[col.upper()] = shot_info_table[col][0]
+            except:
+                header[col.upper() + "1"] = shot_info_table[col][0][0]
+                header[col.upper() + "2"] = shot_info_table[col][0][1]
+                header[col.upper() + "3"] = shot_info_table[col][0][2]
+
+    hdu = fits.PrimaryHDU(im_cube, header=header)
 
     E.close()
 
