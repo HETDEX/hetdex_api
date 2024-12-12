@@ -663,7 +663,8 @@ def main(argv=None):
     )
 
     source_table["line_id"] = np.chararray(len(source_table), 20, unicode=True)
-
+    source_table['line_id'] = 'n/a'
+    
     source_table["dwave"] = np.zeros_like(source_table["wave"])
 
     for row in spectral_lines:
@@ -935,6 +936,7 @@ def main(argv=None):
     elixh5 = tb.open_file(config.elixerh5, 'r')
     elix_line_fit = Table( elixh5.root.SpectraLines.read())
     elix_line_fit.rename_column('sn','sn_elix')
+    elixh5.close()
     
     src2 = join(source_table, elix_line_fit['detectid','wavelength', 'sn_elix'], keys='detectid')
     sel_wave_match = np.abs( src2['wavelength'] - src2['wave'] ) < 10
@@ -1134,9 +1136,9 @@ def main(argv=None):
     sel_rres = source_table['rres_line']>=1.05
     source_table['sn_rres'] = source_table['sn']
     source_table['sn_rres'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
-    # Fill in masked values
 
     for col in source_table.columns:
+
         if source_table[col].dtype == ">f8":
             if col in ["lum_lya", "lum_lya_err", "lum_oii", "lum_oii_err"]:
                 pass
@@ -1158,6 +1160,8 @@ def main(argv=None):
                 pass
         elif source_table[col].dtype == "bool":
             continue
+        elif col in ['rres_line', 'rres_cont']:
+            source_table[col] = source_table.filled(1.0)
         else:
             try:
                 source_table[col] = source_table[col].filled(" ")
@@ -1181,6 +1185,11 @@ def main(argv=None):
 #    sel_sa22 = source_table["field"] == "ssa22"
 #    sel_notsa22 = np.invert(sel_sa22)
 
+    # temp solution for issue on 046, 036
+    sel_ifuslot = (source_table['ifuslot'] == '046') | (source_table['ifuslot']=='036') 
+    sel_date = (source_table['date'] >= 20240501)
+    source_table['flag_best'][sel_ifuslot*sel_date] = -1
+    
     source_table.write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
     )
