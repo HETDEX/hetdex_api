@@ -10,8 +10,8 @@ import os.path as op
 
 class HDRconfig:
 
-    LATEST_HDR_NAME = 'hdr4'
-    LAST_GOOD_HDR_NAME = 'hdr4' #add for use when LATEST_HDR_NAME is overridden
+    LATEST_HDR_NAME = 'hdr5'
+    LAST_GOOD_HDR_NAME = 'hdr5' #add for use when LATEST_HDR_NAME is overridden
 
 # Will just use current for now but I'll leave this here in case we go back 2024-12-06 - EMC
 #    LATEST_MASK_DICT = {'hdr3': '1.0',
