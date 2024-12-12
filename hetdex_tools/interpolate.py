@@ -193,6 +193,7 @@ def make_narrowband_image(
         linewidth = det_info["linewidth"]
         wave_range = [wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
+
     elif coords is not None:
         if shotid is not None:
             shotid_obj = shotid
@@ -397,6 +398,7 @@ def make_data_cube(
     interp_kind="linear",
     apply_mask=False,
     fill_value=np.nan,
+    included_error=False,
 ):
     """
     Function to make a datacube from either a detectid or from a

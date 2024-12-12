@@ -69,7 +69,7 @@ plt.rcParams["ytick.direction"] = "in"
 plt.rcParams["xtick.labelsize"] = 12.0
 plt.rcParams["ytick.labelsize"] = 12.0
 
-global config, imsize, pixscale, D_hdr3, D_hdr4, D_hdr5, fileh
+global config, imsize, pixscale, D_hdr3, D_hdr4, D_hdr5
 
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
@@ -78,28 +78,15 @@ except:
 imsize=20
 pixscale=0.25
 
-config = HDRconfig('hdr4')
+config = HDRconfig('hdr5')
 D_hdr3 = Detections('hdr3')
 D_hdr4 = Detections('hdr4')
 D_hdr5 = Detections('hdr5')
-mlfile = op.join( config.hdr_dir['hdr4'], 'catalogs','ml','detect_ml_4.0.0.h5')
-fileh = tb.open_file(mlfile, 'r')
-
 
 def gaussian(x,u1,s1,A1=1.0,y=0.0):
     if (x is None) or (u1 is None) or (s1 is None):
         return None
     return A1 * (np.exp(-np.power((x - u1) / s1, 2.) / 2.) / np.sqrt(2 * np.pi * s1 ** 2)) + y
-
-# This function converts the row data from the H5 file into an HDU FITS standard
-def get_hdu(detectid_obj):
-    im_data = fileh.root.LineImages.read_where('detectid == detectid_obj')[0]
-    header = fits.Header.fromstring(im_data['header'])
-    hdu = fits.PrimaryHDU(im_data['line_image'], header=header)
-    hdu_error = fits.ImageHDU(im_data['line_image_err'], header=header)
-    hdu_x = fits.ImageHDU(im_data['delta_ra'], header=header)
-    hdu_y = fits.ImageHDU(im_data['delta_dec'], header=header)
-    return fits.HDUList([hdu, hdu_error, hdu_x, hdu_y])
 
 
 def fit_profile(detectid=None,
@@ -108,6 +95,7 @@ def fit_profile(detectid=None,
                 linewidth=None,
                 shotid=None,
                 name=None,
+                ffsky=False,
                 extract_class=None,
                 apply_mask=False,
                 plot=False,
@@ -128,10 +116,12 @@ def fit_profile(detectid=None,
             D = Detections('hdr2.1')
         
         det_info = D.get_detection_info(detectid)[0]
-
+        coords = D.get_coord(detectid)
+        
         wave_obj = det_info['wave']
         flux = det_info['flux']
         linewidth = det_info['linewidth']
+
         cont = det_info['continuum']
         sn_line = det_info['sn']
         chi2_line = det_info['chi2']
@@ -140,50 +130,30 @@ def fit_profile(detectid=None,
 
         detectid_obj = detectid
         name = detectid
-        
-        if len(fileh.root.LineImages.read_where('detectid == detectid_obj')) == 0:
-            # get hdu from make_narrowband_image
-            hdu = make_narrowband_image(
-                coords=coords,
-                wave_range=[wave - 2*linewidth, wave + 2*linewidth],
-                shotid=shotid,
-                survey=survey,
-                imsize= imsize * u.arcsec,
-                include_error=True,
-                ffsky=False,
-                extract_class=extract_class,
-                subcont=subcont,
-                convolve_image=False,
-                interp_kind='cubic',
-                apply_mask=apply_mask,
-                fill_value=0.0,
-            )
-        else:
-            hdu = get_hdu(detectid)
-
+        shotid = det_info['shotid']
     else:
         wave_obj = wave
-        
-        hdu = make_narrowband_image(
-            coords=coords,
-            wave_range=[wave - 2*linewidth, wave + 2*linewidth],
-            shotid=shotid,
-            survey=survey,
-            imsize= imsize * u.arcsec,
-            include_error=True,
-            ffsky=False,
-            extract_class=extract_class,
-            subcont=subcont,
-            convolve_image=False,
-            interp_kind='cubic',
-            apply_mask=apply_mask,
-            fill_value=0.0,
-        )
-        
-        if name is None:
-            name = "{:4.3f}_{:4.2f}_{:4.0f}_{} ".format( coords.ra.deg, coords.ra.deg, wave, shotid)
         S = Survey(survey)
         fwhm = S.fwhm_virus[ S.shotid == shotid][0]
+    
+    hdu = make_narrowband_image(
+        coords=coords,
+        wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
+        shotid=shotid,
+        survey=survey,
+        imsize= imsize * u.arcsec,
+        include_error=True,
+        ffsky=ffsky,
+        extract_class=extract_class,
+        subcont=subcont,
+        convolve_image=False,
+        interp_kind='cubic',
+        apply_mask=apply_mask,
+        fill_value=0.0,
+    )
+        
+    if name is None:
+        name = "{:4.3f}_{:4.2f}_{:4.0f}_{} ".format( coords.ra.deg, coords.ra.deg, wave, shotid)
         
     im = hdu[0].data
     error = hdu[1].data
@@ -346,20 +316,14 @@ def fit_profile(detectid=None,
 
         ax2 = subplots[1].subplots(1,1)# plt.subplot(142)
 
-        if detectid is not None:
-            detectid_obj = detectid
-            spec_table = Table(fileh.root.Spec1D.read_where('detectid == detectid_obj'))
-            spec_table.rename_column('spec1D','spec')
-            spec_table.rename_column('spec1D_err', 'spec_err')
-        else:
-            # fit at peak position
+        # fit at peak position
             
-            spec_table = get_spectra( coords=SkyCoord(ra=ra_fit, dec=dec_fit, unit='deg'),
-                                      survey=survey,
-                                      shotid=shotid,
-                                      multiprocess=False,
-                                      #apply_mask=True,
-                                      loglevel='WARNING')
+        spec_table = get_spectra( coords=SkyCoord(ra=ra_fit, dec=dec_fit, unit='deg'),
+                                  survey=survey,
+                                  shotid=shotid,
+                                  multiprocess=False,
+                                  apply_mask=apply_mask,
+                                  loglevel='WARNING')
             
         wave_rect = 2.0 * np.arange(1036) + 3470.0
         #plt.plot(wave_rect, spec_table['spec1D'][0]*10**-17 * u.erg / (u.cm ** 2 * u.s * u.AA))
@@ -369,71 +333,56 @@ def fit_profile(detectid=None,
         plt.xlabel('wavelength (AA)')
         plt.ylabel('spec ergs/s/cm^2/AA')
 
-        if detectid is not None:
-            model_gauss= gaussian(wave_rect,u1=wave_obj,s1=linewidth,A1=flux,y=cont)
-            plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f} chi2={:3.2f}'.format(sn_line, linewidth, chi2_line))
-
-            plt.text(
-                0.05,
-                0.05,
-                "S/N={:3.2f}".format(sn_line),
-                size=18,
-                transform=ax2.transAxes,
-                color="black",
-            )
+        #instatiate an MCMC_Gauss object and populate
+        #you can optionally pass a logger instance to the constructor, otherwise it will make its own 
+        logger = setup_logging()
+        logger.setLevel(logging.WARNING)
+        fit = mcmc_gauss.MCMC_Gauss(logger=logger)
+        #set the initial guesss
+        #(here you can see it is set wrong to show we converge on the correct answer)
+        fit.initial_A = 25
+        fit.initial_y = 0
+        fit.initial_sigma = 5
+        fit.initial_mu =wave_obj
+        fit.initial_peak = None
+        
+        #set the data to fit
+        fit.data_x = wave_rect
+        fit.data_y = spec_table['spec'][0]
+        fit.err_y = spec_table['spec_err'][0]
+        fit.err_x = np.zeros(len(fit.err_y))
+           
+        #these are the defaults and don't have to be set
+        fit.max_sigma = 10.0
+        fit.min_sigma = 1.7
+        fit.range_mu = 5.0
+        fit.max_A_mult = 2.0
+        fit.max_y_mult = 2.0
+        fit.min_y = -10.0 
+        
+        fit.burn_in = 250
+        fit.main_run = 1000
+        fit.walkers = 100
+        
+        fit.run_mcmc()
+        wave_fit = fit.mcmc_mu[0]
+        linewidth_fit = fit.mcmc_sigma[0]
+        flux_fit =fit.mcmc_A[0]
+        cont_fit = fit.mcmc_y[0]
+        sn_line = fit.mcmc_snr
+        
+        model_gauss = gaussian(wave_rect,u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
+        
+        sel_wave = np.abs( wave_rect - wave_fit) < 50
+        y = spec_table['spec'][0][sel_wave]
+        fit = gaussian(wave_rect[sel_wave],u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
+        yerr = spec_table['spec_err'][0][sel_wave]
+        n_free = 3
+        N = np.sum(sel_wave)
+        
+        chi2_line = 1.0/(N-n_free) * np.sum(((fit - y)/yerr)**2)
             
-        else:
-            #instatiate an MCMC_Gauss object and populate
-            #you can optionally pass a logger instance to the constructor, otherwise it will make its own 
-            logger = setup_logging()
-            logger.setLevel(logging.WARNING)
-            fit = mcmc_gauss.MCMC_Gauss(logger=logger)
-            #set the initial guesss
-            #(here you can see it is set wrong to show we converge on the correct answer)
-            fit.initial_A = 25
-            fit.initial_y = 0
-            fit.initial_sigma = 5
-            fit.initial_mu =wave_obj
-            fit.initial_peak = None
-
-            #set the data to fit
-            fit.data_x = wave_rect
-            fit.data_y = spec_table['spec'][0]
-            fit.err_y = spec_table['spec_err'][0]
-            fit.err_x = np.zeros(len(fit.err_y))
-
-            
-            #these are the defaults and don't have to be set
-            fit.max_sigma = 10.0
-            fit.min_sigma = 1.7
-            fit.range_mu = 5.0
-            fit.max_A_mult = 2.0
-            fit.max_y_mult = 2.0
-            fit.min_y = -10.0 
-
-            fit.burn_in = 250
-            fit.main_run = 1000
-            fit.walkers = 100
-
-            fit.run_mcmc()
-            wave_fit = fit.mcmc_mu[0]
-            linewidth_fit = fit.mcmc_sigma[0]
-            flux_fit =fit.mcmc_A[0]
-            cont_fit = fit.mcmc_y[0]
-            sn_line = fit.mcmc_snr
-
-            model_gauss = gaussian(wave_rect,u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
-
-            sel_wave = np.abs( wave_rect - wave_fit) < 50
-            y = spec_table['spec'][0][sel_wave]
-            fit = gaussian(wave_rect[sel_wave],u1=wave_fit,s1=linewidth_fit, A1=flux_fit,y=cont_fit)
-            yerr = spec_table['spec_err'][0][sel_wave]
-            n_free = 3
-            N = np.sum(sel_wave)
-            
-            chi2_line = 1.0/(N-n_free) * np.sum(((fit - y)/yerr)**2)
-            
-            plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f} chi2={:3.2f}'.format(sn_line, linewidth_fit, chi2_line))
+        plt.plot(wave_rect, model_gauss, label='sn={:3.2f} lw={:3.2f} chi2={:3.2f}'.format(sn_line, linewidth_fit, chi2_line))
             
         ymax = np.max( spec_table['spec'][0][ np.where( np.abs( wave_rect-wave_obj) < 100)[0]])
         ymin = np.min( spec_table['spec'][0][ np.where( np.abs( wave_rect-wave_obj) < 100)[0]])
@@ -479,44 +428,6 @@ def fit_profile(detectid=None,
         plt.ylim(10**-21,10**-15)
         plt.yscale('log')
 
-
-        if detectid is not None:
-            detectid = detectid_obj
-            # plot each fiber for 4th object in example table
-            obj_data = fileh.root.FiberImages.read_where('detectid == detectid_obj')[0]
-            height=9 # in pixels
-            wave = obj_data['im_wave']
-            im_sum = obj_data['im_sum'] # this is the 2D summed image, 1st dim is height in fiber dims, 2nd dim is wave dim
-            im_array = obj_data['im_array'] # this is the 4 brightest fibers, 1st dim is fibers, 2nd dim is fiber dims, 3rd is wavelength
-            zscale = ZScaleInterval(contrast=0.5,krej=2.5)
-            vmin, vmax = zscale.get_limits(values=im_sum)
-
-            ax4 = subplots[3].subplots(4,1, sharex=True) #plt.subplot(144)
-
-            if wave[25] < 3470:
-                start = np.where( wave>= 3470)[0][0]
-                end = 75
-            elif wave[75] > 5540:
-                start=25
-                end = np.where( wave >= 5540)[0][0]
-            else:
-                start = 25
-                end = 75
-
-            ax4[0].imshow(im_sum[:, start:end],
-                          vmin=vmin, vmax=vmax,
-                          extent=[wave[start], wave[end], -int(height/2.), int(height/2.)], 
-                          origin="lower",cmap=plt.get_cmap('gray'),interpolation="none", aspect=2)
-            axis_i = 1
-            
-            for im_i in np.arange(0,3):
-                zscale = ZScaleInterval(contrast=0.5,krej=2.5)
-                vmin, vmax = zscale.get_limits(values=im_array[im_i, :, start:end])
-                ax4[axis_i].imshow(im_array[im_i, :, start:end],vmin=vmin, vmax=vmax,extent=[wave[start], wave[end], -int(height/2.), int(height/2.)], origin="lower",
-                                   cmap=plt.get_cmap('gray'),interpolation="none", aspect=2)
-
-                axis_i += 1
-                
         plt.savefig('figures/fits_{}.png'.format(name))
 
     if detectid is not None:
@@ -557,28 +468,40 @@ def main(argv=None):
     args.log = setup_logging()
 
     args.log.info(args)
+    
+    global config, D_hdr3, D_hdr4, D_hdr5
 
-    filename = 'fit_profile/output_{}_{}.fits'.format(args.start, args.end)
+    shotid_use = int(args.shotid)
+    survey = None
+    for survey in ['hdr3', 'hdr4', 'hdr5']:
+        if shotid_use in np.loadtxt(
+                "/scratch/projects/hetdex/hdr5/catalogs/shots_{}_{}.txt".format(survey, version),
+                dtype=int):
+            survey = "hdr3"
+        if survey is None:
+            print("Something's wrong. {} not in a survey shot list".format(shotid_use))
+            sys.exit()
 
-    global config, D_hdr3, D_hdr4, D_hdr5, fileh
+    D = Detections(survey=survey)
+            
+    detlist = D.hdfile.root.Detections.read_where("shotid == shotid_use")["detectid"]
 
-    D_hdr3 = Detections('hdr3')
-    D_hdr4 = Detections('hdr4')
-    D_hdr5 = Detections('hdr5')
-
-    mlfile = op.join( config.hdr_dir['hdr4'], 'catalogs','ml','detect_ml_4.0.0.h5')
-    fileh = tb.open_file(mlfile, 'r') 
-
-    detlist = fileh.root.LineImages.read_coordinates( np.arange( args.start,  args.end), 'detectid')
-
+    curated_list = np.loadtxt(
+        "/scratch/projects/hetdex/hdr5/catalogs/line_{}_{}.dets".format(survey, version),
+        dtype=int,
+    )
+    
+    common_list_det = set(detlist).intersection(curated_list)
+    
     t0 = time.time()
     res = []
+
     for det in detlist:
         try:
-            res.append( fit_profile(det))
+            res.append( fit_profile(det, ))
         except:
             args.log.info('Failed for {}'.format(det))
-            
+        
     det_list = []
     sn_im_list = []
     sn_max_list = []
@@ -588,10 +511,11 @@ def main(argv=None):
     sn_line_list = []
     chi2_line_list = []
     linewidth_list = []
+
     for r in res:
         if r is None:
             continue
-        
+
         detectid, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth = r
         det_list.append(detectid)
         sn_im_list.append(sn_im)
@@ -602,7 +526,7 @@ def main(argv=None):
         sn_line_list.append(sn_line)
         chi2_line_list.append(chi2_line)
         linewidth_list.append(linewidth)
-
+	
     dets = np.array(det_list)
     sn_im = np.array(sn_im_list)
     sn_max = np.array(sn_max_list)
@@ -612,15 +536,14 @@ def main(argv=None):
     sn_line = np.array(sn_line_list)
     chi2_line = np.array(chi2_line_list)
     linewidth = np.array(linewidth_list)
-
-    output = Table( [dets, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth], 
-                names=['detectid', 'sn_im', 'sn_max', 'moffat_x0', 'moffat_y0', 'chi2_moffat', 'sn_line', 'chi2_line', 'linewidth'])
+    
+    output = Table( [dets, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth],
+                    names=['detectid', 'sn_im', 'sn_moffat', 'moffat_x0', 'moffat_y0', 'chi2_moffat', 'sn_line', 'chi2_line', 'linewidth'])
 
     output.write(filename, overwrite=True)
 
     t1 = time.time()
 
-    fileh.close()
     D_hdr5.close()
     D_hdr4.close()
     D_hdr3.close()
