@@ -42,6 +42,7 @@ def make_narrowband_image(
     wave_range=None,
     convolve_image=False,
     ffsky=False,
+    ffsky_rescor=False,
     subcont=False,
     dcont=50.0,
     include_error=False,
@@ -75,6 +76,9 @@ def make_narrowband_image(
     ffsky: bool
         option to use full frame calibrated fibers. Default is
         True.
+    ffsky_rescor: bool
+        option to use full frame calibrated fibers with residual
+        correction. Default False
     subcont: bool
         option to subtract continuum. Default is False. This
         will measure the continuum 50AA below and above the
@@ -225,6 +229,7 @@ def make_narrowband_image(
         coords,
         radius=rad,
         ffsky=ffsky,
+        ffsky_rescor=ffsky_rescor,
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
     )
@@ -338,7 +343,8 @@ def make_narrowband_image(
     header["INTERP"] = interp_kind
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
-
+    header["FFSKYRC"] = str(ffsky_rescor)
+    
     # Copy Shot table info
     shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
@@ -392,6 +398,7 @@ def make_data_cube(
     dcont=50.0,
     convolve_image=False,
     ffsky=False,
+    ffsky_rescor=False,
     subcont=False,
     survey=LATEST_HDR_NAME,
     fiber_flux_offset=None,
@@ -422,8 +429,9 @@ def make_data_cube(
     convolve_image: bool
          option to convolve image with shotid seeing
     ffsky: bool
-        option to use full frame calibrated fibers. Default is
-        True.
+        option to use full frame calibrated fibers. Default False
+    ffsky_rescor: bool
+        option to use full frame calibrated fibers. Default is False
     subcont: bool
         option to subtract continuum. Default is False. This
         will measure the continuum 50AA below and above the
@@ -557,6 +565,7 @@ def make_data_cube(
         coords,
         radius=rad,
         ffsky=ffsky,
+        ffsky_rescor=ffsky_rescor,
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
     )
@@ -669,7 +678,8 @@ def make_data_cube(
     header["INTERP"] = interp_kind
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
-
+    header["FFSKYRC"] = str(ffsky_rescor)
+    
     # Copy Shot table info
     shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
