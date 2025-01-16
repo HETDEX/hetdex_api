@@ -197,7 +197,7 @@ def make_narrowband_image(
         linewidth = det_info["linewidth"]
         wave_range = [wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
-
+        
     elif coords is not None:
         if shotid is not None:
             shotid_obj = shotid
@@ -241,6 +241,11 @@ def make_narrowband_image(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
+    if wave_range[0] <= 3500:
+        wave_range[0] = 3500
+    if wave_range[1] >= 5500:
+        wave_range[1] = 5500
+
     if include_error:
         zarray = E.make_narrowband_image(
             ifux_cen,
@@ -280,40 +285,61 @@ def make_narrowband_image(
         imslice = zarray[0]
 
     if subcont:
-        zarray_blue = E.make_narrowband_image(
-            ifux_cen,
-            ifuy_cen,
-            ifux,
-            ifuy,
-            data,
-            mask,
-            seeing_fac=fwhm,
-            scale=pixscale.to(u.arcsec).value,
-            boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[0] - dcont - 10, wave_range[0] - 10],
-            convolve_image=convolve_image,
-            interp_kind=interp_kind,
-            fill_value=fill_value,
-        )
 
-        zarray_red = E.make_narrowband_image(
-            ifux_cen,
-            ifuy_cen,
-            ifux,
-            ifuy,
-            data,
-            mask,
-            seeing_fac=fwhm,
-            scale=pixscale.to(u.arcsec).value,
-            boxsize=imsize.to(u.arcsec).value,
-            wrange=[wave_range[1] + 10, wave_range[1] + dcont + 10],
-            convolve_image=convolve_image,
-            interp_kind=interp_kind,
-            fill_value=fill_value,
-        )
+        wave_range_blue = [wave_range[0] - dcont - 10, wave_range[0] - 10]
+        
+        if wave_range_blue[0] <= 3500:
+            wave_range_blue[0] = 3500
+        if wave_range_blue[1] <= 3500:
+            zarray_blue = None
+        else:
+            zarray_blue = E.make_narrowband_image(
+                ifux_cen,
+                ifuy_cen,
+                ifux,
+                ifuy,
+                data,
+                mask,
+                seeing_fac=fwhm,
+                scale=pixscale.to(u.arcsec).value,
+                boxsize=imsize.to(u.arcsec).value,
+                wrange=wave_range_blue,
+                convolve_image=convolve_image,
+                interp_kind=interp_kind,
+                fill_value=fill_value,
+            )
+
+        wave_range_red = [wave_range[1] + 10, wave_range[1] + dcont + 10]
+
+        if wave_range_red[1] >= 5500:
+            wave_range_red[1] = 5500
+        if wave_range_red[0] >= 5500:
+            zarray_red = None
+        else:
+            zarray_red = E.make_narrowband_image(
+                ifux_cen,
+                ifuy_cen,
+                ifux,
+                ifuy,
+                data,
+                mask,
+                seeing_fac=fwhm,
+                scale=pixscale.to(u.arcsec).value,
+                boxsize=imsize.to(u.arcsec).value,
+                wrange=wave_range_red,
+                convolve_image=convolve_image,
+                interp_kind=interp_kind,
+                fill_value=fill_value,
+            )
 
         dwave = wave_range[1] - wave_range[0]
-        im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
+
+        if zarray_blue is None:
+            im_cont = zarray_red[0]/dcont
+        elif zarray_red is None:
+            im_cont = zarray_blue[0]/dcont
+        else:
+            im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
 
         imslice = zarray[0] - dwave * im_cont
 
@@ -435,7 +461,8 @@ def make_data_cube(
     subcont: bool
         option to subtract continuum. Default is False. This
         will measure the continuum 50AA below and above the
-        input wave_range
+        input wave_range. Note: may remove this option. Not a good idea 
+        for datcubes
     dcont: float
         width in angstrom to measure the continuum. Default is to
         measure 50 AA wide regions on either side of the line
