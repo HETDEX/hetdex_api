@@ -5,6 +5,21 @@
 # amp_flag.fits / .tab are the simplified versions
 #
 
+# BASIC INSTRUCTIONS to update the amp_flag.fits/.tab of record
+#
+# edit either of the HETDEX_API files as needed (known_issues/hdr3/badamps.list  and/or badamps_single.list
+# commit the edits
+# -optional, but suggested-
+#     copy the amp_flag.fits/.tab to a local user folder rather than work directly out of /scratch/projects/hetdex/xxx
+# git pull HETDEX_API to update those edits on TACC
+# run this shell script (update_badmps.sh)
+# check the output (amp_flag.updated.fits/.tab
+#    if happy with the updates, copy and replace the amp_flag.fits/.tab with these .updated. versions
+#       under: /scratch/projects/hetdex/hdr5/survery
+#              /corral-repl/utexas/Hobby-Eberly-Telesco/hdr5/survey
+#
+
+
 from astropy.table import Table
 from h5tools import amp_stats as AS
 from hetdex_api.config import HDRconfig
