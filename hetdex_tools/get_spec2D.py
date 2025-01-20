@@ -216,7 +216,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr3",
+        default="hdr5",
     )
 
     parser.add_argument(
@@ -323,23 +323,28 @@ def main(argv=None):
         files = sorted(glob.glob("im2D*.h5"))
         
         for file in files:
-            args.log.info('Ingesting %s' % file)
-            fileh_i = tb.open_file(file, "r")
-            fibim2D_table_i = fileh_i.root.FiberImages.read()
-            phot_table_i = fileh_i.root.PhotImages.read()
-            spec_table_i = fileh_i.root.Spec1D.read()
-            line_im_table_i = fileh_i.root.LineImages.read()
-            
-            fibim2D_table.append(fibim2D_table_i)
-            phot_table.append(phot_table_i)
-            spec_table.append(spec_table_i)
-            line_im_table.append(line_im_table_i)
-            fileh_i.close()
+            try:
+                args.log.info('Ingesting %s' % file)
+                fileh_i = tb.open_file(file, "r")
+                fibim2D_table_i = fileh_i.root.FiberImages.read()
+                phot_table_i = fileh_i.root.PhotImages.read()
+                spec_table_i = fileh_i.root.Spec1D.read()
+                line_im_table_i = fileh_i.root.LineImages.read()
+                
+                fibim2D_table.append(fibim2D_table_i)
+                phot_table.append(phot_table_i)
+                spec_table.append(spec_table_i)
+                line_im_table.append(line_im_table_i)
+                fileh_i.close()
 
-            fibim2D_table.flush()
-            phot_table.flush()
-            spec_table.flush()
-            line_im_table.flush()
+                fibim2D_table.flush()
+                phot_table.flush()
+                spec_table.flush()
+                line_im_table.flush()
+                fileh_i.close()
+            except:
+                pass
+                
 
         fibim2D_table.cols.detectid.create_csindex()
         phot_table.cols.detectid.create_csindex()
@@ -503,6 +508,7 @@ def main(argv=None):
                     subcont=True,
                     convolve_image=False,
                     interp_kind='cubic',
+                    fill_value=0.0,
                 )
                 
                 im = hdu[0].data
@@ -516,6 +522,7 @@ def main(argv=None):
                     return_sky_sigma=True,
                 )
 
+                plt.figure()
                 plt.subplot(111, projection=w)
                 plt.gca().set_axis_off()
 
