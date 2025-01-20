@@ -39,6 +39,7 @@ from hetdex_api.survey import Survey
 from hetdex_tools.interpolate import make_narrowband_image
 from hetdex_tools.get_spec import get_spectra
 from hetdex_tools import mcmc_gauss
+from hetdex_api.extract import Extract
 
 from astropy import wcs
 from astropy.visualization import ZScaleInterval
@@ -358,7 +359,7 @@ def fit_profile(detectid=None,
            
         #these are the defaults and don't have to be set
         fit.max_sigma = 10.0
-        fit.min_sigma = 1.7
+        fit.min_sigma = 1.4
         fit.range_mu = 5.0
         fit.max_A_mult = 2.0
         fit.max_y_mult = 2.0
@@ -449,17 +450,18 @@ def get_parser():
         add_help=True,
     )
 
-    parser.add_argument(
-        "-s", "--start", help="""Index to start at""", type=int, default=0,
-    )
+    parser.add_argument("-s", "--shotid", type=int, default=0)
+#    parser.add_argument(
+#        "-s", "--start", help="""Index to start at""", type=int, default=0,
+#    )
 
-    parser.add_argument(
-        "--end",
-        "-e",
-        type=int,
-        help="""Index to end at""",
-        default=10,
-    )
+#    parser.add_argument(
+#        "--end",
+#        "-e",
+#        type=int,
+#        help="""Index to end at""",
+#        default=10,
+#    )
 
     return parser
 
@@ -477,6 +479,7 @@ def main(argv=None):
 
     shotid_use = int(args.shotid)
     survey = None
+    version='5.0.0'
     for survey in ['hdr3', 'hdr4', 'hdr5']:
         if shotid_use in np.loadtxt(
                 "/scratch/projects/hetdex/hdr5/catalogs/shots_{}_{}.txt".format(survey, version),
@@ -487,27 +490,26 @@ def main(argv=None):
             sys.exit()
 
     D = Detections(survey=survey)
-            
-    detlist = D.hdfile.root.Detections.read_where("shotid == shotid_use")["detectid"]
 
-    curated_list = np.loadtxt(
-        "/scratch/projects/hetdex/hdr5/catalogs/line_{}_{}.dets".format(survey, version),
+    dets = np.loadtxt(
+        'detlists/fit2d_{}.txt'.format(shotid_use),
         dtype=int,
     )
-    
-    common_list_det = set(detlist).intersection(curated_list)
+
+    # load Extract
+    E = Extract()
+    E.load_shot( shotid_use )
     
     t0 = time.time()
     res = []
 
-    for det in detlist:
+    for det in dets:
         try:
-            res.append( fit_profile(det, ))
+            res.append( fit_profile(det, apply_mask=True, subcont=True, ffsky=False, extract_class=E ))
         except:
             args.log.info('Failed for {}'.format(det))
         
     det_list = []
-    sn_im_list = []
     sn_max_list = []
     moffat_x0_list = []
     moffat_y0_list = []
@@ -520,9 +522,8 @@ def main(argv=None):
         if r is None:
             continue
 
-        detectid, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth = r
+        detectid, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth = r
         det_list.append(detectid)
-        sn_im_list.append(sn_im)
         sn_max_list.append(sn_max)
         moffat_x0_list.append(moffat_x0)
         moffat_y0_list.append(moffat_y0)
@@ -532,7 +533,6 @@ def main(argv=None):
         linewidth_list.append(linewidth)
 	
     dets = np.array(det_list)
-    sn_im = np.array(sn_im_list)
     sn_max = np.array(sn_max_list)
     moffat_x0 = np.array(moffat_x0_list)
     moffat_y0 = np.array(moffat_y0_list)
@@ -540,19 +540,20 @@ def main(argv=None):
     sn_line = np.array(sn_line_list)
     chi2_line = np.array(chi2_line_list)
     linewidth = np.array(linewidth_list)
-    
-    output = Table( [dets, sn_im, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth],
-                    names=['detectid', 'sn_im', 'sn_moffat', 'moffat_x0', 'moffat_y0', 'chi2_moffat', 'sn_line', 'chi2_line', 'linewidth'])
 
-    output.write(filename, overwrite=True)
+    output = Table( [dets, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth],
+                    names=['detectid', 'sn_moffat', 'moffat_x0', 'moffat_y0', 'chi2_moffat', 'sn_line', 'chi2_line', 'linewidth'])
+    
+    output.write('output/res_{}.txt'.format(shotid_use), overwrite=True, format='ascii')
 
     t1 = time.time()
 
     D_hdr5.close()
     D_hdr4.close()
     D_hdr3.close()
-    
-    args.log.info('Completed indices {} to {} in {:3.2f} min'.format(args.start, args.end, (t1-t0)/60))
+
+    args.log.info('Completed shotid={} consisting of {} detections in {:3.2f}m.'.format( shotid_use, len(dets), (t1-t0)/60)) 
+    #args.log.info('Completed indices {} to {} in {:3.2f} min'.format(args.start, args.end, (t1-t0)/60))
 
 if __name__ == "__main__":
     main()
