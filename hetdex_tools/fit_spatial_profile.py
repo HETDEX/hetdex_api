@@ -154,15 +154,14 @@ def fit_profile(detectid=None,
         apply_mask=apply_mask,
         fill_value=0.0,
     )
-        
+    
     if name is None:
         name = "{:4.3f}_{:4.2f}_{:4.0f}_{} ".format( coords.ra.deg, coords.ra.deg, wave, shotid)
-        
-    im = hdu[0].data
-    error = hdu[1].data
-    w = wcs.WCS(hdu[0].header)
 
-    image_data = hdu[0].data
+    image_data = hdu[0].data        
+    error = hdu[1].data
+
+    w = wcs.WCS(hdu[0].header)
 
     if np.sum(image_data) == 0:
         return None
@@ -221,7 +220,7 @@ def fit_profile(detectid=None,
 
 
     imfit_fitter_moffat = pyimfit.Imfit(moffat_model_desc, psf=fiber_psf)
-    
+
     try:
         fit = imfit_fitter_moffat.fit( image_data, mask=mask, error=error)
     except:
