@@ -1107,7 +1107,7 @@ class Extract:
         nchunks=11,
         convolve_image=False,
         interp_kind="linear",
-        fill_value=np.nan,
+        fill_value=0.0,
     ):
         """
         Sum spectra across a wavelength range or filter to make a single image
@@ -1176,10 +1176,10 @@ class Extract:
             self.log.warning('interp_kind must be "linear", "nearest" or "cubic"')
             self.log.warning('Using "linear" for interp_kind')
             interp_kind = "linear"
-        
+
         marray = np.ma.array(data[:, sel], mask=mask[:, sel] < 1e-8)
         image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
-            
+
         if error is not None:
             marray = np.ma.array(error[:, sel], mask=mask[:, sel] < 1e-8)
             error_image = np.sqrt(2.*np.ma.sum(marray**2, axis=1))
@@ -1194,28 +1194,35 @@ class Extract:
                 image.data[~image.mask],
                 (xgrid, ygrid),
                 method=interp_kind,
+                fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
             )
             * scale ** 2
             / area
         )
 
+        # convert back to nan
+        grid_z[ grid_z==0.0] = np.nan
+
         # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
         grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest').astype(bool)
 
         grid_z[~grid_mask] = np.nan
-        
+
         if error is not None:
+
             grid_z_error = (
                 griddata(
                     S[~error_image.mask],
                     error_image.data[~error_image.mask],
                     (xgrid, ygrid),
                     method=interp_kind,
+                    fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
                 )
                 * scale ** 2
                 / area
             )
-            
+            grid_z_error[ grid_z_error<=0.0] = np.nan
+
             # mask image Added by EMC 2024-04-16
             grid_z_error[~grid_mask] = np.nan
         
@@ -1235,9 +1242,9 @@ class Extract:
             image[np.isnan(image)] = fill_value
             image_error = grid_z_error
             image_error[np.isnan(image)] = fill_value
-                                    
+                               
             zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
-
+        
         return zarray
 
     def get_psf_curve_of_growth(self, psf):
