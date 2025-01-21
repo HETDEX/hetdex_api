@@ -51,7 +51,7 @@ def make_narrowband_image(
     fiber_flux_offset=None,
     interp_kind="linear",
     apply_mask=False,
-    fill_value=np.nan,
+    fill_value=0.0,
 ):
     """
     Function to make narrowband image from either a detectid or from a
@@ -103,7 +103,7 @@ def make_narrowband_image(
         to the spectral extraction before summation. Masked in place as NaNs
     fill_value: float, optional
         Value used to fill in for requested points outside of coverage or in a mask
-        region. If not provided, then the default is nan.
+        region. If not provided, then the default is 0.0.
 
     Returns
     -------
@@ -430,7 +430,7 @@ def make_data_cube(
     fiber_flux_offset=None,
     interp_kind="linear",
     apply_mask=False,
-    fill_value=np.nan,
+    fill_value=0.0,
     included_error=False,
 ):
     """
@@ -473,8 +473,13 @@ def make_data_cube(
     interp_kind: str
         Kind of interpolation to pixelated grid from fiber intensity.
         Options are 'linear', 'cubic', 'nearest'. Default is linear.
-    apply_mask: bool                                                                                            Apply HETDEX fiber mask model. This will mask all fibers contributing
-         to the spectral extraction before summation. Masked in place as NaNs                               fill_value: float, optional                                                                                Value used to fill in for requested points outside of coverage or in a mask                            region. If not provided, then the default is nan.
+    apply_mask: bool                                                                                            
+        Apply HETDEX fiber mask model. This will mask all fibers contributing
+        to the spectral extraction before summation. Masked in place according 
+        to fill_value
+    fill_value: float, optional
+        Value used to fill in for requested points outside of coverage or in a mask
+        region. If not provided, then the default is 0.0.
 
     Returns
     -------
