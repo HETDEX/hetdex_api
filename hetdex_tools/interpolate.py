@@ -263,6 +263,7 @@ def make_narrowband_image(
             interp_kind=interp_kind,
             fill_value=fill_value,
         )
+        
         imslice = zarray[0]
         imerror = zarray[1]
     else:
@@ -287,10 +288,10 @@ def make_narrowband_image(
     if subcont:
 
         wave_range_blue = [wave_range[0] - dcont - 10, wave_range[0] - 10]
-        
+
         if wave_range_blue[0] <= 3500:
             wave_range_blue[0] = 3500
-        if wave_range_blue[1] <= 3500:
+        if wave_range_blue[1] <= 3520:
             zarray_blue = None
         else:
             zarray_blue = E.make_narrowband_image(
@@ -431,7 +432,7 @@ def make_data_cube(
     interp_kind="linear",
     apply_mask=False,
     fill_value=0.0,
-    included_error=False,
+    include_error=False,
 ):
     """
     Function to make a datacube from either a detectid or from a
