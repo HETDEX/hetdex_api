@@ -137,23 +137,42 @@ def fit_profile(detectid=None,
         wave_obj = wave
         S = Survey(survey)
         fwhm = S.fwhm_virus[ S.shotid == shotid][0]
-    
-    hdu = make_narrowband_image(
-        coords=coords,
-        wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
-        shotid=shotid,
-        survey=survey,
-        imsize= imsize * u.arcsec,
-        include_error=True,
-        ffsky=ffsky,
-        ffsky_rescor=ffsky_rescor,
-        extract_class=extract_class,
-        subcont=subcont,
-        convolve_image=False,
-        interp_kind='cubic',
-        apply_mask=apply_mask,
-        fill_value=0.0,
-    )
+
+    try:
+        hdu = make_narrowband_image(
+            coords=coords,
+            wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
+            shotid=shotid,
+            survey=survey,
+            imsize= imsize * u.arcsec,
+            include_error=True,
+            ffsky=ffsky,
+            ffsky_rescor=ffsky_rescor,
+            extract_class=extract_class,
+            subcont=subcont,
+            convolve_image=False,
+            interp_kind='cubic',
+            apply_mask=apply_mask,
+            fill_value=0.0,
+        )
+    except ValueError:
+        hdu = make_narrowband_image(
+            coords=coords,
+            wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
+            shotid=shotid,
+	    survey=survey,
+            imsize= 18.0 * u.arcsec,
+            include_error=True,
+            ffsky=ffsky,
+	    ffsky_rescor=ffsky_rescor,
+            extract_class=extract_class,
+            subcont=subcont,
+            convolve_image=False,
+	    interp_kind='cubic',
+            apply_mask=apply_mask,
+	    fill_value=0.0,
+        )
+
     
     if name is None:
         name = "{:4.3f}_{:4.2f}_{:4.0f}_{} ".format( coords.ra.deg, coords.ra.deg, wave, shotid)
