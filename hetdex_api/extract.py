@@ -1188,39 +1188,46 @@ class Extract:
         S[:, 0] = xloc - np.mean(self.ADRx[sel])
         S[:, 1] = yloc - np.mean(self.ADRy[sel])
 
-        grid_z = (
-            griddata(
-                S[~image.mask],
-                image.data[~image.mask],
-                (xgrid, ygrid),
-                method=interp_kind,
-                fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
-            )
-            * scale ** 2
-            / area
-        )
-
-        # convert back to nan
-        grid_z[ grid_z==0.0] = np.nan
-
-        # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
-        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest').astype(bool)
-
-        grid_z[~grid_mask] = np.nan
-
-        if error is not None:
-
-            grid_z_error = (
+        if np.sum( image.data[~image.mask]) == 0:
+            grid_z = np.zeros_like(xgrid)
+        else:
+            grid_z = (
                 griddata(
-                    S[~error_image.mask],
-                    error_image.data[~error_image.mask],
+                    S[~image.mask],
+                    image.data[~image.mask],
                     (xgrid, ygrid),
                     method=interp_kind,
-                    fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
+                    fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
                 )
                 * scale ** 2
                 / area
             )
+
+        # convert back to nan
+        grid_z[ grid_z==0.0] = np.nan
+                
+        # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
+        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest').astype(bool)
+        
+        grid_z[~grid_mask] = np.nan
+
+        if error is not None:
+
+            if np.sum( error_image.data[~error_image.mask]) == 0:
+                grid_z_error = np.zeros_like(xgrid)
+            else:
+                grid_z_error = (
+                    griddata(
+                        S[~error_image.mask],
+                        error_image.data[~error_image.mask],
+                        (xgrid, ygrid),
+                        method=interp_kind,
+                        fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
+                    )
+                    * scale ** 2
+                    / area
+                )
+                
             grid_z_error[ grid_z_error<=0.0] = np.nan
 
             # mask image Added by EMC 2024-04-16
@@ -1241,7 +1248,7 @@ class Extract:
             #Added by EMC 2024-04-16 
             image[np.isnan(image)] = fill_value
             image_error = grid_z_error
-            image_error[np.isnan(image)] = fill_value
+            image_error[np.isnan(image_error)] = fill_value
                                
             zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
         
