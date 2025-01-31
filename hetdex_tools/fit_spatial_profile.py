@@ -468,7 +468,9 @@ def get_parser():
         add_help=True,
     )
 
-    parser.add_argument("-s", "--shotid", type=int, default=0)
+    parser.add_argument("-s", "--shotid", type=int, default=None)
+
+    parser.add_argument("-d", "--detlist", type=str, default=None)
 #    parser.add_argument(
 #        "-s", "--start", help="""Index to start at""", type=int, default=0,
 #    )
@@ -495,37 +497,43 @@ def main(argv=None):
     
     global config, D_hdr3, D_hdr4, D_hdr5
 
-    shotid_use = int(args.shotid)
-    survey = None
-    version='5.0.0'
-    for survey in ['hdr3', 'hdr4', 'hdr5']:
-        if shotid_use in np.loadtxt(
-                "/scratch/projects/hetdex/hdr5/catalogs/shots_{}_{}.txt".format(survey, version),
-                dtype=int):
-            survey = "hdr3"
-        if survey is None:
-            print("Something's wrong. {} not in a survey shot list".format(shotid_use))
+    if args.shotid is not None:
+        shotid_use = int(args.shotid)
+        survey = None
+        version='5.0.0'
+        for survey in ['hdr3', 'hdr4', 'hdr5']:
+            if shotid_use in np.loadtxt(
+                    "/scratch/projects/hetdex/hdr5/catalogs/shots_{}_{}.txt".format(survey, version),
+                    dtype=int):
+                survey = "hdr3"
+            if survey is None:
+                print("Something's wrong. {} not in a survey shot list".format(shotid_use))
+                sys.exit()
+
+        dets = np.loadtxt(
+            'detlists/fit2d_{}.txt'.format(shotid_use),
+            dtype=int,
+        )
+        
+        # load Extract
+        E = Extract()
+        E.load_shot( shotid_use )
+    else:
+        if args.detlist is None:
+            print('Need a shotid or detlist file')
             sys.exit()
+        else:
+            dets = np.loadtxt( args.detlist, dtype=int)
+            E = None
+            
+        t0 = time.time()
+        res = []
 
-    D = Detections(survey=survey)
-
-    dets = np.loadtxt(
-        'detlists/fit2d_{}.txt'.format(shotid_use),
-        dtype=int,
-    )
-
-    # load Extract
-    E = Extract()
-    E.load_shot( shotid_use )
-    
-    t0 = time.time()
-    res = []
-
-    for det in dets:
-        try:
-            res.append( fit_profile(det, apply_mask=True, subcont=True, ffsky=False, extract_class=E ))
-        except:
-            args.log.info('Failed for {}'.format(det))
+        for det in dets:
+            try:
+                res.append( fit_profile(det, apply_mask=True, subcont=True, ffsky=False, extract_class=E ))
+            except:
+                args.log.info('Failed for {}'.format(det))
         
     det_list = []
     sn_max_list = []
@@ -561,8 +569,11 @@ def main(argv=None):
 
     output = Table( [dets, sn_max, moffat_x0, moffat_y0, chi2_moffat, sn_line, chi2_line, linewidth],
                     names=['detectid', 'sn_moffat', 'moffat_x0', 'moffat_y0', 'chi2_moffat', 'sn_line', 'chi2_line', 'linewidth'])
-    
-    output.write('output/res_{}.txt'.format(shotid_use), overwrite=True, format='ascii')
+
+    if args.shotid is not None:
+        output.write('output/res_{}.txt'.format(shotid_use), overwrite=True, format='ascii')
+    else:
+        output.write('output/res_{}'.format( args.detlist), format='ascii', overwrite=True)
 
     t1 = time.time()
 
@@ -570,8 +581,10 @@ def main(argv=None):
     D_hdr4.close()
     D_hdr3.close()
 
-    args.log.info('Completed shotid={} consisting of {} detections in {:3.2f}m.'.format( shotid_use, len(dets), (t1-t0)/60)) 
-    #args.log.info('Completed indices {} to {} in {:3.2f} min'.format(args.start, args.end, (t1-t0)/60))
+    if args.shotid is not None:
+        args.log.info('Completed shotid={} consisting of {} detections in {:3.2f}m.'.format( shotid_use, len(dets), (t1-t0)/60)) 
+    elif args.detlist is not None:
+        args.log.info('Completed {} in {:3.2f} min'.format(args.detlist, (t1-t0)/60))
 
 if __name__ == "__main__":
     main()
