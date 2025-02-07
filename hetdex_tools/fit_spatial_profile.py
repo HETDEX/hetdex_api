@@ -135,20 +135,20 @@ def fit_profile(detectid=None,
         if name is None:
             name = detectid
 
-        shotid_obj = det_info['shotid']
+        if shotid is None:
+            shotid_obj = det_info['shotid']
+        else:
+            shotid_obj = shotid
     else:
         wave_obj = wave
         S = Survey(survey)
         fwhm = S.fwhm_virus[ S.shotid == shotid][0]
 
-    if shotid is not None:
-        shotid_obj = shotid
-        
     try:
         hdu = make_narrowband_image(
             coords=coords,
             wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
-            shotid=shotid,
+            shotid=shotid_obj,
             survey=survey,
             imsize= imsize * u.arcsec,
             include_error=True,
@@ -165,7 +165,7 @@ def fit_profile(detectid=None,
         hdu = make_narrowband_image(
             coords=coords,
             wave_range=[wave_obj - 2*linewidth, wave_obj + 2*linewidth],
-            shotid=shotid,
+            shotid=shotid_obj,
 	    survey=survey,
             imsize= 18.0 * u.arcsec,
             include_error=True,
