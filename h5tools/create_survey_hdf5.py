@@ -45,7 +45,7 @@ def define_field(objname):
         field = "egs"
     elif re.match("GN|DEXgn", str(objname)):
         field = "goods-n"
-    elif re.match("DEX0|DEXfl|HF", str(objname)):
+    elif re.match("DEX0|DEXfl|HF|DEXsh", str(objname)):
         field = "dex-fall"
     elif re.match("HS|DEXsp", str(objname)):
         field = "dex-spring"
