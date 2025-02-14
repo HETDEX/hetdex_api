@@ -107,6 +107,11 @@ class Survey:
         for s in [20190802012, 20190803012]:
             self.field[self.shotid == s] = "dex-spring"
 
+        # added 2025-02-14 by EMC                                                                                        
+        # manually change field entry for 20190802012 and 20190803012 incorrectly given a fall objid                      
+        for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
+            self.field[self.shotid == s] = "dex-fall"
+
     def __getitem__(self, indx):
         """
         This allows for slicing of the survey class
@@ -143,7 +148,7 @@ class Survey:
         maskshots = self.remove_shots()
         return self[maskshots]
 
-    def remove_shots(self):
+    def remove_shots(self, badshot=True, badtp=True, other=True):
         """
         Function to remove shots that should be exluded from most analysis.
 
@@ -168,14 +173,24 @@ class Survey:
 
         mask = np.zeros(np.size(self.shotid), dtype=bool)
         badshots = np.loadtxt(config.badshot, dtype=int)
-        for shot in badshots:
-            maskshot = self.shotid == shot
-            mask = mask | maskshot
 
-        notvalid = self.shotid < 20170000
-        mask = mask | notvalid
+        if badshot:
+            for shot in badshots:
+                maskshot = self.shotid == shot
+                mask = mask | maskshot
 
-        return np.invert(mask)
+        mask = np.invert(mask)
+        
+        if badtp:
+            mask = mask * (self.response_4540 >= 0.08)
+
+        if other:
+            mask = mask * (self.field != 'other')
+            
+        notvalid = self.shotid > 20170000
+        mask = mask * notvalid
+
+        return mask
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
         """
@@ -629,7 +644,7 @@ class FiberIndex:
         Parameters
         ----------
         FiberIndex Class
-
+        
         Returns
         -------
         fiber_id: str
@@ -659,7 +674,7 @@ class FiberIndex:
                 print("Something went wrong. fiber_id columns don't match")
 
         print("Done adding amplifier flags in {:4.3} minutes".format((t1 - t0) / 60))
-
+        
         return np.array(join_tab["amp_flag"], dtype=bool)
 
     def get_shot_flag(self):
