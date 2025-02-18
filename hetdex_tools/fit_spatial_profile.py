@@ -139,11 +139,22 @@ def fit_profile(detectid=None,
             shotid_obj = det_info['shotid']
         else:
             shotid_obj = shotid
-    else:
+    elif coords is not None:
+        if wave is None:
+            print('You must provide a wavelength')
+            return None
+        if shotid is None:
+            print('You must provide a shotid')
+            return None
+        if linewidth is None:
+            print('Using default linewidth of 2.5A')
+            linewidth=2.5
+            
         wave_obj = wave
+        shotid_obj = shotid
         S = Survey(survey)
         fwhm = S.fwhm_virus[ S.shotid == shotid][0]
-
+        
     try:
         hdu = make_narrowband_image(
             coords=coords,
