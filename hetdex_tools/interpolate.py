@@ -158,6 +158,12 @@ def make_narrowband_image(
         imsize = 30.0 * u.arcsec
 
     if detectid is not None:
+
+        # do not allow for detectid + any shotid/coords/wave_range
+        if shotid is not None or wave_range is not None or coords is not None:
+            print('Can not override detectid paramters. Either enter a detectid or a shotid/coords/wave_range combination. Exiting')
+            return None
+        
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
         elif (detectid >= 2100000000) * (detectid < 2190000000):
