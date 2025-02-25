@@ -87,7 +87,7 @@ def do_pyimfit(
     star=False,
     nbootstrap=0,
     ffsky=False,
-    apply_mask=False,
+    apply_mask=True,
     D=None,  # Detection Handle
 ):
     if detectid is not None:
@@ -350,7 +350,7 @@ def do_pyimfit(
     moffatmodel.beta.setValue(3.5, fixed=True)
     # get maximum intensity in center of image
     I_max = np.max(image_data[xcen - dx : xcen + dx, ycen - dy : xcen + dy])
-    # moffatmodel.I_0.setValue(I_max, fixed=True)#10, [0.001, 10000])
+   
     moffatmodel.I_0.setValue(1, [0, 10])
     moffat_model_desc.addFunction(moffatmodel)
 
@@ -367,7 +367,8 @@ def do_pyimfit(
     moffat_I0 = moffat_fitparams[4]
 
     # allow moffat intensity to vary in two component model
-    moffatmodel.I_0.setValue(1, [0, 10])
+    # but do not allow the component to be less than 10% of the total model
+    moffatmodel.I_0.setValue(moffat_I0, [0, 10])
     # fix to single Moffat fit value 
     #moffatmodel.I_0.setValue( moffat_I0, fixed=True)
 
@@ -380,7 +381,8 @@ def do_pyimfit(
 
     # set initial values, lower and upper limits for central surface brightness I_0, scale length h;
     # specify that ellipticity is to remain fixed
-    expmodel.I_0.setValue(10, [0, 10])
+    # require exponential component to be at least 1/2 of the moffat in amplitude
+    expmodel.I_0.setValue(moffat_I0, [0.5*moffat_I0, 10])
     expmodel.h.setValue(10, [0, 100])
     expmodel.PA.setValue(90, [0, 180])
     if full_lae_sample:
@@ -392,7 +394,7 @@ def do_pyimfit(
     model_desc.addFunction(expmodel)
 
     imfit_fitter = pyimfit.Imfit(model_desc, psf=fiber_psf)  # moffat_psf[0])
-
+    
     imfit_fitter.fit(image_data, mask=mask, error=error)
     chi2 = imfit_fitter.reducedFitStatistic
 
@@ -404,8 +406,9 @@ def do_pyimfit(
     exp_ell = fit_params[8]
     exp_I_0 = fit_params[9]  # fit_params[4]
     exp_h = fit_params[10]  # fit_params[5]
+    moffat_exp_I0 = fit_params[4]
+    #print(I_max, moffat_I0, moffat_exp_I0, exp_I_0, moffat_exp_I0/exp_I_0) 
 
-    # print(I_max, moffat_I0, fit_params[4])
     if nbootstrap > 0:
         parameterNames, bootstrapResults = imfit_fitter.runBootstrap(
             nbootstrap, getColumnNames=True
