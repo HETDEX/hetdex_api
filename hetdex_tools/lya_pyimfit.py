@@ -52,8 +52,6 @@ from matplotlib import gridspec
 import warnings
 warnings.filterwarnings("ignore")
 
-full_lae_sample = True # fix ellipticity to 0 for full lae sample fitting
-
 plot_both_models = True
 make_compact_fig = True  # flag to make publication quality figure
 
@@ -89,6 +87,7 @@ def do_pyimfit(
     ffsky=False,
     apply_mask=True,
     D=None,  # Detection Handle
+    null_ellipticity=False, # fix ellipticity to 0 when running full sample
 ):
     if detectid is not None:
         
@@ -385,7 +384,7 @@ def do_pyimfit(
     expmodel.I_0.setValue(moffat_I0, [0.5*moffat_I0, 100])
     expmodel.h.setValue(10, [0, 100])
     expmodel.PA.setValue(90, [0, 180])
-    if full_lae_sample:
+    if null_ellipticity:
         expmodel.ell.setValue(0.0, fixed=True)#[0, 0.75])
     else:
         expmodel.ell.setValue(0.0, [0, 0.75])
@@ -1337,6 +1336,14 @@ def get_parser():
         action="store_true",
     )
 
+    parser.add_argument(
+        "--null_ellipticity",
+        help="""Trigger to conolve image to FWHM seeing""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+
     subcont_parser = parser.add_mutually_exclusive_group(required=False)
     subcont_parser.add_argument("--subcont", dest="subcont", action="store_true")
     subcont_parser.add_argument("--no_subcont", dest="subcont", action="store_false")
@@ -1394,6 +1401,7 @@ def main(argv=None):
         star=args.star,
         nbootstrap=args.nbootstrap,
         ffsky=False,
+        null_ellipticity=args.null_ellipticity,
     )
 
 
