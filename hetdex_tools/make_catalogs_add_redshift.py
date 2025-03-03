@@ -9,7 +9,7 @@ import pandas as pd
 import tables as tb
 import argparse as ap
 
-
+import astropy.table
 from astropy.table import Table, unique, join, Column, vstack
 from astropy.cosmology import Planck18 as cosmo
 import astropy.units as u
@@ -21,6 +21,21 @@ import hetdex_tools.fof_kdtree as fof
 
 from multiprocessing import Pool
 
+def replace_nan_inf_mask(table, fill_value=0.0):
+    for col in table.colnames:
+        data = table[col]
+
+        if np.issubdtype(data.dtype, np.number):
+            nan_mask = np.isnan(data)
+            inf_mask = np.isinf(data)
+
+            table[col][nan_mask] = fill_value
+            table[col][inf_mask] = fill_value
+
+        if isinstance(table[col], astropy.table.column.MaskedColumn):
+            print(f"Converting masked column: {c}")
+            table[col] = np.nan_to_num(np.array(table[col]),nan=fill_value)
+        
 
 def add_z_guess(source_id):
     global source_table, agn_tab, config
@@ -230,18 +245,25 @@ def add_z_guess(source_id):
 def zcluster_forshotid(shotid, star=False):
     global source_table
 
-    sel = source_table["shotid"] == shotid
+    sel = (source_table["shotid"] == shotid) * (source_table['z_hetdex']>0.001)
 
     uniq_table = unique(source_table[sel], keys=["source_id"])
 
-    kdtree, r = fof.mktree(
+    res = fof.mktree(
         np.array(uniq_table["ra_mean"]),
         np.array(uniq_table["dec_mean"]),
         np.array(uniq_table["z_hetdex"]),
-        dsky=6,
+        dsky=8.0,
         dwave=0.01,
     )
 
+    if res is None:
+        print( 'fof.mktree failed in zcluster_forshotid', shotid)
+        return None
+    else:
+        kdtree, r = res
+
+        
     zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
 
     if len(zfriend_lst) == 0:
@@ -262,14 +284,16 @@ def zcluster_forshotid(shotid, star=False):
     for row in zfriend_table:
         friendid = row["id"]
         members = np.array(row["members"])
-    friendlist.extend(friendid * np.ones_like(members))
-    memberlist.extend(members)
+        friendlist.extend(friendid * np.ones_like(members))
+        memberlist.extend(members)
+
     zfriend_table.remove_column("members")
 
     zdetfriend_tab = Table()
     zdetfriend_tab.add_column(Column(np.array(friendlist), name="id"))
     zdetfriend_tab.add_column(Column(memberlist, name="source_id"))
     zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
+
     return zdetfriend_all
 
 def zclusteragn_forshotid(shotid):
@@ -320,16 +344,20 @@ def zclusteragn_forshotid(shotid):
 def zclusterstars_forshotid(shotid):
     global source_table
 
-    sel = source_table["shotid"] == shotid
+    sel = (source_table["shotid"] == shotid) * (source_table['z_hetdex'] < 0.001) * (source_table['z_hetdex']>-2)
 
+    if np.sum(sel) == 0:
+        print('No stars in', shotid)
+        return None
+    
     uniq_table = unique(source_table[sel], keys=["source_id"])
 
     kdtree, r = fof.mktree(
         np.array(uniq_table["ra_mean"]),
         np.array(uniq_table["dec_mean"]),
         np.array(uniq_table["z_hetdex"]),
-        dsky=30,
-        dwave=0.0001,
+        dsky=30.0,
+        dwave=0.00001,
     )
 
     zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
@@ -401,10 +429,9 @@ def update_table(zdetfriend_all):
                 print(res_tab["icz"], res_tab["izz"])
             else:
                 source_table["z_hetdex"][sid_ind] = res_tab["icz"]
-
-        # update source type assignment
-        stype_main = source_table["source_type"][source_table["source_id"] == sid_main]
-        source_table["source_type"][sid_ind] = stype_main
+                # update source type assignment if redshift difference isn't big
+                stype_main = source_table["source_type"][source_table["source_id"] == sid_main]
+                source_table["source_type"][sid_ind] = stype_main
     return
 
 
@@ -434,6 +461,16 @@ def get_parser():
         required=False,
         action="store_true",
     )
+
+    parser.add_argument(
+        "-u",
+        "--update_conf",
+        help="""Boolean trigger to update p_conf value""",
+        default=False,
+        required=False,
+        action="store_true",
+    )
+    
     return parser
 
 
@@ -458,7 +495,7 @@ def main(argv=None):
     config = HDRconfig("hdr4")
     agn_tab = Table.read(config.agncat, format="ascii")
     # agn_tab = None
-
+    
     if args.add_redshifts:
         # catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
@@ -620,6 +657,7 @@ def main(argv=None):
         z_stack.write("z_stack_{}.fits".format(version), overwrite=True)
         source_table.write("source_catalog_{}.y.fits".format(version), overwrite=True)
         sys.exit()
+
     else:
         catfile = "source_catalog_{}.y.fits".format(version)
 
@@ -630,6 +668,8 @@ def main(argv=None):
     all_table = join(source_table, z_stack, join_type="left")
 
     source_table = all_table
+
+    source_table['z_hetdex'] = source_table['z_hetdex'].filled(-99.)
 
     # uncluster LAEs whose line pairings are not supported by best_z
 
@@ -648,6 +688,12 @@ def main(argv=None):
         source_table["z_hetdex"][c_ind] = source_table["z_elixer"][c_ind]
         source_table["z_hetdex_conf"][c_ind] = source_table["best_pz"][c_ind]
         source_table["z_hetdex_src"][c_ind] = "elixer"
+
+        if source_table['z_hetdex'][c_ind] < 0.5:
+            source_table['source_type'][c_ind] = 'oii'
+        else:
+            source_table['source_type'][c_ind] = 'lae'
+            
         sid_index += 1
 
     sel_star = source_table["source_type"] == "star"
@@ -924,37 +970,15 @@ def main(argv=None):
     # add 2D profile fits
 
     fit_2D = Table.read(
-        "/work/05350/ecooper/stampede2/hdr4/fit_profile_output_4.0.0.fits"
+        "/scratch/projects/hetdex/hdr5/catalogs/fit2D_5.0.0.fits"  
     )
-    fit_2D.rename_column('sn_max', 'sn_moffat')
+#    fit_2D.rename_column('sn_max', 'sn_moffat')
+    fit_2D.rename_column('linewidth', 'linewidth_line')
     source_table2 = join(
-        combined, fit_2D["detectid", "sn_im", "sn_moffat", "chi2_moffat"], join_type="left"
+        combined, fit_2D, join_type="left"
     )
 
-    # add sn_elixer for p_real
-
-    elixh5 = tb.open_file(config.elixerh5, 'r')
-    elix_line_fit = Table( elixh5.root.SpectraLines.read())
-    elix_line_fit.rename_column('sn','sn_elix')
-    elixh5.close()
-    
-    src2 = join(source_table, elix_line_fit['detectid','wavelength', 'sn_elix'], keys='detectid')
-    sel_wave_match = np.abs( src2['wavelength'] - src2['wave'] ) < 10
-
-    elix_lines = src2['detectid','sn_elix'][sel_wave_match]
-
-    source_table3 = join( source_table2, elix_lines, join_type='left')
-
-    # fill in sn value for any mask sn_elix values
-    for i in np.where( source_table3['sn_elix'].mask == True ):
-        source_table3['sn_elix'][i] = source_table3['sn'][i]
-        
-    for i in np.where( np.isnan( source_table3['sn_elix'] )):
-        source_table3['sn_elix'][i] = source_table3['sn'][i]
-    
-    print(len(combined), len(source_table2), len(source_table3))
-
-    source_table = unique(source_table3, keys="detectid")
+    source_table = unique(source_table2, keys="detectid")
     # finalize flags
 
     source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
@@ -996,7 +1020,7 @@ def main(argv=None):
     # add RAIC continuum data
 
     raic_cat_cont = Table.read(
-        "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_cont_labels_20231108_hdr4.0.0.fits"
+        "/scratch/projects/hetdex/hdr5/catalogs/ml/raic_results_cont_labels_20231108_hdr5.0.0.fits"
     )
 
     # sort by score, will take unique label for highest score
@@ -1009,7 +1033,7 @@ def main(argv=None):
 
     # add RAIC line data
     raic_cat = Table.read(
-        "/scratch/projects/hetdex/hdr4/catalogs/ml/raic_results_line_labels_20231107_hdr4.0.0.fits"
+        "/scratch/projects/hetdex/hdr5/catalogs/ml/raic_results_line_labels_20231107_hdr5.0.0.fits"
     )
 
     raic_cat.sort("Score")
@@ -1123,19 +1147,18 @@ def main(argv=None):
     
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
+    rres_vals = Table.read('/scratch/projects/hetdex/hdr5/catalogs/all_rres_5.0.0.fits')
 
-    rres_vals = Table.read('/work/05350/ecooper/stampede2/hdr4/all_rres_4.0.1.txt', 
-                       format='ascii', 
-                       names=['detectid', 'rres_line', 'rres_cont'])
-
-    source_table2 = join(source_table, rres_vals, join_type='left')
+    source_table2 = join(source_table, rres_vals, join_type='left', keys='detectid')
 
     print('Table sizes before and after rres join: {} {}'.format(len(source_table), len(source_table2)))
     source_table = source_table2
-    
+
     sel_rres = source_table['rres_line']>=1.05
     source_table['sn_rres'] = source_table['sn']
     source_table['sn_rres'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
+    source_table.write('tmp.tab', format='ascii', overwrite=True)
+
 
     for col in source_table.columns:
 
@@ -1168,37 +1191,68 @@ def main(argv=None):
             except:
                 pass
 
+    import astropy
+    
+    for c in source_table.colnames:
+        if isinstance(source_table[c], astropy.table.column.MaskedColumn):
+            print(f"Converting masked column: {c}")
+            
+            if 'flag' in c:
+                source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=1)
+            else:
+                source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=-99.9)
+    source_table.write("source_catalog_{}.yy.fits".format(version), overwrite=True)
+
     import joblib 
 
-    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_2.0_20241106.joblib") 
+    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
 
-    X =  np.array( [x[:] for x in source_table[clf.columns]] )
+    X = np.zeros(shape=( len(source_table), len( clf.columns) ))
+
+    for i in range(len( clf.columns)):
+        X[:, i]= source_table[clf.columns[i]]
+    
+    p_conf = clf.predict_proba(X)[:,1]
+
+    source_table['p_conf'] = 1.0
+    sel_sample = (source_table['gmag']> 22) * (source_table['sn'] < 6.5) * (source_table['agn_flag']==-1)
+    source_table['p_conf'][sel_sample] = p_conf[sel_sample]
+
+    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_highsn.joblib")
+    X = np.zeros(shape=( len(source_table), len( clf.columns) ))
+
+    for i in range(len( clf.columns)):
+        X[:, i]= source_table[clf.columns[i]]
 
     p_real = clf.predict_proba(X)[:,1]
-
-    source_table['p_real'] = p_real
+    sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_table['agn_flag']==-1)
+    source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
     # remove nonsense metadata
     source_table.meta = {}
 
-    # can include SA22 as of 2024-11-05
-#    sel_sa22 = source_table["field"] == "ssa22"
-#    sel_notsa22 = np.invert(sel_sa22)
+    for s in [20231014013,
+              20231017015,
+              20231104011,
+              20231104015,
+              20231108013,
+              20231204011,
+              20231206015]:
+        source_table['field'][ source_table['shotid'] == s] = "dex-fall"
 
-    # temp solution for issue on 046, 036
-    sel_ifuslot = (source_table['ifuslot'] == '046') | (source_table['ifuslot']=='036') 
-    sel_date = (source_table['date'] >= 20240501)
-    source_table['flag_best'][sel_ifuslot*sel_date] = -1
-    
-    source_table.write(
+    sel_other = source_table["field"] == "other"                                                         
+    sel_notother = np.invert(sel_other)                                                                   
+
+
+    source_table[sel_notother].write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
     )
-    source_table.write(
+    source_table[sel_notother].write(
         "source_catalog_{}.z.tab".format(version), format="ascii", overwrite=True
     )
-#    source_table[sel_sa22].write(
-#        "source_catalog_{}_sa22.fits".format(version), overwrite=True
-#    )
+    source_table[sel_other].write(
+        "source_catalog_{}_other.fits".format(version), overwrite=True
+    )
 
 if __name__ == "__main__":
     main()
