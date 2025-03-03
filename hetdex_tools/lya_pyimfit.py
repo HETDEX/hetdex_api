@@ -351,7 +351,7 @@ def do_pyimfit(
     # get maximum intensity in center of image
     I_max = np.max(image_data[xcen - dx : xcen + dx, ycen - dy : xcen + dy])
    
-    moffatmodel.I_0.setValue(1, [0, 10])
+    moffatmodel.I_0.setValue(1, [0, 100])
     moffat_model_desc.addFunction(moffatmodel)
 
     # fit line flux map to moffat first to fix intensity for core component in exp model
@@ -368,7 +368,7 @@ def do_pyimfit(
 
     # allow moffat intensity to vary in two component model
     # but do not allow the component to be less than 10% of the total model
-    moffatmodel.I_0.setValue(moffat_I0, [0, 10])
+    moffatmodel.I_0.setValue(moffat_I0, [0, 100])
     # fix to single Moffat fit value 
     #moffatmodel.I_0.setValue( moffat_I0, fixed=True)
 
@@ -382,7 +382,7 @@ def do_pyimfit(
     # set initial values, lower and upper limits for central surface brightness I_0, scale length h;
     # specify that ellipticity is to remain fixed
     # require exponential component to be at least 1/2 of the moffat in amplitude
-    expmodel.I_0.setValue(moffat_I0, [0.5*moffat_I0, 10])
+    expmodel.I_0.setValue(moffat_I0, [0.5*moffat_I0, 100])
     expmodel.h.setValue(10, [0, 100])
     expmodel.PA.setValue(90, [0, 180])
     if full_lae_sample:
