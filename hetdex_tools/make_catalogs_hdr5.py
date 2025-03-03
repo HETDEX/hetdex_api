@@ -136,16 +136,17 @@ def make_wfriend_table_for_shot(shotid):
 def add_elixer_cat_info(detect_table):
     global config
 
-    elixer_file1 = op.join(config.hdr_dir['hdr4'],'detect', "elixer_hdr3_hdr4_all_cat.h5")
-    elixer_file2 = op.join(config.hdr_dir['hdr5'],'detect', "elixer_hdr5_all_cat.h5")
+#    elixer_file1 = op.join(config.hdr_dir['hdr4'],'detect', "elixer_hdr3_hdr4_all_cat.h5")
+#    elixer_file2 = op.join(config.hdr_dir['hdr5'],'detect', "elixer_hdr5_all_cat.h5")
     
-    elixer_cat1 = tb.open_file(elixer_file1, "r")
-    elixer_cat2 = tb.open_file(elixer_file2, "r")
+#    elixer_cat1 = tb.open_file(elixer_file1, "r")
+#    elixer_cat2 = tb.open_file(elixer_file2, "r")
 
-    elix_tab1 = Table(elixer_cat1.root.Detections.read())
-    elix_tab2 = Table(elixer_cat2.root.Detections.read())
+#    elix_tab1 = Table(elixer_cat1.root.Detections.read())
+#    elix_tab2 = Table(elixer_cat2.root.Detections.read())
 
-    elix_tab = vstack( [ elix_tab1, elix_tab2] )
+    elixer_cat = tb.open_file( config.elixerh5, 'r')
+    elix_tab = Table( elixer_cat.root.Detections.read())
 
     sel_det_col = [
         "detectid",
@@ -171,10 +172,12 @@ def add_elixer_cat_info(detect_table):
     catalog.rename_column("z_best_2", "best_z")
     catalog.rename_column("z_best_pz_2", "best_pz")
     
-    extracted_objects1 = Table(elixer_cat1.root.ExtractedObjects.read())
-    extracted_objects2 = Table(elixer_cat2.root.ExtractedObjects.read())
+#    extracted_objects1 = Table(elixer_cat1.root.ExtractedObjects.read())
+#    extracted_objects2 = Table(elixer_cat2.root.ExtractedObjects.read())
 
-    extracted_objects = vstack( [ extracted_objects1, extracted_objects2] )
+#    extracted_objects = vstack( [ extracted_objects1, extracted_objects2] )
+    extracted_objects = Table( elixer_cat.root.ExtractedObjects.read())
+                      
     selected1 = (extracted_objects["selected"] == True) & (
         extracted_objects["filter_name"] == b"r"
     )
@@ -196,10 +199,11 @@ def add_elixer_cat_info(detect_table):
     eo_tab.rename_column("image_depth_mag", "counterpart_image_depth_mag")
     eo_tab["elixer_cat_src"] = "ExtractedObjects"
 
-    aper_tab1 = Table(elixer_cat1.root.Aperture.read())
-    aper_tab2 = Table(elixer_cat2.root.Aperture.read())
-
-    aper_tab = vstack( [ aper_tab1, aper_tab2] )
+#    aper_tab1 = Table(elixer_cat1.root.Aperture.read())
+#    aper_tab2 = Table(elixer_cat2.root.Aperture.read())
+    aper_tab = Table( elixer_cat.root.Aperture.read())
+                      
+#   aper_tab = vstack( [ aper_tab1, aper_tab2] )
     # check if there is an aperture tab value
     sel_cat = (aper_tab["catalog_name"] == "HSC-SSP") | (
         aper_tab["catalog_name"] == "HSC-DEX"
@@ -236,9 +240,10 @@ def add_elixer_cat_info(detect_table):
 
     catalog2 = join(catalog, elix_stack_tab, keys="detectid", join_type="left")
 
-    elixer_cat1.close()
-    elixer_cat2.close()
-    
+#    elixer_cat1.close()
+#    elixer_cat2.close()
+    elixer_cat.close()
+                      
     catalog2.rename_column("best_z", "z_elixer")
 
     # fill mask values with nans
