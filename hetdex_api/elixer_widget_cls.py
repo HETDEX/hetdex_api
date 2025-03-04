@@ -11,6 +11,7 @@ Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import os.path as op
 import traceback
 
@@ -22,7 +23,7 @@ import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
 
-from IPython.display import display, Image, Javascript
+from IPython.display import display, Image, Javascript, HTML
 from PIL import Image as PILImage
 import io
 from ipywidgets import interact, Layout  # Style #, interactive
@@ -31,6 +32,8 @@ from ipywidgets import interact, Layout  # Style #, interactive
 import tables
 
 from hetdex_tools.get_spec import get_spectra
+
+from elixer import spectrum_utilities as SU
 
 try:
     from hetdex_api.config import HDRconfig
@@ -47,6 +50,7 @@ except Exception as e:
     CONFIG_HDR3 = None
 
 HDR_NAME_DICT = {10: "hdr1", 20: "hdr2", 21: "hdr2.1", 30: "hdr3"}
+
 
 try:  # using HDRconfig
     HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
@@ -85,30 +89,66 @@ OPEN_DET_FILE = None
 current_wavelength = -1.0
 
 line_id_dict_lae = "1216 LyA"
-line_id_dict_lae_wave = 1216.0
+line_id_dict_lae_wave = 1215.67
 line_id_dict_sep = "--------------"
 line_id_dict_other = "Other (xxxx)"
 
 line_id_dict_default = "Unk (????)"
 line_id_dict = {
     line_id_dict_default: -1.0,
-    line_id_dict_lae: 1216,
-    "3727 OII": 3727,
-    "4863 H-beta": 4863,
-    "4959 OIII": 4959,
-    "5007 OIII": 5007,
+    "1035 OVI": 1034.7625,  #vacuum
+    line_id_dict_lae: 1215.67, #vacuum
+    "1241 NV": 1240.7077, #vacuum
+    "1263 SiII": 1263.40075, #vacuum
+    "1398 SiIV": 1397.7617, #vacuum
+    "1549 CIV": 1549.4115, #vacuum
+    "1640 HeII": 1640.420, #vacuum
+    "1909 CIII": 1909.734, #vacuum
+    "2326 CII": 2324.095,
+    "2799 MgII": 2798.6944,
+    "3346 NeV": 3345.821,
+    "3426 NeVI": 3425.881,
+    "3727 OII": 3727.8,
+    "3835 H-eta": 3835.391,
+    "3868 NeIII":3868.760,
+    "3889 H-zeta": 3889.064,
+    "3934 CaII(K)": 3933.6614,
+    "3967 NeIII": 3967.470,
+    "3968 CaII(H)": 3968.4673,
+    "3970 H-epsilon": 3970.079,
+    "4101 H-delta": 4101.742,
+    "4340 H-gamma": 4340.471,
+    "4861 H-beta": 4861.333,
+    "4959 OIII": 4958.911,
+    "4981 NaI": 4981.3894,
+    "5007 OIII": 5006.843,
+    "5153 NaI": 5153.4024,
     line_id_dict_sep: -1.0,
-    "1035 OVI": 1035,
-    "1241 NV": 1241,
-    "1549 CIV": 1549,
-    "1640 HeII": 1640,
-    "1909 CIII": 1909,
-    "2799 MgII": 2799,
-    "4102 H-delta": 4102,
-    "4341 H-gamma": 4341,
     line_id_dict_other: -1.0,
 }
 
+classification_labels = ["","AGN","gal","LAB","LzG","meteor","PNe","sat","star","WD","*clear*"]
+real_fake_dict = {
+    "---":0,
+    "Confirmed Emission Line": 1,
+    "Confirmed Absorption Line": 2,
+    # "True Positive":1,
+    "Continuum Feature":2, #e.g. return to continuum between two absorption features
+
+    "False Positive (Noise)":10,
+    "Artifact (generic)": 11,
+    "Artifact (interference)": 12,
+    "Artifact (sky line)": 13,
+    "Artifact (bad sky sub)": 14,
+    "Artifact (cosmic ray)": 15,
+    "Artifact (charge trap)": 16,
+    "Artifact (stuck pixel)": 17,
+    "Artifact (hot pixel/column)": 18,
+    "Artifact (diffraction)": 19,
+
+}
+
+ALLOW_MANUAL_CATALOG_UPDATE = False
 
 class ElixerWidget:
     def __init__(
@@ -141,6 +181,29 @@ class ElixerWidget:
         self.cutoutpath = cutoutpath
 
         self.HETDEX_ELIXER_HDF5 = None
+
+        try:
+            self.USERID = os.getuid()
+        except:
+            self.USERID = None
+
+        try:
+            self.USERNAME = os.getenv('JUPYTERHUB_USER')
+            if self.USERNAME is None and self.USERID is not None:
+                self.USERNAME = 'unknown'
+                import pwd
+                pwdinfo=pwd.getpwuid(self.USERID)
+                self.USERNAME = pwdinfo.pw_name
+        except:
+            try:
+                if self.USERID is not None and self.USERNAME != "unknown":
+                    import pwd
+                    pwdinfo=pwd.getpwuid(self.USERID)
+                    self.USERNAME = pwdinfo.pw_name
+            except:
+                self.USERNAME = None
+
+
         try:
             self.HETDEX_API_CONFIG.elixerh5
         except:
@@ -354,6 +417,10 @@ class ElixerWidget:
         detectid = np.int64(x)
         show_selection_buttons = True
 
+        if ALLOW_MANUAL_CATALOG_UPDATE:
+            self.updatecat_box = widgets.Output()#layout={"border": "1px solid black"})
+            display(self.updatecat_box)
+
         try:
             objnum = np.where(self.detectid == detectid)[0][0]
             print(
@@ -372,22 +439,43 @@ class ElixerWidget:
         self.nextbutton.on_click(self.on_next_click)
         self.elixerNeighborhood.on_click(self.on_elixer_neighborhood)
 
+        self.updateCatalog.on_click(self.on_update_catalog)
+        self.doUpdateCatalog.on_click(self.on_do_update_catalog)
+
         if show_selection_buttons:
             # clear_output()
             self.rest_widget_values(objnum)
-            display(
-                widgets.HBox(
-                    [
-                        self.previousbutton,
-                        self.nextbutton,
-                        self.elixerNeighborhood,
-                        self.line_id_drop,
-                        self.wave_box,
-                        self.z_box,
-                        self.comment_box,
-                    ]
+
+            if ALLOW_MANUAL_CATALOG_UPDATE:
+                display(
+                    widgets.HBox(
+                        [
+                            self.previousbutton,
+                            self.nextbutton,
+                            self.elixerNeighborhood,
+                            # self.line_id_drop,
+                            # self.wave_box,
+                            # self.z_box,
+                            self.comment_box,
+                            self.updateCatalog,
+                        ]
+                    )
                 )
-            )
+            else:
+                display(
+                    widgets.HBox(
+                        [
+                            self.previousbutton,
+                            self.nextbutton,
+                            self.elixerNeighborhood,
+                            # self.line_id_drop,
+                            # self.wave_box,
+                            # self.z_box,
+                            self.comment_box,
+                            #self.updateCatalog,
+                        ]
+                    )
+                )
 
             if self.show_counterpart_btns:
                 display(
@@ -564,10 +652,14 @@ class ElixerWidget:
                                self.get_legacy_button,
                                self.get_mini_button]))
 
-        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
+
+
         # always show the status box
         display(self.status_box)
+
+        self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         display(self.bottombox)
+
 
 
 
@@ -636,6 +728,56 @@ class ElixerWidget:
         # self.detectwidget = widgets.HBox([self.detectbox, self.nextbutton])
 
 
+        self.s1_button = widgets.Button(
+            description="Noise",
+            tooltip="Very sure (90%+ confident) this is just noise (or nothing)",
+            button_style="success",
+        )
+
+        self.updateCatalog = widgets.Button(
+            #description="Update Catalog", layoout=Layout(width="10%")
+            description = "Update Catalog",
+            tooltip = "Manually update catalog info for this detection",
+            button_style = "success",
+        )  # , button_style='info')
+        self.updateCatalog.style.button_color = "black"
+        self.updateCatalog.add_class("left-spacing-class")
+        display(HTML(
+            "<style>.left-spacing-class {margin-left: 100px;}</style>"
+        ))
+
+        self.doUpdateCatalog = widgets.Button(
+            #description="Update Catalog", layoout=Layout(width="10%")
+            description = "Update",
+            tooltip = "Manually update catalog info for this detection",
+            button_style = "success",
+        )
+        self.doUpdateCatalog.style.button_color = "black"
+        self.doUpdateCatalog.add_class("left-spacing-class")
+        display(HTML(
+            "<style>.left-spacing-class {margin-left: 50px;}</style>"
+        ))
+
+        self.class_labels_drop = widgets.Dropdown(
+            options=classification_labels,
+            value="",
+            description="Label",
+            layout=Layout(width="17%"),
+            disabled=False,
+        )
+
+        self.class_labels_drop.observe(self._handle_class_labels_selection, names="value")
+
+        self.real_fake_drop = widgets.Dropdown(
+            options=real_fake_dict.keys(),
+            value="---",
+            description="Conf",
+            layout=Layout(width="30%"),
+            disabled=False,
+        )
+
+        self.real_fake_drop.observe(self._handle_real_fake_selection, names="value")
+
         self.line_id_drop = widgets.Dropdown(
             options=line_id_dict.keys(),
             value=line_id_dict_default,
@@ -643,13 +785,14 @@ class ElixerWidget:
             layout=Layout(width="20%"),
             disabled=False,
         )
+
         self.line_id_drop.observe(self._handle_line_id_selection, names="value")
 
         self.wave_box = widgets.FloatText(
             value=-1.0,
             step=0.00001,
             description=r"$\lambda$ rest",
-            layout=Layout(width="17%"),
+            layout=Layout(width="20%"),
             disabled=False,
             indent=False,
         )
@@ -664,11 +807,11 @@ class ElixerWidget:
             value=-1.0,
             step=0.00001,
             description="z",
-            layout=Layout(width="17%"),
+            layout=Layout(width="20%"),
             disabled=False,
             indent=False,
         )
-        self.z_box.add_class("left-spacing-class")
+        #self.z_box.add_class("left-spacing-class")
         # display(HTML("<style>.left-spacing-class {margin-left: 10px;}</style>"))
 
         self.comment_box = widgets.Text(
@@ -676,7 +819,42 @@ class ElixerWidget:
             placeholder="Enter any comments here",
             description="Comments:",
             disabled=False,
-        )  # ,layout=Layout(width='20%'))
+            layout=Layout(width='50%')
+        )
+
+        # self.clusterid_box = widgets.BoundedIntText(
+        #     value=0,
+        #     min=0,
+        #     max=int(9e9),
+        #     description="ClusterID:",
+        #     layout=Layout(width="17%"),
+        #     disabled=False,
+        #     #layout=Layout(width='50%')
+        # )
+
+        self.clusterid_box = widgets.Text(
+            value="",
+            description="ClusterID:",
+            layout=Layout(width="20%"),
+            disabled=False,
+            #layout=Layout(width='50%')
+        )
+
+        self.catalog_comment_box = widgets.Text(
+            value="",
+            placeholder="Enter any comments here",
+            description="Comments:",
+            disabled=False,
+            layout=Layout(width='79%')
+        )
+
+        self.catalog_status_box = widgets.Textarea(
+            value="",
+            placeholder= "",
+            description="Status:",
+            disabled=False,
+            layout=Layout(width="80%"),
+        )
 
         self.status_box = widgets.Textarea(
             value="",
@@ -855,12 +1033,24 @@ class ElixerWidget:
             if current_wavelength < 0:  # need to find it
                 self.get_observed_wavelength()
 
-            self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            z = current_wavelength / _new_wave - 1.0
+            #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
+            #todo: need shotid so can figure out the correction
+            self.z_box.value = SU.z_correction(z,current_wavelength)
+
             self.wave_box.value = np.round(_new_wave, 5)
 
             # do NOT reset the line id label ... can cause a loop
             # self.get_line_match(self.z_box.value, current_wavelength )
 
+
+    def _handle_class_labels_selection(self, event):
+        pass
+
+    def _handle_real_fake_selection(self, event):
+        pass
 
     def _handle_line_id_selection(self, event):
         """
@@ -891,7 +1081,12 @@ class ElixerWidget:
             if current_wavelength < 0:  # need to find it
                 self.get_observed_wavelength()
 
-            self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
+            z = current_wavelength / _new_wave - 1.0
+            #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
+            #todo: need shotid so can figure out the correction
+            self.z_box.value = SU.z_correction(z,current_wavelength)
+
             self.wave_box.value = np.round(_new_wave, 5)
 
             # if (self.z_box.value < 0.0) and (self.line_id_drop.value != line_id_dict_default):
@@ -1052,6 +1247,7 @@ class ElixerWidget:
         #     self.detectbox.value = self.detectid[idx]
         #     return
 
+        self.updateCatalog.disabled = False
         self.z_box.value = self.z[idx]  # -1.0
         current_wavelength = self.get_observed_wavelength()
         self.line_id_drop.value, self.wave_box.value = self.get_line_match(
@@ -1292,6 +1488,47 @@ class ElixerWidget:
             else:
                 print("neighborhood not found")
 
+    def on_update_catalog(self, b):
+        detectid = np.int64(self.detectbox.value)
+
+        #todo: lookup any prior changes and set initial values
+        #todo:    the lookup combines the current catalog (e.g. like the labels?) with the manual_update_catalog table
+        #todo: in status_bax.value, list the user+dates of changes from the audit?
+        self.catalog_status_box.value = f"todo: show any audit history; success/fail on update\n" \
+                                         f"UpdateCatalog: user: {self.USERNAME}"
+        self.updateCatalog.disabled=True
+
+        with self.updatecat_box:
+            display(widgets.HBox(
+                [self.real_fake_drop,
+                 self.class_labels_drop,
+                 self.clusterid_box,
+                 ]))
+
+            display(widgets.HBox(
+                [self.line_id_drop,
+                 self.wave_box,
+                 self.z_box,
+
+
+                 ]))
+
+            display(widgets.HBox(
+                [ self.catalog_comment_box,
+                 ]))
+
+            display(widgets.HBox(
+                [ self.catalog_status_box,
+                  self.doUpdateCatalog,
+                 ]))
+
+            #self.focus()
+
+
+    def on_do_update_catalog(self,b):
+        #todo: perform the update to the manual catalog and audit file
+        pass
+
     def get_mini_button_click(self, b):
         detectid = np.int64(self.detectbox.value)
         try:
@@ -1453,4 +1690,6 @@ class ElixerWidget:
         url = 'https://www.legacysurvey.org/viewer?ra={:6.4f}&dec={:6.4f}&layer=ls-dr9&zoom=16'.format(self.det_row['ra'][0], self.det_row['dec'][0])
         with self.bottombox:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
+
+
 
