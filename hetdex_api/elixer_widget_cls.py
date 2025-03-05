@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import os.path as op
+from filelock import FileLock
 import traceback
 
 import astropy.units as u
@@ -22,16 +23,17 @@ from astropy.coordinates import SkyCoord
 import hetdex_api.sqlite_utils as sql
 
 import ipywidgets as widgets
+from ipywidgets import interact, Layout  # Style #, interactive
 
 from IPython.display import display, Image, Javascript, HTML
 from PIL import Image as PILImage
 import io
-from ipywidgets import interact, Layout  # Style #, interactive
 
 # from IPython.display import clear_output
 import tables
 
 from hetdex_tools.get_spec import get_spectra
+from hetdex_api.detections import Detections
 
 from elixer import spectrum_utilities as SU
 
@@ -45,7 +47,7 @@ try:
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr2.1"
+    LATEST_HDR_NAME = "hdr5"
     CONFIG_HDR2 = None
     CONFIG_HDR3 = None
 
@@ -77,6 +79,13 @@ except Exception as e:
     #ELIXER_H5 = None
     
 OPEN_DET_FILE = None
+
+SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/","hub":"/home/jovyan/"}
+SOURCECAT_UPDATES_SUBPATH = "/Hobby-Eberly-Telesco/hdrX/elixer_widget_manual_updates/"
+SOURCECAT_UPDATES_FILE = "source_catalog_updates.fits"
+SOURCECAT_UPDATES_AUDIT = "source_catalog_updates.audit"
+SOURCECAT_UPDATES_LOCK = "source_catalog_updates.lock"
+
 #elix_dir = None
 
 # set up classification dictionary and associated widget
@@ -172,6 +181,7 @@ class ElixerWidget:
         self.current_idx = 0
         self.show_counterpart_btns = counterpart
         self.detectid = None
+        self.shotid = None
         self.constructor_status = ""
         self.flag = []
         self.vis_class = []
@@ -181,6 +191,11 @@ class ElixerWidget:
         self.cutoutpath = cutoutpath
 
         self.HETDEX_ELIXER_HDF5 = None
+
+        self.detections_interface_lines = None
+        self.detections_interface_cont = None
+        self.source_catalog_h5 = None
+        self.source_catalog_detid_revision = -1
 
         try:
             self.USERID = os.getuid()
@@ -208,6 +223,12 @@ class ElixerWidget:
             self.HETDEX_API_CONFIG.elixerh5
         except:
             pass
+
+        try:
+            self.source_catalog_h5 = tables.open_file("")
+        except:
+            pass
+
         self.elix_dir = None
         self.ELIXER_H5 = None
         
@@ -456,6 +477,7 @@ class ElixerWidget:
                             # self.line_id_drop,
                             # self.wave_box,
                             # self.z_box,
+                            self.z_hetdex_box,
                             self.comment_box,
                             self.updateCatalog,
                         ]
@@ -471,6 +493,7 @@ class ElixerWidget:
                             # self.line_id_drop,
                             # self.wave_box,
                             # self.z_box,
+                            self.z_hetdex_box,
                             self.comment_box,
                             #self.updateCatalog,
                         ]
@@ -741,10 +764,10 @@ class ElixerWidget:
             button_style = "success",
         )  # , button_style='info')
         self.updateCatalog.style.button_color = "black"
-        self.updateCatalog.add_class("left-spacing-class")
-        display(HTML(
-            "<style>.left-spacing-class {margin-left: 100px;}</style>"
-        ))
+        # self.updateCatalog.add_class("left-spacing-class")
+        # display(HTML(
+        #     "<style>.left-spacing-class {margin-left: 10px;}</style>"
+        # ))
 
         self.doUpdateCatalog = widgets.Button(
             #description="Update Catalog", layoout=Layout(width="10%")
@@ -813,6 +836,15 @@ class ElixerWidget:
         )
         #self.z_box.add_class("left-spacing-class")
         # display(HTML("<style>.left-spacing-class {margin-left: 10px;}</style>"))
+
+        #show the z_hetdex value AND its source (z_hetdex, z_hetdex_soruce) as combined string
+        self.z_hetdex_box = widgets.Text(
+            value="",
+            placeholder="-1 N/A",
+            description="z_hetdex:",
+            disabled=True, #this is a display ONLY not user editable
+            layout=Layout(width='30%')
+        )
 
         self.comment_box = widgets.Text(
             value="",
@@ -1037,8 +1069,7 @@ class ElixerWidget:
             #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
             z = current_wavelength / _new_wave - 1.0
             #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
-            #todo: need shotid so can figure out the correction
-            self.z_box.value = SU.z_correction(z,current_wavelength)
+            self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
 
             self.wave_box.value = np.round(_new_wave, 5)
 
@@ -1084,8 +1115,7 @@ class ElixerWidget:
             #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
             z = current_wavelength / _new_wave - 1.0
             #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
-            #todo: need shotid so can figure out the correction
-            self.z_box.value = SU.z_correction(z,current_wavelength)
+            self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
 
             self.wave_box.value = np.round(_new_wave, 5)
 
@@ -1128,16 +1158,17 @@ class ElixerWidget:
             # so use the last good index:
             ix = self.current_idx
 
-        # print("Prev detect idx", ix)
 
-        self.rest_widget_values(idx=ix)
-
-        # print("Prev detect post reset idx", )
 
         # causes dirty flag
         self.current_idx = ix
         self.detectbox.value = str(self.detectid[ix])
         self.detid = np.int64(self.detectbox.value)
+        # print("Prev detect idx", ix)
+
+        self.rest_widget_values(idx=ix)
+
+        # print("Prev detect post reset idx", )
         
     def goto_next_detect(self):
         try:
@@ -1164,10 +1195,11 @@ class ElixerWidget:
             self.status_box.value += str(e)
             ix = self.current_idx
 
-        self.rest_widget_values(idx=ix)
         self.current_idx = ix
         self.detectbox.value = str(self.detectid[ix])
         self.detid = np.int64(self.detectbox.value)
+        self.rest_widget_values(idx=ix)
+
         
     def set_counterpart(self, value=0):
         self.counterpart[self.current_idx] = value
@@ -1249,6 +1281,20 @@ class ElixerWidget:
 
         self.updateCatalog.disabled = False
         self.z_box.value = self.z[idx]  # -1.0
+
+
+        if self.source_catalog_h5 is None:
+            self.z_hetdex_box.value = "source catalog unavailable"
+        else:
+            # todo: here look up the detectID to populate
+            try:
+                q_detectid = self.detid
+                row = self.source_catalog_h5.root.XXX.read_where("detect=q_detectid")
+                self.z_hetdex_box.value = "-1 N/A"
+            except:
+                self.z_hetdex_box.value = "source catalog exception"
+
+        self.shotid = None
         current_wavelength = self.get_observed_wavelength()
         self.line_id_drop.value, self.wave_box.value = self.get_line_match(
             self.z_box.value, current_wavelength
@@ -1490,44 +1536,66 @@ class ElixerWidget:
 
     def on_update_catalog(self, b):
         detectid = np.int64(self.detectbox.value)
+        is_continuum = self.detectbox.value[2] == '9'
 
-        #todo: lookup any prior changes and set initial values
-        #todo:    the lookup combines the current catalog (e.g. like the labels?) with the manual_update_catalog table
-        #todo: in status_bax.value, list the user+dates of changes from the audit?
-        self.catalog_status_box.value = f"todo: show any audit history; success/fail on update\n" \
-                                         f"UpdateCatalog: user: {self.USERNAME}"
-        self.updateCatalog.disabled=True
+        try:
 
-        with self.updatecat_box:
-            display(widgets.HBox(
-                [self.real_fake_drop,
-                 self.class_labels_drop,
-                 self.clusterid_box,
-                 ]))
+            if self.detections_interface_lines is None:
+                self.detections_interface_lines = Detections(survey=LATEST_HDR_NAME, catalog_type='lines', searchable=False)
+                self.detections_interface_cont = Detections(survey=LATEST_HDR_NAME, catalog_type='continuum', searchable=False)
+                #just assume this works, if not the try will trigger and report
 
-            display(widgets.HBox(
-                [self.line_id_drop,
-                 self.wave_box,
-                 self.z_box,
+            if is_continuum:
+                detinfo = self.detections_interface_cont.get_detection_info(detectid)
+            else:
+                detinfo = self.detections_interface_lines.get_detection_info(detectid)
+            self.shotid = detinfo['shotid'][0]
 
+            #other info
+            self.wave_box.value = detinfo['wave'][0]
+            #self.z_box.value = detinfo['z_hetdex'][0]
 
-                 ]))
+            #todo: lookup any prior changes and set initial values
+            #todo:    the lookup combines the current catalog (e.g. like the labels?) with the manual_update_catalog table
+            #todo: in status_bax.value, list the user+dates of changes from the audit?
 
-            display(widgets.HBox(
-                [ self.catalog_comment_box,
-                 ]))
+            self.read_source_catalog()
 
-            display(widgets.HBox(
-                [ self.catalog_status_box,
-                  self.doUpdateCatalog,
-                 ]))
+            self.catalog_status_box.value = f"todo: show any audit history; success/fail on update\n" \
+                                             f"UpdateCatalog: user: {self.USERNAME}"
 
-            #self.focus()
+            self.updateCatalog.disabled=True
+
+            with self.updatecat_box:
+                display(widgets.HBox(
+                    [self.real_fake_drop,
+                     self.class_labels_drop,
+                     self.clusterid_box,
+                     ]))
+
+                display(widgets.HBox(
+                    [self.line_id_drop,
+                     self.wave_box,
+                     self.z_box,
+                     ]))
+
+                display(widgets.HBox(
+                    [ self.catalog_comment_box,
+                     ]))
+
+                display(widgets.HBox(
+                    [ self.catalog_status_box,
+                      self.doUpdateCatalog,
+                     ]))
+
+                #self.focus()
+        except:
+              pass
 
 
     def on_do_update_catalog(self,b):
         #todo: perform the update to the manual catalog and audit file
-        pass
+        self.record_source_catalog_update()
 
     def get_mini_button_click(self, b):
         detectid = np.int64(self.detectbox.value)
@@ -1692,4 +1760,135 @@ class ElixerWidget:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
 
 
+    def set_source_catalog_update_path(self):
+        """
 
+        Returns
+        -------
+
+        """
+
+        try:
+            if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)):
+                self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)
+            elif os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)):
+                self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)
+            else:
+                self.sourcecat_path = None
+        except:
+            self.sourcecat_path = None
+
+
+    def read_source_catalog(self):
+        """
+        get data to display in the source catalog update dialog
+
+        use the official source catalog with any updates from the update table
+
+        Returns
+        -------
+
+        """
+
+        try:
+
+            #first get the main source catalog info
+            #this is the new h5 file
+            #todo:
+            self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
+
+            if self.sourcecat_path is None:
+                self.set_source_catalog_update_path()
+                if self.sourcecat_path is None:
+                    self.catalog_status_box.value = f" Cannot validate source catalog update path."
+                    return
+
+            #rememner, can't just keep this around, since we only lock when we want to update
+            #and the table can become stale if someone else edits
+            tab = Table.read(os.path.join(self.sourcecat_path, SOURCECAT_UPDATES_FILE))
+            sel = tab['detectid'] == self.detid
+            ct = np.count_nonzero(sel)
+            if ct > 1:
+                # problem
+                self.catalog_status_box.value = "Read Failed. Multiple entries.\n"
+                fail = True
+            elif ct == 1:
+                # todo: load up the UpdateCatalog widgets
+                self.catalog_status_box.value = "Todo: load update entry ...\n"
+                self.source_catalog_detid_revision = tab['revision'][sel]
+            else:
+                #there are not updates, just use the main catalog
+                self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
+
+
+        except Exception as e:
+            self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
+
+    def record_source_catalog_update(self):
+        """
+
+        Returns
+        -------
+
+        """
+
+        try:
+
+            if self.sourcecat_path is None:
+                self.set_source_catalog_update_path()
+                if self.sourcecat_path is None:
+                    self.catalog_status_box.value = f"FAIL Cannot update. Cannot validate source catalog update path."
+                    return
+
+            lock = FileLock(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_LOCK))
+
+            with lock:
+                try:
+                    fail = False
+                    # make sure no change was made before the lock
+                    #    check the revision counter (this avoids potential issues with local system times)
+
+                    #can't use the earlier read ... have to re-read AFTER obtaining a lock
+                    tab = Table.read(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_FILE))
+                    sel = tab['detectid'] == self.detid
+                    ct = np.count_nonzero(sel)
+                    if ct > 1:
+                        #problem
+                        self.catalog_status_box.value = "Update Failed. Multiple entries.\n"
+                        fail = True
+                    elif ct == 1:
+                        # check the last update timestamp
+                        last_revision = tab['revision'][sel]
+                        if last_revision != self.source_catalog_detid_revision:
+                            self.catalog_status_box.value = f"Update Failed. Interleaved update occurred. " \
+                                                            f"Local revision ({self.source_catalog_detid_revision}). Record revision ({last_revision})\n"
+                            fail = True
+
+                    else:
+                        #all good, this is a new entry
+                        pass
+
+                    if not fail:
+                        #write the audit
+                        with open(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_AUDIT)) as f:
+                            f.write("todo...")
+
+
+                        if ct == 1: #todo: update
+                            self.source_catalog_detid_revision += 1
+                        else: #todo: new record
+                            pass
+
+                        #write the table
+                        tab.write(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_FILE),overwrite=True,format="fits")
+
+                except Exception as e:
+                    self.catalog_status_box.value = "Update Failed.\n"
+                    self.catalog_status_box.value += str(e) + "\n" + traceback.format_exc()
+
+
+
+            self.catalog_status_box.value = f"Success."
+
+        except Exception as e:
+            self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
