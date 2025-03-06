@@ -81,10 +81,12 @@ except Exception as e:
 OPEN_DET_FILE = None
 
 SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/","hub":"/home/jovyan/"}
-SOURCECAT_UPDATES_SUBPATH = "/Hobby-Eberly-Telesco/hdrX/elixer_widget_manual_updates/"
+SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
 SOURCECAT_UPDATES_FILE = "source_catalog_updates.fits"
 SOURCECAT_UPDATES_AUDIT = "source_catalog_updates.audit"
 SOURCECAT_UPDATES_LOCK = "source_catalog_updates.lock"
+SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
+SOURCECAT_FILE = "source_catalog_5.0.0.h5"
 
 #elix_dir = None
 
@@ -194,8 +196,13 @@ class ElixerWidget:
 
         self.detections_interface_lines = None
         self.detections_interface_cont = None
-        self.source_catalog_h5 = None
         self.source_catalog_detid_revision = -1
+
+        self.source_catalog_h5 = None
+        self.sourcecat_z_hetdex = None
+        self.sourcecat_z_hetdex_src = None
+        self.sourcecat_z_hetdex_conf = None
+        self.sourcecat_source_id = None
 
         try:
             self.USERID = os.getuid()
@@ -224,10 +231,7 @@ class ElixerWidget:
         except:
             pass
 
-        try:
-            self.source_catalog_h5 = tables.open_file("")
-        except:
-            pass
+        self.set_source_catalog_paths()
 
         self.elix_dir = None
         self.ELIXER_H5 = None
@@ -435,7 +439,12 @@ class ElixerWidget:
         #global ELIXER_H5, HETDEX_ELIXER_HDF5
 
 
-        detectid = np.int64(x)
+        try:
+            detectid = np.int64(x)
+        except:
+            self.status_box.value = f"Invalid entry in DetectID: {x}"
+            detectid = 0
+
         show_selection_buttons = True
 
         if ALLOW_MANUAL_CATALOG_UPDATE:
@@ -455,6 +464,7 @@ class ElixerWidget:
                 f"Current object {self.detectbox} not in original list. Go to Next or Previous DetectID to return to input Detectlist"
             )
             show_selection_buttons = False
+            objnum = None
 
         self.previousbutton.on_click(self.on_previous_click)
         self.nextbutton.on_click(self.on_next_click)
@@ -463,9 +473,9 @@ class ElixerWidget:
         self.updateCatalog.on_click(self.on_update_catalog)
         self.doUpdateCatalog.on_click(self.on_do_update_catalog)
 
+        self.rest_widget_values(objnum)
+
         if show_selection_buttons:
-            # clear_output()
-            self.rest_widget_values(objnum)
 
             if ALLOW_MANUAL_CATALOG_UPDATE:
                 display(
@@ -547,11 +557,39 @@ class ElixerWidget:
             self.lowz_button.on_click(self.lowz_button_click)
             self.other_button.on_click(self.other_button_click)
         else:
-            display(
-                widgets.HBox(
-                    [self.previousbutton, self.nextbutton, self.elixerNeighborhood]
+
+            if ALLOW_MANUAL_CATALOG_UPDATE:
+                display(
+                    widgets.HBox(
+                        [
+                            self.previousbutton,
+                            self.nextbutton,
+                            self.elixerNeighborhood,
+                            # self.line_id_drop,
+                            # self.wave_box,
+                            # self.z_box,
+                            self.z_hetdex_box,
+                            self.comment_box,
+                            self.updateCatalog,
+                        ]
+                    )
                 )
-            )
+            else:
+                display(
+                    widgets.HBox(
+                        [
+                            self.previousbutton,
+                            self.nextbutton,
+                            self.elixerNeighborhood,
+                            # self.line_id_drop,
+                            # self.wave_box,
+                            # self.z_box,
+                            self.z_hetdex_box,
+                            self.comment_box,
+                            #self.updateCatalog,
+                        ]
+                    )
+                )
 
         try:
             try:
@@ -1037,7 +1075,11 @@ class ElixerWidget:
         if HETDEX_DETECT_HDF5_HANDLE:
             try:
                 #dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
-                q_detectid = np.int64(self.detectbox.value)
+                try:
+                    q_detectid = np.int64(self.detectbox.value)
+                except:
+                    q_detectid = 0
+                    self.status_box.value = f"Invalid entry in DetectID box"
 
                 rows =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where("detectid==q_detectid", field="wave")
                 if (rows is not None) and (rows.size == 1):
@@ -1280,27 +1322,21 @@ class ElixerWidget:
         #     return
 
         self.updateCatalog.disabled = False
-        self.z_box.value = self.z[idx]  # -1.0
-
-
-        if self.source_catalog_h5 is None:
-            self.z_hetdex_box.value = "source catalog unavailable"
-        else:
-            # todo: here look up the detectID to populate
-            try:
-                q_detectid = self.detid
-                row = self.source_catalog_h5.root.XXX.read_where("detect=q_detectid")
-                self.z_hetdex_box.value = "-1 N/A"
-            except:
-                self.z_hetdex_box.value = "source catalog exception"
+        if idx is not None:
+            self.z_box.value = self.z[idx]  # -1.0
 
         self.shotid = None
+
+        self.read_source_catalog_basic(detectid=self.detectbox.value)
+
+
         current_wavelength = self.get_observed_wavelength()
         self.line_id_drop.value, self.wave_box.value = self.get_line_match(
             self.z_box.value, current_wavelength
         )
 
-        self.comment_box.value = self.comment[idx]
+        if idx is not None:
+            self.comment_box.value = self.comment[idx]
 
         # print("Updated Reset idx", idx, "Current w", current_wavelength)
 
@@ -1323,7 +1359,7 @@ class ElixerWidget:
         self.c_other_button.icon = ""
 
         # mark the label on the button
-        if self.flag[idx] != 0:
+        if idx is not None and self.flag[idx] != 0:
             # if self.vis_class[idx] == 0:
             #    self.s0_button.icon = 'check'
             if self.vis_class[idx] == 1:
@@ -1760,7 +1796,7 @@ class ElixerWidget:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
 
 
-    def set_source_catalog_update_path(self):
+    def set_source_catalog_paths(self):
         """
 
         Returns
@@ -1769,17 +1805,102 @@ class ElixerWidget:
         """
 
         try:
+
             if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)):
+                basepath_key = "hub"
                 self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)
             elif os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)):
+                basepath_key = "cluster"
                 self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)
             else:
                 self.sourcecat_path = None
+
+            if self.sourcecat_path is not None and self.source_catalog_h5 is None:
+                h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT[basepath_key],SOURCECAT_SUBPATH,SOURCECAT_FILE)
+                self.source_catalog_h5 = tables.open_file(h5fn)
+
         except:
             self.sourcecat_path = None
 
 
-    def read_source_catalog(self):
+    def read_source_catalog_basic(self,detectid=None):
+        """
+
+        Returns
+        -------
+
+        """
+        try:
+            if self.source_catalog_h5 is not None:
+
+                #print("read_source_catalog_basic",detectid,self.detectbox.value)
+
+                if detectid is not None:
+                    q_detectid=int(detectid)
+                else:
+                    q_detectid=int(self.detectbox.value)
+
+                #print("read_source_catalog_basic q_detectid", q_detectid)
+
+                rows = self.source_catalog_h5.root.SourceCatalog.read_where("detectid==q_detectid")
+                ct = len(rows)
+                if len(rows)==1:
+                    #exactly what we want
+
+                    self.sourcecat_z_hetdex = rows['z_hetdex'][0]
+                    self.sourcecat_z_hetdex_src = rows['z_hetdex_src'][0].decode()
+                    self.sourcecat_z_hetdex_conf = rows['z_hetdex_conf'][0]
+                    self.sourcecat_source_id = rows['source_id'][0]
+                    selected = rows['selected_det'][0] #boolean
+                    #or can use
+                    #selected_flag = rows['flag_seldet'][0]
+                    self.shotid = rows['shotid'][0]
+
+                    q_source_id = self.sourcecat_source_id
+                    if not selected:
+                        print("For now parent checking is TURNED OFF!!!")
+
+
+                        self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                                                  f"(other source parent)"
+
+                        # src_rows = self.source_catalog_h5.root.SourceCatalog.read_where(
+                        #     "(source_id==q_source_id) & (selected_det==True)")
+                        # #must be exactly one
+                        # if len(src_rows) == 1: #all good
+                        #     self.sourcecat_parent_detectid = src_rows['detect_id'][0]
+                        #
+                        #     self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                        #                               f"(parent:{self.sourcecat_parent_detectid}"
+                        # else:
+                        #     self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                        #                               f"(!catalog error!)"
+                    else:
+                        self.sourcecat_parent_detectid = q_detectid
+
+                        self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                                                  f"(q:{self.sourcecat_z_hetdex_conf:0.2f})"
+
+                else:
+                    self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
+                    self.sourcecat_z_hetdex = None
+                    self.sourcecat_z_hetdex_src = None
+                    self.sourcecat_z_hetdex_conf = None
+                    self.z_hetdex_box.value = "unknown"
+                    self.shotid = None
+            else:
+                self.status_box.value = f"Source Catalog failure. File not found."
+                self.sourcecat_z_hetdex = None
+                self.sourcecat_z_hetdex_src = None
+                self.sourcecat_z_hetdex_conf = None
+                self.z_hetdex_box.value = "unknown"
+                self.shotid=None
+
+        except Exception as e:
+            self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
+
+
+    def read_source_catalog_update(self):
         """
         get data to display in the source catalog update dialog
 
@@ -1798,7 +1919,7 @@ class ElixerWidget:
             self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
 
             if self.sourcecat_path is None:
-                self.set_source_catalog_update_path()
+                self.set_source_catalog_paths()
                 if self.sourcecat_path is None:
                     self.catalog_status_box.value = f" Cannot validate source catalog update path."
                     return
@@ -1820,6 +1941,15 @@ class ElixerWidget:
                 #there are not updates, just use the main catalog
                 self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
 
+            q_detectid=self.detid
+            rows = self.source_catalog_h5.root.SourceCatalog.read_where("detectid==q_detectid")
+            ct = len(rows)
+            if len(rows)==1:
+                #exactly what we want
+                self.z_hetdex_box.value = f"{rows['z_hetdex'][0]:0.4f} {rows['z_hetdex_src'][0]} " f"({rows['z_hetdex_conf'][0]}:0.2f)"
+            else:
+                self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
+
 
         except Exception as e:
             self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
@@ -1835,7 +1965,7 @@ class ElixerWidget:
         try:
 
             if self.sourcecat_path is None:
-                self.set_source_catalog_update_path()
+                self.set_source_catalog_paths()
                 if self.sourcecat_path is None:
                     self.catalog_status_box.value = f"FAIL Cannot update. Cannot validate source catalog update path."
                     return
