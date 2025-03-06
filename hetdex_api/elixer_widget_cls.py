@@ -61,7 +61,7 @@ try:  # using HDRconfig
     HETDEX_DETECT_HDF5_HANDLE = None
     CONT_H5_FN = HETDEX_API_CONFIG.contsourceh5
     CONT_H5_HANDLE = None
-    #HETDEX_ELIXER_HDF5 = HETDEX_API_CONFIG.elixerh5
+    #HETDEX_ELIXER_HDF5_FN = HETDEX_API_CONFIG.elixerh5
     #ELIXER_H5 = None
     #elix_dir = None
     
@@ -69,24 +69,23 @@ except Exception as e:
     HETDEX_API_CONFIG = None
     # needed only if detection observered wavelength is not supplied
     try:
-        HETDEX_DETECT_HDF5_FN = "/work/03946/hetdex/hdr2.1/detect/detect_hdr2.1.h5"
-        #HETDEX_ELIXER_HDF5 = "/work/03946/hetdex/hdr2.1/elixer.h5"
+        HETDEX_DETECT_HDF5_FN = None #"/work/03946/hetdex/hdr2.1/detect/detect_hdr2.1.h5"
     except:
         HETDEX_DETECT_HDF5_FN = None
-        HETDEX_ELIXER_HDF5_HANDLE = None
 
     HETDEX_DETECT_HDF5_HANDLE = None
-    #ELIXER_H5 = None
-    
+
 OPEN_DET_FILE = None
 
-SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/","hub":"/home/jovyan/"}
+SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
 SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
-SOURCECAT_UPDATES_FILE = "source_catalog_updates.fits"
-SOURCECAT_UPDATES_AUDIT = "source_catalog_updates.audit"
-SOURCECAT_UPDATES_LOCK = "source_catalog_updates.lock"
+SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
+SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
+SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
 SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
 SOURCECAT_FILE = "source_catalog_5.0.0.h5"
+HETDEX_ELIXER_SUBPATH = "Hobby-Eberly-Telesco/hdr5/detect"
+HETDEX_ELIXER_FILE = "elixer.h5"
 
 #elix_dir = None
 
@@ -160,6 +159,7 @@ real_fake_dict = {
 }
 
 ALLOW_MANUAL_CATALOG_UPDATE = False
+ALLOW_CLASSIFICATION_BUTTONS = True
 
 class ElixerWidget:
     def __init__(
@@ -174,10 +174,13 @@ class ElixerWidget:
         detect_h5=None,
         elixer_h5=None,
         cutoutpath=None,
+        show_cls_buttons=ALLOW_CLASSIFICATION_BUTTONS
     ):
 
-        #global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5
-        global HETDEX_DETECT_HDF5_FN
+        #global elix_dir, HETDEX_DETECT_HDF5_FN, HETDEX_ELIXER_HDF5_FN
+        global HETDEX_DETECT_HDF5_FN, ALLOW_CLASSIFICATION_BUTTONS
+
+        ALLOW_CLASSIFICATION_BUTTONS = show_cls_buttons
 
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
@@ -192,7 +195,7 @@ class ElixerWidget:
         self.counterpart = []
         self.cutoutpath = cutoutpath
 
-        self.HETDEX_ELIXER_HDF5 = None
+        self.HETDEX_ELIXER_HDF5_FN = None
 
         self.detections_interface_lines = None
         self.detections_interface_cont = None
@@ -202,7 +205,10 @@ class ElixerWidget:
         self.sourcecat_z_hetdex = None
         self.sourcecat_z_hetdex_src = None
         self.sourcecat_z_hetdex_conf = None
+        self.sourcecat_class_labels = None
+        self.sourcecat_obswave = None
         self.sourcecat_source_id = None
+        self.sourcecat_parent_detectid  = None
 
         try:
             self.USERID = os.getuid()
@@ -254,7 +260,7 @@ class ElixerWidget:
 
         if elixer_h5 is not None:
             if op.isfile(elixer_h5):
-                self.HETDEX_ELIXER_HDF5 = elixer_h5
+                self.HETDEX_ELIXER_HDF5_FN = elixer_h5
 
 
         #change order, attempt to load the savedfile first. If it exists, ignore the detectfile and detectlist,
@@ -436,7 +442,7 @@ class ElixerWidget:
 
     def main_display(self, x):
 
-        #global ELIXER_H5, HETDEX_ELIXER_HDF5
+        #global ELIXER_H5, HETDEX_ELIXER_HDF5_FN
 
 
         try:
@@ -445,7 +451,7 @@ class ElixerWidget:
             self.status_box.value = f"Invalid entry in DetectID: {x}"
             detectid = 0
 
-        show_selection_buttons = True
+        show_selection_buttons = ALLOW_CLASSIFICATION_BUTTONS
 
         if ALLOW_MANUAL_CATALOG_UPDATE:
             self.updatecat_box = widgets.Output()#layout={"border": "1px solid black"})
@@ -461,7 +467,7 @@ class ElixerWidget:
             )
         except:
             print(
-                f"Current object {self.detectbox} not in original list. Go to Next or Previous DetectID to return to input Detectlist"
+                f"Current object {self.detectbox.value} not in original list. Go to Next or Previous DetectID to return to input Detectlist"
             )
             show_selection_buttons = False
             objnum = None
@@ -473,6 +479,7 @@ class ElixerWidget:
         self.updateCatalog.on_click(self.on_update_catalog)
         self.doUpdateCatalog.on_click(self.on_do_update_catalog)
 
+        #print("main_display", objnum)
         self.rest_widget_values(objnum)
 
         if show_selection_buttons:
@@ -637,15 +644,15 @@ class ElixerWidget:
             # print("Cannot load ELiXer Report image: ", str(detectid))
 
         if self.ELIXER_H5 is None:
-            if self.HETDEX_ELIXER_HDF5 is not None and op.exists(self.HETDEX_ELIXER_HDF5):
+            if self.HETDEX_ELIXER_HDF5_FN is not None and op.exists(self.HETDEX_ELIXER_HDF5_FN):
                 try:
-                    self.ELIXER_H5 = tables.open_file(self.HETDEX_ELIXER_HDF5, "r")
+                    self.ELIXER_H5 = tables.open_file(self.HETDEX_ELIXER_HDF5_FN, "r")
                 except Exception as e:
                     self.status_box.value = str(e) + "\n" + traceback.format_exc()
                     self.ELIXER_H5 = None
             else:
                 pass
-                # print('No counterparts found in ' + self.HETDEX_ELIXER_HDF5)
+                # print('No counterparts found in ' + self.HETDEX_ELIXER_HDF5_FN)
                 # return
 
         # only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
@@ -819,15 +826,24 @@ class ElixerWidget:
             "<style>.left-spacing-class {margin-left: 50px;}</style>"
         ))
 
-        self.class_labels_drop = widgets.Dropdown(
+        # self.class_labels_drop = widgets.Dropdown(
+        #     options=classification_labels,
+        #     value="",
+        #     description="Label",
+        #     layout=Layout(width="17%"),
+        #     disabled=False,
+        # )
+
+        self.class_labels_drop = widgets.Combobox(
             options=classification_labels,
-            value="",
+            placeholder='labels',
+            ensure_option=False,
             description="Label",
-            layout=Layout(width="17%"),
+            layout=Layout(width="25%"),
             disabled=False,
         )
 
-        self.class_labels_drop.observe(self._handle_class_labels_selection, names="value")
+        #self.class_labels_drop.observe(self._handle_class_labels_selection, names="value")
 
         self.real_fake_drop = widgets.Dropdown(
             options=real_fake_dict.keys(),
@@ -849,6 +865,7 @@ class ElixerWidget:
 
         self.line_id_drop.observe(self._handle_line_id_selection, names="value")
 
+        #restwave
         self.wave_box = widgets.FloatText(
             value=-1.0,
             step=0.00001,
@@ -881,7 +898,7 @@ class ElixerWidget:
             placeholder="-1 N/A",
             description="z_hetdex:",
             disabled=True, #this is a display ONLY not user editable
-            layout=Layout(width='30%')
+            layout=Layout(width='40%')
         )
 
         self.comment_box = widgets.Text(
@@ -889,7 +906,7 @@ class ElixerWidget:
             placeholder="Enter any comments here",
             description="Comments:",
             disabled=False,
-            layout=Layout(width='50%')
+            layout=Layout(width='40%')
         )
 
         # self.clusterid_box = widgets.BoundedIntText(
@@ -1062,6 +1079,9 @@ class ElixerWidget:
 
     def get_observed_wavelength(self):
         global HETDEX_DETECT_HDF5_HANDLE, HETDEX_DETECT_HDF5_FN, current_wavelength
+
+        if self.sourcecat_obswave is not None:
+            return self.sourcecat_obswave
 
         current_wavelength = -1.0
 
@@ -1284,26 +1304,42 @@ class ElixerWidget:
         self.on_save_click(None)
         self.goto_next_detect()
 
-    def get_line_match(self, z, w):
+    def get_line_match(self, z, obswave=None, restwave=None):
         global current_wavelength
 
-        if z > 0:
+        if obswave is None and restwave is None:
             self.line_id_drop.value = line_id_dict_other
-            self.wave_box.value = np.round(w / (1.0 + z), 5)
+            return line_id_dict_other, -1
+
+        if z > -0.1:
+            self.line_id_drop.value = line_id_dict_other
+            if restwave is None and obswave is not None:
+                restwave =obswave / (1.0 + z)
+        elif restwave is not None and obswave is not None:
+            z = obswave/restwave - 1.0
+            z = SU.z_correction(z,obswave,shotid=self.shotid)
         else:
             self.line_id_drop.value = line_id_dict_default
-            self.wave_box.value = -1.0
+            self.wave_box.value = -1.0 #rest_wave
 
-        if z is None or z < 0 or w is None or w < 0:
-            return self.line_id_drop.value, self.wave_box.value
+        if z is None or z < 0 or obswave is None or obswave < 0 or restwave is None or restwave < 0:
+            return self.line_id_drop.value, self.wave_box.value #rest_wave
 
-        w_rest = np.round(w / (1.0 + z), 5)
+
+        #w_rest = np.round(obswave / (1.0 + z), 5)
         # find the match in the line_id_dict
+        best_k = None
         for k in line_id_dict.keys():
-            if abs(line_id_dict[k] - w_rest) < 1.0:
-                self.line_id_drop.value = k
-                self.wave_box.value = w_rest
-                break
+            if abs(line_id_dict[k] - restwave) < 6.0:
+                if best_k is None:
+                    best_k = k
+                else:
+                    if abs(line_id_dict[k] - restwave) < abs(line_id_dict[best_k] - restwave):
+                        best_k = k
+
+        if best_k is not None:
+            self.line_id_drop.value = best_k
+            self.wave_box.value = restwave
 
         return self.line_id_drop.value, self.wave_box.value
 
@@ -1322,18 +1358,45 @@ class ElixerWidget:
         #     return
 
         self.updateCatalog.disabled = False
-        if idx is not None:
-            self.z_box.value = self.z[idx]  # -1.0
+        #if idx is not None:
+        #    self.z_box.value = self.z[idx]  # -1.0
 
+        #reset prior to update
         self.shotid = None
+        self.sourcecat_z_hetdex = None
+        self.sourcecat_z_hetdex_src = None
+        self.sourcecat_z_hetdex_conf = None
+        self.sourcecat_class_labels = None
+        self.sourcecat_obswave = None
+        self.sourcecat_source_id = None
+        self.sourcecat_parent_detectid  = None
 
-        self.read_source_catalog_basic(detectid=self.detectbox.value)
+        self.wave_box.value = -1
+        self.line_id_drop.value = line_id_dict_default
+        self.z_box.value = -1
+
+        self.read_source_catalog_basic(detectid=np.int64(self.detectbox.value))
+
+        if self.sourcecat_z_hetdex is not None:
+            self.z_box.value = self.sourcecat_z_hetdex
 
 
         current_wavelength = self.get_observed_wavelength()
-        self.line_id_drop.value, self.wave_box.value = self.get_line_match(
-            self.z_box.value, current_wavelength
-        )
+       # print("Line match before", current_wavelength, self.line_id_drop.value, self.wave_box.value, self.z_box.value)
+
+        self.line_id_drop.value, self.wave_box.value = self.get_line_match(self.z_box.value, current_wavelength)
+        # if self.sourcecat_z_hetdex is not None:
+        #     #the get_line_match may apply z_corrections, but in this case we don't want that
+        #     #since it was ALREADY applied
+        #     self.z_box.value = self.sourcecat_z_hetdex
+
+        self.wave_box.value = line_id_dict[self.line_id_drop.value]
+
+        if self.wave_box.value == -1 and self.sourcecat_obswave is not None \
+                and self.sourcecat_z_hetdex is not None and self.sourcecat_z_hetdex > -1:
+            self.wave_box.value = self.sourcecat_obswave/(self.sourcecat_z_hetdex + 1.0)
+
+       # print("Line match after", current_wavelength,self.line_id_drop.value, self.wave_box.value,self.z_box.value)
 
         if idx is not None:
             self.comment_box.value = self.comment[idx]
@@ -1571,34 +1634,49 @@ class ElixerWidget:
                 print("neighborhood not found")
 
     def on_update_catalog(self, b):
+
+        #print("On Update Catalog --- click")
+
         detectid = np.int64(self.detectbox.value)
+        #print("On Update Catalog --- click -- ID: ",detectid)
         is_continuum = self.detectbox.value[2] == '9'
+        hdr = f"hdr{self.detectbox.value[0]}" #20, 21, 30, 40, 50 but really 2.1 is not used
+
+        #print("On Update Catalog:",detectid,is_continuum)
 
         try:
 
-            if self.detections_interface_lines is None:
-                self.detections_interface_lines = Detections(survey=LATEST_HDR_NAME, catalog_type='lines', searchable=False)
-                self.detections_interface_cont = Detections(survey=LATEST_HDR_NAME, catalog_type='continuum', searchable=False)
+            #detinfo depends on the survey too
+
+            if self.detections_interface_lines is None or self.detections_interface_lines.survey != hdr:
+                #print("On Update Catalog --- get DI")
+                self.detections_interface_lines = Detections(survey=hdr, catalog_type='lines', searchable=False)
+                self.detections_interface_cont = Detections(survey=hdr, catalog_type='continuum', searchable=False)
                 #just assume this works, if not the try will trigger and report
 
+            #print("calling into DI ...")
             if is_continuum:
                 detinfo = self.detections_interface_cont.get_detection_info(detectid)
             else:
                 detinfo = self.detections_interface_lines.get_detection_info(detectid)
+
+            #print("return from DI ...")
             self.shotid = detinfo['shotid'][0]
 
             #other info
-            self.wave_box.value = detinfo['wave'][0]
+            #self.wave_box.value = detinfo['wave'][0]
             #self.z_box.value = detinfo['z_hetdex'][0]
 
             #todo: lookup any prior changes and set initial values
             #todo:    the lookup combines the current catalog (e.g. like the labels?) with the manual_update_catalog table
             #todo: in status_bax.value, list the user+dates of changes from the audit?
 
-            self.read_source_catalog()
+            #print("On Update Catalog --- call read_source_catalog()")
+            self.read_source_catalog_update(detectid)
+            #print("On Update Catalog --- returned from  read_source_catalog()")
 
-            self.catalog_status_box.value = f"todo: show any audit history; success/fail on update\n" \
-                                             f"UpdateCatalog: user: {self.USERNAME}"
+            #self.catalog_status_box.value = f"todo: show any audit history; success/fail on update\n" \
+            #                                 f"UpdateCatalog: user: {self.USERNAME}"
 
             self.updateCatalog.disabled=True
 
@@ -1625,8 +1703,9 @@ class ElixerWidget:
                      ]))
 
                 #self.focus()
-        except:
-              pass
+        except Exception as e:
+            print("Exception in on_update_catalog()",e)
+            print(str(e) + "\n" + traceback.format_exc())
 
 
     def on_do_update_catalog(self,b):
@@ -1835,10 +1914,10 @@ class ElixerWidget:
 
                 #print("read_source_catalog_basic",detectid,self.detectbox.value)
 
-                if detectid is not None:
-                    q_detectid=int(detectid)
-                else:
-                    q_detectid=int(self.detectbox.value)
+                # if detectid is not None:
+                #     q_detectid=np.int64(detectid)
+                # else:
+                q_detectid=np.int64(self.detectbox.value)
 
                 #print("read_source_catalog_basic q_detectid", q_detectid)
 
@@ -1846,11 +1925,14 @@ class ElixerWidget:
                 ct = len(rows)
                 if len(rows)==1:
                     #exactly what we want
+                    #print("read rows:", ct)
 
                     self.sourcecat_z_hetdex = rows['z_hetdex'][0]
                     self.sourcecat_z_hetdex_src = rows['z_hetdex_src'][0].decode()
                     self.sourcecat_z_hetdex_conf = rows['z_hetdex_conf'][0]
+                    self.sourcecat_obswave = rows['wave'][0]
                     self.sourcecat_source_id = rows['source_id'][0]
+                    self.sourcecat_class_labels = rows['classification_labels'][0]
                     selected = rows['selected_det'][0] #boolean
                     #or can use
                     #selected_flag = rows['flag_seldet'][0]
@@ -1858,23 +1940,27 @@ class ElixerWidget:
 
                     q_source_id = self.sourcecat_source_id
                     if not selected:
-                        print("For now parent checking is TURNED OFF!!!")
-
-
-                        self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
-                                                  f"(other source parent)"
-
-                        # src_rows = self.source_catalog_h5.root.SourceCatalog.read_where(
-                        #     "(source_id==q_source_id) & (selected_det==True)")
-                        # #must be exactly one
-                        # if len(src_rows) == 1: #all good
-                        #     self.sourcecat_parent_detectid = src_rows['detect_id'][0]
+                        # print("For now parent checking is TURNED OFF!!!")
                         #
-                        #     self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
-                        #                               f"(parent:{self.sourcecat_parent_detectid}"
-                        # else:
-                        #     self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
-                        #                               f"(!catalog error!)"
+                        #
+                        # self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                        #                           f"(other source parent)"
+
+                        try:
+                            src_rows = self.source_catalog_h5.root.SourceCatalog.read_where(
+                                "(source_id==q_source_id) & (selected_det==True)")
+                            #must be exactly one
+                            if len(src_rows) == 1: #all good
+                                self.sourcecat_parent_detectid = src_rows['detectid'][0]
+
+                                self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                                                          f"cpid: {self.sourcecat_parent_detectid}"
+
+                            else:
+                                self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
+                                                          f"(!catalog error!)"
+                        except:
+                            print(traceback.format_exc())
                     else:
                         self.sourcecat_parent_detectid = q_detectid
 
@@ -1882,10 +1968,13 @@ class ElixerWidget:
                                                   f"(q:{self.sourcecat_z_hetdex_conf:0.2f})"
 
                 else:
+                    #print("fail read rows:", ct)
                     self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
                     self.sourcecat_z_hetdex = None
                     self.sourcecat_z_hetdex_src = None
                     self.sourcecat_z_hetdex_conf = None
+                    self.sourcecat_class_labels = None
+                    self.sourcecat_parent_detectid = None
                     self.z_hetdex_box.value = "unknown"
                     self.shotid = None
             else:
@@ -1894,13 +1983,16 @@ class ElixerWidget:
                 self.sourcecat_z_hetdex_src = None
                 self.sourcecat_z_hetdex_conf = None
                 self.z_hetdex_box.value = "unknown"
+                self.sourcecat_class_labels = None
+                self.sourcecat_parent_detectid  = None
                 self.shotid=None
 
         except Exception as e:
+            #print("Exception!!!", e)
             self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
 
 
-    def read_source_catalog_update(self):
+    def read_source_catalog_update(self, detectid=None):
         """
         get data to display in the source catalog update dialog
 
@@ -1915,8 +2007,63 @@ class ElixerWidget:
 
             #first get the main source catalog info
             #this is the new h5 file
-            #todo:
-            self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
+
+            #print("read_source_catalog_update: detectid: ", detectid)
+
+            if detectid is None:
+                detectid = np.int64(self.detectbox.value)
+
+            #print("read_source_catalog_update: detectid: ", detectid)
+
+            self.catalog_status_box.value = ""
+
+            #read_source_catalog_basic() should have already happened
+            if self.sourcecat_z_hetdex is None: #no entry was found, try elixer??
+                self.catalog_status_box.value = f"Source Catalog fail. No entries for {detectid}"
+                #try the elixer catalog, if there is one
+
+                if self.ELIXER_H5 is None:
+                    if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'], SOURCECAT_UPDATES_SUBPATH)):
+                        elixer_h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],
+                                                           HETDEX_ELIXER_SUBPATH,HETDEX_ELIXER_FILE)
+                        self.ELIXER_H5 = tables.open_file(elixer_h5fn)
+                    elif os.path.exists(
+                            os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'], SOURCECAT_UPDATES_SUBPATH)):
+                        elixer_h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],
+                                                           HETDEX_ELIXER_SUBPATH,HETDEX_ELIXER_FILE)
+                        self.ELIXER_H5 = tables.open_file(elixer_h5fn)
+                    else:
+                        elixer_h5f5 = None
+
+
+                if self.ELIXER_H5 is not None:
+                    q_detectid=detectid #self.detid
+                    rows = self.ELIXER_H5.root.Detections.read_where("detectid==q_detectid")
+                    ct = len(rows)
+                    if len(rows) == 1: #there is an elixer entry
+                        self.catalog_status_box.value += f"\nELiXer catalog success. {ct} entries for {q_detectid}"
+
+                        self.sourcecat_z_hetdex = rows['z_best'][0]
+                        self.sourcecat_z_hetdex_src = "elixer.h5"
+                        self.sourcecat_z_hetdex_conf = rows['z_best_pz'][0]
+                        self.sourcecat_obswave = rows['wavelength_obs'][0]
+                        self.sourcecat_source_id = 0
+                        self.sourcecat_class_labels = rows['classification_labels'][0]
+                        self.shotid = rows['shotid'][0]
+                        self.sourcecat_parent_detectid = rows['cluster_parent']
+
+                        print("elixer z value", self.sourcecat_z_hetdex)
+                    else:
+                        self.catalog_status_box.value += f"\nELiXer catalog fail. No entries for {q_detectid}"
+
+            if self.sourcecat_parent_detectid is not None:
+                self.clusterid_box.value = str(self.sourcecat_parent_detectid)
+
+
+            #todo: add in classification labels here
+
+
+
 
             if self.sourcecat_path is None:
                 self.set_source_catalog_paths()
@@ -1924,31 +2071,72 @@ class ElixerWidget:
                     self.catalog_status_box.value = f" Cannot validate source catalog update path."
                     return
 
-            #rememner, can't just keep this around, since we only lock when we want to update
+            #remember, can't just keep this around, since we only lock when we want to update
             #and the table can become stale if someone else edits
-            tab = Table.read(os.path.join(self.sourcecat_path, SOURCECAT_UPDATES_FILE))
-            sel = tab['detectid'] == self.detid
-            ct = np.count_nonzero(sel)
-            if ct > 1:
-                # problem
-                self.catalog_status_box.value = "Read Failed. Multiple entries.\n"
-                fail = True
-            elif ct == 1:
-                # todo: load up the UpdateCatalog widgets
-                self.catalog_status_box.value = "Todo: load update entry ...\n"
-                self.source_catalog_detid_revision = tab['revision'][sel]
-            else:
-                #there are not updates, just use the main catalog
-                self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
 
-            q_detectid=self.detid
-            rows = self.source_catalog_h5.root.SourceCatalog.read_where("detectid==q_detectid")
-            ct = len(rows)
-            if len(rows)==1:
-                #exactly what we want
-                self.z_hetdex_box.value = f"{rows['z_hetdex'][0]:0.4f} {rows['z_hetdex_src'][0]} " f"({rows['z_hetdex_conf'][0]}:0.2f)"
+            if False: #not ready for this yet
+
+                tab = Table.read(os.path.join(self.sourcecat_path, SOURCECAT_UPDATES_FILE))
+                sel = tab['detectid'] == detectid
+                ct = np.count_nonzero(sel)
+                if ct > 1:
+                    # problem
+                    self.catalog_status_box.value = "Read Failed. Multiple entries.\n"
+                    fail = True
+                elif ct == 1:
+                    # todo: load up the UpdateCatalog widgets
+                    self.catalog_status_box.value = "Todo: load update entry ...\n"
+                    self.source_catalog_detid_revision = tab['revision'][sel]
+                else:
+                    #there are not updates, just use the main catalog
+                    self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
+
+
+                #self.catalog_status_box.value += ""
             else:
-                self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
+                self.catalog_status_box.value += "\nTodo: load update table ...\n"
+
+
+
+
+            line_id, rest_wave = self.get_line_match(self.sourcecat_z_hetdex,obswave=self.sourcecat_obswave)
+            self.wave_box.value = rest_wave
+            self.line_id_drop.value = line_id
+            if self.sourcecat_class_labels is not None:
+                self.class_labels_drop.value = self.sourcecat_class_labels
+
+            if self.sourcecat_z_hetdex is not None:
+                self.z_box.value = self.sourcecat_z_hetdex
+
+            # q_detectid=self.detid
+            # rows = self.source_catalog_h5.root.SourceCatalog.read_where("detectid==q_detectid")
+            # ct = len(rows)
+            # if len(rows)==1:
+            #     #exactly what we want
+            #
+            #     self.sourcecat_z_hetdex = rows['z_hetdex'][0]
+            #     self.sourcecat_z_hetdex_src = rows['z_hetdex_src'][0].decode()
+            #     self.sourcecat_z_hetdex_conf = rows['z_hetdex_conf'][0]
+            #     self.sourcecat_obswave = rows['wave'][0]
+            #     self.sourcecat_source_id = rows['source_id'][0]
+            #     selected = rows['selected_det'][0]  # boolean
+            #     # or can use
+            #     # selected_flag = rows['flag_seldet'][0]
+            #     self.shotid = rows['shotid'][0]
+            #
+            #
+            #     self.z_hetdex_box.value = f"{rows['z_hetdex_src'][0]}: {rows['z_hetdex'][0]:0.4f} ({rows['z_hetdex_conf'][0]}:0.2f)"
+            # else:
+            #     self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
+            #
+            #     #try the elixer catalog, if there is one
+            #     if self.ELIXER_H5 is not None:
+            #         rows = self.ELIXER_H5.root.Detections.read_where("detectid==q_detectid")
+            #         ct = len(rows)
+            #         if len(rows) == 1: #there is an elixer entry
+            #             self.status_box.value += f"\nELiXer catalog success. {ct} entries for {q_detectid}"
+            #             self.z_hetdex_box.value = f"{rows['z_best'][0]:0.4f} ({rows['z_best_pz'][0]}:0.2f)"
+
 
 
         except Exception as e:
