@@ -2,7 +2,7 @@
 
 # archive existing source_catalog_manual_updates.fits and .audit
 # create new empty table and audit and set permissions
-# can only be successfully executed as the hetdex user
+# can only be successfully executed as the filesystem owner
 
 import os
 import shutil

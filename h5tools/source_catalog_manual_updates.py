@@ -25,14 +25,23 @@ import traceback
 import datetime
 from datetime import timezone
 
-#official
-SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
-SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
+
+#shared
+SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/work/05350/ecooper/wrangler/team_classify/shared",
+                                    "hub":"/home/jovyan/shared"}
+SOURCECAT_UPDATES_SUBPATH = "hdrX/source_catalog_updates/"
 SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
 SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
 SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
-SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
-SOURCECAT_FILE = "source_catalog_5.0.0.h5"
+
+
+#corral
+# SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
+# SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
+# SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
+# SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
+# SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
+
 
 #test
 # SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/scratch/03261/polonius/temp/", "hub":"/home/jovyan/"}
@@ -40,8 +49,7 @@ SOURCECAT_FILE = "source_catalog_5.0.0.h5"
 # SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
 # SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
 # SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
-# SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
-# SOURCECAT_FILE = "source_catalog_5.0.0.h5"
+
 
 
 

@@ -89,14 +89,12 @@ except Exception as e:
 
 OPEN_DET_FILE = None
 
-# SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
-# SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
-# SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
-# SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
-# SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
-SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
+SOURCECAT_ROOTPATHS_DICT = {"scratch":"/scratch/projects/hetdex/",
+                            "cluster":"/corral-repl/utexas/Hobby-Eberly-Telesco/",
+                            "hub":"/home/jovyan/Hobby-Eberly-Telesco/"}
+SOURCECAT_SUBPATH = "hdr5/catalogs/"
 SOURCECAT_FILE = "source_catalog_5.0.0.h5"
-HETDEX_ELIXER_SUBPATH = "Hobby-Eberly-Telesco/hdr5/detect"
+HETDEX_ELIXER_SUBPATH = "hdr5/detect"
 HETDEX_ELIXER_FILE = "elixer.h5"
 
 #elix_dir = None
@@ -231,25 +229,34 @@ class ElixerWidget:
         #     pass
 
         #setup for source catalog manual updates
-        #!! note: even if we arenot using the soucecatalog updates, can still
-        #   make use of its interface to get at the elixer catalog which is used in the normal case
-
         try:
             self.sct = source_catalog_manual_updates.SrcCatUpdateTable()
             self.sct.set_paths()
-            h5fn = os.path.join( self.sct.rootpath, SOURCECAT_SUBPATH, SOURCECAT_FILE)
+        except:
+            self.sct = None
+
+
+        try:
+            if os.path.exists(SOURCECAT_ROOTPATHS_DICT['hub']):
+                h5fn = os.path.join(SOURCECAT_ROOTPATHS_DICT['hub'], SOURCECAT_SUBPATH, SOURCECAT_FILE)
+            elif os.path.exists(SOURCECAT_ROOTPATHS_DICT['scratch']):
+                h5fn = os.path.join(SOURCECAT_ROOTPATHS_DICT['scratch'], SOURCECAT_SUBPATH, SOURCECAT_FILE)
+            elif os.path.exists(SOURCECAT_ROOTPATHS_DICT['cluster']):
+                h5fn = os.path.join(SOURCECAT_ROOTPATHS_DICT['cluster'], SOURCECAT_SUBPATH, SOURCECAT_FILE)
+            else:
+                h5fn = None
+
+            h5fn = os.path.join(self.sct.rootpath, SOURCECAT_SUBPATH, SOURCECAT_FILE)
             if os.path.exists(h5fn):
                 try:
                     self.source_catalog_h5 = tables.open_file(h5fn)
                 except:
-                    #note: status box note created yet
+                    # note: status box note created yet
                     print(f"Cannot open: {h5fn}")
-            else: #note: status box note created yet
+            else:  # note: status box note created yet
                 print(f"Does not exist: {h5fn}")
         except:
-            self.sct = None
             self.source_catalog_h5 = None
-
 
         self.elix_dir = None
         self.ELIXER_H5 = None
