@@ -243,7 +243,7 @@ class SrcCatUpdateTable:
             if ct == 0:
                 row = None
                 index = -1
-                self.status = -1
+                self.status = 0 #this is not an error ... there just was no matching row
                 self.status = f"No matching record found for detectid {detectid}"
             elif ct > 1:
                 row = None
