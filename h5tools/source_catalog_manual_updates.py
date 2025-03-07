@@ -12,22 +12,22 @@ import datetime
 from datetime import timezone
 
 #official
-# SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
-# SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
-# SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
-# SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
-# SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
-# SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
-# SOURCECAT_FILE = "source_catalog_5.0.0.h5"
-
-#test
-SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/scratch/03261/polonius/temp/", "hub":"/home/jovyan/"}
+SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
 SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
 SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
 SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
 SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
 SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
 SOURCECAT_FILE = "source_catalog_5.0.0.h5"
+
+#test
+# SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/scratch/03261/polonius/temp/", "hub":"/home/jovyan/"}
+# SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
+# SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
+# SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
+# SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
+# SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
+# SOURCECAT_FILE = "source_catalog_5.0.0.h5"
 
 
 
@@ -39,6 +39,7 @@ class SrcCatUpdateTable:
         self.table_fqfn = None
         self.audit_fqfn = None
         self.lock_fqfn = None
+        self.rootpath = None
 
         self.status = 0
         self.status_msg = None
@@ -137,10 +138,13 @@ class SrcCatUpdateTable:
 
             if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)):
                 path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)
+                self.rootpath = SOURCECAT_UPDATES_ROOTPATHS_DICT['hub']
             elif os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)):
                 path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)
+                self.rootpath = SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster']
             else:
                 path = None
+                self.rootpath = None
 
             if path is not None:
                 self.table_fqfn = os.path.join(path,SOURCECAT_UPDATES_FILE)
