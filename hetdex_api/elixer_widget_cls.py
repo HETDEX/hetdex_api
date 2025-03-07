@@ -8,12 +8,13 @@ Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
 """
 
-import sys
+ALLOW_MANUAL_CATALOG_UPDATE = False
+ALLOW_CLASSIFICATION_BUTTONS = True
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import os.path as op
-from filelock import FileLock
 import traceback
 
 import astropy.units as u
@@ -34,6 +35,17 @@ import tables
 
 from hetdex_tools.get_spec import get_spectra
 from hetdex_api.detections import Detections
+
+if ALLOW_MANUAL_CATALOG_UPDATE:
+    try:
+        from h5tools import source_catalog_manual_updates
+    except:
+        ALLOW_MANUAL_CATALOG_UPDATE = False
+        print("Cannot import necessary packages for source catalog manual updating options.")
+        print("This is disabled until the issue is resolved.")
+        print("For Jupyter-hub users ...")
+        print("you may need to run:   !pip install filelock")
+        print("then restart your kernel. This will hold until you restart the server.")
 
 from elixer import spectrum_utilities as SU
 
@@ -77,11 +89,11 @@ except Exception as e:
 
 OPEN_DET_FILE = None
 
-SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
-SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
-SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
-SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
-SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
+# SOURCECAT_UPDATES_ROOTPATHS_DICT = {"cluster":"/corral-repl/utexas/", "hub":"/home/jovyan/"}
+# SOURCECAT_UPDATES_SUBPATH = "Hobby-Eberly-Telesco/hdrX/source_catalog_updates/"
+# SOURCECAT_UPDATES_FILE = "source_catalog_manual_updates.fits"
+# SOURCECAT_UPDATES_AUDIT = "source_catalog_manual_updates.audit"
+# SOURCECAT_UPDATES_LOCK = "source_catalog_manual_updates.lock"
 SOURCECAT_SUBPATH = "Hobby-Eberly-Telesco/hdr5/catalogs/"
 SOURCECAT_FILE = "source_catalog_5.0.0.h5"
 HETDEX_ELIXER_SUBPATH = "Hobby-Eberly-Telesco/hdr5/detect"
@@ -158,8 +170,7 @@ real_fake_dict = {
 
 }
 
-ALLOW_MANUAL_CATALOG_UPDATE = False
-ALLOW_CLASSIFICATION_BUTTONS = True
+
 
 class ElixerWidget:
     def __init__(
@@ -187,6 +198,8 @@ class ElixerWidget:
         self.show_counterpart_btns = counterpart
         self.detectid = None
         self.shotid = None
+        self.ra = None
+        self.dec = None
         self.constructor_status = ""
         self.flag = []
         self.vis_class = []
@@ -210,34 +223,29 @@ class ElixerWidget:
         self.sourcecat_source_id = None
         self.sourcecat_parent_detectid  = None
 
-        try:
-            self.USERID = os.getuid()
-        except:
-            self.USERID = None
 
-        try:
-            self.USERNAME = os.getenv('JUPYTERHUB_USER')
-            if self.USERNAME is None and self.USERID is not None:
-                self.USERNAME = 'unknown'
-                import pwd
-                pwdinfo=pwd.getpwuid(self.USERID)
-                self.USERNAME = pwdinfo.pw_name
-        except:
+
+        # try:
+        #     self.HETDEX_API_CONFIG.elixerh5
+        # except:
+        #     pass
+
+        #setup for source catalog manual updates
+        #!! note: even if we arenot using the soucecatalog updates, can still
+        #   make use of its interface to get at the elixer catalog which is used in the normal case
+
+        self.sct = source_catalog_manual_updates.SrcCatUpdateTable()
+        self.sct.set_paths()
+        h5fn = os.path.join( self.sct.rootpath, SOURCECAT_SUBPATH, SOURCECAT_FILE)
+        if os.path.exists(h5fn):
             try:
-                if self.USERID is not None and self.USERNAME != "unknown":
-                    import pwd
-                    pwdinfo=pwd.getpwuid(self.USERID)
-                    self.USERNAME = pwdinfo.pw_name
+                self.source_catalog_h5 = tables.open_file(h5fn)
             except:
-                self.USERNAME = None
+                #note: status box note created yet
+                print(f"Cannot open: {h5fn}")
+        else: #note: status box note created yet
+            print(f"Does not exist: {h5fn}")
 
-
-        try:
-            self.HETDEX_API_CONFIG.elixerh5
-        except:
-            pass
-
-        self.set_source_catalog_paths()
 
         self.elix_dir = None
         self.ELIXER_H5 = None
@@ -1392,8 +1400,10 @@ class ElixerWidget:
 
         self.wave_box.value = line_id_dict[self.line_id_drop.value]
 
-        if self.wave_box.value == -1 and self.sourcecat_obswave is not None \
-                and self.sourcecat_z_hetdex is not None and self.sourcecat_z_hetdex > -1:
+        if (self.wave_box.value == -1) and \
+                (self.sourcecat_obswave is not None) and \
+                (self.sourcecat_z_hetdex is not None) and \
+                (self.sourcecat_z_hetdex > -1):
             self.wave_box.value = self.sourcecat_obswave/(self.sourcecat_z_hetdex + 1.0)
 
        # print("Line match after", current_wavelength,self.line_id_drop.value, self.wave_box.value,self.z_box.value)
@@ -1875,31 +1885,6 @@ class ElixerWidget:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
 
 
-    def set_source_catalog_paths(self):
-        """
-
-        Returns
-        -------
-
-        """
-
-        try:
-
-            if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)):
-                basepath_key = "hub"
-                self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],SOURCECAT_UPDATES_SUBPATH)
-            elif os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)):
-                basepath_key = "cluster"
-                self.sourcecat_path = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],SOURCECAT_UPDATES_SUBPATH)
-            else:
-                self.sourcecat_path = None
-
-            if self.sourcecat_path is not None and self.source_catalog_h5 is None:
-                h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT[basepath_key],SOURCECAT_SUBPATH,SOURCECAT_FILE)
-                self.source_catalog_h5 = tables.open_file(h5fn)
-
-        except:
-            self.sourcecat_path = None
 
 
     def read_source_catalog_basic(self,detectid=None):
@@ -1930,13 +1915,17 @@ class ElixerWidget:
                     self.sourcecat_z_hetdex = rows['z_hetdex'][0]
                     self.sourcecat_z_hetdex_src = rows['z_hetdex_src'][0].decode()
                     self.sourcecat_z_hetdex_conf = rows['z_hetdex_conf'][0]
+                    self.shotid = rows['shotid'][0]
+                    self.ra = rows['ra'][0]
+                    self.dec = rows['dec'][0]
                     self.sourcecat_obswave = rows['wave'][0]
                     self.sourcecat_source_id = rows['source_id'][0]
                     self.sourcecat_class_labels = rows['classification_labels'][0]
                     selected = rows['selected_det'][0] #boolean
                     #or can use
                     #selected_flag = rows['flag_seldet'][0]
-                    self.shotid = rows['shotid'][0]
+
+
 
                     q_source_id = self.sourcecat_source_id
                     if not selected:
@@ -1975,17 +1964,21 @@ class ElixerWidget:
                     self.sourcecat_z_hetdex_conf = None
                     self.sourcecat_class_labels = None
                     self.sourcecat_parent_detectid = None
-                    self.z_hetdex_box.value = "unknown"
+                    self.z_hetdex_box.value = "No Source Catalog Entry"
                     self.shotid = None
+                    self.ra = None
+                    self.dec = None
             else:
                 self.status_box.value = f"Source Catalog failure. File not found."
                 self.sourcecat_z_hetdex = None
                 self.sourcecat_z_hetdex_src = None
                 self.sourcecat_z_hetdex_conf = None
-                self.z_hetdex_box.value = "unknown"
+                self.z_hetdex_box.value = "Source Catalog Unavailable"
                 self.sourcecat_class_labels = None
                 self.sourcecat_parent_detectid  = None
                 self.shotid=None
+                self.ra = None
+                self.dec = None
 
         except Exception as e:
             #print("Exception!!!", e)
@@ -2023,17 +2016,12 @@ class ElixerWidget:
                 #try the elixer catalog, if there is one
 
                 if self.ELIXER_H5 is None:
-                    if os.path.exists(os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'], SOURCECAT_UPDATES_SUBPATH)):
-                        elixer_h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['hub'],
+                    try:
+                        elixer_h5fn = os.path.join(self.sct.rootpath,
                                                            HETDEX_ELIXER_SUBPATH,HETDEX_ELIXER_FILE)
                         self.ELIXER_H5 = tables.open_file(elixer_h5fn)
-                    elif os.path.exists(
-                            os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'], SOURCECAT_UPDATES_SUBPATH)):
-                        elixer_h5fn = os.path.join(SOURCECAT_UPDATES_ROOTPATHS_DICT['cluster'],
-                                                           HETDEX_ELIXER_SUBPATH,HETDEX_ELIXER_FILE)
-                        self.ELIXER_H5 = tables.open_file(elixer_h5fn)
-                    else:
-                        elixer_h5f5 = None
+                    except:
+                       pass
 
 
                 if self.ELIXER_H5 is not None:
@@ -2050,6 +2038,8 @@ class ElixerWidget:
                         self.sourcecat_source_id = 0
                         self.sourcecat_class_labels = rows['classification_labels'][0]
                         self.shotid = rows['shotid'][0]
+                        self.ra = rows['ra'][0]
+                        self.dec = rows['dec'][0]
                         self.sourcecat_parent_detectid = rows['cluster_parent']
 
                         print("elixer z value", self.sourcecat_z_hetdex)
@@ -2059,44 +2049,31 @@ class ElixerWidget:
             if self.sourcecat_parent_detectid is not None:
                 self.clusterid_box.value = str(self.sourcecat_parent_detectid)
 
-
-            #todo: add in classification labels here
-
-
-
-
-            if self.sourcecat_path is None:
-                self.set_source_catalog_paths()
-                if self.sourcecat_path is None:
-                    self.catalog_status_box.value = f" Cannot validate source catalog update path."
-                    return
-
             #remember, can't just keep this around, since we only lock when we want to update
             #and the table can become stale if someone else edits
 
-            if False: #not ready for this yet
 
-                tab = Table.read(os.path.join(self.sourcecat_path, SOURCECAT_UPDATES_FILE))
-                sel = tab['detectid'] == detectid
-                ct = np.count_nonzero(sel)
-                if ct > 1:
-                    # problem
-                    self.catalog_status_box.value = "Read Failed. Multiple entries.\n"
-                    fail = True
-                elif ct == 1:
-                    # todo: load up the UpdateCatalog widgets
-                    self.catalog_status_box.value = "Todo: load update entry ...\n"
-                    self.source_catalog_detid_revision = tab['revision'][sel]
-                else:
-                    #there are not updates, just use the main catalog
-                    self.catalog_status_box.value = "Todo: load main catalog entry ...\n"
+            sct_row,*_ = self.sct.get_row(detectid,refresh=False) #don't need to refresh here (yet), don't care about the index
 
+            if self.sct.status != 0:
+                self.status_box.value = self.sct.status_msg
+                self.catalog_status_box.value = self.sct.status_msg
+            elif sct_row is None: #there is no such row, so no existing update
+                self.catalog_status_box.value = "No prior updates"
+            else: #the sct_row is good, load the data
+                self.catalog_status_box.value = f"Last update: ({sct_row['revision']}) {sct_row['revision_user']} " \
+                                                f"at {sct_row['revision_date']} UTC"
 
-                #self.catalog_status_box.value += ""
-            else:
-                self.catalog_status_box.value += "\nTodo: load update table ...\n"
-
-
+                if sct_row['classification_labels'] is not None and len(sct_row['classification_labels']) > 0:
+                    self.sourcecat_class_labels = sct_row['classification_labels']
+                if sct_row['z'] is not None and sct_row['z'] > -1:
+                    self.sourcecat_z_hetdex = sct_row['z']
+                if sct_row['parent_detectid'] is not None and sct_row['parent_detectid'] > -1:
+                    self.sourcecat_parent_detectid = sct_row['parent_detectid']
+                if sct_row['conf_status'] is not None and sct_row['conf_status'] != 0:
+                    self.real_fake_drop.value = sct_row['conf_status']
+                if sct_row['comments'] is not None and len(sct_row['comments']) > 0:
+                    self.catalog_comment_box.value = sct_row['comments']
 
 
             line_id, rest_wave = self.get_line_match(self.sourcecat_z_hetdex,obswave=self.sourcecat_obswave)
@@ -2107,35 +2084,6 @@ class ElixerWidget:
 
             if self.sourcecat_z_hetdex is not None:
                 self.z_box.value = self.sourcecat_z_hetdex
-
-            # q_detectid=self.detid
-            # rows = self.source_catalog_h5.root.SourceCatalog.read_where("detectid==q_detectid")
-            # ct = len(rows)
-            # if len(rows)==1:
-            #     #exactly what we want
-            #
-            #     self.sourcecat_z_hetdex = rows['z_hetdex'][0]
-            #     self.sourcecat_z_hetdex_src = rows['z_hetdex_src'][0].decode()
-            #     self.sourcecat_z_hetdex_conf = rows['z_hetdex_conf'][0]
-            #     self.sourcecat_obswave = rows['wave'][0]
-            #     self.sourcecat_source_id = rows['source_id'][0]
-            #     selected = rows['selected_det'][0]  # boolean
-            #     # or can use
-            #     # selected_flag = rows['flag_seldet'][0]
-            #     self.shotid = rows['shotid'][0]
-            #
-            #
-            #     self.z_hetdex_box.value = f"{rows['z_hetdex_src'][0]}: {rows['z_hetdex'][0]:0.4f} ({rows['z_hetdex_conf'][0]}:0.2f)"
-            # else:
-            #     self.status_box.value = f"Source Catalog failure. {ct} entries for {q_detectid}"
-            #
-            #     #try the elixer catalog, if there is one
-            #     if self.ELIXER_H5 is not None:
-            #         rows = self.ELIXER_H5.root.Detections.read_where("detectid==q_detectid")
-            #         ct = len(rows)
-            #         if len(rows) == 1: #there is an elixer entry
-            #             self.status_box.value += f"\nELiXer catalog success. {ct} entries for {q_detectid}"
-            #             self.z_hetdex_box.value = f"{rows['z_best'][0]:0.4f} ({rows['z_best_pz'][0]}:0.2f)"
 
 
 
@@ -2152,61 +2100,35 @@ class ElixerWidget:
 
         try:
 
-            if self.sourcecat_path is None:
-                self.set_source_catalog_paths()
-                if self.sourcecat_path is None:
-                    self.catalog_status_box.value = f"FAIL Cannot update. Cannot validate source catalog update path."
-                    return
-
-            lock = FileLock(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_LOCK))
-
-            with lock:
-                try:
-                    fail = False
-                    # make sure no change was made before the lock
-                    #    check the revision counter (this avoids potential issues with local system times)
-
-                    #can't use the earlier read ... have to re-read AFTER obtaining a lock
-                    tab = Table.read(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_FILE))
-                    sel = tab['detectid'] == self.detid
-                    ct = np.count_nonzero(sel)
-                    if ct > 1:
-                        #problem
-                        self.catalog_status_box.value = "Update Failed. Multiple entries.\n"
-                        fail = True
-                    elif ct == 1:
-                        # check the last update timestamp
-                        last_revision = tab['revision'][sel]
-                        if last_revision != self.source_catalog_detid_revision:
-                            self.catalog_status_box.value = f"Update Failed. Interleaved update occurred. " \
-                                                            f"Local revision ({self.source_catalog_detid_revision}). Record revision ({last_revision})\n"
-                            fail = True
-
-                    else:
-                        #all good, this is a new entry
-                        pass
-
-                    if not fail:
-                        #write the audit
-                        with open(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_AUDIT)) as f:
-                            f.write("todo...")
+            #get a dictionary, update the fields then apply the update
+            row = self.sct.get_row_dict()
 
 
-                        if ct == 1: #todo: update
-                            self.source_catalog_detid_revision += 1
-                        else: #todo: new record
-                            pass
+            row['detectid'] = np.int64(self.detectbox.value)
+            row['ra'] = self.ra
+            row['dec'] = self.dec
+            row['shotid'] = self.shotid
+            row['obs_wave'] = self.sourcecat_obswave
+            #note: revision, revision_date, revision_user set by the source_catalog updater
+            # no need to set here
+            row['conf_status'] = self.real_fake_drop.value
+            row['z'] = self.z_box.value
+            row['parent_detectid'] = self.clusterid_box.value
+            row['classification_labels'] = self.class_labels_drop.value
+            row['comments'] = self.catalog_comment_box.value
 
-                        #write the table
-                        tab.write(os.path.join(self.sourcecat_path,SOURCECAT_UPDATES_FILE),overwrite=True,format="fits")
+            self.sct.update_table(row)
 
-                except Exception as e:
-                    self.catalog_status_box.value = "Update Failed.\n"
-                    self.catalog_status_box.value += str(e) + "\n" + traceback.format_exc()
-
-
-
-            self.catalog_status_box.value = f"Success."
+            if self.sct.status == 0:
+                self.catalog_status_box.value = f"Success."
+            else:
+                self.catalog_status_box.value = self.sct.status_msg
 
         except Exception as e:
-            self.catalog_status_box.value = str(e) + "\n" + traceback.format_exc()
+            self.catalog_status_box.value = "Update Failed.\n"
+            self.catalog_status_box.value += str(e) + "\n" + traceback.format_exc()
+
+
+
+
+

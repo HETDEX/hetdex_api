@@ -4,12 +4,22 @@ definitions and helpers for the manual updates table for the source catalog
 Note: permissions should work for ALL users on TACC, but will NOT work if the path is a remote ssh mount
 (that is, you MUST be logged in to a TACC cluster or on the jupyter-hub)
 
+!!! For Jupyter-hub users ...
+you may need to run:   !pip install filelock
+then restart your kernel. This will hold until you restart the server.
+
 """
 
 import os
 import numpy as np
 from astropy.table import Table
-from filelock import FileLock
+try:
+    from filelock import FileLock
+except:
+    print("For Jupyter-hub users ...")
+    print("you may need to run:   !pip install filelock")
+    print("then restart your kernel. This will hold until you restart the server.")
+
 import copy
 import traceback
 import datetime
