@@ -1,5 +1,9 @@
 """
 definitions and helpers for the manual updates table for the source catalog
+
+Note: permissions should work for ALL users on TACC, but will NOT work if the path is a remote ssh mount
+(that is, you MUST be logged in to a TACC cluster or on the jupyter-hub)
+
 """
 
 import os
@@ -45,7 +49,6 @@ class SrcCatUpdateTable:
         self.status_msg = None
 
         self.the_table = None
-        self.the_audit = None
 
         self.the_user = None #the user who instantiates
 
@@ -69,7 +72,7 @@ class SrcCatUpdateTable:
         # classification_labels = string of 0 or more comma separated labels (e.g. AGN, LzG, LAB, etc)
         # comments = free form comment string from the last user (up to 256 characters)
 
-        return Table(dtype=[('detectid', int),('shotid', int), ('ra',float), ('dec',float),('obs_wave',float),
+        return Table(dtype=[('detectid', np.int64),('shotid', int), ('ra',float), ('dec',float),('obs_wave',float),
                  ('revision',int),('revision_user','S32'),('revision_date','S16'),
                  ('conf_status', int),('z',float),('parent_detectid', int),
                  ('classification_labels','S32'),('comments','S256')])
@@ -237,8 +240,8 @@ class SrcCatUpdateTable:
             row = None
             index = -1
             self.status = -1
-            self.status = f"Unable to search on detectid {detectid}"
-            self.status += f"\n{traceback.format_exc()}"
+            self.status_msg = f"Unable to search on detectid {detectid}"
+            self.status_msg += f"\n{traceback.format_exc()}"
 
         return row, index
 
@@ -259,10 +262,10 @@ class SrcCatUpdateTable:
 
         """
         try:
-            with open(self.the_audit,"a") as f:
+            with open(self.audit_fqfn,"a") as f:
                 f.write(f"{action} ")
                 for col in self.get_row_dict().keys():
-                    f.write(f"{col}:{row[col]}")
+                    f.write(f"{col}:{row[col]}\t")
                 f.write("\n")
 
             return 0
@@ -271,9 +274,11 @@ class SrcCatUpdateTable:
                 detectid = row['detectid']
             except:
                 detectid = "???"
-            self.status = -1
-            self.status = f"Unable to audit for {detectid}"
-            self.status += f"\n{traceback.format_exc()}"
+
+            #Audit does not overwrite the status, just appends
+            #BUT really this should not happen
+            self.status_msg += f"Unable to audit for {detectid}"
+            self.status_msg += f"\n{traceback.format_exc()}"
             return -1
 
     def add_row(self,row):
@@ -294,8 +299,21 @@ class SrcCatUpdateTable:
             row['revision_user'] = self.the_user
 
             if self.add_audit(row,1) == 0:
-                self.the_table.add_row(row) #or do I need to break it down by column
-                self.the_table.write(self.table_fqfn, format='fits', overwrite=True)
+                try:
+                    self.the_table.add_row(row) #or do I need to break it down by column
+
+                    try:
+                        self.the_table.write(self.table_fqfn, format='fits', overwrite=True)
+                    except:
+                        self.status = -1
+                        self.status_msg = f"Table file write failed."
+                        self.status_msg += f"\n{traceback.format_exc()}"
+                        self.add_audit(row, -1) #return the staus from the table write attempt
+                except:
+                    self.status = -1
+                    self.status_msg = f"Add row failed."
+                    self.status_msg += f"\n{traceback.format_exc()}"
+                    self.add_audit(row, -1)  # return the staus from the table write attempt
             else:
                 self.add_audit(row,-1)
                 try:
@@ -303,8 +321,8 @@ class SrcCatUpdateTable:
                 except:
                     detectid = "???"
                 self.status = -1
-                self.status = f"Audit failed. Unable to add row for {detectid}"
-                self.status += f"\n{traceback.format_exc()}"
+                #use the status message from add_audit() but in this case, set the status flag
+
 
         except:
             try:
@@ -312,8 +330,8 @@ class SrcCatUpdateTable:
             except:
                 detectid = "???"
             self.status = -1
-            self.status = f"Unable to add row for {detectid}"
-            self.status += f"\n{traceback.format_exc()}"
+            self.status_msg = f"Unable to add row for {detectid}"
+            self.status_msg += f"\n{traceback.format_exc()}"
 
     def update_row(self,row,idx):
         """
@@ -340,6 +358,15 @@ class SrcCatUpdateTable:
 
                 for col in self.updatable_cols:
                     self.the_table[idx][col] = row[col]
+
+                try:
+                    self.the_table.write(self.table_fqfn, format='fits', overwrite=True)
+                except:
+                    self.status = -1
+                    self.status_msg = f"Table file write failed."
+                    self.status_msg += f"\n{traceback.format_exc()}"
+
+                    self.add_audit(row, -1)  # return the staus from the table write attempt
             else:
                 self.add_audit(row,-1)
                 try:
@@ -347,8 +374,8 @@ class SrcCatUpdateTable:
                 except:
                     detectid = "???"
                 self.status = -1
-                self.status = f"Audit failed. Unable to add row for {detectid}"
-                self.status += f"\n{traceback.format_exc()}"
+                self.status_msg = f"Audit failed. Unable to add row for {detectid}"
+                self.status_msg += f"\n{traceback.format_exc()}"
 
         except:
             try:
@@ -356,8 +383,8 @@ class SrcCatUpdateTable:
             except:
                 detectid = "???"
             self.status = -1
-            self.status = f"Unable to update row for {detectid}"
-            self.status += f"\n{traceback.format_exc()}"
+            self.status_msg = f"Unable to update row for {detectid}"
+            self.status_msg += f"\n{traceback.format_exc()}"
 
 
     def update_table(self, row):
@@ -371,10 +398,13 @@ class SrcCatUpdateTable:
         """
         self.reset_status()
         try:
+
             if self.the_user is None:
-                self.status = -1
-                self.status_msg = "Cannot identify the user"
-                return
+                self.get_user()
+                if self.the_user is None:
+                    self.status = -1
+                    self.status_msg = "Cannot identify the user"
+                    return
 
             if row is None:
                 self.status = -1
@@ -389,9 +419,9 @@ class SrcCatUpdateTable:
                     #MUST reload the table after we get a lock
                     self.load()
 
-                    if not self.the_table:
+                    if self.the_table is None:
                         self.status = -1
-                        self.status_msg += f"Could not (re)load table to assert condition."
+                        self.status_msg += f"\nCould not (re)load table to assert condition."
                         return  #should release the lock
 
 
