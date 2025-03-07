@@ -244,12 +244,12 @@ class SrcCatUpdateTable:
                 row = None
                 index = -1
                 self.status = 0 #this is not an error ... there just was no matching row
-                self.status = f"No matching record found for detectid {detectid}"
+                self.status_msg = f"No matching record found for detectid {detectid}"
             elif ct > 1:
                 row = None
                 index = -1
                 self.status = -1
-                self.status = f"Error! {ct} matching records found for detectid {detectid}"
+                self.status_msg = f"Error! {ct} matching records found for detectid {detectid}"
             else:
                 row = copy.copy(self.the_table[sel][0]) #simple copy is fine. no complex structures
                 index = list(sel).index(True)
