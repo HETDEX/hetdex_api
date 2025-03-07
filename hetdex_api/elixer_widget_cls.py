@@ -234,17 +234,21 @@ class ElixerWidget:
         #!! note: even if we arenot using the soucecatalog updates, can still
         #   make use of its interface to get at the elixer catalog which is used in the normal case
 
-        self.sct = source_catalog_manual_updates.SrcCatUpdateTable()
-        self.sct.set_paths()
-        h5fn = os.path.join( self.sct.rootpath, SOURCECAT_SUBPATH, SOURCECAT_FILE)
-        if os.path.exists(h5fn):
-            try:
-                self.source_catalog_h5 = tables.open_file(h5fn)
-            except:
-                #note: status box note created yet
-                print(f"Cannot open: {h5fn}")
-        else: #note: status box note created yet
-            print(f"Does not exist: {h5fn}")
+        try:
+            self.sct = source_catalog_manual_updates.SrcCatUpdateTable()
+            self.sct.set_paths()
+            h5fn = os.path.join( self.sct.rootpath, SOURCECAT_SUBPATH, SOURCECAT_FILE)
+            if os.path.exists(h5fn):
+                try:
+                    self.source_catalog_h5 = tables.open_file(h5fn)
+                except:
+                    #note: status box note created yet
+                    print(f"Cannot open: {h5fn}")
+            else: #note: status box note created yet
+                print(f"Does not exist: {h5fn}")
+        except:
+            self.sct = None
+            self.source_catalog_h5 = None
 
 
         self.elix_dir = None
