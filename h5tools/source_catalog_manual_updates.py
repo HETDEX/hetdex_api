@@ -450,11 +450,12 @@ class SrcCatUpdateTable:
                             self.status = -1
                             self.status_msg += f"Error! Could not update table."
                             return
-                        #else this is just a new row to be added
+                        else: # this is just a new row to be added
+                            self.reset_status()
                     else: #found a row, make sure we are current
                         if current_row['revision'] != row['revision']:
                             self.status = -1
-                            self.status_msg += f"Error! Could not update table. Row record is stale."
+                            self.status_msg += f"Error! Could not update table. Row record is stale. {current_row['revision']} != {row['revision']}"
                             return
 
                     #all good; either adding a row or updting an existing row
