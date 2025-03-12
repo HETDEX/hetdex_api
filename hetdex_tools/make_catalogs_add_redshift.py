@@ -33,7 +33,7 @@ def replace_nan_inf_mask(table, fill_value=0.0):
             table[col][inf_mask] = fill_value
 
         if isinstance(table[col], astropy.table.column.MaskedColumn):
-            print(f"Converting masked column: {c}")
+            print(f"Converting masked column: {col}")
             table[col] = np.nan_to_num(np.array(table[col]),nan=fill_value)
         
 
