@@ -2069,7 +2069,7 @@ class ElixerWidget:
             self.status_box.value = str(e) + "\n" + traceback.format_exc()
 
 
-    def read_source_catalog_update(self, detectid=None):
+    def read_source_catalog_update(self, detectid=None, refresh=True):
         """
         get data to display in the source catalog update dialog
 
@@ -2157,7 +2157,7 @@ class ElixerWidget:
             #and the table can become stale if someone else edits
 
 
-            sct_row,*_ = self.sct.get_row(detectid,refresh=False) #don't need to refresh here (yet), don't care about the index
+            sct_row,*_ = self.sct.get_row(detectid,refresh=refresh) #don't need to refresh here (yet), don't care about the index
 
             if self.sct.status != 0:
                 self.status_box.value = self.sct.status_msg
