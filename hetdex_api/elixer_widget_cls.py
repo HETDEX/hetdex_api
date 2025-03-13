@@ -149,14 +149,15 @@ line_id_dict = {
 
 classification_labels = ["","AGN","gal","LAB","LzG","meteor","PNe","sat","star","WD","*clear*"]
 real_fake_default = "--"
+real_fake_sep = "--------------"
 real_fake_dict = {
     real_fake_default:0,
     "Confirmed Emission Line": 1,
     "Confirmed Absorption Line": 2,
     "Confirmed Continuum Source": 3,
+    real_fake_sep:-999,
     # "True Positive":1,
     "Not Line, Continuum Feature":4, #e.g. return to continuum between two absorption features
-
     "False Positive (Noise)":10,
     "Artifact (generic)": 11,
     "Artifact (interference)": 12,
@@ -925,7 +926,7 @@ class ElixerWidget:
             placeholder="-1 N/A",
             description="z_hetdex:",
             disabled=True, #this is a display ONLY not user editable
-            layout=Layout(width='40%')
+            layout=Layout(width='42%')
         )
 
         self.comment_box = widgets.Text(
@@ -1432,10 +1433,8 @@ class ElixerWidget:
 
         self.wave_box.value = line_id_dict[self.line_id_drop.value]
 
-        if (self.wave_box.value == -1) and \
-                (self.sourcecat_obswave is not None) and \
-                (self.sourcecat_z_hetdex is not None) and \
-                (self.sourcecat_z_hetdex > -1):
+        if (self.wave_box.value == -1) and (self.sourcecat_obswave is not None) and \
+                ((self.sourcecat_z_hetdex is not None) and  (self.sourcecat_z_hetdex > -1)):
             self.wave_box.value = self.sourcecat_obswave/(self.sourcecat_z_hetdex + 1.0)
 
        # print("Line match after", current_wavelength,self.line_id_drop.value, self.wave_box.value,self.z_box.value)
@@ -1720,28 +1719,29 @@ class ElixerWidget:
                 self.wave_box.disabled = False
                 self.line_id_drop.disabled = False
 
-            with self.updatecat_box:
-                display(widgets.HBox(
-                    [self.real_fake_drop,
-                     self.class_labels_drop,
-                     self.clusterid_box,
-                     self.catalog_sourceid_box,
-                     ]))
+            if b is not None:
+                with self.updatecat_box:
+                    display(widgets.HBox(
+                        [self.real_fake_drop,
+                         self.class_labels_drop,
+                         self.clusterid_box,
+                         self.catalog_sourceid_box,
+                         ]))
 
-                display(widgets.HBox(
-                    [self.line_id_drop,
-                     self.wave_box,
-                     self.z_box,
-                     ]))
+                    display(widgets.HBox(
+                        [self.line_id_drop,
+                         self.wave_box,
+                         self.z_box,
+                         ]))
 
-                display(widgets.HBox(
-                    [ self.catalog_comment_box,
-                     ]))
+                    display(widgets.HBox(
+                        [ self.catalog_comment_box,
+                         ]))
 
-                display(widgets.HBox(
-                    [ self.catalog_status_box,
-                      self.doUpdateCatalog,
-                     ]))
+                    display(widgets.HBox(
+                        [ self.catalog_status_box,
+                          self.doUpdateCatalog,
+                         ]))
 
                 #self.focus()
         except Exception as e:
@@ -1751,7 +1751,11 @@ class ElixerWidget:
 
     def on_do_update_catalog(self,b):
         #todo: perform the update to the manual catalog and audit file
-        self.record_source_catalog_update()
+        if self.doUpdateCatalog.description == "Reload":
+            self.doUpdateCatalog.description = "Update"
+            self.on_update_catalog(None)
+        else:
+            self.record_source_catalog_update()
 
     def get_mini_button_click(self, b):
         detectid = np.int64(self.detectbox.value)
@@ -2039,7 +2043,7 @@ class ElixerWidget:
                     rows = self.ELIXER_H5.root.Detections.read_where("detectid==q_detectid")
                     ct = len(rows)
                     if len(rows) == 1:  # there is an elixer entry
-                        self.catalog_status_box.value += f"\nELiXer catalog success. {ct} entries for {q_detectid}"
+                        self.catalog_status_box.value += f"\nELiXer catalog success. {ct} entries for {detectid}"
 
                         self.sourcecat_z_hetdex = rows['z_best'][0]
                         self.sourcecat_z_hetdex_src = "elixer.h5"
@@ -2055,9 +2059,9 @@ class ElixerWidget:
 
                        # print("elixer z value", self.sourcecat_z_hetdex)
                     else:
-                        self.status_box.value += f"\nSource Catalog fail. ELiXer catalog fail. No/invalid entries for {q_detectid}"
+                        self.status_box.value += f"\nSource Catalog fail. ELiXer catalog fail. No/invalid entries for {detectid}"
                 else:
-                    self.status_box.value += f"\nSource Catalog fail. ELiXer catalog fail. No entries for {q_detectid}"
+                    self.status_box.value += f"\nSource Catalog fail. ELiXer catalog fail. No entries for {detectid}"
 
 
         except Exception as e:
@@ -2233,8 +2237,10 @@ class ElixerWidget:
             row['obs_wave'] = self.sourcecat_obswave
             row['revision'] = self.source_catalog_detid_revision
             #note: revision_date, revision_user set by the source_catalog updater
-            # no need to set here
-            row['conf_status'] = real_fake_dict[self.real_fake_drop.value]
+
+            #for real/fake prohibit recording of accidental selection of the separator (value = -999)
+            #since all proper values are non-zero and positive, if an invalid (negative) value is there, set to 0 (the default)
+            row['conf_status'] = max(real_fake_dict[real_fake_default],real_fake_dict[self.real_fake_drop.value])
             row['z'] = self.z_box.value
             row['parent_detectid'] = self.clusterid_box.value
             if self.class_labels_drop.value is None or len(self.class_labels_drop.value) == 0:
@@ -2248,6 +2254,10 @@ class ElixerWidget:
             self.sct.update_table(row)
 
             if self.sct.status == 0:
+
+                #reload to update the revision
+                self.on_update_catalog(None)
+
                 self.catalog_status_box.value = f"Success."
                 try:
                     sct_row, *_ = self.sct.get_row(row['detectid'], refresh=True)  # don't need to refresh here (yet), don't care about the index
@@ -2258,6 +2268,9 @@ class ElixerWidget:
                     pass
             else:
                 self.catalog_status_box.value = self.sct.status_msg
+                if "stale" in self.sct.status_msg:
+                    self.doUpdateCatalog.description ="Reload"
+
 
         except Exception as e:
             self.catalog_status_box.value = "Update Failed.\n"
