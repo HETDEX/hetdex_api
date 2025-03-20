@@ -1,16 +1,58 @@
 # script to update p_conf value
-
+import sys
 import numpy as np
 import astropy.table
 from astropy.table import Table
 
 import joblib
 
-version = '5.0.0'
+version = '5.0.1'
+
+update_det_flags = True
 
 source_table = Table.read("source_catalog_{}.yy.fits".format(version))
 
+if update_det_flags:
+    print('Updating det flags')
+    detflags_tab = Table.read('/scratch/projects/hetdex/hdr5/catalogs/det_flags_{}.fits'.format(version))
+
+    flag_cols = detflags_tab.colnames
+
+    # Convert detectid to a NumPy array for fast searching
+    source_ids = source_table['detectid'].data
+    detflag_ids = detflags_tab['detectid'].data
+
+    # Create a mapping from detectid to row index in source_table
+    source_index_map = {id_: i for i, id_ in enumerate(source_ids)}
+
+    # Find the common indices in both tables
+    mask = np.isin(detflag_ids, source_ids)
+    detflag_common = detflags_tab[mask]  # Filter only existing IDs
+
+    # Get corresponding indices in source_table
+    source_indices = np.array([source_index_map[id_] for id_ in detflag_common['detectid']])
+
+    # Perform vectorized update only where values differ
+    for col in flag_cols[1:]:  # Skip "detectid"
+        source_values = source_table[col][source_indices]
+        detflag_values = detflag_common[col]
+
+        # Identify where values have changed
+        changed_mask = source_values != detflag_values
+
+        print('updating for ', col, np.sum(changed_mask))
+        # Only update where changes exist
+        source_table[col][source_indices[changed_mask]] = detflag_values[changed_mask]
+
+        # for now will assume any changed value is updated to a flag so flag_best==0
+        source_table['flag_best'][source_indices[changed_mask]] = 0
+
+    print('Done updating det flags')
+
+    #sys.exit()
+
 for c in source_table.colnames:
+    
     if isinstance(source_table[c], astropy.table.column.MaskedColumn):
         print(f"Converting masked column: {c}")
         
