@@ -198,6 +198,7 @@ class ElixerWidget:
         self.current_idx = 0
         self.show_counterpart_btns = counterpart
         self.detectid = None
+        self.last_good_detectid = None
         self.shotid = None
         self.ra = None
         self.dec = None
@@ -224,7 +225,8 @@ class ElixerWidget:
         self.sourcecat_obswave = None
         self.sourcecat_source_id = None
         self.sourcecat_parent_detectid  = None
-
+        self.manual_update_dialog_active = False
+        self.line_wave_z_update_in_progress = False
 
 
         # try:
@@ -507,6 +509,7 @@ class ElixerWidget:
         self.updateCatalog.on_click(self.on_update_catalog)
         self.doUpdateCatalog.on_click(self.on_do_update_catalog)
 
+
         #print("main_display", objnum)
         self.reset_widget_values(objnum)
 
@@ -636,6 +639,7 @@ class ElixerWidget:
                     display(Image(filename=op.join(self.cutoutpath, '{}.png'.format(detectid))))
 
                 display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+                self.last_good_detectid = detectid
 
             except Exception as e:
 
@@ -643,6 +647,7 @@ class ElixerWidget:
                     fname = op.join(self.elix_dir, "%d.png" % (detectid))
                     if op.exists(fname):
                         display(Image(fname))
+                        self.last_good_detectid = detectid
                     else:  # try the archive location
                         self.status_box.value = (
                             "Report databases not found and specified img_dir does not exist\n"
@@ -796,7 +801,7 @@ class ElixerWidget:
             value=str(detectstart),
             placeholder = str(detectstart),
             # min=1,
-            description="DetectID:",
+            description="DetectID",
             disabled=False,
         )
 
@@ -854,6 +859,21 @@ class ElixerWidget:
             "<style>.left-spacing-class {margin-left: 50px;}</style>"
         ))
 
+
+        self.Uncluster = widgets.Button(
+            #description="Update Catalog", layoout=Layout(width="10%")
+            description = "Uncluster",
+            tooltip = "Unlink (uncluster) this detection from the catalog SourceID",
+            button_style = "success",
+        )
+
+        self.Uncluster.style.button_color = "blue"
+        self.Uncluster.add_class("left-spacing-class")
+        display(HTML(
+            "<style>.left-spacing-class {margin-left: 250px;}</style>"
+        ))
+        self.Uncluster.on_click(self.on_uncluster)
+
         # self.class_labels_drop = widgets.Dropdown(
         #     options=classification_labels,
         #     value="",
@@ -866,8 +886,8 @@ class ElixerWidget:
             options=classification_labels,
             placeholder='labels',
             ensure_option=False,
-            description="Label",
-            layout=Layout(width="25%"),
+            description="Labels",
+            layout=Layout(width="22%"),
             disabled=False,
         )
 
@@ -917,6 +937,7 @@ class ElixerWidget:
             disabled=False,
             indent=False,
         )
+        self.z_box.observe(self._handle_z_box_selection, names="value")
         #self.z_box.add_class("left-spacing-class")
         # display(HTML("<style>.left-spacing-class {margin-left: 10px;}</style>"))
 
@@ -924,7 +945,7 @@ class ElixerWidget:
         self.z_hetdex_box = widgets.Text(
             value="",
             placeholder="-1 N/A",
-            description="z_hetdex:",
+            description="z_hetdex",
             disabled=True, #this is a display ONLY not user editable
             layout=Layout(width='42%')
         )
@@ -932,7 +953,7 @@ class ElixerWidget:
         self.comment_box = widgets.Text(
             value="",
             placeholder="Enter any comments here",
-            description="Comments:",
+            description="Comments",
             disabled=False,
             layout=Layout(width='40%')
         )
@@ -949,16 +970,16 @@ class ElixerWidget:
 
         self.clusterid_box = widgets.Text(
             value="",
-            description="Parent ID:",
-            layout=Layout(width="20%"),
+            description="Selected Det",
+            layout=Layout(width="22%"),
             disabled=False,
             #layout=Layout(width='50%')
         )
 
         self.catalog_sourceid_box = widgets.Text(
             value="",
-            description="Source ID:",
-            layout=Layout(width="20%"),
+            description="Source ID",
+            layout=Layout(width="24%"),
             disabled=True,
             #layout=Layout(width='50%')
         )
@@ -966,7 +987,7 @@ class ElixerWidget:
         self.catalog_comment_box = widgets.Text(
             value="",
             placeholder="Enter any comments here",
-            description="Comments:",
+            description="Comments",
             disabled=False,
             layout=Layout(width='79%')
         )
@@ -974,7 +995,7 @@ class ElixerWidget:
         self.catalog_status_box = widgets.Textarea(
             value="",
             placeholder= "",
-            description="Status:",
+            description="Status",
             disabled=False,
             layout=Layout(width="80%"),
         )
@@ -982,7 +1003,7 @@ class ElixerWidget:
         self.status_box = widgets.Textarea(
             value="",
             placeholder= "OK",
-            description="Status:",
+            description="Status",
             disabled=False,
             layout=Layout(width="80%"),
         )
@@ -1149,10 +1170,22 @@ class ElixerWidget:
 
         global current_wavelength, line_id_dict_lae_wave
 
+        if not self.manual_update_dialog_active:
+            return
+
+        #only one of the 3 dropdowns can initiate a change
+        #the other 2 are then blocked so we don't create a loop
+        if self.line_wave_z_update_in_progress:
+            return
+        else:
+            self.line_wave_z_update_in_progress = True
+
+
         _old_wave = event["old"]
         _new_wave = event["new"]
 
         if _old_wave == _new_wave:
+            self.line_wave_z_update_in_progress = False
             return
 
         if _new_wave < 0:  # i.e. a -1.00
@@ -1167,13 +1200,62 @@ class ElixerWidget:
             #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
             z = current_wavelength / _new_wave - 1.0
             #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
+            #print("Calling z_correction (1)")
             self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
 
             self.wave_box.value = np.round(_new_wave, 5)
 
-            # do NOT reset the line id label ... can cause a loop
-            # self.get_line_match(self.z_box.value, current_wavelength )
+            self.get_line_match(self.z_box.value, current_wavelength)
+            if self.line_id_drop.value != line_id_dict_default: #we have a match
+                #then re-set the rest_wave to be the official value
+                rest_wave = line_id_dict[self.line_id_drop.value] #could be an unknown, if so, don't change anything else
+                if rest_wave > 0:
+                    self.wave_box.value = line_id_dict[self.line_id_drop.value]
+                    z = current_wavelength/self.wave_box.value - 1.0
+                    self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
 
+        self.line_wave_z_update_in_progress = False
+
+    def _handle_z_box_selection(self, event):
+
+        global current_wavelength, line_id_dict_lae_wave
+
+        if not self.manual_update_dialog_active:
+            return
+
+        #only one of the 3 dropdowns can initiate a change
+        #the other 2 are then blocked so we don't create a loop
+        if self.line_wave_z_update_in_progress:
+            return
+        else:
+            self.line_wave_z_update_in_progress = True
+
+
+        _old_z = event["old"]
+        _new_z = event["new"]
+
+        if _old_z == _new_z:
+            self.line_wave_z_update_in_progress = False
+            return
+
+        if _new_z <= -1:  # i.e. a -1.00
+            self.line_id_drop.value = line_id_dict_default
+            self.wave_box.value = -1.0
+        else:
+            if current_wavelength < 0:  # need to find it
+                self.get_observed_wavelength()
+
+            #No, this is a user set z so, don't apply the extra corrections.
+            #print("Calling z_correction (1)")
+            #self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
+
+            line_id, rest_wave = self.get_line_match(self.z_box.value, current_wavelength)
+            if self.line_id_drop.value != line_id_dict_default: #we have a match
+                #then re-set the rest_wave to be the official value
+                self.wave_box.value = line_id_dict[self.line_id_drop.value]
+
+
+        self.line_wave_z_update_in_progress = False
 
     def _handle_class_labels_selection(self, event):
         pass
@@ -1193,12 +1275,23 @@ class ElixerWidget:
         """
         global current_wavelength, line_id_dict_lae_wave
 
+        if not self.manual_update_dialog_active:
+            return
+
+        #only one of the 3 dropdowns can initiate a change
+        #the other 2 are then blocked so we don't create a loop
+        if self.line_wave_z_update_in_progress:
+            return
+        else:
+            self.line_wave_z_update_in_progress = True
+
         _old = event["old"]
         _old_wave = line_id_dict[_old]
         _new = event["new"]
         _new_wave = line_id_dict[_new]
 
         if _old_wave == _new_wave:
+            self.line_wave_z_update_in_progress = False
             return
 
         if _new_wave < 0:  # i.e. a -1.00
@@ -1213,6 +1306,7 @@ class ElixerWidget:
             #self.z_box.value = np.round(current_wavelength / _new_wave - 1.0, 5)
             z = current_wavelength / _new_wave - 1.0
             #def z_correction(z,w_obs,vcor=None,shotid=None):#,*args):
+            #print("Calling z_correction (2)")
             self.z_box.value = SU.z_correction(z,current_wavelength,shotid=self.shotid)
 
             self.wave_box.value = np.round(_new_wave, 5)
@@ -1234,6 +1328,7 @@ class ElixerWidget:
 
         # print("Drop down event",event)
         # print(event['old'],event['new'],line_id_dict[event['new']])
+        self.line_wave_z_update_in_progress = False
 
     def goto_previous_detect(self):
 
@@ -1244,6 +1339,8 @@ class ElixerWidget:
                 ix -= 1
                 while self.detectid[ix] == old_id and ix < len(self.detectid):
                     ix -= 1
+            elif self.last_good_detectid is not None:
+                ix = np.where(self.detectid == self.last_good_detectid)[0][0]
             else:
                 ix = np.max(np.where(self.detectid <= np.int64(self.detectbox.value)))
 
@@ -1277,6 +1374,8 @@ class ElixerWidget:
                 ix += 1
                 while ix < len(self.detectid) and self.detectid[ix] == old_id:
                     ix += 1
+            elif self.last_good_detectid is not None:
+                ix = np.where(self.detectid == self.last_good_detectid)[0][0]
             else:
                 ix = np.where(self.detectid > np.int64(self.detectbox.value))[0][0]
 
@@ -1353,6 +1452,7 @@ class ElixerWidget:
                 restwave =obswave / (1.0 + z)
         elif restwave is not None and obswave is not None:
             z = obswave/restwave - 1.0
+            #print("Calling z_correction (3)")
             z = SU.z_correction(z,obswave,shotid=self.shotid)
         else:
             self.line_id_drop.value = line_id_dict_default
@@ -1394,6 +1494,7 @@ class ElixerWidget:
         #     return
 
         self.updateCatalog.disabled = False
+        self.manual_update_dialog_active = False
         #if idx is not None:
         #    self.z_box.value = self.z[idx]  # -1.0
 
@@ -1678,6 +1779,7 @@ class ElixerWidget:
 
         #print("On Update Catalog --- click")
 
+        self.manual_update_dialog_active = False
         detectid = np.int64(self.detectbox.value)
         #print("On Update Catalog --- click -- ID: ",detectid)
         is_continuum = self.detectbox.value[2] == '9'
@@ -1689,6 +1791,13 @@ class ElixerWidget:
 
 #            self.read_source_catalog_basic(detectid)
             self.read_source_catalog_update(detectid)
+
+            self.clusterid_box.value = str(self.sourcecat_parent_detectid)
+
+            if self.sourcecat_parent_detectid == 0 and self.sourcecat_source_id is not None and self.sourcecat_source_id != 0:
+                if self.catalog_sourceid_box.value is not None and \
+                   len(self.catalog_sourceid_box.value) > 4 and self.catalog_sourceid_box.value[0] != "*":
+                    self.catalog_sourceid_box.value = "* " + self.catalog_sourceid_box.value
 
             if self.shotid is None:
                 if self.detections_interface_lines is None or self.detections_interface_lines.survey != hdr:
@@ -1732,6 +1841,7 @@ class ElixerWidget:
                         [self.line_id_drop,
                          self.wave_box,
                          self.z_box,
+                         self.Uncluster,
                          ]))
 
                     display(widgets.HBox(
@@ -1744,10 +1854,34 @@ class ElixerWidget:
                          ]))
 
                 #self.focus()
+
+                if self.sourcecat_parent_detectid is None or self.sourcecat_parent_detectid == 0:
+                    self.UnclusterBtnDisable(True)
+                else:
+                    self.UnclusterBtnDisable(False)
+
+            self.manual_update_dialog_active = True
+
         except Exception as e:
+            self.manual_update_dialog_active = False
             print("Exception in on_update_catalog()",e)
             print(str(e) + "\n" + traceback.format_exc())
 
+
+    def UnclusterBtnDisable(self,disable=True):
+        if disable:
+            self.Uncluster.disabled = True
+            self.Uncluster.style.button_color = "gray"
+        else:
+            self.Uncluster.disabled = False
+            self.Uncluster.style.button_color = "blue"
+
+    def on_uncluster(self,b):
+        #set the cluster id to zero to indicate that this should be
+        # removed from the soruce ID in the main catalgo
+        self.sourcecat_parent_detectid = 0
+        self.clusterid_box.value = "0"
+        self.UnclusterBtnDisable(True)
 
     def on_do_update_catalog(self,b):
         #todo: perform the update to the manual catalog and audit file
@@ -1980,6 +2114,7 @@ class ElixerWidget:
                             #must be exactly one
                             if len(src_rows) == 1: #all good
                                 self.sourcecat_parent_detectid = src_rows['detectid'][0]
+                                #print(f"Setting sourcecat_parent_detctid as src_rows['detectid']]: {src_rows['detectid'][0]}")
 
                                 self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
                                                           f"cpid: {self.sourcecat_parent_detectid}"
@@ -1991,6 +2126,7 @@ class ElixerWidget:
                             print(traceback.format_exc())
                     else:
                         self.sourcecat_parent_detectid = q_detectid
+                        #print(f"Setting sourcecat_parent_detctid as q_detectid: {q_detectid}")
 
                         self.z_hetdex_box.value = f"{self.sourcecat_z_hetdex_src}: {self.sourcecat_z_hetdex:0.4f} " \
                                                   f"(q:{self.sourcecat_z_hetdex_conf:0.2f})"
@@ -2055,6 +2191,7 @@ class ElixerWidget:
                         self.ra = rows['ra'][0]
                         self.dec = rows['dec'][0]
                         self.sourcecat_parent_detectid = rows['cluster_parent'][0]
+                        #print(f"Load sourcecat_parent_detectid from EliXer(b): {self.sourcecat_parent_detectid}")
                         # self.sourcecat_sourceid = rows['sourceid'] #not in elixer
 
                        # print("elixer z value", self.sourcecat_z_hetdex)
@@ -2087,40 +2224,33 @@ class ElixerWidget:
 
             #print("read_source_catalog_update()")
 
-            #print("read_source_catalog_update: detectid: ", detectid)
 
             if detectid is None:
                 detectid = np.int64(self.detectbox.value)
-
-            #print("read_source_catalog_update: detectid: ", detectid)
 
             self.catalog_status_box.value = ""
 
             #read_source_catalog_basic() should have already happened
             if self.sourcecat_z_hetdex is None: #no entry was found, try elixer??
-                #print("read_source_catalog_update()    --- 1")
                 self.catalog_status_box.value = f"Source Catalog fail. No entries for {detectid}"
                 #try the elixer catalog, if there is one
 
                 if self.ELIXER_H5 is None and self.sourcecat_root_path is not None:
-                    #print("read_source_catalog_update()    --- 2")
+
                     try:
                         elixer_h5fn = os.path.join(self.sourcecat_root_path,
                                                            HETDEX_ELIXER_SUBPATH,HETDEX_ELIXER_FILE)
                         self.ELIXER_H5 = tables.open_file(elixer_h5fn)
                     except:
-                        #print("read_source_catalog_update()    --- 2b")
                         print(traceback.format_exc())
                         pass
 
 
                 if self.ELIXER_H5 is not None:
-                    #print("read_source_catalog_update()    --- 3")
                     q_detectid=detectid #self.detid
                     rows = self.ELIXER_H5.root.Detections.read_where("detectid==q_detectid")
                     ct = len(rows)
                     if len(rows) == 1: #there is an elixer entry
-                        print("read_source_catalog_update()    --- 4")
                         self.catalog_status_box.value += f"\nELiXer catalog success. {ct} entries for {q_detectid}"
                         self.sourcecat_z_hetdex = rows['z_best'][0]
                         self.sourcecat_z_hetdex_src = "elixer.h5"
@@ -2132,9 +2262,9 @@ class ElixerWidget:
                         self.ra = rows['ra'][0]
                         self.dec = rows['dec'][0]
                         self.sourcecat_parent_detectid = rows['cluster_parent'][0]
+                        #print(f"Load sourcecat_parent_detectid from ELiXer: {self.sourcecat_parent_detectid}")
                         #self.sourcecat_sourceid = rows['sourceid'] #not in elixer
 
-                        #print("elixer z value", self.sourcecat_z_hetdex)
                     else:
                         #print("elixer entry not found.")
                         self.catalog_status_box.value += f"\nELiXer catalog fail. No entries for {q_detectid}"
@@ -2144,6 +2274,7 @@ class ElixerWidget:
 
             if self.sourcecat_parent_detectid is not None:
                 self.clusterid_box.value = str(self.sourcecat_parent_detectid)
+                #print(f"setting clusterid_box.value: {self.sourcecat_parent_detectid}")
             else:
                 self.clusterid_box.value = "0"
 
@@ -2179,8 +2310,13 @@ class ElixerWidget:
 
                 if sct_row['z'] is not None and sct_row['z'] > -1:
                     self.sourcecat_z_hetdex = sct_row['z']
+
                 if sct_row['parent_detectid'] is not None and sct_row['parent_detectid'] > -1:
                     self.sourcecat_parent_detectid = sct_row['parent_detectid']
+                    #print(f"Load sourcecat_parent_detectid from sct_row: {self.sourcecat_parent_detectid}")
+                #else:
+                #    print(f"DO NOT Load sourcecat_parent_detectid from sct_row:")
+
                 if sct_row['conf_status'] is not None and sct_row['conf_status'] != 0:
                     #this is a short list, but this is otherwise a dumb brute force
                     #assume (and this should be true) that the keys and values are each unique
