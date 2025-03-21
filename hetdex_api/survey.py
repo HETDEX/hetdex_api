@@ -387,9 +387,23 @@ class FiberIndex:
         Function to return the fiber index and mask for a single shot
 
         Parameters
-        ----------                                                                                                                     self                                                                                                                               the FiberIndex class for a specific survey                                                                                 shotid                                                                                                                             Specific shotid (dtype=int) you want                                                                                       return_index: bool                                                                                                                 Option to return row index values for slicing. Default                                                                         is False                                                                                                                   return_flags: bool                                                                                                                 Option to return mask info. Default is True
-        
-        Returns                                                                                                                        -------                                                                                                                        fiber_table: astropy table                                                                                                          An astropy table of Fiber infomation in queried aperture                                                                  table_index: optional                                                                                                               an optional array of row coordinates corresponding to the                                                                      retrieved fiber table
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        shotid
+            Specific shotid (dtype=int) you want
+        return_index: bool
+            Option to return row index values for slicing. Default is False.
+        return_flags: bool
+            Option to return mask info. Default is True
+
+        Returns
+        -------
+        fiber_table: astropy table
+            An astropy table of Fiber infomation in queried aperture
+        table_index: optional
+            an optional array of row coordinates corresponding to the
+            retrieved fiber table
         """
 
         tab_idx = self.hdfile.root.FiberIndex.get_where_list("(shotid == shotid_obs)")
@@ -439,6 +453,7 @@ class FiberIndex:
         self,
         coords,
         radius=None,
+        width=None,
         shotid=None,
         return_index=False,
         return_flags=True,
@@ -454,6 +469,9 @@ class FiberIndex:
         coords
             center coordinate you want to search. This should
             be an astropy SkyCoord object
+        width
+            width of rectangle search if provided. An astropy quantity.
+            This will create a cutout of fibers width x width centered at coords.
         radius
             radius you want to search. An astropy quantity object
         shotid
@@ -478,36 +496,70 @@ class FiberIndex:
         ra_obj = coords.ra.deg
         dec_obj = coords.dec.deg
 
-        if radius is None:
-            radius = 3.5 * u.arcsec
+        if width is not None:
+            if radius is not None:
+                print('Extracting square cutout of width={:3.2f}. Ignoring radius parameter')
+            # retrieve square cutout region
+            width_deg = width.to(u.deg).value
+            ra_low = coords.ra.deg - 0.5*width_deg
+            ra_high = coords.ra.deg + 0.5*width_deg
 
-        ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
+            table_index = self.hdfile.root.FiberIndex.get_where_list( '(ra >= ra_low) & (ra <= ra_high)')    
 
-        vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
+            seltab = Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
 
-        pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
+            # now select in declination
+            idx = np.abs( seltab['dec'] - dec_obj) <= 0.5*width_deg
+                          
+            selected_index = np.array(table_index)[idx]
+                
+        else:
+            if radius is None:
+                print('Querying with default radius of 3.5 arcsec')
+                radius = 3.5 * u.arcsec
 
-        seltab = Table()
-        table_index = []
+            # if search radius is greater than 1 arcmin, use RA indexing to down-select
+            if radius >= 1*u.arcmin:
 
-        for hpix in pix_region:
-            if shotid:
-                h_tab, h_tab_index = self.get_fib_from_hp(
-                    hpix, shotid=shotid, return_index=True
-                )
+                rad_deg = radius.to(u.deg).value
+
+                ra_low = coords.ra.deg - rad_deg/np.cos( coords.dec)
+                ra_high = coords.ra.deg + rad_deg/np.cos( coords.dec)
+                table_index = self.hdfile.root.FiberIndex.get_where_list( '(ra >= ra_low) & (ra <= ra_high)')
+                seltab =  Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
+                fib_coords = SkyCoord( ra=seltab['ra']*u.deg, dec=seltab['dec']*u.deg)
+                idx = fib_coords.separation( coords) <= radius
+                selected_index = np.array(table_index)[idx]
+                
             else:
-                h_tab, h_tab_index = self.get_fib_from_hp(hpix, return_index=True)
-            seltab = vstack([seltab, h_tab])
-            table_index.extend(h_tab_index)
+                ra_sep = radius.to(u.degree).value + 4.0 / 3600.0
 
-        fibcoords = SkyCoord(
-            seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
-        )
+                vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
 
-        idx = coords.separation(fibcoords) < radius
+                pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
 
-        selected_index = np.array(table_index)[idx]
+                table_index = []
 
+                for hpix in pix_region:
+                    if shotid:
+                        h_tab, h_tab_index = self.get_fib_from_hp(
+                            hpix, shotid=shotid, return_index=True
+                        )
+                    else:
+                        h_tab, h_tab_index = self.get_fib_from_hp(hpix, return_index=True)
+                    
+                    table_index.extend(h_tab_index)
+
+                seltab = Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
+
+                fibcoords = SkyCoord(
+                    seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
+                )
+
+                idx = coords.separation(fibcoords) <= radius
+
+                selected_index = np.array(table_index)[idx]
+            
         if return_flags:
             if self.fibermaskh5 is None:
                 print("No fiber mask file found")
@@ -516,7 +568,6 @@ class FiberIndex:
                     self.fibermaskh5.root.Flags.read_coordinates(selected_index)
                 )
 
-            selected_index = np.array(table_index)[idx]
             fiber_table = hstack([seltab[idx], mask_table])
             # check fibers match
             for row in fiber_table:
