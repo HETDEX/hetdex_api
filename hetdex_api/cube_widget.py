@@ -106,8 +106,8 @@ class CubeWidget(ImageWidget):
                 self.im = hdu.data
                 self.wcs = WCS(hdu.header)
             except AttributeError:
-                self.im = hdu[0].data
-                self.wcs = WCS(hdu[0].header)
+                self.im = hdu[1].data
+                self.wcs = WCS(hdu[1].header)
                 
         elif im is not None:
             self.im = im
