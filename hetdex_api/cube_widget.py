@@ -102,7 +102,11 @@ class CubeWidget(ImageWidget):
         # self._4d_idx = 0  # Lock 4th dim to this for now
 
         if hdu is not None:
-            self.im = hdu.data
+            try:
+                self.im = hdu.data
+            except AttributeError:
+                self.im = hdu[0].data
+                
             self.wcs = WCS(hdu.header)
         elif im is not None:
             self.im = im
