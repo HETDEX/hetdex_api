@@ -46,11 +46,13 @@ def make_narrowband_image(
     subcont=False,
     dcont=50.0,
     include_error=False,
+    include_bitmask=False,
     survey=LATEST_HDR_NAME,
     extract_class=None,
     fiber_flux_offset=None,
     interp_kind="linear",
     apply_mask=False,
+    mask_options=None,
     fill_value=0.0,
 ):
     """
@@ -100,7 +102,19 @@ def make_narrowband_image(
         Options are 'linear', 'cubic', 'nearest'. Default is linear.
     apply_mask: bool
         Apply HETDEX fiber mask model. This will mask all fibers contributing
-        to the spectral extraction before summation. Masked in place as NaNs
+        to the spectral extraction before summation. Masked in place as NaN
+    mask_options
+        string or array of strings as options to select to mask. Default None
+        will select all flags. Set this to 'BITMASK' to return the full bitmask array.
+        Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
+        'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
+        If BITMASK appears as any element in the list, it overrides all others
+        and returns the full bitmask array.
+    include_bitmask
+        option to include additional bitmask array. This will be added in the 3rd
+        extension. Mask_options will be forced to bitmask. It will be applied in place
+        if apply_mask==True, otherwise only the pipeline mask will be applied in place.
+        If this is set, an error array is automatically applied in 2nd extension.
     fill_value: float, optional
         Value used to fill in for requested points outside of coverage or in a mask
         region. If not provided, then the default is 0.0.
@@ -158,12 +172,13 @@ def make_narrowband_image(
         imsize = 30.0 * u.arcsec
 
     if detectid is not None:
-
         # do not allow for detectid + any shotid/coords/wave_range
         if shotid is not None or wave_range is not None or coords is not None:
-            print('Can not override detectid paramters. Either enter a detectid or a shotid/coords/wave_range combination. Exiting')
+            print(
+                "Can not override detectid paramters. Either enter a detectid or a shotid/coords/wave_range combination. Exiting"
+            )
             return None
-        
+
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
         elif (detectid >= 2100000000) * (detectid < 2190000000):
@@ -203,7 +218,7 @@ def make_narrowband_image(
         linewidth = det_info["linewidth"]
         wave_range = [wave_obj - 2.0 * linewidth, wave_obj + 2.0 * linewidth]
         coords = SkyCoord(det_info["ra"], det_info["dec"], unit="deg")
-        
+
     elif coords is not None:
         if shotid is not None:
             shotid_obj = shotid
@@ -231,6 +246,13 @@ def make_narrowband_image(
 
     rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
 
+    if include_bitmask:
+        mask_options = "bitmask"
+        apply_mask = True
+
+        if include_error is False:
+            include_error = True
+
     info_result = E.get_fiberinfo_for_coord(
         coords,
         radius=rad,
@@ -238,6 +260,7 @@ def make_narrowband_image(
         ffsky_rescor=ffsky_rescor,
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
+        mask_options=mask_options,
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -268,10 +291,12 @@ def make_narrowband_image(
             convolve_image=convolve_image,
             interp_kind=interp_kind,
             fill_value=fill_value,
+            bitmask=include_bitmask,
         )
-        
+
         imslice = zarray[0]
         imerror = zarray[1]
+        imbitmask = zarray[2]
     else:
         zarray = E.make_narrowband_image(
             ifux_cen,
@@ -292,7 +317,6 @@ def make_narrowband_image(
         imslice = zarray[0]
 
     if subcont:
-
         wave_range_blue = [wave_range[0] - dcont - 10, wave_range[0] - 10]
 
         if wave_range_blue[0] <= 3500:
@@ -342,9 +366,9 @@ def make_narrowband_image(
         dwave = wave_range[1] - wave_range[0]
 
         if zarray_blue is None:
-            im_cont = zarray_red[0]/dcont
+            im_cont = zarray_red[0] / dcont
         elif zarray_red is None:
-            im_cont = zarray_blue[0]/dcont
+            im_cont = zarray_blue[0] / dcont
         else:
             im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
 
@@ -377,7 +401,7 @@ def make_narrowband_image(
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
     header["FFSKYRC"] = str(ffsky_rescor)
-    
+
     # Copy Shot table info
     shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
@@ -406,18 +430,22 @@ def make_narrowband_image(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
-    hdu = fits.PrimaryHDU(imslice, header=header)
-
     if extract_class is None:
         E.close()
 
+    # create an empty Primary HDU for 1st extension
+    hdu_primary = fits.PrimaryHDU()
+    hdu_data = fits.ImageHDU(imslice.astype(np.float32), header=header, name="DATA")
+
     if include_error:
-        hdu_error = fits.ImageHDU(imerror, header=header)
-        hdu_x = fits.ImageHDU(zarray[2], header=header)
-        hdu_y = fits.ImageHDU(zarray[3], header=header)
-        return fits.HDUList([hdu, hdu_error, hdu_x, hdu_y])
+        hdu_error = fits.ImageHDU(imerror.astype(np.float32), header=header, name="ERROR")
+        if include_bitmask:
+            hdu_bitmask = fits.ImageHDU(imbitmask.astype(np.int16), header=header, name="BITMASK")
+            return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
+        else:
+            return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
-        return hdu
+        return fits.HDUList([hdu_primary, hdu_data])
 
 
 def make_data_cube(
@@ -428,17 +456,17 @@ def make_data_cube(
     imsize=None,
     wave_range=[3470, 5540],
     dwave=2.0,
-    dcont=50.0,
     convolve_image=False,
     ffsky=False,
     ffsky_rescor=False,
-    subcont=False,
     survey=LATEST_HDR_NAME,
     fiber_flux_offset=None,
     interp_kind="linear",
     apply_mask=False,
-    fill_value=0.0,
     include_error=False,
+    include_bitmask=False,
+    mask_options=None,
+    fill_value=0.0,
 ):
     """
     Function to make a datacube from either a detectid or from a
@@ -465,14 +493,6 @@ def make_data_cube(
         option to use full frame calibrated fibers. Default False
     ffsky_rescor: bool
         option to use full frame calibrated fibers. Default is False
-    subcont: bool
-        option to subtract continuum. Default is False. This
-        will measure the continuum 50AA below and above the
-        input wave_range. Note: may remove this option. Not a good idea 
-        for datcubes
-    dcont: float
-        width in angstrom to measure the continuum. Default is to
-        measure 50 AA wide regions on either side of the line
     fiber_flux_offset: 1036 array
         array of values in units of 10**-17 ergs/s/cm2/AA to add
         to each fiber spectrum used in the extraction. Defaults
@@ -480,13 +500,27 @@ def make_data_cube(
     interp_kind: str
         Kind of interpolation to pixelated grid from fiber intensity.
         Options are 'linear', 'cubic', 'nearest'. Default is linear.
-    apply_mask: bool                                                                                            
-        Apply HETDEX fiber mask model. This will mask all fibers contributing
-        to the spectral extraction before summation. Masked in place according 
+    add_mask: bool                                                                                        Apply HETDEX fiber mask model. This will mask all fibers contributing
+        to the spectral extraction before summation. Masked in place according
         to fill_value
     fill_value: float, optional
         Value used to fill in for requested points outside of coverage or in a mask
         region. If not provided, then the default is 0.0.
+    apply_mask: bool
+        Apply HETDEX fiber mask model. This will mask all fibers contributing
+        to the spectral extraction before summation. Masked in place as NaN
+    mask_options
+        string or array of strings as options to select to mask. Default None
+        will select all flags. Set this to 'BITMASK' to return the full bitmask array.
+        Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
+        'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
+        If BITMASK appears as any element in the list, it overrides all others
+        and returns the full bitmask array.
+    include_bitmask
+        option to include additional bitmask array. This will be added in the 3rd
+        extension. Mask_options will be forced to bitmask. It will be applied in place
+        if apply_mask==True, otherwise only the pipeline mask will be applied in place.
+        If this is set, an error array is automatically applied in 2nd extension.
 
     Returns
     -------
@@ -519,7 +553,7 @@ def make_data_cube(
 
     if imsize is None:
         imsize = 30.0 * u.arcsec
-    
+
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
@@ -534,7 +568,7 @@ def make_data_cube(
         except:
             pass
     else:
-        # check to see if survey file is closed and open if so                                                                   
+        # check to see if survey file is closed and open if so
         try:
             surveyh5.root
         except AttributeError:
@@ -600,6 +634,13 @@ def make_data_cube(
 
     rad = imsize.to(u.arcsec).value
 
+    if include_bitmask:
+        mask_options = "bitmask"
+        apply_mask = True
+
+        if include_error is False:
+            include_error = True
+
     info_result = E.get_fiberinfo_for_coord(
         coords,
         radius=rad,
@@ -607,6 +648,7 @@ def make_data_cube(
         ffsky_rescor=ffsky_rescor,
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
+        mask_options=mask_options,
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -630,20 +672,20 @@ def make_data_cube(
     sys_rot = 1.55
     rot = 360.0 - (90.0 + pa + sys_rot)
     w.wcs.crota = [0, rot, 0]
-    #    rrot = np.deg2rad(rot)
-    #    w.wcs.pc = [[np.cos(rrot),
-    #                 np.sin(rrot),0],
-    #                [-1.0*np.sin(rrot),
-    #                 np.cos(rrot),0], [0,0,0]]
 
     im_cube = np.zeros((nwave, ndim, ndim))
 
+    if include_error:
+        im_errorcube = np.zeros((nwave, ndim, ndim))
+        if include_bitmask:
+            im_bitmaskcube = np.zeros((nwave, ndim, ndim))
+    
     wave_i = wave_range[0]
     i = 0
 
     while wave_i <= wave_range[1]:
         try:
-            im_src = E.make_narrowband_image(
+            zarray = E.make_narrowband_image(
                 ifux_cen,
                 ifuy_cen,
                 ifux,
@@ -652,57 +694,32 @@ def make_data_cube(
                 mask,
                 scale=pixscale.to(u.arcsec).value,
                 wrange=[wave_i, wave_i + dwave],
-                nchunks=1,
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
                 interp_kind=interp_kind,
                 fill_value=fill_value,
+                error=error,
+                bitmask=include_bitmask,
             )
 
-            im_slice = im_src[0]
-
-            if subcont:
-                zarray_blue = E.make_narrowband_image(
-                    ifux_cen,
-                    ifuy_cen,
-                    ifux,
-                    ifuy,
-                    data,
-                    mask,
-                    seeing_fac=fwhm,
-                    scale=pixscale.to(u.arcsec).value,
-                    boxsize=imsize.to(u.arcsec).value,
-                    nchunks=2,
-                    wrange=[wave_i - dcont, wave_i],
-                    convolve_image=convolve_image,
-                    interp_kind=interp_kind,
-                    fill_value=fill_value,
-                )
-                zarray_red = E.make_narrowband_image(
-                    ifux_cen,
-                    ifuy_cen,
-                    ifux,
-                    ifuy,
-                    data,
-                    mask,
-                    seeing_fac=fwhm,
-                    nchunks=2,
-                    scale=pixscale.to(u.arcsec).value,
-                    boxsize=imsize.to(u.arcsec).value,
-                    wrange=[wave_i + dwave, wave_i + dwave + dcont],
-                    convolve_image=convolve_image,
-                    interp_kind=interp_kind,
-                    fill_value=fill_value,
-                )
-
-                im_cont = (zarray_blue[0] + zarray_red[0]) / (2 * dcont)
-                im_slice = im_src[0] - dwave * im_cont
+            im_slice = zarray[0]
+            im_error = zarray[1]
+            im_bitmask = zarray[2]
 
             im_cube[i, :, :] = im_slice
 
-        except Exception:
+            if include_error:
+                im_errorcube[i, :, :] = im_error
+                if include_bitmask:
+                    im_bitmaskcube[i, :, :] = im_bitmask
+        except ValueError:
+#        except Exception:
             im_cube[i, :, :] = np.zeros((ndim, ndim))
+            if include_error:
+                im_errorcube[i, :, :] = np.zeros((ndim, ndim))
+                if include_bitmask:
+                    im_bitmaskcube[i, :, :] = np.zeros((ndim, ndim))
         wave_i += dwave
         i += 1
 
@@ -715,10 +732,9 @@ def make_data_cube(
     header["MASK"] = str(apply_mask)
     header["CONVOLVE"] = str(convolve_image)
     header["INTERP"] = interp_kind
-    header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
     header["FFSKYRC"] = str(ffsky_rescor)
-    
+
     # Copy Shot table info
     shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
@@ -747,7 +763,20 @@ def make_data_cube(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
-    hdu = fits.PrimaryHDU(im_cube, header=header)
+    # create an empty Primary HDU for 1st extension
+    hdu_primary = fits.PrimaryHDU()
+    hdu_data = fits.ImageHDU(im_cube.astype(np.float32), header=header, name="DATA")
+
+    if include_error:
+        hdu_error = fits.ImageHDU(im_errorcube.astype(np.float32), header=header, name="ERROR")
+
+        if include_bitmask:
+            hdu_bitmask = fits.ImageHDU(im_bitmaskcube.astype(np.int16), header=header, name="BITMASK")
+            return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
+        else:
+            return fits.HDUList([hdu_primary, hdu_data, hdu_error])
+    else:
+        return fits.HDUList([hdu_primary, hdu_data])
 
     E.close()
 
