@@ -515,7 +515,6 @@ class FiberIndex:
                 
         else:
             if radius is None:
-                print('Querying with default radius of 3.5 arcsec')
                 radius = 3.5 * u.arcsec
 
             # if search radius is greater than 1 arcmin, use RA indexing to down-select
