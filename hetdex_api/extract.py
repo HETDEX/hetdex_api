@@ -483,6 +483,7 @@ class Extract:
                                 verbose=False,
                                 fiber_flux_offset=None,
                                 add_mask=False,
+                                mask_options=None,
     ):
         """ 
         Grab fibers within a radius and get relevant info
@@ -512,7 +513,14 @@ class Extract:
             This is a post-HDR4 correction
         add_mask: bool
             Option to use updated mask model created by EMC 2023-12-15. This is a
-            post-HDR4 correction
+            post-HDR4 correction. Will use default model unless mask_options is provided
+        mask_options
+            string or array of strings as options to select to mask. Default None 
+            will select all flags. Set this to 'BITMASK' to return the full bitmask array.
+            Options are 'MAIN', 'FTF', 'CHI2FIB', 'BADPIX', 'BADAMP', 'LARGEGAL', 'METEOR',
+            'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
+            If BITMASK appears as any element in the list, it overrides all others 
+            and returns the full bitmask array.
 
         Returns
         -------
@@ -606,6 +614,7 @@ class Extract:
                 fiber_flux_offset=fiber_flux_offset,
                 add_rescor=ffsky_rescor,
                 add_mask=add_mask,
+                mask_options=mask_options,
             )
 
             if np.size(fib_table) < fiber_lower_limit:
@@ -1104,10 +1113,10 @@ class Extract:
         seeing_fac=1.8,
         boxsize=4.0,
         wrange=[3470, 5540],
-        nchunks=11,
         convolve_image=False,
         interp_kind="linear",
         fill_value=0.0,
+        bitmask=False,
     ):
         """
         Sum spectra across a wavelength range or filter to make a single image
@@ -1146,6 +1155,9 @@ class Extract:
         fill_value: float, optional
             Value used to fill in for requested points outside of coverage or in a mask
             region. If not provided, then the default is nan.
+        bitmask: bool
+            Option to include an extension with interpolated bitmask array for slice.
+            mask parameter must be in bitmask format.
 
         Returns
         -------
@@ -1156,6 +1168,12 @@ class Extract:
             in relative arcsec from center coordinates
         
         """
+
+        if bitmask:
+            if error is None:
+                print('You must provide an error and bitmask array for bitmask=True option')
+                return None
+                
         a, b = data.shape
         N = int(boxsize / scale)
         xl, xh = (xc - boxsize / 2.0, xc + boxsize / 2.0)
@@ -1177,14 +1195,22 @@ class Extract:
             self.log.warning('Using "linear" for interp_kind')
             interp_kind = "linear"
 
-        marray = np.ma.array(data[:, sel], mask=mask[:, sel] < 1e-8)
+        if bitmask:
+            # only apply native masking
+            image_mask = mask[:, sel] == 1
+        else:
+            image_mask = mask[:, sel] < 1e-8
+
+        marray = np.ma.array(data[:, sel], mask=image_mask)
         image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
 
         if error is not None:
-            marray = np.ma.array(error[:, sel], mask=mask[:, sel] < 1e-8)
+            marray = np.ma.array(error[:, sel], mask=image_mask)
             error_image = np.sqrt(2.*np.ma.sum(marray**2, axis=1))
             # multiply for 2AA bins. Add error in quadrature
-
+        if bitmask:
+            bitmask_image = np.max( mask[:, sel], axis=1 )
+        
         S[:, 0] = xloc - np.mean(self.ADRx[sel])
         S[:, 1] = yloc - np.mean(self.ADRy[sel])
 
@@ -1232,7 +1258,17 @@ class Extract:
 
             # mask image Added by EMC 2024-04-16
             grid_z_error[~grid_mask] = np.nan
-        
+        if bitmask:
+            grid_bitmask = (
+                griddata(
+                    S,
+                    bitmask_image,
+                    (xgrid, ygrid),
+                    method='nearest',
+                    fill_value=-1, # no mask value where we have no coverage
+                )
+            ).astype(int)
+                       
         if convolve_image:
             grid_z = convolve(grid_z, G)
             if error is not None:
@@ -1244,13 +1280,23 @@ class Extract:
             image[np.isnan(image)] = fill_value
             zarray = np.array([image, xgrid - xc, ygrid - yc])
         else:
-            image = grid_z
-            #Added by EMC 2024-04-16 
-            image[np.isnan(image)] = fill_value
-            image_error = grid_z_error
-            image_error[np.isnan(image_error)] = fill_value
-                               
-            zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
+            if bitmask:
+                image = grid_z
+
+                image[np.isnan(image)] = fill_value
+                image_error = grid_z_error
+                image_error[np.isnan(image_error)] = fill_value
+
+                zarray = np.array([image, image_error, grid_bitmask, xgrid - xc, ygrid - yc])
+            else:
+                
+                image = grid_z
+                #Added by EMC 2024-04-16 
+                image[np.isnan(image)] = fill_value
+                image_error = grid_z_error
+                image_error[np.isnan(image_error)] = fill_value
+                
+                zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
         
         return zarray
 
