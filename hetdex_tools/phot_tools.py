@@ -85,9 +85,9 @@ def fit_circular_aperture(
     Fit a circular aperture with either an HDU object or and
     """
 
-    im = hdu[0].data
-    error = hdu[1].data
-    w = wcs.WCS(hdu[0].header)
+    im = hdu[1].data
+    error = hdu[2].data
+    w = wcs.WCS(hdu[1].header)
 
     # create mask (set True for where you want to mask)
     im_mask = im == 0
