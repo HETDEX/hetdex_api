@@ -4,7 +4,7 @@ Created on Mon Mar 11 11:48:55 2019
 
 Note: this uses nway and pandas
 
-@author: gregz
+@authors: gregz, Erin Mentuch Cooper, Daneil Farrow, Dustin Davis
 """
 
 import numpy as np
@@ -1217,17 +1217,20 @@ class Extract:
         if np.sum( image.data[~image.mask]) == 0:
             grid_z = np.zeros_like(xgrid)
         else:
-            grid_z = (
-                griddata(
-                    S[~image.mask],
-                    image.data[~image.mask],
-                    (xgrid, ygrid),
-                    method=interp_kind,
-                    fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
+            try:
+                grid_z = (
+                    griddata(
+                        S[~image.mask],
+                        image.data[~image.mask],
+                        (xgrid, ygrid),
+                        method=interp_kind,
+                        fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
+                    )
+                    * scale ** 2
+                    / area
                 )
-                * scale ** 2
-                / area
-            )
+            except Exception:
+                grid_z = np.zeros_like(xgrid)
 
         # convert back to nan
         grid_z[ grid_z==0.0] = np.nan
@@ -1242,17 +1245,20 @@ class Extract:
             if np.sum( error_image.data[~error_image.mask]) == 0:
                 grid_z_error = np.zeros_like(xgrid)
             else:
-                grid_z_error = (
-                    griddata(
-                        S[~error_image.mask],
-                        error_image.data[~error_image.mask],
-                        (xgrid, ygrid),
-                        method=interp_kind,
-                        fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
+                try:
+                    grid_z_error = (
+                        griddata(
+                            S[~error_image.mask],
+                            error_image.data[~error_image.mask],
+                            (xgrid, ygrid),
+                            method=interp_kind,
+                            fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
+                        )
+                        * scale ** 2
+                        / area
                     )
-                    * scale ** 2
-                    / area
-                )
+                except:
+                    grid_z_error = np.zeros_like(xgrid)
                 
             grid_z_error[ grid_z_error<=0.0] = np.nan
 
