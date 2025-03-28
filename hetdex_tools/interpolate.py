@@ -619,7 +619,7 @@ def make_data_cube(
 
     if extract_class is None:
         E = Extract()
-        E.load_shot(shotid_obj, fibers=False, survey=survey)
+        E.load_shot(shotid, fibers=False, survey=survey)
     else:
         E = extract_class
 
