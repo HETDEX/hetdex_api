@@ -467,6 +467,7 @@ def make_data_cube(
     include_bitmask=False,
     mask_options=None,
     fill_value=0.0,
+    extract_class=None,
 ):
     """
     Function to make a datacube from either a detectid or from a
@@ -616,8 +617,11 @@ def make_data_cube(
     if coords is None or shotid is None:
         print("Provide a detectid or both a coords and shotid")
 
-    E = Extract()
-    E.load_shot(shotid, fibers=False, survey=survey)
+    if extract_class is None:
+        E = Extract()
+        E.load_shot(shotid_obj, fibers=False, survey=survey)
+    else:
+        E = extract_class
 
     # get spatial dims:
     ndim = int(imsize / pixscale)
@@ -778,6 +782,7 @@ def make_data_cube(
     else:
         return fits.HDUList([hdu_primary, hdu_data])
 
-    E.close()
+    if extract_class is None:
+        E.close()
 
     return hdu
