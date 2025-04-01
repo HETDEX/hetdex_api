@@ -1,4 +1,7 @@
 import numpy as np
+
+import os.path as op
+
 from astropy.table import Table, hstack
 from hetdex_api.survey import  FiberIndex, Survey
 from multiprocessing import Pool
@@ -6,6 +9,11 @@ import time
 
 
 def make_ascii_fiber_table( shotid):
+
+    datevobs = "{}v{}".format( str(shotid)[0:8], str(shotid)[8:])
+
+    if op.exists('fiber_index_mask/{}/fibmask_{}_{}.txt'.format(version, datevobs, version)):
+        return
 
     try:
         fib_tab = FibIndex.return_shot( shotid)
@@ -32,17 +40,18 @@ def make_ascii_fiber_table( shotid):
 FibIndex = FiberIndex('hdr5')
 S = Survey('hdr5')
 
-version='5.0.0'
+version='5.0.1'
 
 sel_good = S.remove_shots()
 shotlist = S.shotid[sel_good]
 
 t0 = time.time()
-P = Pool(32)
+P = Pool(24)
 res = P.map( make_ascii_fiber_table, shotlist)
 P.close()
 t1 = time.time()
 
 FibIndex.close()
+S.close()
 
 print('Done in {:3.2f} min.'.format( (t1-t0)/60))
