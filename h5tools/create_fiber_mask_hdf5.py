@@ -22,6 +22,7 @@ import numpy as np
 import tables as tb
 
 from scipy.interpolate import interp1d
+from scipy.ndimage import binary_dilation
 
 from astropy.table import Table, hstack
 from astropy.nddata import bitmask
@@ -47,7 +48,7 @@ class CALFIB_DQ(BitFlagNameMap):
     BADFIB = 512
     SATELLITE = 1024
     BADCAL = 2048
-
+    PIXMASK = 4096
     
 def main(argv=None):
     """Main Function"""
@@ -113,7 +114,7 @@ def main(argv=None):
 
     # acccess fiber data with selected columns to save memory
     try:
-        cols_to_keep = ['fiber_id','multiframe','fibnum','calfib','calfibe', 'trace','chi2','fiber_to_fiber', 'wavelength']
+        cols_to_keep = ['fiber_id','multiframe','fibnum','calfib','calfibe', 'trace','chi2','fiber_to_fiber', 'wavelength', 'spectrum']
         spec_tab = get_fibers_table(shotid_obj, survey=args.survey)[cols_to_keep]
     except:
         if shotid_obj not in badshot:
@@ -195,10 +196,10 @@ def main(argv=None):
     ftf = np.array(spec_tab["fiber_to_fiber"])
 
     chi2fib = np.zeros_like(calfib)
-
     trace_data = np.zeros_like(calfib)
+    spectrum = np.zeros_like(calfib)
 
-    # interpolate chi2 and trace into rectified wavelength
+    # interpolate chi2, trace, spectrum into rectified wavelength
     for i in np.arange(0, nfibs):
         chi2_interp = interp1d(
             np.array(spec_tab["wavelength"][i]),
@@ -215,6 +216,21 @@ def main(argv=None):
             kind="nearest",
         )
         trace_data[i] = trace_interp(np.arange(1, 1037))
+
+        spec_interp = interp1d(
+            np.array(spec_tab["wavelength"][i]),
+            np.array(spec_tab["spectrum"][i]),
+            fill_value="extrapolate",
+            kind="nearest",
+        )
+
+        spectrum[i] = spec_interp(wave_rect)
+        
+    # Get native pixel mask when spectrum==0, expand +/- 1 in wave dim    
+    pixmask = spectrum == 0
+    structure = np.array([[1, 1, 1]])
+    # Apply binary dilation along axis=1
+    mask_pixmask = binary_dilation(pixmask, structure=structure)
 
     # Get bad pix mask
     mask_badpix = np.ones_like(calfib, dtype=bool)
@@ -233,7 +249,7 @@ def main(argv=None):
     mask_ftf_per_fib = np.median(ftf, axis=1) > 0.5  # only one per fiber
     mask_ftf = np.dstack([mask_ftf_per_fib] * 1036)[0]
 
-    mask_chi2fib = chi2fib < 150
+    mask_chi2fib = chi2fib < 5 #Much Stricter. Updated 2025-03-28 EMC (from 150)
 
     # add badcal mask
     mask_badcal =  np.ones_like(calfib, dtype=bool)
@@ -285,7 +301,7 @@ def main(argv=None):
         + CALFIB_DQ.BADFIB * np.invert(mask_badfib)
         + CALFIB_DQ.SATELLITE * np.invert(mask_satellite)
         + CALFIB_DQ.BADCAL * np.invert(mask_badcal)
-        
+        + CALFIB_DQ.PIXMASK * np.invert(mask_pixmask)
     )
 
     flags = fileh.create_table(
