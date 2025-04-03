@@ -49,6 +49,8 @@ class CALFIB_DQ(BitFlagNameMap):
     THROUGHPUT = 256
     BADFIB = 512
     SAT = 1024
+    BADCAL = 2048
+    PIXMASK = 4096
 
 def open_shot_file(shotid, survey=LATEST_HDR_NAME):
     """
