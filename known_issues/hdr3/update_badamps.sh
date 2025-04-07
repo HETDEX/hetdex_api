@@ -29,6 +29,8 @@ import sys
 import numpy as np
 import hetdex_api
 
+INSERT_MISSING_SINGLE = True #allow specific shotid mf_amp to be inserted for a single date. DOES NOT APPLY to date ranges.
+
 badamps_path = op.join("/".join(hetdex_api.__path__[0].split("/")[:-1]),"known_issues/hdr3/") #note all hdr(x) point to hdr3
 
 bad_flag_value = 0
@@ -105,7 +107,11 @@ for row in tqdm(T2):
         #update
         T0['flag'][sel] = bad_flag_value
     else:
-        print(f"Not found: {shotid} {mf}")
+        if INSERT_MISSING_SINGLE:
+            #not split out by exposure
+            T0.add_row([shotid,mf,bad_flag_value,int(str(shotid)[0:8])])
+        else:
+            print(f"Not found: {shotid} {mf}")
 
     #now the full version
     sel = np.array(T0_full['multiframe']==mf) & np.array(T0_full['shotid'] == shotid)
@@ -114,6 +120,16 @@ for row in tqdm(T2):
         #update
         T0_full['flag_manual'][sel] = bad_flag_value
         T0_full['flag_manual_desc'][sel] = b'badamps.list'
+    # NO, do not insert a new entry in the _full version. That is reserved explicitly for those
+    # that have had their full statistics calculated. Only insert into the simplified table above.
+    # elif INSERT_MISSING_SINGLE:
+    #     #WARNING!!! values must match columns defined in  HETDEX_API ../h5tools/amp_stats.py
+    #     for exp in [1,2,3]:
+    #         T0_full.add_row([shotid,mf,exp,-999.,-999.,-999.,-999.,-999.,-999.,-999.,
+    #                          -1,-999.,-999.,-999.,-999.,-999.,-999.,-999.,
+    #                          -1,int(str(shotid)[0:8]),bad_flag_value,bad_flag_value,b"badamps.list insert missing row"])
+    #
+
 
 T0.remove_column('date')
 T0.write(f"{recfn0}.updated.fits",overwrite=True,format="fits")
