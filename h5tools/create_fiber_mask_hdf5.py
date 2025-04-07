@@ -227,7 +227,7 @@ def main(argv=None):
         spectrum[i] = spec_interp(wave_rect)
         
     # Get native pixel mask when spectrum==0, expand +/- 1 in wave dim    
-    pixmask = spectrum == 0
+    pixmask = spectrum != 0
     structure = np.array([[1, 1, 1]])
     # Apply binary dilation along axis=1
     mask_pixmask = binary_dilation(pixmask, structure=structure)
