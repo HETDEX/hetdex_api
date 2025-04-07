@@ -122,8 +122,11 @@ def amp_flag_from_fiberid(fiberid, bad_amps_table):
 
     sel = (bad_amps_table["shotid"] == shotid) * (bad_amps_table["multiframe"] == mf)
 
-    return bad_amps_table["flag"][sel][0]
-
+    if np.sum(sel) > 0:
+        return bad_amps_table["flag"][sel][0]
+    else:
+        print('No match for amplifier in amp_flag.fits', shotid, mf)
+        return True
 
 def amp_flag_from_closest_fiber(
     coords, FibIndex, bad_amps_table, shotid=None, maxdistance=None
