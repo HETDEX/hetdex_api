@@ -8,8 +8,8 @@ Based on Dr. Erin Mentuch Cooper's original elixer_widgets.py
 
 """
 
-ALLOW_MANUAL_CATALOG_UPDATE = False
-ALLOW_CLASSIFICATION_BUTTONS = True
+ALLOW_MANUAL_CATALOG_UPDATE = True
+ALLOW_CLASSIFICATION_BUTTONS = False
 
 import numpy as np
 import matplotlib.pyplot as plt
