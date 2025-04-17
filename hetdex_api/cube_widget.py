@@ -152,7 +152,7 @@ class CubeWidget(ImageWidget):
 
         # In __init__ or similar widget setup
         self.smooth_slider = widgets.IntSlider(
-            description='Smooth σ', min=0, max=10, step=1, value=0, continuous_update=True
+            description='Smooth σ', min=0, max=10, step=1, value=0, continuous_update=False
         )
         
         self.animate_button = widgets.Button(
