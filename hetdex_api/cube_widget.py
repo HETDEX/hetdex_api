@@ -22,6 +22,8 @@ from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.nddata import NDData
 
+from scipy.ndimage import gaussian_filter1d
+
 from ginga.AstroImage import AstroImage
 from astrowidgets import ImageWidget
 import ipywidgets as widgets
@@ -32,6 +34,9 @@ import plotly.graph_objects as go
 
 from matplotlib import pyplot as plt
 import matplotlib.colors
+
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 plt.ioff()
 plt.rcParams.update({'font.size': 18})
@@ -97,7 +102,11 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
 
     
 class CubeWidget(ImageWidget):
-    def __init__(self, hdu=None, im=None, wcs=None, show_rainbow=True, *args, **kwargs):
+    def __init__(self,
+                 hdu=None,
+                 im=None,
+                 wcs=None,
+                 show_rainbow=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # self._4d_idx = 0  # Lock 4th dim to this for now
 
@@ -141,6 +150,11 @@ class CubeWidget(ImageWidget):
 
         self.slider = widgets.interactive(self.show_slice, wave=self.wave_widget)
 
+        # In __init__ or similar widget setup
+        self.smooth_slider = widgets.IntSlider(
+            description='Smooth σ', min=0, max=10, step=1, value=0, continuous_update=True
+        )
+        
         self.animate_button = widgets.Button(
             description="Scan Cube",
             disabled=False,
@@ -181,12 +195,16 @@ class CubeWidget(ImageWidget):
 
         left_panel = widgets.VBox([widgets.HBox([self.wave_widget, self.scan]), self])
 
-        right_panel = widgets.VBox([self.line_plot, self.single_plot_button])
+        right_panel = widgets.VBox([
+            self.line_plot,
+            self.smooth_slider,
+            self.single_plot_button])
         
         self.all_box = widgets.HBox([left_panel, right_panel])
 
         display(self.all_box)
 
+        self.smooth_slider.observe(self.plot_spec, names='value')
 #        self.single_plot_button.observe(self.clear_plot)
         
 #    def clear_plot(self):
@@ -237,6 +255,10 @@ class CubeWidget(ImageWidget):
         except IndexError:
             return
 
+        if self.smooth_slider.value > 0:
+            spec_smooth = gaussian_filter1d(self.spectrum, sigma=self.smooth_slider.value)
+            self.spectrum = spec_smooth.copy()
+            
         if trace_freeze is False:
             if self.single_plot_button.value:
                 self.line_plot.data = []
@@ -296,3 +318,6 @@ class CubeWidget(ImageWidget):
         self.image_show_slice(n - 1)
         self.plot_spec(trace_freeze=True)	
         super()._mouse_click_cb(viewer, event, data_x, data_y)
+
+
+        
