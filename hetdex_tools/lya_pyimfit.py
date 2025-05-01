@@ -147,6 +147,8 @@ def do_pyimfit(
                 subcont=subcont,
                 convolve_image=convolve_image,
                 include_error=True,
+                include_grid=True,
+                include_bitmask=True,
                 survey=survey,
                 ffsky=ffsky,
                 interp_kind="cubic",
@@ -196,6 +198,8 @@ def do_pyimfit(
             subcont=subcont,
             convolve_image=convolve_image,
             include_error=True,
+            include_grid=True,
+            include_bitmask=True,
             survey=survey,
             ffsky=ffsky,
             interp_kind="cubic",
@@ -248,6 +252,7 @@ def do_pyimfit(
     spec_table = get_spectra(
         coords_obj, shotid=shotid_obj, multiprocess=False, loglevel="WARNING"
     )
+
     const_arcsec_to_kpc = cosmo.kpc_proper_per_arcmin(redshift).value / 60.0
 
     def arcsec_to_kpc(sma):
@@ -1340,7 +1345,7 @@ def get_parser():
 
     parser.add_argument(
         "--null_ellipticity",
-        help="""Trigger to conolve image to FWHM seeing""",
+        help="""Trigger to force symmetrical profiles only""",
         default=False,
         required=False,
         action="store_true",
