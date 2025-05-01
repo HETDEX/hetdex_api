@@ -54,7 +54,7 @@ def make_narrowband_image(
     apply_mask=False,
     mask_options=None,
     fill_value=0.0,
-    return_grid=False,
+    include_grid=False,
 ):
     """
     Function to make narrowband image from either a detectid or from a
@@ -119,7 +119,7 @@ def make_narrowband_image(
     fill_value: float, optional
         Value used to fill in for requested points outside of coverage or in a mask
         region. If not provided, then the default is 0.0.
-    return_grid: bool
+    include_grid: bool
         Option to include xgrid, ygrid. This is used in lya_pyimfit.py. It is an array
         containing distance from center in arcsec matched to datagrid
 
@@ -445,7 +445,7 @@ def make_narrowband_image(
     hdu_primary = fits.PrimaryHDU()
     hdu_data = fits.ImageHDU(imslice.astype(np.float32), header=header, name="DATA")
 
-    if return_grid:
+    if include_grid:
         hdu_x = fits.ImageHDU(xgrid, header=header)
         hdu_y = fits.ImageHDU(ygrid, header=header)
         
@@ -459,12 +459,12 @@ def make_narrowband_image(
             else:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
-            if return_grid:
+            if include_grid:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdux, hduy])
             else:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
-        if return_grid:
+        if include_grid:
             return fits.HDUList([hdu_primary, hdu_data, hdux, hduy])
         else:
             return fits.HDUList([hdu_primary, hdu_data])
