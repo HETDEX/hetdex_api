@@ -54,6 +54,7 @@ def make_narrowband_image(
     apply_mask=False,
     mask_options=None,
     fill_value=0.0,
+    return_grid=False,
 ):
     """
     Function to make narrowband image from either a detectid or from a
@@ -118,6 +119,9 @@ def make_narrowband_image(
     fill_value: float, optional
         Value used to fill in for requested points outside of coverage or in a mask
         region. If not provided, then the default is 0.0.
+    return_grid: bool
+        Option to include xgrid, ygrid. This is used in lya_pyimfit.py. It is an array
+        containing distance from center in arcsec matched to datagrid
 
     Returns
     -------
@@ -297,6 +301,8 @@ def make_narrowband_image(
         imslice = zarray[0]
         imerror = zarray[1]
         imbitmask = zarray[2]
+        xgrid = zarray[3]
+        ygrid = zarray[4]
     else:
         zarray = E.make_narrowband_image(
             ifux_cen,
@@ -315,6 +321,8 @@ def make_narrowband_image(
         )
 
         imslice = zarray[0]
+        xgrid = zarray[1]
+        ygrid = zarray[2]
 
     if subcont:
         wave_range_blue = [wave_range[0] - dcont - 10, wave_range[0] - 10]
@@ -437,16 +445,30 @@ def make_narrowband_image(
     hdu_primary = fits.PrimaryHDU()
     hdu_data = fits.ImageHDU(imslice.astype(np.float32), header=header, name="DATA")
 
+    if return_grid:
+        hdu_x = fits.ImageHDU(xgrid, header=header)
+        hdu_y = fits.ImageHDU(ygrid, header=header)
+        
     if include_error:
+        
         hdu_error = fits.ImageHDU(imerror.astype(np.float32), header=header, name="ERROR")
         if include_bitmask:
             hdu_bitmask = fits.ImageHDU(imbitmask.astype(np.int16), header=header, name="BITMASK")
-            return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
+            if include_grid:
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask, hdu_x, hdu_y])
+            else:
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
-            return fits.HDUList([hdu_primary, hdu_data, hdu_error])
+            if return_grid:
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdux, hduy])
+            else:
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
-        return fits.HDUList([hdu_primary, hdu_data])
-
+        if return_grid:
+            return fits.HDUList([hdu_primary, hdu_data, hdux, hduy])
+        else:
+            return fits.HDUList([hdu_primary, hdu_data])
+    
 
 def make_data_cube(
     detectid=None,
