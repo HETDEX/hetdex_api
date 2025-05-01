@@ -1,9 +1,10 @@
-# script to update p_conf value
+# script to update p_conf value and apply other updates
 import sys
+
 import numpy as np
 import astropy.table
-from astropy.table import Table
-
+from astropy.table import Table, join
+import tables as tb
 import joblib
 
 version = '5.0.1'
@@ -84,6 +85,17 @@ p_conf = clf.predict_proba(X)[:,1]
 sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_table['agn_flag']==-1)
 source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
+# add in Shiro's CNN Score Values
+cnn_score = Table.read(
+    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/lae_model_hdr5.0.0_lae_dex_small.txt',
+    format='ascii'
+)
+
+source_table2 = join( source_table, cnn_score, join_type='left')
+
+source_table = source_table2.copy()
+source_table['CNN_Score_2D_Spectra'] = source_table['CNN_Score_2D_Spectra'].filled(1)
+
  # remove nonsense metadata
 source_table.meta = {}
 
@@ -95,6 +107,16 @@ for s in [20231014013,
           20231204011,
           20231206015]:
     source_table['field'][ source_table['shotid'] == s] = "dex-fall"
+
+#add column to indicate if shot is used for cosmology
+survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
+survey_use['flag_shot_cosmology'] = 1
+
+source_table2 = join( source_table, survey_use['shotid', 'flag_shot_cosmology'], join_type='left')
+source_table = source_table2.copy()
+source_table['flag_shot_cosmology'] = source_table['flag_shot_cosmology'].filled(0)
+
+# check to see if flag_best==0 and flag_seldet==1 and n_members>0
 
 sel_other = source_table["field"] == "other"
 sel_notother = np.invert(sel_other)
@@ -108,3 +130,18 @@ source_table[sel_notother].write(
 source_table[sel_other].write(
     "source_catalog_{}_other.fits".format(version), overwrite=True
 )
+
+# create H5 version
+
+fileh = tb.open_file('source_catalog_{}.h5'.format(version), 'w')
+
+tableMain = fileh.create_table(fileh.root, "SourceCatalog", obj=source_table.as_array())
+
+tableMain.cols.detectid.create_csindex()
+tableMain.cols.shotid.create_csindex()
+tableMain.cols.source_id.create_csindex()
+tableMain.cols.wave_group_id.create_csindex()
+tableMain.cols.ra.create_csindex()
+
+tableMain.flush()
+fileh.close()
