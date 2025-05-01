@@ -422,16 +422,27 @@ def update_table(zdetfriend_all):
         for col in res_tab.colnames:
             if col in ["id", "members"]:
                 continue
-                source_table[col][sid_ind] = res_tab[col]
 
-            if res_tab["izz"] > 0.001:
+            source_table[col][sid_ind] = res_tab[col]
+
+            if res_tab["izz"] > 0.01:
                 print("big redshift error on {}".format(sid_main))
                 print(res_tab["icz"], res_tab["izz"])
             else:
                 source_table["z_hetdex"][sid_ind] = res_tab["icz"]
-                # update source type assignment if redshift difference isn't big
-                stype_main = source_table["source_type"][source_table["source_id"] == sid_main]
-                source_table["source_type"][sid_ind] = stype_main
+
+        # update n_members
+        source_table['n_members'][sid_ind] = len(sid_ind)
+        
+        # if source_name is different then update, agn, oii first
+        if np.any( source_table['source_type'][sid_ind] == 'agn'):
+            source_table['source_type'][sid_ind] = 'agn'
+        elif np.any( source_table['source_type'][sid_ind] == 'oii'):
+            source_table['source_type'][sid_ind] = 'oii'
+        else:
+            # otherwise use source_type from brightest detection
+            sel_brightest= np.argmax( source_table['gmag'][sid_ind]) 
+            source_table['source_type'][sid_ind] = source_table['source_type'][sid_ind][sel_brightest]
     return
 
 
@@ -680,7 +691,7 @@ def main(argv=None):
     )
     
     vs = version.split('.')
-    sid_index = int( vs[0]) * 10**13 + int(vs[1])*10**12 + int(vs[2])*10**11 + 3*10**9
+    sid_index = int( vs[0]) * 10**12 + int(vs[1])*10**11 + int(vs[2])*10**10 + 3*10**9
     #sid_index = 4010030000000
 
     for c_ind in clustered_lae_index:
@@ -825,7 +836,7 @@ def main(argv=None):
     uniq_obs_lae = unique(lae_tab, keys="source_id")
     uniq_obs_lae["selected_det"] = True
 
-    oii_tab = source_table[sel_oii_line]
+    oii_tab = source_table[sel_oii_line & sel_oii]
     oii_tab.sort("flux", reverse=True)
 
     uniq_obs_oii = unique(oii_tab, keys="source_id")
@@ -952,6 +963,7 @@ def main(argv=None):
         ),
         keys="detectid",
     )
+    
     dee["dee_prob"] = dee["rf_number"].filled(-1)
     sel_bad = (dee["tsne_x"] > 5) & (dee["tsne_y"] < 0)
     dee["flag_dee_tsne"] = np.invert(sel_bad).astype(int)
@@ -981,6 +993,20 @@ def main(argv=None):
     source_table = unique(source_table2, keys="detectid")
     # finalize flags
 
+    # add in update dee_prob values
+    dee_prob_update = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/dee_prob_257K_Mar_2025.csv')
+    dee_prob_update.rename_column('detect_id', 'detectid')
+    dee_prob_update.rename_column('rf_number','dee_prob_latest')
+    
+    source_table2 = join( source_table, dee_prob_update, keys='detectid', join_type='left')
+
+    # update where dee_prob_latest values exist and nothing exists for previous classifications
+    sel_update = (source_table2['dee_prob_latest'].mask == False)
+    source_table2['dee_prob'][ sel_update ] = source_table2['dee_prob_latest'][ sel_update ]
+    source_table2.remove_column('dee_prob_latest')
+    
+    source_table = source_table2.copy()
+    
     source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
     source_table["flag_dee"] = source_table["flag_dee"].filled(-1)
     source_table["flag_dee"][source_table["source_type"] == "agn"] = 1
@@ -1147,14 +1173,14 @@ def main(argv=None):
     
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
-    rres_vals = Table.read('/scratch/projects/hetdex/hdr5/catalogs/all_rres_5.0.0.fits')
+    rres_vals = Table.read('/scratch/projects/hetdex/hdr5/catalogs/all_rres_5.0.1.fits')
 
     source_table2 = join(source_table, rres_vals, join_type='left', keys='detectid')
 
     print('Table sizes before and after rres join: {} {}'.format(len(source_table), len(source_table2)))
     source_table = source_table2
 
-    sel_rres = source_table['rres_line']>=1.05
+    sel_rres = source_table['rres_line']>=1.1
     source_table['sn_rres'] = source_table['sn']
     source_table['sn_rres'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
     source_table.write('tmp.tab', format='ascii', overwrite=True)
