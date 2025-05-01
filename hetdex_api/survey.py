@@ -36,7 +36,7 @@ try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr2.1"
+    LATEST_HDR_NAME = "hdr5"
 
 
 class Survey:
@@ -100,7 +100,23 @@ class Survey:
                     fluxlimit.append(np.nan)
 
             self.fluxlimit_4540 = np.array(fluxlimit)
+        else:
+            flim = Table.read( config.flim_avg, format='ascii')
 
+            fluxlimit = []
+
+            for shotid in self.shotid:
+                sel = flim["shotid"] == shotid
+                if np.sum(sel) == 1:
+                    fluxlimit.extend(flim["f1sigma_biweight"][sel])
+                elif np.sum(sel) > 1:
+                    print("Found two fluxlimits for ", datevobs)
+                    fluxlimit.extend(flim["f1sigma_biweight"][sel][0])
+                else:
+                    fluxlimit.append(np.nan)
+
+            self.fluxlimit_4600 = np.array(fluxlimit).astype(np.float32)
+            
         # added 2024-09-19 by EMC
         # manually change field entry for 20190802012 and 20190803012 incorrectly given a fall objid
 
@@ -284,6 +300,11 @@ class Survey:
             survey_table["fluxlimit_4540"] = self.fluxlimit_4540
         except:
             pass
+        try:
+            survey_table["fluxlimit_4600"] = self.fluxlimit_4600
+        except:
+            pass
+
 
         for col in survey_table.colnames:
             try:
