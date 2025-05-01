@@ -170,9 +170,11 @@ class HDRconfig:
             self.baddetectmask = op.join(
                 self.hdr_dir[survey], "detect", "baddets_hdr2.1.0.p"
             )
+
             self.flim_avg = op.join(
-                self.hdr_dir[survey], "survey", "flux_limits_all.txt"
+                self.hdr_dir[survey], "survey", "flim4600_averages.txt"
             )
+
             self.meteor = op.join(self.bad_dir, "meteor.txt")
             self.flimmask = op.join(self.flim_dir, "masks")
             self.lowtpshots = op.join(self.bad_dir, "survey_shots_low_response.txt")
