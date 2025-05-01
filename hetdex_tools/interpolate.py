@@ -149,6 +149,9 @@ def make_narrowband_image(
     global CONFIG_HDR2, CONFIG_HDR3, CONFIG_HDR4, CONFIG_HDR5, OPEN_DET_FILE, DET_HANDLE
     global DET_FILE
 
+    if include_bitmask and not include_error:
+        print('Including bitmask and error arrays. Forcing include_error=True')
+        
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
@@ -300,9 +303,14 @@ def make_narrowband_image(
 
         imslice = zarray[0]
         imerror = zarray[1]
-        imbitmask = zarray[2]
-        xgrid = zarray[3]
-        ygrid = zarray[4]
+
+        if include_bitmask:
+            imbitmask = zarray[2]
+            xgrid = zarray[3]
+            ygrid = zarray[4]
+        else:
+            xgrid = zarray[2]
+            ygrid = zarray[3]
     else:
         zarray = E.make_narrowband_image(
             ifux_cen,
