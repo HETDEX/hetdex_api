@@ -446,8 +446,8 @@ def make_narrowband_image(
     hdu_data = fits.ImageHDU(imslice.astype(np.float32), header=header, name="DATA")
 
     if include_grid:
-        hdu_x = fits.ImageHDU(xgrid, header=header)
-        hdu_y = fits.ImageHDU(ygrid, header=header)
+        hdu_x = fits.ImageHDU(xgrid, header=header, name='XGRID')
+        hdu_y = fits.ImageHDU(ygrid, header=header, name='YGRID')
         
     if include_error:
         
