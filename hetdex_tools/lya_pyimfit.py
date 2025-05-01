@@ -232,6 +232,8 @@ def do_pyimfit(
             subcont=subcont,
             convolve_image=convolve_image,
             include_error=True,
+            include_bitmask=True,
+            return_grid=True,
             survey=survey,
             ffsky=ffsky,
             interp_kind="cubic",
@@ -241,7 +243,7 @@ def do_pyimfit(
     else:
         print("You must provide a detectid, wave_group_id or coords/wave_range/shotid")
 
-    w = wcs.WCS(hdu[0].header)
+    w = wcs.WCS(hdu['DATA'].header)
 
     spec_table = get_spectra(
         coords_obj, shotid=shotid_obj, multiprocess=False, loglevel="WARNING"
@@ -263,7 +265,7 @@ def do_pyimfit(
         * cosmo.kpc_proper_per_arcmin(redshift)
     ).value
 
-    image_data = hdu[0].data
+    image_data = hdu['DATA'].data
 
     E = Extract()
     E.load_shot(shotid_obj)
@@ -281,11 +283,11 @@ def do_pyimfit(
 
     mask = image_data == 0
 
-    mean, median, stddev = sigma_clipped_stats(hdu[0].data[~mask], sigma=2, maxiters=5)
+    mean, median, stddev = sigma_clipped_stats(image_data[~mask], sigma=2, maxiters=5)
 
     if star:
         radius = 8
-        center = (hdu[2].data ** 2 + hdu[3].data ** 2) > radius**2
+        center = (hdu['XGRID'].data ** 2 + hdu['YGRID'].data ** 2) > radius**2
         # anything outside 8 arcsec from center brighter than 5 times the stdev background
         flux_cut = image_data > 5 * stddev
 
@@ -296,7 +298,7 @@ def do_pyimfit(
 
     else:
         radius = 12
-        center = (hdu[2].data ** 2 + hdu[3].data ** 2) > radius**2
+        center = (hdu['XGRID'].data ** 2 + hdu['YGRID'].data ** 2) > radius**2
 
         # anything outside 10 arcsec from center brighter than 5 times the stdev background
         # image_data -= mean #subtract mean background
@@ -319,7 +321,7 @@ def do_pyimfit(
         mask, masked_data
     )  # (masked_data - mean) < 5*stddev, masked_data)
 
-    error = np.sqrt((hdu[1].data) ** 2 + stddev**2)
+    error = np.sqrt((hdu['ERROR'].data) ** 2 + stddev**2)
 
     # create fiber psf
     boxsize = imsize / 2
@@ -538,7 +540,7 @@ def do_pyimfit(
         # select regions in image that are 2 times sky background
         reg1 = image_data > 2 * stddev
         # only select those regions that are within 1.2*r_ext
-        reg2 = (hdu[2].data ** 2 + hdu[3].data ** 2) < (1.2 * r_ext_pix * pixscale) ** 2
+        reg2 = (hdu['XGRID'].data ** 2 + hdu['YGRID'].data ** 2) < (1.2 * r_ext_pix * pixscale) ** 2
         reg = reg1 * reg2
         area_iso = np.sum(reg) * pixscale**2
 
