@@ -181,7 +181,9 @@ class HDRconfig:
             self.rc3cat = op.join(self.bad_dir, "rc3.ugc.hetdex.both.v8.csv")
             #self.agncat = op.join(self.hdr_dir['hdr4'], "catalogs", "hdr234_agn_v4.5.1.cat")
             #this now needs to be softlinks if there is not a unique file for the release
-            self.agncat = op.join(self.hdr_dir[survey], "catalogs", "hdr234_agn_v4.5.4.cat")
+            #updated 2025-05-06 by EMC
+            self.agncat = op.join(self.hdr_dir[survey], "catalogs", "hdr345_agn_v5.1.cat")
+            #self.agncat = op.join(self.hdr_dir[survey], "catalogs", "hdr234_agn_v4.5.4.cat")
             self.gaiacat = op.join(
                 self.host_dir,
                 "gaia_hetdex_value_added_catalog",
