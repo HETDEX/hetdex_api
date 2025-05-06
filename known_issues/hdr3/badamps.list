@@ -348,3 +348,5 @@ ifuslot ampid multiframe date_start date_end
 34 LU multi_305_034_056_LU 20200601 20200630
 34 LL multi_305_034_056_LL 20200601 20200630
 32 RL multi_320_032_020_RL 20230919 20230925
+#62 RU multi_319_062_023_RU 20240101 20240117 #just a region, not whole amp
+72 LU multi_405_072_060_LU 20230904 20231020
