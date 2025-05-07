@@ -87,7 +87,8 @@ source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
 # add in Shiro's CNN Score Values
 cnn_score = Table.read(
-    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/lae_model_hdr5.0.0_lae_dex_small.txt',
+    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0_dex.txt',#8.0.22_k-fold updated 2025-05-07
+#    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/lae_model_hdr5.0.0_lae_dex_small.txt',
     format='ascii'
 )
 
