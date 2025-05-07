@@ -503,7 +503,7 @@ def main(argv=None):
 
     print("Adding redshifts to catalog: {}".format(version))
 
-    config = HDRconfig("hdr4")
+    config = HDRconfig("hdr{}".format(version[0]))
     agn_tab = Table.read(config.agncat, format="ascii")
     # agn_tab = None
     
