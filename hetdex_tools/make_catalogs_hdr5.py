@@ -574,7 +574,7 @@ def create_source_catalog(version="5.0.0", update=False):
             agn_tab.rename_column("z", "z_agn")
 
             detects_agn = join(
-                agn_tab,
+                agn_tab['detectid', 'agn_vis_class','z_agn'],
                 vstack([full_cont_table, full_line_table]),
                 join_type="inner",
             )
