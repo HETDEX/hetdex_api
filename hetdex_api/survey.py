@@ -128,6 +128,8 @@ class Survey:
         for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
             self.field[self.shotid == s] = "dex-fall"
 
+        self.field[ self.field == 'egs'] = 'dex-spring'
+
     def __getitem__(self, indx):
         """
         This allows for slicing of the survey class
@@ -281,6 +283,15 @@ class Survey:
         """
 
         survey_table = Table(self.hdfile.root.Survey.read())
+
+        # added 2025-05-17 by EMC                                                                                        
+        for s in [20190802012, 20190803012]:
+            survey_table['field'][survey_table['shotid'] == s] = "dex-spring"
+        # added 2025-05-17 by EMC                                                                      
+        for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
+            survey_table['field'][survey_table['shotid'] == s] = "dex-fall"
+
+        survey_table['field'][ survey_table['field']=='egs'] == 'dex-spring'
 
         good_shots = self.remove_shots()
 
