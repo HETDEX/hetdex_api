@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 import astropy.table
-from astropy.table import Table, join
+from astropy.table import Table, join, vstack
 import tables as tb
 import joblib
 
@@ -12,6 +12,18 @@ version = '5.0.1'
 update_det_flags = True
 
 source_table = Table.read("source_catalog_{}.yy.fits".format(version))
+
+# add in the bad qso dets
+
+baddets = np.loadtxt('/home1/05350/ecooper/hetdex_api/known_issues/hdr3/bad_qso_diagnose_check.dets', dtype=int)
+
+# Create a mask for all rows where detectid is in dets
+mask = np.isin(source_table['detectid'], baddets)
+
+# Apply updates using the mask
+source_table['flag_baddet'][mask] = 0
+source_table['flag_best'][mask] = 0
+
 
 if update_det_flags:
     print('Updating det flags')
@@ -86,11 +98,14 @@ sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_
 source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
 # add in Shiro's CNN Score Values
-cnn_score = Table.read(
-    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0_dex.txt',#8.0.22_k-fold updated 2025-05-07
+cnn_score_lae = Table.read(
+    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0.txt', #8.0.22-k-fold updated 2025-05-17
+#    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0_dex.txt',#8.0.22_k-fold updated 2025-05-07
 #    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/lae_model_hdr5.0.0_lae_dex_small.txt',
     format='ascii'
 )
+cnn_score_oii = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.1_oii.txt', format='ascii')
+cnn_score = vstack([cnn_score_lae, cnn_score_oii])
 
 source_table2 = join( source_table, cnn_score, join_type='left')
 
@@ -108,6 +123,10 @@ for s in [20231014013,
           20231204011,
           20231206015]:
     source_table['field'][ source_table['shotid'] == s] = "dex-fall"
+
+# call all EGS frames dex-spring
+
+source_table['field'][ source_table['field'] == 'egs'] = 'dex-spring'
 
 #add column to indicate if shot is used for cosmology
 survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
