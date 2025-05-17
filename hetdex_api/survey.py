@@ -291,7 +291,7 @@ class Survey:
         for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
             survey_table['field'][survey_table['shotid'] == s] = "dex-fall"
 
-        survey_table['field'][ survey_table['field']=='egs'] == 'dex-spring'
+        survey_table['field'][ survey_table['field']=='egs'] = 'dex-spring'
 
         good_shots = self.remove_shots()
 
