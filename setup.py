@@ -1,21 +1,21 @@
 from setuptools import setup, find_packages
 
-install_requires = ['numpy', 'astropy>=1.2, !=1.3.3', 'astroquery',
-                    'scipy>=0.17.0', 'regions',
+install_requires = ['numpy<2', 'astropy>=4.3', 'astroquery',
+                    'scipy>=1.4', 'regions','photutils<2', 'tables', 'speclite',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
                     'nway', 'dustmaps', 'extinction']
 
-extras = {'doc' : ['sphinx',  'sphinx-markdown-tables', 'sphinx-argparse',
-                   'sphinx_rtd_theme']}
+extras = {'doc' : ['sphinx==5.2.2',  'sphinx-markdown-tables', 'sphinx-argparse',
+                   'sphinx-rtd-theme-1.3.0']}
 
 setup(
     # package description and version
     name="hetdex_api",
-    version="0.8.7",
+    version="0.9",
     author="The HETDEX Collaboration",
     author_email='erin@astro.as.utexas.edu',
     url='https://github.com/HETDEX/hetdex_api',
-    download_url='https://github.com/HETDEX/hetdex_api/archive/0.8.2.tar.gz',
+    download_url='https://github.com/HETDEX/hetdex_api/archive/0.9.tar.gz',
     description="Tools to deal with HETDEX data releases",
 
     # list of packages and data
@@ -34,7 +34,7 @@ setup(
                  "Intended Audience :: Science/Research",
                  "License :: OSI Approved :: GNU General Public License (GPL)",
                  "Operating System :: Unix",
-                 "Programming Language :: Python :: 3.7",
+                 "Programming Language :: Python :: 3.9",
                  "Topic :: Scientific/Engineering :: Astronomy",
                  "Topic :: Utilities",
                  ],
@@ -51,8 +51,7 @@ setup(
                         'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube',
                         'hetdex_get_spec = hetdex_tools.get_spec:main',
                         'hetdex_get_spec2D = hetdex_tools.get_spec2D:main',
-                        'hetdex_get_shots = hetdex_tools.get_shots_of_interest:main'
-                     ]
+                    ]
                    },
 
 )

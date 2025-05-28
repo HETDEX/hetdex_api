@@ -1092,4 +1092,5 @@ Coords,PGC,Name1,Name2,Name3,logD25,logD25err,RC3PA,logR25,logR25err,OrigCoords,
 10h37m36.681s +46d02m40.06s,PGC 031564,MCG +08-19-044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"Source Split from UGC 5778, Added Manually",0.391,0.233,31.0,0.04723
 12h07m28.43s +54d01m29.15s,PNG 136.6+61.9,PN G136.7+61.9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210309019, Added Manually",2.833,2.833,0.0,0.0
 15h21m46.56s +52d22m04.1s,PNG 085.3+52.3,Jacoby 1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20210309019, Added Manually",4.0833,4.0833,0.0,0.0
+11h57m44.8s +48d56m18.38s, PNG 144.8+65.8, LTNF 1, 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"MW PN found in 20240314023 and 20240403008, Added Manually",3.0,3.0,0.0,0.0
 

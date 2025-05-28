@@ -27,7 +27,7 @@ from astropy.io import ascii
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 import astropy.units as u
-
+from astropy import wcs
 import matplotlib
 matplotlib.use('Agg')
 
@@ -38,7 +38,10 @@ from astropy.visualization import ZScaleInterval
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.shot import Fibers
 from hetdex_api.detections import Detections
-from hetdex_tools.phot_tools import get_line_image
+from hetdex_tools.interpolate import make_narrowband_image
+from hetdex_tools.phot_tools import fit_circular_aperture
+from hetdex_api.config import HDRconfig
+from hetdex_api.extract import Extract
 from elixer import catalogs
 
 
@@ -47,19 +50,24 @@ class PhotImage(tb.IsDescription):
     im_phot = tb.Float32Col((60, 60), pos=4)
     im_phot_hdr = tb.StringCol(2880)
 
-
 class Spec1D(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
     spec1D = tb.Float32Col((1036,))
     spec1D_err = tb.Float32Col((1036,))
 
-
 class LineImage(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
-    im_line = tb.Float32Col((80, 80), pos=4)
-    im_line_hdr = tb.StringCol(2880)
+    line_image = tb.Float32Col((80, 80))
+    line_image_err = tb.Float32Col((80, 80))
+    delta_ra = tb.Float32Col((80, 80))
+    delta_dec = tb.Float32Col((80, 80))
+    header = tb.StringCol((2880))
+    flux = tb.Float32Col()
+    flux_err = tb.Float32Col()
+    bkg_stddev = tb.Float32Col()
+    apcor = tb.Float32Col()
+    sn_im = tb.Float32Col()
     
-
 def get_2Dimage(detectid_obj, detects, fibers, width=100, height=50):
 
     fiber_table = Table(
@@ -131,9 +139,11 @@ def get_2Dimage_array(detectid_obj, detects, fibers, width=100, height=50):
 
 
 def get_2Dimage_wave(detectid_obj, detects, fibers, width=100, height=50):
+
     fiber_table = Table(
         detects.hdfile.root.Fibers.read_where("detectid == detectid_obj")
     )
+
     maxfib = np.argmax(fiber_table["weight"])
     wave_obj = fiber_table["wavein"][maxfib]
     multiframe_obj = fiber_table["multiframe"][maxfib]
@@ -206,7 +216,7 @@ def get_parser():
         "-survey",
         type=str,
         help="""Data Release you want to access""",
-        default="hdr3",
+        default="hdr5",
     )
 
     parser.add_argument(
@@ -306,40 +316,45 @@ def main(argv=None):
         spec_table = fileh.create_table(
             fileh.root, "Spec1D", Spec1D,
             "Aperture Summed Spectrum", expectedrows=1500000)
-#        line_im_table = fileh.create_table(
-#            fileh.root, "LineImages", LineImage,
-#            "Line Emission Map Image", expectedrows=1000000)
+        line_im_table = fileh.create_table(
+            fileh.root, "LineImages", LineImage,
+            "Line Emission Map Image", expectedrows=1000000)
         
         files = sorted(glob.glob("im2D*.h5"))
         
         for file in files:
-            args.log.info('Ingesting %s' % file)
-            fileh_i = tb.open_file(file, "r")
-            fibim2D_table_i = fileh_i.root.FiberImages.read()
-            phot_table_i = fileh_i.root.PhotImages.read()
-            spec_table_i = fileh_i.root.Spec1D.read()
-            #line_im_table_i = fileh_i.root.LineImages.read()
-            
-            fibim2D_table.append(fibim2D_table_i)
-            phot_table.append(phot_table_i)
-            spec_table.append(spec_table_i)
-            #line_im_table.append(line_im_table_i)
-            fileh_i.close()
+            try:
+                args.log.info('Ingesting %s' % file)
+                fileh_i = tb.open_file(file, "r")
+                fibim2D_table_i = fileh_i.root.FiberImages.read()
+                phot_table_i = fileh_i.root.PhotImages.read()
+                spec_table_i = fileh_i.root.Spec1D.read()
+                line_im_table_i = fileh_i.root.LineImages.read()
+                
+                fibim2D_table.append(fibim2D_table_i)
+                phot_table.append(phot_table_i)
+                spec_table.append(spec_table_i)
+                line_im_table.append(line_im_table_i)
+                fileh_i.close()
 
-        fibim2D_table.flush()
-        phot_table.flush()
-        spec_table.flush()
-        #line_im_table.flush()
+                fibim2D_table.flush()
+                phot_table.flush()
+                spec_table.flush()
+                line_im_table.flush()
+                fileh_i.close()
+            except:
+                pass
+                
 
         fibim2D_table.cols.detectid.create_csindex()
         phot_table.cols.detectid.create_csindex()
         spec_table.cols.detectid.create_csindex()
-        #line_im_table.cols.detectid.create_csindex()
+        line_im_table.cols.detectid.create_csindex()
 
         fibim2D_table.flush()
         phot_table.flush()
         spec_table.flush()
-        #line_im_table.flush()
+        line_im_table.flush()
 
         fileh.close()
         sys.exit("Merged h5 files in current directory. Exiting")
@@ -395,17 +410,19 @@ def main(argv=None):
         spec_table = fileh.create_table(
             fileh.root, "Spec1D", Spec1D, "Aperture Summed Spectrum"
         )
-        #line_im_table = fileh.create_table(
-        #    fileh.root, "LineImages", LineImage, "Line Emission Map Image"
-        #)
+        line_im_table = fileh.create_table(
+            fileh.root, "LineImages", LineImage, "Line Emission Map Image"
+        )
 
+        E = Extract()
+        E.load_shot( args.shotid, survey=args.survey)
+        
         for detectid_i in detectlist:
             args.log.info('Working on {}'.format(detectid_i))
             # add data to HDF5 file
             row = fibim2D_table.row
             row["detectid"] = detectid_i
-            sel = detects.detectid == detectid_i
-
+            
             try:
                 row["im_wave"] = get_2Dimage_wave(detectid_i,
                                                   detects, fibers,
@@ -444,11 +461,11 @@ def main(argv=None):
             # sel_det = detects.detectid == detectid_i
             # coord = detects.coords[sel_det]
 
-            det_row = detects.hdfile.root.Detections.read_where('detectid == detectid_i')
+            det_row = detects.get_detection_info(detectid_i)
+            wave_i = det_row['wave'][0]
+            linewidth_i = det_row['linewidth'][0]
             
-            coord = SkyCoord(
-                ra=det_row["ra"] * u.deg, dec=det_row["dec"] * u.deg
-            )
+            coord = detects.get_coord(detectid_i)
 
             row_phot["detectid"] = detectid_i
 
@@ -476,23 +493,74 @@ def main(argv=None):
 
             row_phot.append()
 
-            #row_line_im = line_im_table.row
-            
-            #try:
-            #    row_line_im['detectid'] = detectid_i
+            image_row = line_im_table.row
+            image_row['detectid'] = detectid_i
+            try:
+                hdu = make_narrowband_image(
+                    coords=coord,
+                    wave_range=[wave_i - 2*linewidth_i, wave_i + 2*linewidth_i],
+                    shotid=args.shotid,
+                    survey=args.survey,
+                    imsize=20.0 * u.arcsec,
+                    include_error=True,
+                    ffsky=False,
+                    extract_class=E,
+                    subcont=True,
+                    convolve_image=False,
+                    interp_kind='cubic',
+                    fill_value=0.0,
+                )
+                
+                im = hdu[0].data
+                w = wcs.WCS(hdu[0].header)
+    
+                flux, flux_err, bkg_stddev, apcor, sky_sigma = fit_circular_aperture(
+                    hdu,
+                    coord,
+                    radius=1.5 * u.arcsec,
+                    annulus=[5, 7] * u.arcsec,
+                    return_sky_sigma=True,
+                )
 
-            #   hdu = get_line_image(detectid=detectid_i, imsize=20.0)
-            #    row_line_im["im_line"] = hdu[0].data
-            #    row_line_im['im_line_hdr'] = hdu[0].header.tostring()
-            #except:
-            #    args.log.error('Could not make line image for {}'.format(detectid_i))
+                plt.figure()
+                plt.subplot(111, projection=w)
+                plt.gca().set_axis_off()
 
-            #row_line_im.append()
+                plt.margins(0, 0)
+                plt.imshow(im, vmin=-1.0 * sky_sigma, vmax=5 * sky_sigma,
+                           origin="lower",
+                           #cmap=plt.get_cmap("gray"),                                                                   
+                           interpolation="none")
+
+                plt.savefig("images/{}.jpg".format(detectid_i),
+                            bbox_inches="tight",
+                            transparent=True,
+                            dpi=150,
+                            pad_inches=0)
+
+                sn_im = flux / bkg_stddev
+                
+                image_row["detectid"] = detectid_i
+                image_row["line_image"] = hdu[0].data
+                image_row["line_image_err"] = hdu[1].data
+                image_row["delta_ra"] = hdu[2].data
+                image_row["delta_dec"] = hdu[3].data
+                image_row["header"] = hdu[0].header.tostring()
+                image_row["flux"] = flux.value
+                image_row["flux_err"] = flux_err.value
+                image_row["bkg_stddev"] = bkg_stddev.value
+                image_row["apcor"] = apcor
+                image_row["sn_im"] = sn_im
+                
+            except:
+                args.log.error('Could not make line image for {}'.format(detectid_i))
+
+            image_row.append()
         
         spec_table.flush()
         phot_table.flush()
         fibim2D_table.flush()
-        #line_im_table.flush()
+        line_im_table.flush()
         fileh.close()
 
     else:
@@ -528,11 +596,11 @@ def main(argv=None):
 
         output["filename"] = np.array(filenames)
         ascii.write(output, "fib_coords.dat", overwrite=True)
-
+    E.close()
     fibers.close()
     detects.close()
     tb.file._open_files.close_all()
-
+    args.log.info( 'Finished: {}'.format(args.shotid))
 
 if __name__ == "__main__":
     main()

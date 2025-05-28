@@ -43,12 +43,13 @@ def mktree(x, y, z, dsky=3.0, dwave=5.0, euclidean=False):
         x_tree = np.deg2rad(x)  # convert to standard spherical angle
         y_tree = np.deg2rad(90.0 - y)
         zf = (
-            np.pi / 180 / (5500.0 - 3500.0) * dsky / dwave
+            np.pi / 180.0 / (5500.0 - 3500.0) * dsky / dwave
         )  # scale wavelength to a "radians"-like scale
         z_tree = zf * (z - 3500.0)
         dsky = np.deg2rad(dsky / 3600.0)  # convert from arcsec to radians
 
     data = np.vstack((x_tree, y_tree, z_tree)).T
+
     kd = cKDTree(data)
 
     return kd, dsky

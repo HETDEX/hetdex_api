@@ -14,7 +14,7 @@ from tempfile import NamedTemporaryFile
 
 from numpy import (arange, meshgrid, ones, array, sum, sqrt, square, newaxis,
                    repeat, loadtxt, where, argmin, invert, logical_not, isfinite,
-                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean)
+                   isnan, newaxis, ceil, nansum, savetxt, transpose, mean, any)
 from numpy.ma import MaskedArray
 
 import astropy.units as u
@@ -121,7 +121,7 @@ class ShotSensitivity(object):
         2*wavenpix + 1 (default 3)
     d25scale : float
         Sets the multiplier for the galaxy masks
-        applied (default 3.0)
+        applied (default 1.5)
     sclean_bad : bool
         Replace bad data using the sclean
         tool (see hetdex_api.extract:Extract)
@@ -130,7 +130,7 @@ class ShotSensitivity(object):
         to the screen
     """
     def __init__(self, datevshot, release=None, flim_model=None, rad=3.5, 
-                 ffsky=False, wavenpix=3, d25scale=3.0, verbose=False,
+                 ffsky=False, wavenpix=3, d25scale=1.5, verbose=False,
                  sclean_bad = True, log_level="WARNING"): 
 
         self.conf = HDRconfig()
@@ -212,7 +212,7 @@ class ShotSensitivity(object):
         ----------
         d25scale : float
             Sets the multiplier for the galaxy masks
-            applied (default 3.5)
+            applied (default 1.5)
         """      
 
         logger = logging.getLogger(name="ShotSensitivity")
@@ -680,8 +680,10 @@ class ShotSensitivity(object):
                                                      remove_low_weights = False,
                                                      sclean_bad = self.sclean_bad,
                                                      return_scleaned_mask = True)
-                
-                spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
+
+                spectrum_aper, spectrum_aper_error, scleaned, data, error, fiber_mask = [res for res in result]
+                # Changed by EMC 2024-11-05 to allow for update of Extract April 10 commit 8ffdf34
+                #spectrum_aper, spectrum_aper_error, scleaned = [res for res in result] 
  
                 if wave_passed:
                     

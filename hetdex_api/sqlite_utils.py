@@ -34,22 +34,39 @@ except:
 #  xx0 = standard hetdex
 #  xx6 = broad emission lines (still in with the xx0 detections as of hdr2.1)
 #  xx9 = continuum sources
-DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db"
+BASE_DICT_DB_PATHS = {
+                 10: ["/scratch/projects/hetdex/hdr1/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr1/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr1/detect/image_db",
+                      "/work/03946/hetdex/hdr1/detect/image_db"
                      ],
-                 20: ["/scratch/03261/polonius/hdr2/detect/image_db",
-                      "/work/03261/polonius/hdr2/detect/image_db",
+                 20: ["/scratch/projects/hetdex/hdr2/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr2/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2/detect/image_db",
                       "/work/03946/hetdex/hdr2/detect/image_db"
                      ],
-                 21: ["/scratch/03946/hetdex/hdr2.1/detect/image_db",
-                      "/scratch/03261/polonius/hdr2.1/detect/image_db",
+                 21: ["/scratch/projects/hetdex/hdr2.1/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr2.1/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr2.1/detect/image_db",
+                      "/scratch/03946/hetdex/hdr2.1/detect/image_db",
                       "/work/03946/hetdex/hdr2.1/detect/image_db",
-                      "/work/03261/polonius/hdr2.1/detect/image_db"
                       ],
-                 30: ["/scratch/03946/hetdex/hdr3/detect/image_db",
+                 30: ["/scratch/projects/hetdex/hdr3/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr3/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr3/detect/image_db",
+                      "/scratch/03946/hetdex/hdr3/detect/image_db",
                       "/work/03946/hetdex/hdr3/detect/image_db",
-                      "/scratch/03261/polonius/hdr3/detect/image_db",
-                      "/work/03261/polonius/hdr3/detect/image_db",
                       ],
+                 40: ["/scratch/projects/hetdex/hdr4/detect/image_db",
+                      "/home/jovyan/Hobby-Eberly-Telesco/hdr4/detect/image_db",
+                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr4/detect/image_db",
+                      "/scratch/03946/hetdex/hdr4/detect/image_db",
+                      ],
+                50: ["/scratch/projects/hetdex/hdr5/detect/image_db",
+                     "/home/jovyan/Hobby-Eberly-Telesco/hdr5/detect/image_db",
+                     "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr5/detect/image_db",
+                     "/scratch/03946/hetdex/hdr5/detect/image_db",
+                     ],
                  #note: 31 is just temporary as the 30 detectIDs were named as 31 detectids
                  # 31: ["/scratch/03261/polonius/hdr3/detect/image_db",
                  #      "/work/03261/polonius/hdr3/detect/image_db",
@@ -59,7 +76,7 @@ DICT_DB_PATHS = {10: ["/work/03946/hetdex/hdr1/detect/image_db"
 #
 # add paths from hetdex_api to search (place in first position)
 #
-for v in DICT_DB_PATHS.keys():
+for v in BASE_DICT_DB_PATHS.keys():
     try:
         release_number = v/10.0
         if v % 10 == 0:
@@ -67,21 +84,24 @@ for v in DICT_DB_PATHS.keys():
         else:
             release_string = "hdr{:2.1f}".format(release_number)
 
-        DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=release_string).elix_dir))
+        BASE_DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=release_string).elix_dir))
     except:# Exception as e:
         #print(e)
         continue
 
 
-def get_elixer_report_db_path(detectid,report_type="report"):
+def get_elixer_report_db_path(detectid,report_type="report",extra_db_paths=[]):
     """
-    Return the top (first found) path to database file based on the detectid (assumes the HDR version is part of the
-    prefix, i.e. HDR1 files are 1000*, HDR2 are 2000*, and so on)
+    Return the top (first found) path to database file based on the detectid (assumes 
+    the HDR version is part of the prefix, i.e. HDR1 files are 1000*, HDR2 are 2000*, 
+    and so on)
+    
     :param detectid:
     :param report_type: choose one of "report" (normal ELiXer report image) [default]
                                "nei" (ELiXer neighborhood image)
                                "mini" (ELiXer mini-report image for phone app)
     :return: None or database filename
+    
     """
 
     detect_prefix = None
@@ -101,8 +121,12 @@ def get_elixer_report_db_path(detectid,report_type="report"):
             ext = ""
 
         if detect_prefix is not None:
-            if hdr_prefix in DICT_DB_PATHS.keys():
-                paths = DICT_DB_PATHS[hdr_prefix]
+            if hdr_prefix in BASE_DICT_DB_PATHS.keys():
+                paths = []
+                if len(extra_db_paths) > 0:
+                    paths += extra_db_paths
+
+                paths += BASE_DICT_DB_PATHS[hdr_prefix]
                 for p in paths:
                     if op.exists(p):
                         fqfn = op.join(p, FILENAME_PREFIX + str(detect_prefix) + ext + ".db")
@@ -407,6 +431,7 @@ class ConnMgr():
 
     def __init__(self):
         self.conn_dict = {} #key = detectid_prefix + type (i.e. "10003" or "10004nei" or "20007mini"
+        self.extra_db_paths = []
 
     def __del__(self):
         self.close_conns()
@@ -424,7 +449,7 @@ class ConnMgr():
             else:
                 try:
                     #all ConnMgr connections are read-only (uri=True)
-                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type),readonly=True)
+                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type,extra_db_paths=self.extra_db_paths),readonly=True)
                     if type(conn) != sqlite3.Connection:
                         conn = None
                     else:

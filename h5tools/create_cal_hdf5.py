@@ -73,7 +73,7 @@ def main(argv=None):
         "--detectdir",
         help="""Directory for Detect Info""",
         type=str,
-        default="/scratch/03946/hetdex/detect",
+        default="/scratch/projects/hetdex/detect",
     )
         
     parser.add_argument(
@@ -181,9 +181,9 @@ def main(argv=None):
         sel_datevobs = fwhm_tab['col1'] == str(args.date) + "v" + str(args.observation.zfill(3))
         
         for row in shottable:
-            row["fwhm_virus"] = float(fwhm_tab['col2'][sel_datevobs])
-            row["fwhm_virus_err"] = float(fwhm_tab['col3'][sel_datevobs])
-            row["nstars_fit_fwhm"] = int(fwhm_tab['col4'][sel_datevobs])
+            row["fwhm_virus"] = float(fwhm_tab['col2'][sel_datevobs][0])
+            row["fwhm_virus_err"] = float(fwhm_tab['col3'][sel_datevobs][0])
+            row["nstars_fit_fwhm"] = int(fwhm_tab['col4'][sel_datevobs][0])
             row["response_4540"] = tp_4540
             row.update()
 

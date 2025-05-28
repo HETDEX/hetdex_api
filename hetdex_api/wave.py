@@ -8,7 +8,18 @@ from hetdex_api.survey import Survey
 from astropy import time, coordinates as coord, units as u
 from astropy import constants as const
 
-S = Survey('hdr3')
+try:
+    from hetdex_api.config import HDRconfig
+
+    LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
+    config = HDRconfig()
+
+except Exception as e:
+    print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
+    LATEST_HDR_NAME = "hdr4"
+    config = None
+    
+S = Survey(LATEST_HDR_NAME)
 mcdonald = coord.EarthLocation.of_site('mcdonald')
 
 def get_bary_corr(shotid, units='km/s'):
@@ -17,22 +28,22 @@ def get_bary_corr(shotid, units='km/s'):
     
     Parameters
     ----------
-    shotid
-    interger observation ID
-    units
-    string indicating units to be used. Must be readable to astropy units.
-                Defaults to km/s
+    shotid    interger 
+        observation ID
+    units string
+        indicating units to be used. Must be readable to astropy units.
+        Defaults to km/s
 
     Return
     ------
     vcor
-    radial velocity correction in units
+        radial velocity correction in units
     """
 
     global S, mcdonald
     sel_shot = S.shotid == shotid
-    coords = S.coords[sel_shot]
-    mjds = S.mjd[sel_shot]
+    coords = S.coords[sel_shot][0]
+    mjds = S.mjd[sel_shot][0]
     t = time.Time(np.average( mjds), format='mjd')
     
     vcor = coords.radial_velocity_correction(kind='barycentric', obstime=t, location=mcdonald).to(units)

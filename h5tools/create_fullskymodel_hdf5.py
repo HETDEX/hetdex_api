@@ -52,8 +52,8 @@ def main(argv=None):
                         action="count", default=0)
 
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1}""",
-                        type=str, default="hdr2.1")
+                        help="""{hdr1, hdr2, hdr2.1, 'hdr3', 'hdr4','hdr5'}""",
+                        type=str, default="hdr4")
     
     
     args = parser.parse_args(argv)

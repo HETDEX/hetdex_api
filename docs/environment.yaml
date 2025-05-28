@@ -1,9 +1,0 @@
-name: docs
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - sphinx==sphinx-5.2.2
-  - nbsphinx==0.8.9
-  - pip:
-    - sphinx-rtd-theme==1.0.0

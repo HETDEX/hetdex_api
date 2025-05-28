@@ -25,6 +25,8 @@ try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
+    CONFIG_HDR4 = HDRconfig('hdr4')
+    CONFIG_HDR5 = HDRconfig('hdr5')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -39,7 +41,7 @@ class AmpWidget:
         survey=LATEST_HDR_NAME,
         coords=None,
         radius=3.0,
-        detectid=2100000000,
+        detectid=None,
         wave=None,
         shotid=None,
         multiframe=None,
@@ -48,9 +50,18 @@ class AmpWidget:
     ):
 
         self.survey = survey.lower()
+        
         self.detectid = detectid
         self.shotid = shotid
         self.multiframe = multiframe
+
+        if self.shotid is None:
+            if self.multiframe is None:
+                if self.detectid is None:
+                    self.detectid = 4013993285 #random default LAE
+            else:
+                print('You must provide a shotid/multiframe combo or a detectid')
+                
         self.imtype = imtype
         self.expnum = expnum
         self.coords = coords
@@ -59,7 +70,7 @@ class AmpWidget:
         self.detfile = None
         
         self.survey_widget = widgets.Dropdown(
-                        options=["HDR1","HDR2.1", "HDR3"],
+                        options=["HDR1","HDR2.1", "HDR3", "HDR4", "HDR5"],
                         value=self.survey.upper(),
                         layout=Layout(width="10%"),
                     )
@@ -70,18 +81,10 @@ class AmpWidget:
         # initialize the image widget from astrowidgets
         self.imw = ImageWidget()  # image_width=600, image_height=600)
 
-        #        self.month_widget = widgets.Dropdown(
-        #            options=monthlist,
-        #            value=202001,
-        #            description='Month',
-        #            disabled=False,
-        #            layout=Layout(width='20%'),
-        #        )
-
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
-            max=4000000000,
+            max=6000000000,
             step=1,
             description="DetectID:",
             disabled=False,
@@ -204,7 +207,7 @@ class AmpWidget:
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
         
         if self.coords is not None:
-            if self.detectid is not None:
+            if self.detectid is None:
                 
                 self.shotid = None
                 
@@ -368,7 +371,15 @@ class AmpWidget:
         elif (self.detectid >= 3000000000) * (self.detectid < 3090000000):
             self.det_file = CONFIG_HDR3.detecth5
         elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
-            self.det_file = CONFIG_HDR2.contsourceh5
+            self.det_file = CONFIG_HDR3.contsourceh5
+        elif (self.detectid >= 4000000000) * (self.detectid < 4090000000):
+            self.det_file = CONFIG_HDR4.detecth5
+        elif (self.detectid >= 4090000000) * (self.detectid < 4100000000):
+            self.det_file = CONFIG_HDR4.contsourceh5
+        elif (self.detectid >= 5000000000) * (self.detectid < 5090000000):
+            self.det_file = CONFIG_HDR5.detecth5
+        elif (self.detectid >= 5090000000) * (self.detectid < 5100000000):
+            self.det_file = CONFIG_HDR5.contsourceh5
 
         if OPEN_DET_FILE is None:
 

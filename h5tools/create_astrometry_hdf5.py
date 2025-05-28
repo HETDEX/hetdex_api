@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-                                                                                                                                                                 
+# -*- coding: utf-8 -*-                                                                                                                                                                
 """ 
 @author: Erin Mentuch Cooper
 
@@ -117,11 +117,11 @@ def main(argv=None):
     parser.add_argument("-detdir", "--detectdir",
                         help='''Directory for Detect Info''',
                         type=str,
-                        default='/scratch/03946/hetdex/detect')
+                        default='/scratch/projects/hetdex/detect')
     
     parser.add_argument("-survey", "--survey",
-                        help="""{hdr1, hdr2, hdr2.1, hdr3}""",
-                        type=str, default="hdr3")
+                        help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5}""",
+                        type=str, default="hdr4")
     
     
     args = parser.parse_args(argv)
@@ -220,7 +220,7 @@ def main(argv=None):
     except:
         args.log.warning('Could not include %s' % file_stars)
     
-    pngfiles = glob.glob(op.join(shiftsdir, '*.png'))
+    pngfiles = glob.glob(op.join(shiftsdir, '2*.png'))
     pngnum = 1
 
     for pngfile in pngfiles:
@@ -251,9 +251,9 @@ def main(argv=None):
         try:
             radec = ascii.read(radecfile)
             rowNV['expnum'] = int(expn[3:5])
-            rowNV['ra'] = radec['col1']
-            rowNV['dec'] = radec['col2']
-            rowNV['parangle'] = radec['col3']
+            rowNV['ra'] = radec['col1'][0]
+            rowNV['dec'] = radec['col2'][0]
+            rowNV['parangle'] = radec['col3'][0]
         except:
             args.log.warning('Could not include %s' % radecfile)
 
@@ -294,6 +294,9 @@ def main(argv=None):
 
         matchpdf = op.join(shiftsdir,
                            'match_' + expn + '.pdf')
+
+        matchpng_orig = op.join( shiftsdir, 'match_{}.png'.format(expn) )
+        
         matchpng = 'match_pngs/match_'+ str(args.date) + 'v' + str(args.observation).zfill(3) + '_' + expn + '.png'
         
         if op.exists(matchpdf):
@@ -302,8 +305,14 @@ def main(argv=None):
             matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
             matchim.attrs['CLASS'] = 'IMAGE'
             matchim.attrs['filename'] = matchpdf
+        elif op.exists( matchpng_orig):
+            os.system('cp ' + matchpng_orig + ' ' + matchpng)
+            plt_matchim = plt.imread(matchpng)
+            matchim = fileh.create_array(groupCoadd, 'match_' + expn, plt_matchim)
+            matchim.attrs['CLASS'] = 'IMAGE'
+            matchim.attrs['filename'] = matchpng_orig
         else:
-            args.log.warning('Count not include %s' % matchpdf)
+            args.log.warning('Could not include %s' % matchpng)
 
         # populate offset info for catalog matches
         file_getoff = op.join(shiftsdir,
@@ -352,11 +361,11 @@ def main(argv=None):
             f_getoff2 = ascii.read(file_getoff2)
             row = tableQA.row
             row['expnum'] = int(expn[3:5])
-            row['xoffset'] = f_getoff2['col1']
-            row['yoffset'] = f_getoff2['col2']
-            row['xrms'] = f_getoff2['col3']
-            row['yrms'] = f_getoff2['col4']
-            row['nstars'] = f_getoff2['col5']
+            row['xoffset'] = f_getoff2['col1'][0]
+            row['yoffset'] = f_getoff2['col2'][0]
+            row['xrms'] = f_getoff2['col3'][0]
+            row['yrms'] = f_getoff2['col4'][0]
+            row['nstars'] = f_getoff2['col5'][0]
             row.append()
 
         except:

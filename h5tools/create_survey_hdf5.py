@@ -32,6 +32,7 @@ from hetdex_api.input_utils import setup_logging
 
 from hetdex_api.shot import open_shot_file
 from hetdex_api import config
+import traceback
 
 
 def define_field(objname):
@@ -44,7 +45,7 @@ def define_field(objname):
         field = "egs"
     elif re.match("GN|DEXgn", str(objname)):
         field = "goods-n"
-    elif re.match("DEX0|DEXfl|HF", str(objname)):
+    elif re.match("DEX0|DEXfl|HF|DEXsh", str(objname)):
         field = "dex-fall"
     elif re.match("HS|DEXsp", str(objname)):
         field = "dex-spring"
@@ -66,19 +67,11 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-r",
-        "--rootdir",
-        help="""Root Directory for Reductions""",
-        type=str,
-        default="/work/03946/hetdex/maverick/red1/reductions/",
-    )
-
-    parser.add_argument(
         "-sdir",
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/scratch/03946/hetdex/hdr3/reduction/data",
+        default="/scratch/projects/hetdex/hdr4/reduction/data",
     )
 
     parser.add_argument(
@@ -87,14 +80,6 @@ def main(argv=None):
         help="""Text file of DATE OBS list""",
         type=str,
         default="dex.hdr2.shotlist",
-    )
-
-    parser.add_argument(
-        "-ad",
-        "--astrometry_dir",
-        help="""Directory for Shifts""",
-        type=str,
-        default="/data/00115/gebhardt/vdrp/shifts/",
     )
 
     parser.add_argument(
@@ -136,15 +121,18 @@ def main(argv=None):
 
         if True:
             args.log.info('Ingesting ' + datevshot)
-            file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+            try:
+                file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
 
-            shottable = Table(file_obs.root.Shot.read())
+                shottable = Table(file_obs.root.Shot.read())
 
-            # updating field in survey file 
-            shottable['field'] = define_field(str(shottable['objid'][0]))
+                # updating field in survey file
+                shottable['field'] = define_field(str(shottable['objid'][0]))
 
-            survey = vstack([survey, shottable])
-            file_obs.close()
+                survey = vstack([survey, shottable])
+                file_obs.close()
+            except:
+                args.log.error(f"Could not ingest {datevshot}",exc_info=True)
         else:#except:
             args.log.error("Could not ingest %s" % datevshot)
     

@@ -12,7 +12,7 @@ Examples
 
 To run continuum sources one month at a time:
 
->>> python3 create_cont_hdf5.py -d 20200523 -o 012 
+#>>> python3 create_cont_hdf5.py -d 20200523 -o 012
 
 To merge into one month
 
@@ -43,8 +43,16 @@ import astropy.units as u
 from hetdex_api.input_utils import setup_logging
 
 import warnings
+import traceback
 
 warnings.filterwarnings("ignore")
+
+
+DETECTID_BASE = int(5.09e9) #note the x.09 for continuum sources
+DETECTID_STEP = 1
+DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
+                           #start numbering DETECTID_STEP past this value (usually +1)
+                           #297876 for HDR4 extension to HDR3
 
 
 def get_detectname(ra, dec):
@@ -140,9 +148,17 @@ class Fibers(tb.IsDescription):
 
 
 def main(argv=None):
+
+
     """ Main Function """
     # Call initial parser from init_utils
     parser = ap.ArgumentParser(description="""Create HDF5 file.""", add_help=True)
+
+    parser.add_argument(
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5, pdr1}""",
+        type=str,
+        default="hdr4"
+    )
 
     parser.add_argument(
         "-m", "--month", help="""Month to run: 201901""", type=str, default=None
@@ -164,14 +180,6 @@ def main(argv=None):
         default=None,
     )
     
-    parser.add_argument(
-        "-cs",
-        "--contsource",
-        help="""Path to Karls rext catalog""",
-        type=str,
-        default='/scratch/00115/gebhardt/cs/rcs0',
-    )
-
     parser.add_argument(
         "-dp",
         "--detect_path",
@@ -197,13 +205,13 @@ def main(argv=None):
         default=0,
     )
 
-    parser.add_argument(
-        "-sl",
-        "--shotlist",
-        help="""Text file of DATE OBS list""",
-        type=str,
-        default="/scratch/03946/hetdex/hdr3/survey/hdr3.shotlist",
-    )
+    #parser.add_argument(
+    #    "-sl",
+    #    "--shotlist",
+    #    help="""Text file of DATE OBS list""",
+    #    type=str,
+    #    default="/scratch/projects/hetdex/hdr4/survey/hdr4.shotlist",
+    #)
 
     parser.add_argument(
         "--merge",
@@ -235,13 +243,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    index_buff = 3090000000
+    index_buff = DETECTID_BASE + DETECTID_OFFSET + DETECTID_STEP # starting count post HDR3 detection indices
     detectidx = index_buff
+    bad_ingest_files = []
     
     if args.merge:
         n_size = 300000
         
-        fileh = tb.open_file(args.outfilename, "w", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(args.outfilename, "w", "{} Continuum Source Database".format(args.survey.upper()))
 
         tableMain = fileh.create_table(
             fileh.root,
@@ -268,6 +277,8 @@ def main(argv=None):
 
         detectid_max = 0
 
+
+
         for file in files:
             
             args.log.info("Appending detect H5 file: %s" % file)
@@ -283,8 +294,10 @@ def main(argv=None):
                 tableFibers_i = fileh_i.root.Fibers.read()
                 tableSpectra_i = fileh_i.root.Spectra.read()
 
-            except Exception:
+            except Exception as e:
                 args.log.error('Could not append {}'.format(file))
+                args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
+                bad_ingest_files.append(file)
                 continue
                 
             tableMain_i["detectid"] += detectid_max
@@ -299,7 +312,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + DETECTID_STEP
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
@@ -314,6 +327,22 @@ def main(argv=None):
         tableSpectra.flush()
         tableMain.flush()
         args.log.info("File finished: %s" % args.outfilename)
+
+        try:
+            if len(bad_ingest_files) > 0:
+                args.log.error("WARNING!!!! Some files failed to merge. See bad_merge_cont.rerun")
+                with open("bad_merge_cont.rerun", "w") as f:
+                    for bif in bad_ingest_files:
+                        bn = os.path.basename(bif).split("_")[1].split(".")[0]
+                        date = bn.split("v")[0]
+                        obs = bn.split("v")[1]
+                        f.write(f"ingest_cont {date} {obs}\n")
+            else:
+                args.log.info("All files merged.")
+
+        except Exception as e:
+            args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
+
         sys.exit()
     # open up datevobs tarball with ingestion data
 
@@ -371,13 +400,13 @@ def main(argv=None):
     detectcat["col8"].name = "datevshot"
 
     if args.append:
-        fileh = tb.open_file(outfilename, "a", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(outfilename, "a", "{} Continuum Source Database".format(args.survey.upper()))
         tableMain = fileh.root.Detections
         tableSpectra = fileh.root.Spectra
         tableFibers = fileh.root.Fibers
 
     else:
-        fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
+        fileh = tb.open_file(outfilename, "w", "{} Continuum Source Database".format(args.survey.upper()))
         
         tableMain = fileh.create_table(
             fileh.root,
@@ -408,7 +437,7 @@ def main(argv=None):
     detectid = []
 
     if args.append:
-        detectid_i = np.max(tableMain.cols.detectid[:]) + 1
+        detectid_i = np.max(tableMain.cols.detectid[:]) + DETECTID_STEP
     else:
         detectid_i = detectidx
     print(detectid_i)
@@ -433,15 +462,16 @@ def main(argv=None):
 
     det_cols = fileh.root.Detections.colnames
 
-    shottab = Table.read(args.shotlist, format='ascii.no_header')
-    shotlist = []
-    for row in shottab:
-        shotlist.append( int(str(row['col1']) + str(row['col2']).zfill(3)))
+    #Not needed as we are generating for an input shot now. Removed 2023-09-22 EMC
+    #shottab = Table.read(args.shotlist, format='ascii.no_header')
+    #shotlist = []
+    #for row in shottab:
+    #    shotlist.append( int(str(row['col1']) + str(row['col2']).zfill(3)))
 
     for row in detectcat:
 
-        if row['shotid'] not in shotlist:
-            continue
+        #if row['shotid'] not in shotlist:
+        #    continue
 
         rowMain = tableMain.row
 
@@ -454,29 +484,51 @@ def main(argv=None):
         try:
             inputid_i = row["inputid"]
             specfile = "./spec/{}.spec".format(inputid_i)
+
+            # 20240416 dd - add some flexibility on whether .spec file has 11 or 12 columns
+            # check column count
+            expected_names = [
+                "wave1d",
+                "spec1d_nc",
+                "spec1d_nc_err",
+                "counts1d",
+                "counts1d_err",
+                "apsum_counts",
+                "apsum_counts_err",
+                "dummy",
+                "apcor",
+                "flag_pix",
+                "obnum",
+            ]
+
+            try:
+                ncols = -1
+                with open(specfile) as f:
+                    ncols = len(f.readline().split())
+
+                if ncols == 12:
+                    expected_names.append("spec1d_nc_ffsky")
+                elif ncols == 11:
+                    pass  # all good as is
+                else:
+                    args.log.warning(f"Unexpected number of columns ({ncols}) in {specfile}")
+
+            except Exception as e:
+                args.log.warning('Possible problem with ' + specfile)
+                args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
+
+
             dataspec = Table(
                 np.loadtxt(specfile),
-                names=[
-                    "wave1d",
-                    "spec1d_nc",
-                    "spec1d_nc_err",
-                    "counts1d",
-                    "counts1d_err",
-                    "apsum_counts",
-                    "apsum_counts_err",
-                    "dummy",
-                    "apcor",
-                    "flag_pix",
-                    "obnum",
-                    "spec1d_nc_ffsky",
-                ],
+                names=expected_names
             )
 
             rowspectra = tableSpectra.row
             rowspectra["detectid"] = row["detectid"]
             rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
             rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
-            rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+            if "spec1d_nc_ffsky" in dataspec.colnames:
+                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
             rowspectra["wave1d"] = dataspec["wave1d"]
             rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
             rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
@@ -487,8 +539,9 @@ def main(argv=None):
             rowspectra["apcor"] = dataspec["apcor"]
             rowspectra["flag_pix"] = dataspec["flag_pix"]
             rowspectra.append()
-        except Exception:
+        except Exception as e:
             args.log.error("Could not ingest %s" % specfile)
+            args.log.error(f"Exception: {e}\n\n{traceback.format_exc()}")
 
 
         # add fiber data
@@ -592,14 +645,15 @@ def main(argv=None):
     fileh.close()
 
     # remove untarred files
+    # this was very slow so removed for HDR4. Just remove manually after
 
-    tarfiles = glob.glob('./spec/{}*'.format(datevobs))
-
-    for f in tarfiles:
-        try:
-            os.remove(f)
-        except OSError as e:
-            print("Error: %s : %s" % (f, e.strerror))
+    #tarfiles = glob.glob('./spec/{}*'.format(datevobs))
+    #
+    #for f in tarfiles:
+    #    try:
+    #        os.remove(f)
+    #    except OSError as e:
+    #        print("Error: %s : %s" % (f, e.strerror))
                          
 if __name__ == "__main__":
     main()

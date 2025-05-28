@@ -41,6 +41,8 @@ try:  # using HDRconfig
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
     CONFIG_HDR2 = HDRconfig('hdr2.1')
     CONFIG_HDR3 = HDRconfig('hdr3')
+    CONFIG_HDR4 = HDRconfig('hdr4')
+    CONFIG_HDR5 = HDRconfig('hdr5')
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
@@ -66,11 +68,12 @@ class QueryWidget:
         self.aperture = aperture
         self.cutout_size = cutout_size
         self.zoom = zoom
-
+        self.spec_table = None
+        
         config = HDRconfig(survey=survey)
 
         self.catlib = catalogs.CatalogLibrary()
-
+                
         if coords:
             self.coords = coords
             self.detectid = 1000000000
@@ -79,25 +82,25 @@ class QueryWidget:
             self.update_det_coords()
         else:
             self.coords = SkyCoord(191.663132 * u.deg, 50.712696 * u.deg, frame="icrs")
-            self.detectid = 2101848640
-
-        # initialize the image widget from astrowidgets
-        self.imw = ImageWidget(image_width=600, image_height=600)
-
-        self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2", "HDR2.1", "HDR3"],
-            value=self.survey.upper(),
-            layout=Layout(width="10%"),
-        )
+            self.detectid = 3003575145
 
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=1000000000,
-            max=4000000000,
+            max=6000000000,
             step=1,
             description="DetectID:",
             disabled=False,
         )
+        # initialize the image widget from astrowidgets
+        self.imw = ImageWidget(image_width=600, image_height=600)
+
+        self.survey_widget = widgets.Dropdown(
+            options=["HDR1", "HDR2", "HDR2.1", "HDR3", "HDR4"],
+            value=self.survey.upper(),
+            layout=Layout(width="10%"),
+        )
+
         self.im_ra = widgets.FloatText(
             value=self.coords.ra.value,
             description="RA (deg):",
@@ -142,7 +145,7 @@ class QueryWidget:
             ]
         )
         self.leftbox = widgets.VBox(
-            [self.imw, self.textimpath], layout=Layout(width="800px")
+            [self.imw, self.textimpath], layout=Layout(width="50%")
         )
         self.rightbox = widgets.VBox(
             [
@@ -156,7 +159,7 @@ class QueryWidget:
                 self.marker_table_output,
                 self.spec_output,
             ],
-            layout=Layout(width="800px"),
+            layout=Layout(width="50%")
         )
 
         self.bottombox = widgets.Output(layout={"border": "1px solid black"})
@@ -203,6 +206,14 @@ class QueryWidget:
             self.det_file = CONFIG_HDR3.detecth5
         elif (self.detectid >= 3090000000) * (self.detectid < 3100000000):
             self.det_file = CONFIG_HDR3.contsourceh5
+        elif (self.detectid >= 4000000000) * (self.detectid < 4090000000):
+            self.det_file = CONFIG_HDR4.detecth5
+        elif (self.detectid >= 4090000000) * (self.detectid < 4100000000):
+            self.det_file = CONFIG_HDR4.contsourceh5
+        elif (self.detectid >= 5000000000) * (self.detectid < 5090000000):
+            self.det_file = CONFIG_HDR5.detecth5
+        elif (self.detectid >= 5090000000) * (self.detectid < 5100000000):
+            self.det_file = CONFIG_HDR5.contsourceh5
 
         if OPEN_DET_FILE is None:
             OPEN_DET_FILE = self.det_file
@@ -382,12 +393,16 @@ class QueryWidget:
             xaxis_title="wavelength (A)",
             yaxis_title="f_lambda (1e-17 ergs/s/cm^2/A)",
         )
-        fig.update_layout(legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
-                          margin=dict(l=5, r=5, t=30, b=5),
-                          autosize=True,
-                          height=200,
-                          width=500,
-                          font_size=8, xaxis_range=[3540, 5510])
+                
+        fig.update_layout(
+            legend=dict(x=0.95, y=0.99, xanchor="right", yanchor="top"),
+            margin=dict(l=5, r=5, t=30, b=5),
+            autosize=True,
+            height=200,
+            width=500,
+            font_size=8,
+            xaxis_range=[3540, 5450],
+        )
         fig.show()
         # fig, ax = plt.subplots(figsize=(8,2))
         # ax.plot(row['wavelength'], row['spec'])

@@ -85,9 +85,9 @@ def fit_circular_aperture(
     Fit a circular aperture with either an HDU object or and
     """
 
-    im = hdu[0].data
-    error = hdu[1].data
-    w = wcs.WCS(hdu[0].header)
+    im = hdu[1].data
+    error = hdu[2].data
+    w = wcs.WCS(hdu[1].header)
 
     # create mask (set True for where you want to mask)
     im_mask = im == 0
@@ -116,11 +116,11 @@ def fit_circular_aperture(
     bkg_stddev = stddev_sigclip * aper.to_pixel(w).area * apcor
 
     phottable = aperture_photometry(
-        hdu[0].data,
+        hdu[1].data,
         [aper, aper_annulus],
         error=hdu[1].data,
         mask=im_mask,
-        wcs=wcs.WCS(hdu[0].header),
+        wcs=wcs.WCS(hdu[1].header),
     )
     if np.abs(bkg_median) > 2 * bkg_stddev:
         flux = (phottable["aperture_sum_0"][0] - bkg_median) * u.Unit(
@@ -470,11 +470,11 @@ def measure_aper_flux(hdu, aper):
     bkg_stddev = stddev_sigclip * aper.to_pixel(w).area * apcor
 
     phottable = aperture_photometry(
-        hdu[0].data,
+        hdu[1].data,
         [aper, aper_annulus],
         error=hdu[1].data,
         mask=im_mask,
-        wcs=wcs.WCS(hdu[0].header),
+        wcs=wcs.WCS(hdu[1].header),
     )
     if np.abs(bkg_median) > 2 * bkg_stddev:
         flux = (phottable["aperture_sum_0"][0] - bkg_median) * u.Unit(
@@ -654,7 +654,7 @@ def fit_ellipse_for_source(
         print("You must provide a detectid, friendid or coords/wave_range/shotid")
         return np.nan, np.nan
 
-    w = wcs.WCS(hdu[0].header)
+    w = wcs.WCS(hdu[1].header)
 
     if friendid is not None:
 
@@ -689,13 +689,13 @@ def fit_ellipse_for_source(
     # plt.imshow(hdu.data, origin='lower')
     # aper.plot(color='white')
 
-    ellipse = Ellipse(hdu[0].data)
+    ellipse = Ellipse(hdu[1].data)
     isolist = ellipse.fit_image()
     iso_tab = isolist.to_table()
 
     if len(iso_tab) == 0:
-        geometry.find_center(hdu[0].data, verbose=False, threshold=0.5)
-        ellipse = Ellipse(hdu[0].data, geometry)
+        geometry.find_center(hdu[1].data, verbose=False, threshold=0.5)
+        ellipse = Ellipse(hdu[1].data, geometry)
         isolist = ellipse.fit_image()
         iso_tab = isolist.to_table()
 
@@ -704,7 +704,7 @@ def fit_ellipse_for_source(
 
         try:
             # compute iso's manually in steps of 3 pixels
-            ellipse = Ellipse(hdu[0].data)  # reset ellipse
+            ellipse = Ellipse(hdu[1].data)  # reset ellipse
             iso_list = []
             for sma in np.arange(1, 60, 2):
                 iso = ellipse.fit_isophote(sma)
@@ -719,8 +719,8 @@ def fit_ellipse_for_source(
             return np.nan, np.nan, np.nan
 
     try:
-        model_image = build_ellipse_model(hdu[0].data.shape, isolist)
-        residual = hdu[0].data - model_image
+        model_image = build_ellipse_model(hdu[1].data.shape, isolist)
+        residual = hdu[1].data - model_image
     except:
         return np.nan, np.nan, np.nan
 
@@ -781,7 +781,7 @@ def fit_ellipse_for_source(
         isolist.pa[sel_iso],
     )
 
-    phottable = aperture_photometry(hdu[0].data, aper, error=hdu[1].data)
+    phottable = aperture_photometry(hdu[1].data, aper, error=hdu[2].data)
     flux = phottable["aperture_sum"][0] * 10 ** -17 * u.erg / (u.cm ** 2 * u.s)
     flux_err = phottable["aperture_sum_err"][0] * 10 ** -17 * u.erg / (u.cm ** 2 * u.s)
 
@@ -811,7 +811,7 @@ def fit_ellipse_for_source(
         print("Could not get imaging for " + str(name))
 
     zscale = ZScaleInterval(contrast=0.5, krej=1.5)
-    vmin, vmax = zscale.get_limits(values=hdu[0].data)
+    vmin, vmax = zscale.get_limits(values=hdu[1].data)
 
     fig = plt.figure(figsize=(20, 12))
     fig.suptitle(
@@ -822,7 +822,7 @@ def fit_ellipse_for_source(
     )
 
     ax1 = fig.add_subplot(231, projection=w)
-    plt.imshow(hdu[0].data, vmin=vmin, vmax=vmax)
+    plt.imshow(hdu[1].data, vmin=vmin, vmax=vmax)
     plt.xlabel("RA")
     plt.ylabel("Dec")
     plt.colorbar()
@@ -865,7 +865,7 @@ def fit_ellipse_for_source(
         fontsize=20,
         color="w",
     )
-    plt.contour(hdu[0].data, transform=ax4.get_transform(w))
+    plt.contour(hdu[1].data, transform=ax4.get_transform(w))
     plt.xlabel("RA")
     plt.ylabel("Dec")
     aper.plot(
@@ -950,20 +950,20 @@ def get_sn_for_aperture_range(
     hdu, find_peak=False, r_list=np.arange(0.5, 3.1, 0.1), dtype=float
 ):
 
-    im = hdu[0].data
+    im = hdu[1].data
     im_mask = im == 0
     mean, median, std = sigma_clipped_stats(im[im_mask == 0], sigma=3.0)
     threshold = 3 * std
 
     if find_peak:
-        r = np.sqrt(hdu[2].data ** 2 + hdu[3].data ** 2)
+        r = np.sqrt(hdu[3].data ** 2 + hdu[4].data ** 2)
         searchregion = r < 3
         tbl = find_peaks(
             im,
             threshold,
             footprint=searchregion,
             mask=im_mask,
-            wcs=wcs.WCS(hdu[0].header),
+            wcs=wcs.WCS(hdu[1].header),
         )
         if tbl is None:
             coords_peak = None
@@ -974,7 +974,7 @@ def get_sn_for_aperture_range(
 
     if coords_peak is None:
         coords_center = SkyCoord(
-            ra=hdu[0].header["CRVAL1"], dec=hdu[0].header["CRVAL2"], unit="deg"
+            ra=hdu[1].header["CRVAL1"], dec=hdu[1].header["CRVAL2"], unit="deg"
         )
     else:
         coords_center = coords_peak

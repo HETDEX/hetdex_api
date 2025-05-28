@@ -13,6 +13,7 @@ from __future__ import print_function
 
 import numpy as np
 import tables as tb
+import random
 import numpy
 import copy
 import time
@@ -24,16 +25,18 @@ from astropy import wcs
 from regions import EllipseSkyRegion, EllipsePixelRegion
 
 import matplotlib
+
 matplotlib.use("agg")
 
 import healpy as hp
 from hetdex_api.config import HDRconfig
 
+
 try:
     LATEST_HDR_NAME = HDRconfig.LATEST_HDR_NAME
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr2.1"
+    LATEST_HDR_NAME = "hdr5"
 
 
 class Survey:
@@ -80,7 +83,6 @@ class Survey:
 
         # append flux limits
         if survey == "hdr2.1":
-
             flim = Table.read(
                 config.flim_avg,
                 format="ascii",
@@ -98,9 +100,38 @@ class Survey:
                     fluxlimit.append(np.nan)
 
             self.fluxlimit_4540 = np.array(fluxlimit)
+        else:
+            flim = Table.read( config.flim_avg, format='ascii')
+
+            fluxlimit = []
+
+            for shotid in self.shotid:
+                sel = flim["shotid"] == shotid
+                if np.sum(sel) == 1:
+                    fluxlimit.extend(flim["f1sigma_biweight"][sel])
+                elif np.sum(sel) > 1:
+                    print("Found two fluxlimits for ", datevobs)
+                    fluxlimit.extend(flim["f1sigma_biweight"][sel][0])
+                else:
+                    fluxlimit.append(np.nan)
+
+            self.fluxlimit_4600 = np.array(fluxlimit).astype(np.float32)
+            
+        # added 2024-09-19 by EMC
+        # manually change field entry for 20190802012 and 20190803012 incorrectly given a fall objid
+
+        for s in [20190802012, 20190803012]:
+            self.field[self.shotid == s] = "dex-spring"
+
+        # added 2025-02-14 by EMC                                                                                        
+        # manually change field entry for 20190802012 and 20190803012 incorrectly given a fall objid                      
+        for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
+            self.field[self.shotid == s] = "dex-fall"
+
+        self.field[ self.field == 'egs'] = 'dex-spring'
 
     def __getitem__(self, indx):
-        """ 
+        """
         This allows for slicing of the survey class
         object so that a mask can be applied to
         every attribute automatically by:
@@ -135,7 +166,7 @@ class Survey:
         maskshots = self.remove_shots()
         return self[maskshots]
 
-    def remove_shots(self):
+    def remove_shots(self, badshot=True, badtp=True, other=True):
         """
         Function to remove shots that should be exluded from most analysis.
 
@@ -154,20 +185,30 @@ class Survey:
         S = Survey('hdr2')
         ind_good_shots = S.remove_shots()
         S_good = S[ind_good_shots]
-        
+
         """
         global config
 
         mask = np.zeros(np.size(self.shotid), dtype=bool)
         badshots = np.loadtxt(config.badshot, dtype=int)
-        for shot in badshots:
-            maskshot = self.shotid == shot
-            mask = mask | maskshot
 
-        notvalid = self.shotid < 20170000
-        mask = mask | notvalid
+        if badshot:
+            for shot in badshots:
+                maskshot = self.shotid == shot
+                mask = mask | maskshot
 
-        return np.invert(mask)
+        mask = np.invert(mask)
+        
+        if badtp:
+            mask = mask * (self.response_4540 >= 0.08)
+
+        if other:
+            mask = mask * (self.field != 'other')
+            
+        notvalid = self.shotid > 20170000
+        mask = mask * notvalid
+
+        return mask
 
     def get_shotlist(self, coords, radius=None, width=None, height=None):
         """
@@ -231,7 +272,7 @@ class Survey:
         Parameters
         ----------
         self
-            Survey Class object 
+            Survey Class object
         return_good
             Boolean flag to only exclude shots in config.badshot
 
@@ -243,17 +284,39 @@ class Survey:
 
         survey_table = Table(self.hdfile.root.Survey.read())
 
+        # added 2025-05-17 by EMC                                                                                        
+        for s in [20190802012, 20190803012]:
+            survey_table['field'][survey_table['shotid'] == s] = "dex-spring"
+        # added 2025-05-17 by EMC                                                                      
+        for s in [20231014013, 20231017015, 20231104011, 20231104015, 20231108013, 20231204011, 20231206015]:
+            survey_table['field'][survey_table['shotid'] == s] = "dex-fall"
+
+        survey_table['field'][ survey_table['field']=='egs'] = 'dex-spring'
+
         good_shots = self.remove_shots()
 
         survey_table["shot_flag"] = good_shots
 
-        survey_table["mjd"] = self.mjd[:, 0]
-        survey_table["exptime"] = np.mean(self.exptime, axis=1)
+        try:
+            survey_table["mjd"] = self.mjd[:, 0]
+        except:
+            pass
+
+        try:
+            survey_table["exptime"] = np.mean(self.exptime, axis=1)
+        except:
+            pass
+
         try:
             survey_table["fluxlimit_4540"] = self.fluxlimit_4540
         except:
             pass
-            
+        try:
+            survey_table["fluxlimit_4600"] = self.fluxlimit_4600
+        except:
+            pass
+
+
         for col in survey_table.colnames:
             try:
                 if np.shape(survey_table[col])[1] == 3:
@@ -281,10 +344,16 @@ class Survey:
 
 
 class FiberIndex:
-    def __init__(self, survey=LATEST_HDR_NAME, load_fiber_table=False, loadall=False):
+    def __init__(
+        self,
+        survey=LATEST_HDR_NAME,
+        load_fiber_table=False,
+        loadall=False,
+        keep_mask=True,
+    ):
         """
         Initialize the Fiber class for a given data release
-        
+
         Parameters
         ----------
         survey : string
@@ -310,12 +379,15 @@ class FiberIndex:
         self.filename = config.fiberindexh5
         self.hdfile = tb.open_file(self.filename, mode="r")
         self.fiber_table = None
-        try:
-            self.fibermaskh5 = tb.open_file(config.fibermaskh5, 'r')
-        except:
-            print('Could not find fiber mask file in {}'.format(config.fibermaskh5))
-            self.fibermaskh5 = None
-    
+        self.fibermaskh5 = None
+
+        if keep_mask:
+            try:
+                self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
+            except:
+                print("Could not find fiber mask file in {}".format(config.fibermaskh5))
+                self.fibermaskh5 = None
+
         if load_fiber_table:
             self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
             self.coords = SkyCoord(
@@ -326,22 +398,97 @@ class FiberIndex:
 
             # add masking info if found
             if self.fibermaskh5 is not None:
-                self.mask_table = Table(self.fibermaskh5.root.Flags.read())
-                self.fiber_table = hstack([self.fiber_table, self.mask_table])
+                if keep_mask:
+                    self.mask_table = Table(self.fibermaskh5.root.Flags.read())
+                    self.fiber_table = hstack([self.fiber_table, self.mask_table])
 
-                for row in self.fiber_table:
-                    if row['fiber_id_1'] == row['fiber_id_2']:
-                        continue
-                    else:
-                        print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2']))
-                self.fiber_table.rename_column('fiber_id_1', 'fiber_id')
-                self.fiber_table.remove_column('fiber_id_2')
+                    for row in self.fiber_table:
+                        if row["fiber_id_1"] == row["fiber_id_2"]:
+                            continue
+                        else:
+                            print(
+                                "Something is wrong. Mismatcheded fiber:{} and {}".format(
+                                    row["fiber_id_1"], row["fiber_id_2"]
+                                )
+                            )
+                    self.fiber_table.rename_column("fiber_id_1", "fiber_id")
+                    self.fiber_table.remove_column("fiber_id_2")
+
+    def return_shot(self, shotid_obs, return_index=False, return_flags=True):
+        """
+        Function to return the fiber index and mask for a single shot
+
+        Parameters
+        ----------
+        self
+            the FiberIndex class for a specific survey
+        shotid
+            Specific shotid (dtype=int) you want
+        return_index: bool
+            Option to return row index values for slicing. Default is False.
+        return_flags: bool
+            Option to return mask info. Default is True
+
+        Returns
+        -------
+        fiber_table: astropy table
+            An astropy table of Fiber infomation in queried aperture
+        table_index: optional
+            an optional array of row coordinates corresponding to the
+            retrieved fiber table
+        """
+
+        tab_idx = self.hdfile.root.FiberIndex.get_where_list("(shotid == shotid_obs)")
+
+        if len(tab_idx) == 0:
+            print("Something is wrong, no rows returned from Fiber Index")
+
+        tab = Table(self.hdfile.root.FiberIndex.read_coordinates(tab_idx))
+
+        if return_flags:
+            if self.fibermaskh5 is None:
+                print("No fiber mask file found")
+            else:
+                mask_table = Table(
+                    self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
+                )
+
+            fiber_table = hstack([tab, mask_table])
+
+            # quick check to make sure fibers match
+            for row in fiber_table[
+                np.random.random_integers(0, high=len(fiber_table), size=50)
+            ]:
+                if row["fiber_id_1"] == row["fiber_id_2"]:
+                    continue
+                else:
+                    print(
+                        "Something is wrong. Mismatcheded fiber:{} and {}".format(
+                            row["fiber_id_1"], row["fiber_id_2"]
+                        )
+                    )
+
+            fiber_table.rename_column("fiber_id_1", "fiber_id")
+            fiber_table.remove_column("fiber_id_2")
+        else:
+            fiber_table = tab
+
+        if return_index:
+            try:
+                return fiber_table, tab_idx
+            except TypeError:
+                return None, None
+        else:
+            return fiber_table
 
     def query_region(
-        self, coords, radius=3.5 * u.arcsec,
-            shotid=None,
-            return_index=False,
-            return_flags=True
+        self,
+        coords,
+        radius=None,
+        width=None,
+        shotid=None,
+        return_index=False,
+        return_flags=True,
     ):
         """
         Function to retrieve the indexes of the FiberIndex table
@@ -354,6 +501,9 @@ class FiberIndex:
         coords
             center coordinate you want to search. This should
             be an astropy SkyCoord object
+        width
+            width of rectangle search if provided. An astropy quantity.
+            This will create a cutout of fibers width x width centered at coords.
         radius
             radius you want to search. An astropy quantity object
         shotid
@@ -373,57 +523,98 @@ class FiberIndex:
             retrieved fiber table
         """
 
-        Nside = 2 ** 15
+        Nside = 2**15
 
         ra_obj = coords.ra.deg
         dec_obj = coords.dec.deg
 
-        ra_sep = radius.to(u.degree).value + 3.0 / 3600.0
+        if width is not None:
+            if radius is not None:
+                print('Extracting square cutout of width={:3.2f}. Ignoring radius parameter')
+            # retrieve square cutout region
+            width_deg = width.to(u.deg).value
+            ra_low = coords.ra.deg - 0.5*width_deg
+            ra_high = coords.ra.deg + 0.5*width_deg
 
-        vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
+            table_index = self.hdfile.root.FiberIndex.get_where_list( '(ra >= ra_low) & (ra <= ra_high)')    
 
-        pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
+            seltab = Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
 
-        seltab = Table()
-        table_index = []
+            # now select in declination
+            idx = np.abs( seltab['dec'] - dec_obj) <= 0.5*width_deg
+                          
+            selected_index = np.array(table_index)[idx]
+                
+        else:
+            if radius is None:
+                radius = 3.5 * u.arcsec
 
-        for hpix in pix_region:
-            if shotid:
-                h_tab, h_tab_index = self.get_fib_from_hp(
-                    hpix, shotid=shotid, return_index=True
-                )
+            # if search radius is greater than 1 arcmin, use RA indexing to down-select
+            if radius >= 1*u.arcmin:
+
+                rad_deg = radius.to(u.deg).value
+
+                ra_low = coords.ra.deg - rad_deg/np.cos( coords.dec)
+                ra_high = coords.ra.deg + rad_deg/np.cos( coords.dec)
+                table_index = self.hdfile.root.FiberIndex.get_where_list( '(ra >= ra_low) & (ra <= ra_high)')
+                seltab =  Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
+                fib_coords = SkyCoord( ra=seltab['ra']*u.deg, dec=seltab['dec']*u.deg)
+                idx = fib_coords.separation( coords) <= radius
+                selected_index = np.array(table_index)[idx]
+                
             else:
-                h_tab, h_tab_index = self.get_fib_from_hp(hpix, return_index=True)
-            seltab = vstack([seltab, h_tab])
-            table_index.extend(h_tab_index)
+                ra_sep = radius.to(u.degree).value + 4.0 / 3600.0
 
-        fibcoords = SkyCoord(
-            seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
-        )
+                vec = hp.ang2vec(ra_obj, dec_obj, lonlat=True)
 
-        idx = coords.separation(fibcoords) < radius
+                pix_region = hp.query_disc(Nside, vec, (ra_sep * np.pi / 180))
 
-        selected_index = np.array(table_index)[idx]
+                table_index = []
 
+                for hpix in pix_region:
+                    if shotid:
+                        h_tab, h_tab_index = self.get_fib_from_hp(
+                            hpix, shotid=shotid, return_index=True
+                        )
+                    else:
+                        h_tab, h_tab_index = self.get_fib_from_hp(hpix, return_index=True)
+                    
+                    table_index.extend(h_tab_index)
+
+                seltab = Table( self.hdfile.root.FiberIndex.read_coordinates( table_index))
+
+                fibcoords = SkyCoord(
+                    seltab["ra"] * u.degree, seltab["dec"] * u.degree, frame="icrs"
+                )
+
+                idx = coords.separation(fibcoords) <= radius
+
+                selected_index = np.array(table_index)[idx]
+            
         if return_flags:
             if self.fibermaskh5 is None:
-                print('No fiber mask file found')
+                print("No fiber mask file found")
             else:
-                mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(selected_index))
+                mask_table = Table(
+                    self.fibermaskh5.root.Flags.read_coordinates(selected_index)
+                )
 
-            selected_index = np.array(table_index)[idx]
             fiber_table = hstack([seltab[idx], mask_table])
-            #check fibers match
+            # check fibers match
             for row in fiber_table:
-                if row['fiber_id_1'] == row['fiber_id_2']:
+                if row["fiber_id_1"] == row["fiber_id_2"]:
                     continue
                 else:
-                    print('Something is wrong. Mismatcheded fiber:{} and {}'.format(row['fiber_id_1'], row['fiber_id_2']))
-            fiber_table.rename_column('fiber_id_1', 'fiber_id')
-            fiber_table.remove_column('fiber_id_2')
+                    print(
+                        "Something is wrong. Mismatcheded fiber:{} and {}".format(
+                            row["fiber_id_1"], row["fiber_id_2"]
+                        )
+                    )
+            fiber_table.rename_column("fiber_id_1", "fiber_id")
+            fiber_table.remove_column("fiber_id_2")
         else:
             fiber_table = seltab[idx]
-            
+
         if return_index:
             try:
                 return fiber_table, selected_index
@@ -460,7 +651,9 @@ class FiberIndex:
             tab_idx = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
         else:
             tab_hp = self.hdfile.root.FiberIndex.get_where_list("(healpix == hp)")
-            tab_shotid = np.where( self.hdfile.root.FiberIndex.read_coordinates(tab_hp)['shotid'] == shotid)
+            tab_shotid = np.where(
+                self.hdfile.root.FiberIndex.read_coordinates(tab_hp)["shotid"] == shotid
+            )
             tab_idx = tab_hp[tab_shotid]
 
         tab = self.hdfile.root.FiberIndex.read_coordinates(tab_idx)
@@ -476,10 +669,10 @@ class FiberIndex:
             else:
                 return tab
 
-    def get_closest_fiberid(self, coords, shotid=None, maxdistance=8.0 * u.arcsec):
+    def get_closest_fiberid(self, coords, shotid=None, maxdistance=None):
         """
         Function to retrieve the closest fiberid in a shot
-        
+
         Parameters
         ----------
         self
@@ -490,18 +683,21 @@ class FiberIndex:
         shotid
             Specific shotid (dtype=int) you want
         maxdistance
-            The max distance you want to search for a nearby fiber.
-            Default is 8.*u.arcsec 
-        
+            The max distance (an angle quantity) you want to search for a nearby fiber.
+            Default is 8.*u.arcsec
+
         Returns
         -------
         fiberid
             unique fiber identifier for the shot
-        
+
         """
 
         # start searching at small radius to search more efficiently
         search = 2.0 * u.arcsec
+
+        if maxdistance is None:
+            maxdistance = 8.0 * u.arcsec
 
         while search <= maxdistance:
             fiber_table = self.query_region(coords, radius=search, shotid=shotid)
@@ -526,7 +722,7 @@ class FiberIndex:
     def get_amp_flag(self):
         """
         Generate amp flag for each fiber in the survey
-        
+
         Parameters
         ----------
         FiberIndex Class
@@ -554,22 +750,135 @@ class FiberIndex:
         join_tab.sort("row_index")
 
         # quick check to make sure columns match
-        
-        for idx in np.random.random_integers(
-            0, high=len(self.hdfile.root.FiberIndex), size=5000
-        ):
+
+        for idx in np.random.random_integers(0, high=len(self.fiber_table), size=500):
             if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
                 print("Something went wrong. fiber_id columns don't match")
 
         print("Done adding amplifier flags in {:4.3} minutes".format((t1 - t0) / 60))
-
+        
         return np.array(join_tab["amp_flag"], dtype=bool)
+
+    def get_shot_flag(self):
+        """
+        Generate shot flag for each fiber in the survey
+
+        Parameters
+        ----------
+        FiberIndex Class
+
+        Returns
+        -------
+        shot_flag: bool
+            True if fiber is on a good shot
+
+        """
+        global config
+
+        print("Adding shot flag")
+        t0 = time.time()
+
+        badshots = np.loadtxt(config.badshot, dtype=int)
+
+        shot_flag = np.ones_like(self.fiber_table["fiber_id"], dtype=bool)
+        for badshot in badshots:
+            sel = self.fiber_table["shotid"] == badshot
+            shot_flag[sel] = False
+        t1 = time.time()
+        print("Shot flags added in {:4.2f}".format((t1 - t0) / 60))
+
+        return shot_flag
+
+    def get_badfiber_flag(self):
+        """
+        Flag bad fibers
+
+        Parameters
+        ----------
+        FiberIndex Class
+
+        Returns
+        -------
+        badfiber_mask
+        """
+
+        global config
+
+        print("Adding bad fiber flag")
+
+        t0 = time.time()
+        badfib = Table.read(config.badfib, format="ascii")
+
+        badfib_transient = Table.read(
+            config.badfib_transient,
+            format="ascii",
+            names=["multiframe", "fibnum", "date_start", "date_end"],
+        )
+
+        mask = np.ones(len(self.fiber_table), dtype=bool)
+
+        for row in badfib:
+            sel_fib = (self.fiber_table["multiframe"] == row["multiframe"]) * (
+                self.fiber_table["fibnum"] == row["fibnum"]
+            )
+
+            if np.sum(sel_fib) > 0:
+                # print('Adding badfiber flag', row['multiframe'], row['fibnum'])
+                mask = mask * np.invert(sel_fib)
+
+        for row in badfib_transient:
+            sel_fib = (self.fiber_table["multiframe"] == row["multiframe"]) * (
+                self.fiber_table["fibnum"] == row["fibnum"]
+            )
+            sel_date = (self.fiber_table["date"] >= row["date_start"]) * (
+                self.fiber_table["date"] <= row["date_end"]
+            )
+            if np.sum(sel_fib * sel_date) > 0:
+                mask = mask * np.invert(sel_fib)
+
+        t1 = time.time()
+        print("Bad fiber flags added in {:4.2f}".format((t1 - t0) / 60))
+
+        return mask
+
+    def get_throughput_flag(self, throughput_threshold=0.08):
+        """
+        Generate throughput flag for each fiber in the survey
+
+        Parameters
+        ----------
+        FiberIndex Class
+
+        Returns
+        -------
+        throughput_flag: bool
+            True if fiber observation is above throughput_threshold
+        """
+        global config
+
+        print("Adding throughput flag")
+
+        t0 = time.time()
+
+        S = Survey(self.survey)
+
+        sel_lowtp = S.response_4540 < throughput_threshold
+
+        throughput_flag = np.ones_like(self.fiber_table["fiber_id"], dtype=bool)
+
+        for badshot in S.shotid[sel_lowtp]:
+            sel = self.fiber_table["shotid"] == badshot
+            throughput_flag[sel] = False
+        t1 = time.time()
+        print("Throughput flags added in {:4.2f}".format((t1 - t0) / 60))
+
+        return throughput_flag
 
     def get_gal_flag(self, d25scale=3.0):
         """
         Returns boolean mask with detections landing within
         galaxy defined by d25scale flagged as False.
-        
+
         Based on check_all_large_gal from hetdex_tools/galmask.py
         written by John Feldmeier
         """
@@ -577,10 +886,10 @@ class FiberIndex:
         global config
         t0 = time.time()
 
-        S = Survey()
+        S = Survey(self.survey)
         galaxy_cat = Table.read(config.rc3cat, format="ascii")
 
-        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+        mask = np.ones(len(self.fiber_table), dtype=bool)
         # Loop over each galaxy
 
         for idx in np.arange(len(galaxy_cat)):
@@ -593,7 +902,6 @@ class FiberIndex:
                 continue
             down_select = self.coords.separation(gal_coord) < rlimit
             if np.any(down_select):
-
                 galregion = create_gal_ellipse(
                     galaxy_cat, row_index=idx, d25scale=d25scale
                 )
@@ -601,7 +909,7 @@ class FiberIndex:
                 dummy_wcs = create_dummy_wcs(
                     galregion.center, imsize=2 * galregion.height
                 )
-                galflag = np.zeros(len(self.hdfile.root.FiberIndex), dtype=bool)
+                galflag = np.zeros(len(self.fiber_table), dtype=bool)
                 galflag[down_select] = galregion.contains(
                     self.coords[down_select], dummy_wcs
                 )
@@ -614,21 +922,24 @@ class FiberIndex:
 
         return mask
 
-    def get_meteor_flag(self, streaksize=12.0 * u.arcsec):
+    def get_meteor_flag(self, streaksize=None):
         """
         Returns boolean mask with detections landing on meteor
         streaks masked. Use np.invert(mask) to find meteors
         """
 
+        if streaksize is None:
+            streaksize = 12.0 * u.arcsec
+
         t0 = time.time()
         global config
 
-        S = Survey()
+        S = Survey(self.survey)
         # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
 
         met_tab = Table.read(config.meteor, format="ascii")
 
-        mask = np.ones(len(self.hdfile.root.FiberIndex), dtype=bool)
+        mask = np.ones(len(self.fiber_table), dtype=bool)
 
         for row in met_tab:
             sel_shot = np.where(
@@ -644,10 +955,16 @@ class FiberIndex:
                 sel_shot_survey = S.shotid == row["shotid"]
                 shot_coords = S.coords[sel_shot_survey]
 
-                ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                # add in special handling for vertical streak
+                if np.abs(b) < 500:
+                    ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                else:  # for very large slopes we needed higher resolution
+                    ra_met = shot_coords.ra + np.arange(-1500, 1500, 0.001) * u.arcsec
+
                 dec_met = (a + ra_met.deg * b) * u.deg
 
-                met_coords = SkyCoord(ra=ra_met, dec=dec_met)
+                sel_met = (dec_met > -90 * u.deg) * (dec_met < 90.0 * u.deg)
+                met_coords = SkyCoord(ra=ra_met[sel_met], dec=dec_met[sel_met])
 
                 idxc, idxcatalog, d2d, d3d = met_coords.search_around_sky(
                     self.coords[sel_shot], streaksize
@@ -659,14 +976,70 @@ class FiberIndex:
         t1 = time.time()
 
         print("Meteor mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
-        
+
         return mask
 
-        
+    def get_satellite_flag(self, streaksize=None):
+        """
+        Returns boolean mask with detections landing on meteor
+        streaks masked. Use np.invert(mask) to find meteors
+        """
+
+        if streaksize is None:
+            streaksize = 6.0 * u.arcsec
+
+        t0 = time.time()
+        global config
+
+        S = Survey(self.survey)
+        # satellites are found with +/- X arcsec of the line DEC=a+RA*b in this file
+
+        sat_tab = Table.read(
+            config.satellite,
+            format="ascii",
+            names=["shotid", "expnum", "slope", "intercept"],
+        )
+
+        mask = np.ones(len(self.fiber_table), dtype=bool)
+
+        for row in sat_tab:
+            sel_shot = np.where(
+                (self.fiber_table["shotid"] == row["shotid"])
+                & (np.isfinite(self.fiber_table["ra"]))
+                & (np.isfinite(self.fiber_table["dec"]))
+            )[0]
+
+            if np.sum(sel_shot) > 0:
+                a = row["slope"]
+                b = row["intercept"]
+
+                sel_shot_survey = S.shotid == row["shotid"]
+                shot_coords = S.coords[sel_shot_survey]
+
+                ra_sat = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
+                dec_sat = (b + ra_sat.deg * a) * u.deg
+
+                sat_coords = SkyCoord(ra=ra_sat, dec=dec_sat)
+
+                idxc, idxcatalog, d2d, d3d = sat_coords.search_around_sky(
+                    self.coords[sel_shot], streaksize
+                )
+                mask_index = [sel_shot][0][idxc]
+                mask[mask_index] = False
+
+        S.close()
+        t1 = time.time()
+
+        print(
+            "Satellite mask array generated in {:3.2f} minutes".format((t1 - t0) / 60)
+        )
+
+        return mask
+
     def get_fiber_flags(self, coord=None, shotid=None):
         """
         Returns boolean mask values for a coord/shotid combo
-        
+
         Parameters
         ----------
         coord: SkyCoord object
@@ -676,35 +1049,36 @@ class FiberIndex:
 
         Returns
         -------
-        meteor_flag: bool
-            False if location is on meteor streak
-        gal_flag: bool
-            False if location is within a large galaxy
-        amp_flag: bool
-            False if location is on a bad quality amplifier
-        flag: bool
-            False if any of the above flags are False
+        flag_dict :  dictionary
+        1 if good, 0 if flagged bad
         """
 
         if self.fibermaskh5 is None:
-            print('No fiber mask file found')
+            print("No fiber mask file found")
             return None
-            
-        table, table_index = self.query_region(
-            coord, return_index=True, shotid=shotid)
+
+        table, table_index = self.query_region(coord, return_index=True, shotid=shotid)
         mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
-        
-        flag  = np.all(mask_table['flag'])
-        
-        meteor_flag = np.all(mask_table['meteor_flag'])
-        
-        gal_flag = np.all(mask_table['gal_flag'])
-        
-        amp_flag = np.all(mask_table['amp_flag'])
 
-        return meteor_flag, gal_flag, amp_flag, flag
+        flag_dict = {
+            "flag": 1,
+            "flag_badamp": 1,
+            "flag_badfib": 1,
+            "flag_meteor": 1,
+            "flag_satellite": 1,
+            "flag_largegal": 1,
+            "flag_shot": 1,
+            "flag_throughput": 1,
+        }
 
-        
+        for col in mask_table.columns:
+            if col == "fiber_id":
+                continue
+            else:
+                flag_dict[col] = int(np.all(mask_table[col]))
+
+        return flag_dict
+
     def close(self):
         """
         Close the hdfile when done
@@ -713,13 +1087,14 @@ class FiberIndex:
         if self.fibermaskh5 is not None:
             self.fibermaskh5.close()
 
+
 def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
     """
     Similar to galmask.py/ellreg but can take a galaxy name as input.
-    
+
     Create galaxy ellipse region using an input galaxy catalog_table (likely need
     to change this API as it heavily follows the RC3 catalog format)
-    
+
     Parameters
     ----------
     galaxy_catalog_table: an astropy table
@@ -751,20 +1126,27 @@ def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
     return ellipse_reg
 
 
-def create_dummy_wcs(coords, pixscale=0.5 * u.arcsec, imsize=60.0 * u.arcmin):
+def create_dummy_wcs(coords, pixscale=None, imsize=None):
     """
     Create a simple fake WCS in order to use the regions subroutine.
     Adapted from John Feldmeiers galmask.py
-    
+
     Parameters
     ----------
     coords: a SkyCoord object
         center coordinates of WCS
     pixscale: astropy quantity
-        pixel scale of WCS in astropy angle quantity units
+        pixel scale of WCS in astropy angle quantity units. Will default
+        to 0.5 arcsec if not set
     imsize: astropy quantity
-        size of WCS in astropy angle quanity units
+        size of WCS in astropy angle quanity units. Will default to
+        60 arcsec if not set
     """
+
+    if pixscale is None:
+        pixscale = 0.5 * u.arcsec
+    if imsize is None:
+        imsize = 60.0 * u.arcsec
 
     gridsize = imsize.to_value("arcsec")
     gridstep = pixscale.to_value("arcsec")
@@ -773,7 +1155,7 @@ def create_dummy_wcs(coords, pixscale=0.5 * u.arcsec, imsize=60.0 * u.arcmin):
     ra_cen = coords.ra.deg
     dec_cen = coords.dec.deg
 
-    ndim = np.int(2 * gridsize / gridstep + 1)
+    ndim = int(2 * gridsize / gridstep + 1)
     center = ndim / 2
     w = wcs.WCS(naxis=2)
     w.wcs.crval = [ra_cen, dec_cen]

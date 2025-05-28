@@ -66,7 +66,7 @@ def main(argv=None):
         "--shotdir",
         help="""Directory for shot H5 files to ingest""",
         type=str,
-        default="/scratch/03946/hetdex/hdr3/reduction/data",
+        default="/scratch/projects/hetdex/hdr4/reduction/data",
     )
 
     parser.add_argument(
@@ -74,7 +74,7 @@ def main(argv=None):
         "--shotlist",
         help="""Text file of DATE OBS list""",
         type=str,
-        default="hdr3.shotlist",
+        default="hdr4.shotlist",
     )
 
     parser.add_argument(
@@ -86,7 +86,7 @@ def main(argv=None):
         default=None,
     )
 
-    parser.add_argument("-survey", "--survey", type=str, default="hdr3")
+    parser.add_argument("-survey", "--survey", type=str, default="hdr4")
 
     parser.add_argument(
         "-m",
@@ -126,12 +126,15 @@ def main(argv=None):
 
     if args.merge:
         files = glob.glob("mfi*h5")
+        files.sort()
+        
         for file in files:
             args.log.info("Appending detect H5 file: %s" % file)
             fileh_i = tb.open_file(file, "r")
             tableFibers_i = fileh_i.root.FiberIndex.read()
             tableFibers.append(tableFibers_i)
 
+        tableFibers.flush()
         tableFibers.cols.healpix.create_csindex()
         tableFibers.cols.ra.create_csindex()
         tableFibers.cols.shotid.create_csindex()
@@ -169,7 +172,7 @@ def main(argv=None):
             for row_i in tableFibers_i:
 
                 row_main = tableFibers.row
-
+                
                 for col in tableFibers_i.colnames:
                     row_main[col] = row_i[col]
 
@@ -200,6 +203,7 @@ def main(argv=None):
             else:
                 args.log.error("could not ingest %s" % datevshot)
 
+    tableFibers.flush()
     tableFibers.cols.healpix.create_csindex()
     tableFibers.cols.ra.create_csindex()
     tableFibers.cols.shotid.create_csindex()

@@ -53,6 +53,15 @@ from hetdex_api.config import HDRconfig
 import warnings
 warnings.filterwarnings('ignore')
 
+import traceback
+
+DETECTID_BASE = int(5e9)
+DETECTID_STEP = 1
+DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
+                           #start numbering DETECTID_STEP past this value (usually +1)
+                           #13843050 for HDR4 extension to HDR3
+DETECTID_BROADBASE_OFFSET = int(9.6e8)
+
 def get_detectname(ra, dec):
     """
     convert ra,dec coordinates to a IAU-style object name.
@@ -251,9 +260,9 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3}""",
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
         type=str,
-        default="hdr3"
+        default="hdr4"
     )
 
     args = parser.parse_args(argv)
@@ -274,19 +283,19 @@ def main(argv=None):
     # does not already exist.
     
     if args.append:
-        fileh = tb.open_file(args.outfilename, "a", "HDR3 Detections Database")
-        detectidx = np.max(fileh.root.Detections.cols.detectid) + 1
+        fileh = tb.open_file(args.outfilename, "a", "{} Detections Database".format(args.survey.upper()))
+        detectidx = np.max(fileh.root.Detections.cols.detectid) + DETECTID_STEP
     else:
 
-        if args.broad:
-            fileh = tb.open_file(outfilename, "w", "HDR3 Broad Detections Database")
-            index_buff = 3960000000
+        if args.broad: #not really used anymore
+            fileh = tb.open_file(outfilename, "w", "{} Broad Detections Database".format(args.survey.upper()))
+            index_buff = DETECTID_BASE + DETECTID_BROADBASE_OFFSET + DETECTID_STEP
 #        elif args.continuum: (doing continuum separately for HDR3)
 #            fileh = tb.open_file(outfilename, "w", "HDR3 Continuum Source Database")
 #            index_buff = 2190000000
         else:
-            fileh = tb.open_file(outfilename, "w", "HDR3 Detections Database")
-            index_buff = 3000000000
+            fileh = tb.open_file(outfilename, "w", "{} Detections Database".format(args.survey.upper()))
+            index_buff = DETECTID_BASE + DETECTID_OFFSET + DETECTID_STEP # this is so last 8 from HDR3 are not used in HDR4 trailing 8 digits
 
         detectidx = index_buff
 
@@ -350,7 +359,7 @@ def main(argv=None):
             tableFibers.append(tableFibers_i)
             tableSpectra.append(tableSpectra_i)
             
-            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + 1 
+            detectid_max = np.max(tableMain.cols.detectid[:]) - index_buff + DETECTID_STEP
 
             fileh_i.close()
             tableFibers.flush()  # just to be safe
@@ -374,9 +383,9 @@ def main(argv=None):
                 args.log.warning('IFU stats file is empty: ' + ifufile)
             
         if args.month:
-            ifu_tab.write('ifustats_month_' + str(args.month) + '.tab', format='ascii')
+            ifu_tab.write('ifustats_month_' + str(args.month) + '.tab', format='ascii', overwrite=True)
         else:
-            ifu_tab.write('ifustats_merged.tab', format='ascii')
+            ifu_tab.write('ifustats_merged.tab', format='ascii', overwrite=True)
  
     else:
 
@@ -404,21 +413,21 @@ def main(argv=None):
                 "1D Spectra for each Line Detection"
             )
 
-        amp_stats = Table.read(config.badamp)
+        #amp_stats = Table.read(config.badamp)
    
         colnames = ['wave', 'wave_err','flux','flux_err','linewidth','linewidth_err',
                     'continuum','continuum_err','sn','sn_err','chi2','chi2_err','ra','dec',
                     'datevshot','noise_ratio','linewidth_fix','chi2_fix', 'chi2fib',
                     'src_index','multiname', 'exp','xifu','yifu','xraw','yraw','weight',
-                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen']
+                    'apcor','sn_cen', 'flux_noise_1sigma', 'sn_3fib', 'sn_3fib_cen','dummy']
         if args.date and args.observation:
             mcres_str = str(args.date) + "v" + str(args.observation).zfill(3) + "*mc"
             shotid = int(str(args.date) + str(args.observation).zfill(3))
-            amp_stats = amp_stats[amp_stats['shotid'] == shotid]
+            #amp_stats = amp_stats[amp_stats['shotid'] == shotid]
         elif args.month:
             mcres_str = str(args.month) + "*mc"
             amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
-            amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
+            #amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
         elif args.ifu:
             mcres_str = "*" + args.ifu + ".mc"
         else:
@@ -465,41 +474,66 @@ def main(argv=None):
                 selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
                 selSN = (detectcatall['sn'] > 4.5)
-                selLW = (detectcatall['linewidth'] > 1.7)
+#                selLW = (detectcatall['linewidth'] > 1.7)
 #                selchi2 = (detectcatall['chi2'] <= 5)
 #                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
 #                selwave = (detectcatall['wave'] > 3510) * (detectcatall['wave'] < 5490)
-                selchi2fib = (detectcatall['chi2fib'] < 5)
-                selcat = selSN * selLW * selchi2fib
+#                selchi2fib = (detectcatall['chi2fib'] < 5)
+                selcat = selSN #* selLW * selchi2fib
             # removing down selection 2021-11-18
-            
-            detectcat = detectcatall  #[selcat]
+
+            detectcat = detectcatall[selcat]
 
             nsel_file = np.sum(selcat)
 
             try:
                 specfile = op.join(args.detect_path, amp_i + ".spec")
+
+                # 20240416 dd - add some flexibility on whether .spec file has 11 or 12 columns
+                #check column count
+                expected_names = [
+                    "wave1d",
+                    "spec1d_nc",
+                    "spec1d_nc_err",
+                    "counts1d",
+                    "counts1d_err",
+                    "apsum_counts",
+                    "apsum_counts_err",
+                    "dummy",
+                    "apcor",
+                    "flag_pix",
+                    "src_index",
+                ]
+
+                try:
+                    ncols = -1
+                    with open(specfile) as f:
+                        ncols = len(f.readline().split())
+
+                    if ncols == 12:
+                        expected_names.append("spec1d_nc_ffsky")
+                    elif ncols == 11:
+                        pass #all good as is
+                    else:
+                        args.log.warning(f"Unexpected number of columns ({ncols}) in {specfile}")
+                except Exception as e:
+                    args.log.warning('Possible problem with ' + specfile)
+                    args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
+
                 spec_table = Table(
                     np.loadtxt(specfile),
-                    names=[
-                        "wave1d",
-                        "spec1d_nc",
-                        "spec1d_nc_err",
-                        "counts1d",
-                        "counts1d_err",
-                        "apsum_counts",
-                        "apsum_counts_err",
-                        "dummy",
-                        "apcor",
-                        "flag_pix",
-                        "src_index",
-                        "spec1d_nc_ffsky",
-                    ],
+                    names=expected_names
                 )
-            except Exception:
+
+            except Exception as e: #20240416 dd - add more debug info
                 args.log.warning('Could not ingest ' + specfile)
+                args.log.warning(f"Exception: {e}\n\n{traceback.format_exc()}")
                 ndet_sel.append( 0)
                 continue
+            # except Exception:
+            #     args.log.warning('Could not ingest ' + specfile)
+            #     ndet_sel.append( 0)
+            #     continue
 
             try:
                 filefiberinfo = op.join(args.detect_path, amp_i + ".list")
@@ -529,22 +563,22 @@ def main(argv=None):
 
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
-
-                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
-                    if (row['wave'] > 3540) and (row['wave'] < 3560):
-                        continue
-
-                if multiframe in ['multi_032_094_028_RU']:
-                    if (row['wave'] > 3530) and (row['wave'] < 3545):
-                        continue
+# taking this out for HDR4
+#                if multiframe in ['multi_051_105_051_RL', 'multi_051_105_051_RU']:
+#                    if (row['wave'] > 3540) and (row['wave'] < 3560):
+#                        continue
+#
+#                if multiframe in ['multi_032_094_028_RU']:
+#                    if (row['wave'] > 3530) and (row['wave'] < 3545):
+#                        continue
                 
-                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
-                ampflag = bool(amp_stats['flag'][selamp])
-               
-                if np.size(ampflag) == 0:
-                    args.log.error('No ampflag for '
-                                   + str(rowMain['shotid'])
-                                   + ' ' + multiframe)
+#                selamp = (amp_stats['shotid'] == rowMain['shotid']) * (amp_stats['multiframe'] == multiframe)
+#                ampflag = bool(amp_stats['flag'][selamp])
+#               
+#                if np.size(ampflag) == 0:
+#                    args.log.error('No ampflag for '
+#                                   + str(rowMain['shotid'])
+#                                   + ' ' + multiframe)
                 # no longer removing bad amps
 #                if ampflag == False:
 #                    continue
@@ -575,7 +609,9 @@ def main(argv=None):
 
                 rowspectra["spec1d"] = dataspec["spec1d_nc"] / dataspec["apcor"]
                 rowspectra["spec1d_err"] = dataspec["spec1d_nc_err"] / dataspec["apcor"]
-                rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
+
+                if "spec1d_nc_ffsky" in dataspec.colnames:
+                    rowspectra["spec1d_ffsky"] = dataspec["spec1d_nc_ffsky"] / dataspec["apcor"]
                 rowspectra["wave1d"] = dataspec["wave1d"]
                 rowspectra["spec1d_nc"] = dataspec["spec1d_nc"]
                 rowspectra["spec1d_nc_err"] = dataspec["spec1d_nc_err"]
