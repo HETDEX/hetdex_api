@@ -117,7 +117,7 @@ class MCMC_Gauss:
         self.mcmc_snr_err = 0
 
         self.convergence_check =  0 #do not check if 0, otherwise is a scale, the lower the value the easier to reach
-                                    #for HETDEX spectra 20 to 30 is usually good, with a 50 or 100 iter burn-in
+                                    #for HETDEX spectra 20 to 25 is usually plenty good, with a 50 or 100 iter burn-in
         self.convergence_check_step = 100 #if testing for convergence, re-evaluate each of this many iterations
 
 
@@ -360,10 +360,12 @@ class MCMC_Gauss:
                 converged = False
                 with warnings.catch_warnings(): #ignore the occassional warnings from the walkers (NaNs, etc that reject step)
                     warnings.simplefilter("ignore")
-                    self.log.debug(f"MCMC. Burn in ({self.burn_in}), Max iter ({self.main_run}), convergence ({self.convergence_check})")
+                    self.log.debug(f"MCMC. Burn in ({self.burn_in}), Max iter ({self.main_run}), "
+                                   f"convergence ({self.convergence_check})")
                     pos, prob, state = self.sampler.run_mcmc(pos, self.burn_in,
                                                              skip_initial_state_check=True)  # burn in
 
+                    #notice, "i" is not 0, 1, 2, 3 ... it is 0, 1*step, 2*step, 3*step ...
                     for i in range(0,self.main_run+self.convergence_check_step,self.convergence_check_step):
                         pos, prob, state = self.sampler.run_mcmc(pos, self.convergence_check_step, rstate0=state,
                                                                  skip_initial_state_check=True)
@@ -371,12 +373,13 @@ class MCMC_Gauss:
                         ac_t = self.sampler.get_autocorr_time(tol=0)
                         if np.all(self.sampler.iteration > self.convergence_check * ac_t):
 
-                            self.log.debug(f"MCMC. All chains converged in ~ {i} iterations.")
+                            self.log.info(f"MCMC. All chains converged in ~ {i + self.convergence_check_step} "
+                                          f"steps at {self.convergence_check} scale.")
                             converged = True
                             break  # stop sampling
 
                 if not converged:
-                    self.log.debug(f"MCMC. Did not converge. Completed all {self.main_run} iterations.")
+                    self.log.info(f"MCMC. Failed to converge within {self.main_run} steps at {self.convergence_check} scale.")
 
 
             self.samples = self.sampler.flatchain  # collapse the walkers and interations (aka steps or epochs)
