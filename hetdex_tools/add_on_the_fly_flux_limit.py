@@ -49,9 +49,10 @@ except KeyError as e:
     except KeyError as e:
         print("Couldn't find datevobs in catalogue, running on all")
 
+# Remember to add '_in' for the input positions
 ra = table["RA_in"]
 dec = table["DEC_in"]
-wave = table["wave"]
+wave = table["wave_in"]
 
 s = ShotSensitivity(opts.datevshot, wavenpix=opts.wavenpix, 
                     rad=opts.aprad)

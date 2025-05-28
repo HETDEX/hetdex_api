@@ -106,6 +106,45 @@ def linewidth_f50_scaling_v1(linewidth, sncut):
 
     return rfit
 
+def linewidth_f50_scaling_v2(linewidth, sncut):
+    """
+    Model for how the 50% completeness flux
+    changes with linewidth. Based on section 
+    3.1 of Liu et al (2022) 
+
+    Parameters
+    ----------
+    linewidth : array or float
+        linewidth in A
+    sncut : float
+        S/N cut
+
+    Returns
+    -------
+    rfit : array or float
+        scaling of 50% flux
+        with linewidth
+    """
+    
+    try:
+        linewidth = array(linewidth)
+        linewidth[linewidth > 12.0] = 12.0
+    except TypeError:
+        linewidth = max(linewidth, 12.0)
+
+    rfit=sqrt(linewidth/2.2)*(15.09 - sncut)
+    rfit = rfit*(0.098 - 0.0004 * linewidth + 0.0004 * linewith ** 2)
+
+    try:
+        rfit[rfit < 1.0] = 1.0
+    except TypeError:
+        rfit = max(1.0, rfit)
+
+    # XXX HACK
+    return 1.0
+
+
+
 
 def write_karl_file(fn, f50s, fcens, wlcens, 
                     completeness_2d):
@@ -571,7 +610,8 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
                                 False, False,
                                 lw_scaling=linewidth_f50_scaling_v1,
                                 single_snfile=True)
-             }
+              }
+
 
     default = "v4" 
 

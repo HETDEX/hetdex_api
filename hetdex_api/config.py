@@ -20,6 +20,8 @@ class HDRconfig:
             self.host_dir = "/home/jovyan/Hobby-Eberly-Telesco"
         elif op.exists("/home/idies/workspace/HETDEX"):
             self.host_dir = "/home/idies/workspace/HETDEX"
+        elif op.exists("/mnt/hetdex_release/"):
+            self.host_dir = "/mnt/hetdex_release/"
         elif op.exists("/data/hetdex/u/dfarrow/hetdex_data"):
             self.host_dir = "/data/hetdex/u/dfarrow/hetdex_data"
         else:
@@ -110,8 +112,8 @@ class HDRconfig:
         if survey in ["hdr2.1",'hdr3']:
             if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
-            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)):
-                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)
+            elif op.exists("/afs/ipp-garching.mpg.de/home/d/dfarrow/hetdex/code/HETDEX_API/known_issues/{}".format(survey)):
+                self.bad_dir = "/afs/ipp-garching.mpg.de/home/d/dfarrow/hetdex/code/HETDEX_API/known_issues/{}".format(survey)
             elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)):
                 self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)
             else:
