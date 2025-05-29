@@ -623,7 +623,7 @@ class FiberIndex:
         else:
             return fiber_table
 
-    def get_fib_from_hp(self, hp, shotid=None, astropy=True, return_index=False):
+    def get_fib_from_hp(self, hp, shotid=None, astropy=True, return_index=False, return_flags=True):
         """
         Return rows with corresponding healpix value
 
@@ -637,6 +637,8 @@ class FiberIndex:
            returned table is an astropy table object. Defaults to True.
         return_index: bool
            option to return fiber row index values for additional slicing
+        return_flags: bool
+           will return latest mask flags. Defaults to True
 
         Returns
         -------
@@ -658,11 +660,27 @@ class FiberIndex:
 
         tab = self.hdfile.root.FiberIndex.read_coordinates(tab_idx)
 
+        if return_flags:
+            if self.fibermaskh5 is None:
+                print("No fiber mask file found")
+            else:
+                mask_table = Table(
+                    self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
+                )
+                # force an astropy table format
+                astropy=True
+            
         if astropy:
             if return_index:
-                return Table(tab), tab_idx
+                if return_flags:
+                    return Table(tab), tab_idx
+                else:
+                    return hstack( [Table(tab), mask_table]), tab_idx
             else:
-                return Table(tab)
+                if return_flags:
+                    return hstack( [Table(tab), mask_table])
+                else:
+                    return Table(tab)
         else:
             if return_index:
                 return tab, tab_idx
