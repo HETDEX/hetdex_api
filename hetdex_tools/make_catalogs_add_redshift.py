@@ -249,6 +249,8 @@ def zcluster_forshotid(shotid, star=False):
 
     uniq_table = unique(source_table[sel], keys=["source_id"])
 
+    dz = 0.01
+    
     res = fof.mktree(
         np.array(uniq_table["ra_mean"]),
         np.array(uniq_table["dec_mean"]),
