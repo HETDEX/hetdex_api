@@ -111,6 +111,7 @@ source_table2 = join( source_table, cnn_score, join_type='left')
 
 source_table = source_table2.copy()
 source_table['CNN_Score_2D_Spectra'] = source_table['CNN_Score_2D_Spectra'].filled(1)
+source_table['CNN_Score_2D_Spectra'][source_table['CNN_Score_2D_Spectra'] < 0] = 1.0
 
  # remove nonsense metadata
 source_table.meta = {}
