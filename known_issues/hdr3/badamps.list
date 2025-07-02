@@ -350,3 +350,7 @@ ifuslot ampid multiframe date_start date_end
 32 RL multi_320_032_020_RL 20230919 20230925
 #62 RU multi_319_062_023_RU 20240101 20240117 #just a region, not whole amp
 72 LU multi_405_072_060_LU 20230904 20231020
+24 LL multi_410_024_039_LL 20220815 20230131 #interference pattern
+24 LU multi_410_024_039_LU 20220815 20230131 #interference pattern
+24 RL multi_410_024_039_RL 20220815 20230131 #interference pattern
+24 RU multi_410_024_039_RU 20220815 20230131 #interference pattern (weaker than the others)
