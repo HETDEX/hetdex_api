@@ -18,6 +18,7 @@ python create_astrometry_hdf5.py -d 20181111 -o 15 -of 20181111v015.h5 --append
 import glob
 import re
 import os
+import traceback
 
 import tables as tb
 import argparse as ap
@@ -244,7 +245,8 @@ def main(argv=None):
     try:
         norm = Table.read(filenorm, format='ascii.no_header')
     except:
-        args.log.warning('Could not include %s' % filenorm)
+        args.log.warning('Could not include (table) %s' % filenorm)
+        args.log.error(traceback.format_exc())
 
     # index over dithers to gather diher specific info    
     for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
@@ -269,6 +271,7 @@ def main(argv=None):
             elif idx == 2:
                 rowNV['relflux_virus'] = norm['col3'][0]
         except Exception:
+            args.log.error(traceback.format_exc())
             args.log.warning('Could not include norm.dat')
         
         try:
