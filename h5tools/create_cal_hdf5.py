@@ -136,6 +136,10 @@ def main(argv=None):
     datevshot = str(args.date) + "v" + str(args.observation.zfill(3))
 
     tpfile = op.join(args.detectdir, "tp", datevshot + "sedtp_f.dat")
+    if not op.exists(tpfile):
+        #try alternate location
+        tpfile = op.join(args.tpdir, "tp", datevshot + "sedtp_f.dat")
+        #if this is bad, will fail below
 
     try:
         tp_data = ascii.read(
