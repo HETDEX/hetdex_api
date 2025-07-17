@@ -237,6 +237,9 @@ def main(argv=None):
         args.log.warning('Could not include %s' % fileallmch)
 
     filenorm = op.join(shiftsdir, 'norm.dat')
+    if not op.exists(filenorm):
+        #try alternate location
+        filenorm = op.join(args.detectdir, 'norm.dat')
 
     try:
         norm = Table.read(filenorm, format='ascii.no_header')
