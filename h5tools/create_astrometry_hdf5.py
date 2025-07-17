@@ -248,8 +248,13 @@ def main(argv=None):
         args.log.warning('Could not include (table) %s' % filenorm)
         args.log.error(traceback.format_exc())
 
-    # index over dithers to gather diher specific info    
-    for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
+    fns = glob.glob(f"match_pngs/match_*.png")
+    exps = [f"exp{str(x).zfill(2)}" for x in np.arange(1,len(fns)+1,1)]
+
+
+    # index over dithers to gather diher specific info
+    for idx, expn in enumerate(exps):
+    #for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
 
         radecfile = op.join(shiftsdir, 'radec2_' + expn + '.dat')
         rowNV = tableNV.row
