@@ -37,6 +37,8 @@ from astropy.table import Table
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.config import HDRconfig
 
+import traceback
+
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
@@ -192,6 +194,9 @@ def main(argv=None):
             row.update()
 
     except:
+        #temp extra logging
+        args.log.error(traceback.format_exc())
+
         if badshotflag:
             args.log.warning("Could not include cal info in shot table for %s" % datevshot)
         else:
