@@ -1,5 +1,6 @@
 import os.path as op
 import numpy as np
+import tables
 import tables as tb
 
 from astropy.coordinates import SkyCoord
@@ -55,6 +56,7 @@ def make_narrowband_image(
     mask_options=None,
     fill_value=0.0,
     include_grid=False,
+    shot_h5=None,
 ):
     """
     Function to make narrowband image from either a detectid or from a
@@ -122,6 +124,8 @@ def make_narrowband_image(
     include_grid: bool
         Option to include xgrid, ygrid. This is used in lya_pyimfit.py. It is an array
         containing distance from center in arcsec matched to datagrid
+    shot_h5: str
+            optionally pass a specific <shot>.h5 fqfn
 
     Returns
     -------
@@ -151,8 +155,14 @@ def make_narrowband_image(
 
     if include_bitmask and not include_error:
         print('Including bitmask and error arrays. Forcing include_error=True')
-        
-    if survey != current_hdr:
+
+    if shot_h5 is not None:  # if shot_h5 is specified, use it instead of the survey
+        if surveyh5 is not None:
+            try:
+                surveyh5.close()
+            except:
+                pass
+    elif survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
 
@@ -162,7 +172,8 @@ def make_narrowband_image(
                     surveyh5.close()
                 except:
                     pass
-            surveyh5 = tb.open_file(config.surveyh5, "r")
+
+                surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
     else:
@@ -239,8 +250,14 @@ def make_narrowband_image(
     else:
         print("Provide a detectid or both a coords and shotid")
 
-    fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
-    pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
+    if shot_h5 is not None:
+        h5 = tables.open_file(shot_h5)
+        fwhm = h5.root.Shot.read(field="fwhm_virus")[0]
+        pa = h5.root.Shot.read(field="pa")[0]
+        h5.close()
+    else:
+        fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
+        pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     if extract_class is None:
         E = Extract()
@@ -268,6 +285,7 @@ def make_narrowband_image(
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
         mask_options=mask_options,
+        shot_h5=shot_h5
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -419,7 +437,12 @@ def make_narrowband_image(
     header["FFSKYRC"] = str(ffsky_rescor)
 
     # Copy Shot table info
-    shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
+    if shot_h5 is not None:
+        h5 = tables.open_file(shot_h5)
+        shot_info_table = Table(h5.root.Shot.read())
+        h5.close()
+    else:
+        shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
         if col.startswith("x") or col.startswith("y"):
             continue

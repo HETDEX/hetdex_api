@@ -102,6 +102,7 @@ class Fibers:
         add_mask=False,
         mask_version=None,
         args=None,
+        shot_h5=None
     ):
         """
         Initialize Fibers Class
@@ -131,6 +132,8 @@ class Fibers:
             This is case insensitive.
         args
             arguments passed in from external caller
+        shot_h5
+            optionally pass a specific <shot>.h5 fqfn
 
         Attributes
         ----------
@@ -151,7 +154,10 @@ class Fibers:
 
         global config
 
-        self.hdfile = open_shot_file(shot, survey=survey)
+        if shot_h5 is None:
+            self.hdfile = open_shot_file(shot, survey=survey)
+        else:
+            self.hdfile = tb.open_file(shot_h5,"r")
 
         if re.search("v", str(shot)):
             shotid = int(shot.replace("v", ""))
