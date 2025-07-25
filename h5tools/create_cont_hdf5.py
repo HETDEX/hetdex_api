@@ -48,7 +48,7 @@ import traceback
 warnings.filterwarnings("ignore")
 
 
-DETECTID_BASE = int(5.09e9) #note the x.09 for continuum sources
+DETECTID_BASE = np.int64(5.09e9) #note the x.09 for continuum sources
 DETECTID_STEP = 1
 DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
                            #start numbering DETECTID_STEP past this value (usually +1)
@@ -157,7 +157,7 @@ def main(argv=None):
     parser.add_argument(
         "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5, pdr1}""",
         type=str,
-        default="hdr4"
+        default="hdr5"
     )
 
     parser.add_argument(
@@ -239,9 +239,18 @@ def main(argv=None):
         required=False,
         action="store_true",
     )
+
+    parser.add_argument(
+        "--detectid_base", help="""int64 starting ID for detections""",
+        type=np.int64,
+        default=None
+    )
     
     args = parser.parse_args(argv)
     args.log = setup_logging()
+
+    if args.detectid_base is not None:
+        DETECTID_BASE = args.detectid_base
 
     index_buff = DETECTID_BASE + DETECTID_OFFSET + DETECTID_STEP # starting count post HDR3 detection indices
     detectidx = index_buff

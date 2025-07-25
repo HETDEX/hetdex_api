@@ -55,7 +55,7 @@ warnings.filterwarnings('ignore')
 
 import traceback
 
-DETECTID_BASE = int(5e9)
+DETECTID_BASE = np.int64(5e9)
 DETECTID_STEP = 1
 DETECTID_OFFSET = 0        #last detectid (w/o the BASE) from previous release -OR- 0 if starting a new release
                            #start numbering DETECTID_STEP past this value (usually +1)
@@ -260,9 +260,15 @@ def main(argv=None):
     )
 
     parser.add_argument(
-        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4}""",
+        "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5}""",
         type=str,
-        default="hdr4"
+        default="hdr5"
+    )
+
+    parser.add_argument(
+        "--detectid_base", help="""int64 starting ID for detections""",
+        type=np.int64,
+        default=None
     )
 
     args = parser.parse_args(argv)
@@ -271,6 +277,9 @@ def main(argv=None):
     #check if shotid is in badlist
     config = HDRconfig(args.survey)
     badshots = np.loadtxt(config.badshot, dtype=int)
+
+    if args.detectid_base is not None:
+        DETECTID_BASE = args.detectid_base
     
     if args.outfilename:
         outfilename = args.outfilename
@@ -426,7 +435,7 @@ def main(argv=None):
             #amp_stats = amp_stats[amp_stats['shotid'] == shotid]
         elif args.month:
             mcres_str = str(args.month) + "*mc"
-            amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
+            #amp_stats['month'] = (amp_stats['shotid']/100000).astype(int)
             #amp_stats = amp_stats[amp_stats['month'] == int(args.month)]
         elif args.ifu:
             mcres_str = "*" + args.ifu + ".mc"
