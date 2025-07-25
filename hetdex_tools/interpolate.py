@@ -173,7 +173,7 @@ def make_narrowband_image(
                 except:
                     pass
 
-                surveyh5 = tb.open_file(config.surveyh5, "r")
+            surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
     else:
