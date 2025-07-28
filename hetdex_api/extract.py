@@ -618,6 +618,7 @@ class Extract:
                 add_rescor=ffsky_rescor,
                 add_mask=add_mask,
                 mask_options=mask_options,
+                shot_h5=shot_h5
             )
 
             if np.size(fib_table) < fiber_lower_limit:

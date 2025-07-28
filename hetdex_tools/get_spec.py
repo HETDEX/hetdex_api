@@ -106,6 +106,8 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Column, vstack
 import astropy.units as u
 
+import tables
+
 from hetdex_api.extract import Extract
 from hetdex_api.survey import Survey, FiberIndex
 from hetdex_api.mask import *
@@ -144,6 +146,187 @@ def merge(dict1, dict2):
             result[key] = deepcopy(dict2[key])
 
     return result
+
+
+def get_source_spectra_single_shot(args):
+    E = Extract(apply_update=args.apply_update)
+
+    source_dict = {}
+
+    ss_h5 = tables.open_file(args.shot_h5)
+    shotid = ss_h5.root.Shot.read(field="shotid")[0]
+    fwhm = ss_h5.root.Shot.read(field="fwhm_virus")[0]
+    ss_h5.close()
+
+    moffat = E.moffat_psf(fwhm, 10.5, 0.25)
+
+    E.load_shot(shotid, fibers=False, survey=args.survey, add_mask=args.apply_mask, args=args)
+
+    I = None
+    fac = None
+
+    try:
+        _ = len(args.coords)
+    except:
+        #this is a single coord
+        #alter for downstream compatibility
+        args.coords = SkyCoord(ra=[args.coords.ra],dec=[args.coords.dec])
+
+    for ind in range(len(args.coords)):
+        try:
+            info_result = E.get_fiberinfo_for_coord(
+                args.coords[ind],
+                radius=args.rad,
+                ffsky=args.ffsky,
+                ffsky_rescor=args.ffsky_rescor,
+                return_fiber_info=True,
+                fiber_flux_offset=args.fiber_flux_offset,
+                add_mask=args.apply_mask,
+                shot_h5=args.shot_h5
+            )
+        except TypeError:
+            info_result = E.get_fiberinfo_for_coord(
+                args.coords,
+                radius=args.rad,
+                ffsky=args.ffsky,
+                ffsky_rescor=args.ffsky_rescor,
+                return_fiber_info=True,
+                fiber_flux_offset=args.fiber_flux_offset,
+                add_mask=args.apply_mask,
+                shot_h5=args.shot_h5
+            )
+        if info_result is not None:
+            try:
+                args.log.info("Extracting %s" % args.ID[ind])
+            except:
+                args.log.info("Extracting %s" % args.ID)
+
+            ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
+                multiframe = info_result
+
+            if len(np.shape(mask)) == 1:  # there is no mask, but needs to be made into a 2D array for compatibility
+                mask = np.full(np.shape(data), True)
+
+            weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
+                                              I=I, fac=fac, return_I_fac=True)
+            #                weights = E.build_weights(xc, yc, ifux, ifuy, moffat)
+
+            # added by EMC 20210609. See Greg Zeimann's Remedy code
+            norm = np.sum(weights, axis=0)
+            weights = weights / norm
+
+            # 20240403 DD per wavelength weights and scleaned fluxes and errors
+            result = E.get_spectrum(data, error, mask, weights,
+                                    remove_low_weights=False,
+                                    return_scleaned_mask=True)
+
+            spectrum_aper, spectrum_aper_error, sclean_mask, sclean_data, sclean_error, sclean_wave_mask = [res for
+                                                                                                            res in
+                                                                                                            result]
+
+            # apply aperture correction
+            spectrum_aper /= norm
+            spectrum_aper_error /= norm
+
+            weights *= norm[np.newaxis, :]
+
+            # add in the total weight of each fiber (as the sum of its weight per wavebin)
+            if args.fiberweights:
+                try:
+                    fiber_weights = np.array([x for x in zip(ra, dec, np.sum(weights * mask, axis=1))])
+                except:
+                    fiber_weights = []
+            else:
+                fiber_weights = []
+
+            # get fiber info no matter what so we can flag
+            try:
+
+                fiber_info = np.array([
+                    x for x in zip(fiberid,
+                                   multiframe,
+                                   ra,
+                                   dec,
+                                   np.sum(weights * mask, axis=1))])
+            except Exception as E:
+                print(f"Exception: {E}\n\n{traceback.format_exc()}")
+                fiber_info = []
+
+            if len(fiber_info) > 0:
+                try:
+                    flags = FibIndex.get_fiber_flags(coord=args.coords[ind],
+                                                     shotid=shotid)
+                except NameError: #FibIndex does not exist
+                    flags = None
+                except:
+                    try:
+                        flags = FibIndex.get_fiber_flags(coord=args.coords,
+                                                     shotid=shotid)
+                    except:
+                        flags = None
+            else:
+                flags = None
+
+            if np.size(args.ID) > 1:
+                if args.ID[ind] in source_dict:
+                    source_dict[args.ID[ind]][shotid] = [
+                        spectrum_aper,
+                        spectrum_aper_error,
+                        weights.sum(axis=0),
+                        fiber_weights,
+                        fiber_info,
+                        flags,
+                        weights,
+                        sclean_wave_mask,
+                        sclean_data,
+                        sclean_error,
+                    ]
+                else:
+                    source_dict[args.ID[ind]] = dict()
+                    source_dict[args.ID[ind]][shotid] = [
+                        spectrum_aper,
+                        spectrum_aper_error,
+                        weights.sum(axis=0),
+                        fiber_weights,
+                        fiber_info,
+                        flags,
+                        weights,
+                        sclean_wave_mask,
+                        sclean_data,
+                        sclean_error,
+                    ]
+            else:
+                if args.ID in source_dict:
+                    source_dict[args.ID][shotid] = [
+                        spectrum_aper,
+                        spectrum_aper_error,
+                        weights.sum(axis=0),
+                        fiber_weights,
+                        fiber_info,
+                        flags,
+                        weights,
+                        sclean_wave_mask,
+                        sclean_data,
+                        sclean_error,
+                    ]
+                else:
+                    source_dict[args.ID] = dict()
+                    source_dict[args.ID][shotid] = [
+                        spectrum_aper,
+                        spectrum_aper_error,
+                        weights.sum(axis=0),
+                        fiber_weights,
+                        fiber_info,
+                        flags,
+                        weights,
+                        sclean_wave_mask,
+                        sclean_data,
+                        sclean_error,
+                    ]
+
+    E.close()
+    return source_dict
+#end get_source_spectra_single_shot()
 
 
 def get_source_spectra(shotid, args):
@@ -206,6 +389,9 @@ def get_source_spectra(shotid, args):
 
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
+
+                if len(np.shape(mask)) == 1:  # there is no mask, but needs to be made into a 2D array for compatibility
+                    mask = np.full(np.shape(data), True)
 
                 weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
                                                   I=I, fac=fac, return_I_fac = True)
@@ -378,6 +564,9 @@ def get_source_spectra_mp(source_dict, shotid, manager, args):
                     args.log.info("Extracting %s" % args.ID)
                 ifux, ifuy, xc, yc, ra, dec, data, error, mask, fiberid, \
                     multiframe = info_result
+
+                if len(np.shape(mask)) == 1:  # there is no mask, but needs to be made into a 2D array for compatibility
+                    mask = np.full(np.shape(data), True)
 
                 weights, I, fac = E.build_weights(xc, yc, ifux, ifuy, moffat,
                                                   I=I, fac=fac, return_I_fac = True)
@@ -643,23 +832,26 @@ def get_spectra_dictionary(args):
     # aperture for the wide FOV of VIRUS
     max_sep = 11.0 * u.arcmin
 
-    args.log.info("Finding shots of interest")
+    if args.shot_h5 is None:
+        args.log.info("Finding shots of interest")
 
-    for i, coord in enumerate(args.survey_class.coords):
-        dist = args.coords.separation(coord)
-        sep_constraint = dist < max_sep
-        shotid = args.survey_class.shotid[i]
-        idx = np.where(sep_constraint)[0]
+        for i, coord in enumerate(args.survey_class.coords):
+            dist = args.coords.separation(coord)
+            sep_constraint = dist < max_sep
+            shotid = args.survey_class.shotid[i]
+            idx = np.where(sep_constraint)[0]
 
-        if np.size(idx) > 0:
+            if np.size(idx) > 0:
 
-            args.matched_sources[shotid] = idx
-            count += np.size(idx)
-            if len(idx) > 0:
-                shots_of_interest.append(shotid)
+                args.matched_sources[shotid] = idx
+                count += np.size(idx)
+                if len(idx) > 0:
+                    shots_of_interest.append(shotid)
 
-    args.log.info("Number of shots of interest: %i" % len(shots_of_interest))
-    args.log.info("Extracting %i sources" % count)
+        args.log.info("Number of shots of interest: %i" % len(shots_of_interest))
+        args.log.info("Extracting %i sources" % count)
+    else:
+        args.multiprocess = False #always False if there is a single shot specified
 
     if args.multiprocess:
 
@@ -700,11 +892,14 @@ def get_spectra_dictionary(args):
 
     else:
         Source_dict = {}
-        for shotid in shots_of_interest:
-            shot_source_dict = get_source_spectra(shotid, args)
+        if args.shot_h5 is None:
+            for shotid in shots_of_interest:
+                shot_source_dict = get_source_spectra(shotid, args)
 
-            if shot_source_dict:
-                Source_dict = merge(Source_dict, shot_source_dict)
+                if shot_source_dict:
+                    Source_dict = merge(Source_dict, shot_source_dict)
+        else:
+            Source_dict =  get_source_spectra_single_shot(args) #no need to merge, just a single here
 
     return Source_dict
 
@@ -1060,6 +1255,7 @@ def get_spectra(
     apply_update=True,
     fiber_flux_offset=None,
     apply_mask=False,
+    shot_h5=None,
 ):
     """
     Function to retrieve PSF-weighted, ADR and aperture corrected
@@ -1123,6 +1319,8 @@ def get_spectra(
     apply_mask: bool
         Apply HETDEX fiber mask model. This will mask all fibers contributing 
         to the spectral extraction before summation. Masked in place as NaNs
+    shot_h5: str
+            optionally pass a specific <shot>.h5 fqfn
     
     Returns
     -------
@@ -1148,6 +1346,7 @@ def get_spectra(
     args.apply_update = apply_update
     args.fiber_flux_offset = fiber_flux_offset
     args.apply_mask = apply_mask
+    args.shot_h5 = shot_h5  # we are going to want this later, note: this can be None
 
     S = Survey(survey)
 
@@ -1162,28 +1361,29 @@ def get_spectra(
     else:
         args.survey_class = S[ind_good_shots]
         
-    if shotid is not None:
-        try:
-            if np.size(shotid) == 1:
-                sel_shot = args.survey_class.shotid == int(shotid)
-                # shut off multiproces flag if its just one shot
-                args.multiprocess = False
-            else:
-                sel_shot = np.zeros(np.size(args.survey_class.shotid), dtype=bool)
+    if shot_h5 is None:
+        if shotid is not None:
+            try:
+                if np.size(shotid) == 1:
+                    sel_shot = args.survey_class.shotid == int(shotid)
+                    # shut off multiproces flag if its just one shot
+                    args.multiprocess = False
+                else:
+                    sel_shot = np.zeros(np.size(args.survey_class.shotid), dtype=bool)
 
-                for shot_i in shotid:
+                    for shot_i in shotid:
 
-                    sel_i = args.survey_class.shotid == int(shot_i)
-                    sel_shot = np.logical_or(sel_shot, sel_i)
+                        sel_i = args.survey_class.shotid == int(shot_i)
+                        sel_shot = np.logical_or(sel_shot, sel_i)
 
-        except Exception:
-            sel_shot = args.survey_class.datevobs == str(shotid)
+            except Exception:
+                sel_shot = args.survey_class.datevobs == str(shotid)
 
-        args.survey_class = args.survey_class[sel_shot]
-    else:
-        pass
-        # sel_shot = args.survey_class.shotid > 20171200000
-        # args.survey_class = args.survey_class[sel_shot]
+            args.survey_class = args.survey_class[sel_shot]
+        else:
+            pass
+            # sel_shot = args.survey_class.shotid > 20171200000
+            # args.survey_class = args.survey_class[sel_shot]
 
     args.log = setup_logging()
 
