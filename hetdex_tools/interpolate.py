@@ -226,7 +226,7 @@ def make_narrowband_image(
                 try:
                     DET_HANDLE = tb.open_file(DET_FILE, "r")
                 except:
-                    print("Could not open {}".format(self.det_file))
+                    print("Could not open {}".format(DET_FILE))
 
         detectid_obj = detectid
         det_info = DET_HANDLE.root.Detections.read_where("detectid == detectid_obj")[0]
@@ -491,12 +491,12 @@ def make_narrowband_image(
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
             if include_grid:
-                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdux, hduy])
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_x, hdu_y])
             else:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
         if include_grid:
-            return fits.HDUList([hdu_primary, hdu_data, hdux, hduy])
+            return fits.HDUList([hdu_primary, hdu_data, hdu_x, hdu_y])
         else:
             return fits.HDUList([hdu_primary, hdu_data])
     
