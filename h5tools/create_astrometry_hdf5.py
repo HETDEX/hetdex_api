@@ -433,21 +433,26 @@ def main(argv=None):
             shot['nstars_fit'] = tableQA.cols.nstars[:]
         except:
             if badshotflag:
-                args.log.warning('Could not include astrometry shot info for %s' % datevshot)
+                args.log.warning('Could not include astrometry shot info (cnd 1) for %s' % datevshot)
             else:
-                args.log.error('Could not include astrometry shot info for %s' % datevshot)
+                args.log.error('Could not include astrometry shot info (cnd 2) for %s' % datevshot)
+
+            args.log.warning(traceback.format_exc())
         try:
             shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
             shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
         except:
-            args.log.warning('Could not include astrometry shot info for %s' % datevshot)
+            args.log.warning('Could not include astrometry shot info (cnd 3) for %s' % datevshot)
+            args.log.warning(traceback.format_exc())
+
         try:
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
         except:
             if badshotflag:
-                args.log.warning('Could not include relflux_virus info for %s' % datevshot)
+                args.log.warning('Could not include relflux_virus info (cnd 1) for %s' % datevshot)
             else:
-                args.log.error('Could not include relflux_virus info for %s' % datevshot)
+                args.log.error('Could not include relflux_virus info (cnd 2) for %s' % datevshot)
+            args.log.warning(traceback.format_exc())
                 
         shot.update()
 
