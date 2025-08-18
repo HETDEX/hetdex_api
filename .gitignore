@@ -106,3 +106,8 @@ venv.bak/
 
 # data from ipython notebook demos
 notebooks/*.dat
+notebooks/*.fits
+notebooks/internal/*.fits
+
+# anything starting with a HASH
+*#
