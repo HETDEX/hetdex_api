@@ -654,8 +654,12 @@ def make_data_cube(
         E = extract_class
 
     # get spatial dims:
-    ndim = int(imsize / pixscale)
-    center = int(ndim / 2)
+    #ndim = int(imsize / pixscale)
+    #center = int(ndim / 2)
+
+    # updated 2025-08-18 by EMC
+    ndim = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
+    center = (ndim + 1) / 2.0   # may be half-integer if ndim is even
 
     # get wave dims: (edited 2025-08-14 by EMC)
     #nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
