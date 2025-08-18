@@ -1240,8 +1240,8 @@ def do_pyimfit(
 
         try:
             # plot name based on IAU nomenclature
-            plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
-
+            # plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
+            plotname = 'HLAN'+str(name)
         except:
             plotname = name
         plt.text(
@@ -1398,9 +1398,9 @@ def main(argv=None):
     #    print('file exists')
     #    sys.exit()
 
-    #if op.exists("pyimfit_figs/{}.png".format(args.detectid)):
-    #    print("file exists")
-    #    sys.exit()
+    if op.exists("pyimfit_figs/{}.png".format(args.detectid)):
+        print("file exists")
+        sys.exit()
 
     do_pyimfit(
         wave_group_id=args.wave_group_id,
