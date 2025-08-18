@@ -414,7 +414,7 @@ def make_narrowband_image(
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
-
+    
     # get rotation:
     sys_rot = 1.55
     rot = 360.0 - (90.0 + pa + sys_rot)
@@ -435,7 +435,7 @@ def make_narrowband_image(
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
     header["FFSKYRC"] = str(ffsky_rescor)
-
+        
     # Copy Shot table info
     if shot_h5 is not None:
         h5 = tables.open_file(shot_h5)
@@ -677,18 +677,31 @@ def make_data_cube(
         E = extract_class
 
     # get spatial dims:
-    ndim = int(imsize / pixscale)
-    center = int(ndim / 2)
+    #ndim = int(imsize / pixscale)
+    #center = int(ndim / 2)
 
-    # get wave dims:
-    nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
+    # updated 2025-08-18 by EMC
+    ndim = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
+    center = (ndim + 1) / 2.0   # may be half-integer if ndim is even
+
+    # get wave dims: (edited 2025-08-14 by EMC)
+    #nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
+
+    # Number of spectral bins, not edges
+    nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave))
+
+    # --- WCS ---
+    # Bin centers (added 2025-08-14 by EMC)
+    wave0 = wave_range[0] + 0.5 * dwave
 
     w = wcs.WCS(naxis=3)
-    w.wcs.crval = [coords.ra.deg, coords.dec.deg, wave_range[0]]
-    w.wcs.crpix = [center, center, 1]
+    w.wcs.crval = [coords.ra.deg, coords.dec.deg, wave0] #center of first bin
+    w.wcs.crpix = [center, center, 1.0]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
-
+    #added 2025-08-14 by EMC
+    w.wcs.cunit = ["deg", "deg", "Angstrom"]
+    
     rad = imsize.to(u.arcsec).value
 
     if include_bitmask:
@@ -730,17 +743,17 @@ def make_data_cube(
     rot = 360.0 - (90.0 + pa + sys_rot)
     w.wcs.crota = [0, rot, 0]
 
-    im_cube = np.zeros((nwave, ndim, ndim))
+    im_cube = np.zeros((nwave, ndim, ndim), dtype=np.float32)
 
     if include_error:
         im_errorcube = np.zeros((nwave, ndim, ndim))
         if include_bitmask:
-            im_bitmaskcube = np.zeros((nwave, ndim, ndim))
+            im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.int)
     
     wave_i = wave_range[0]
     i = 0
 
-    while wave_i <= wave_range[1]:
+    while wave_i < wave_range[1]:
         try:
             zarray = E.make_narrowband_image(
                 ifux_cen,
@@ -760,23 +773,15 @@ def make_data_cube(
                 bitmask=include_bitmask,
             )
 
-            im_slice = zarray[0]
-            im_error = zarray[1]
-            im_bitmask = zarray[2]
-
-            im_cube[i, :, :] = im_slice
+            im_cube[i] = zarray[0]
 
             if include_error:
-                im_errorcube[i, :, :] = im_error
+                im_errorcube[i] = zarray[1]
                 if include_bitmask:
-                    im_bitmaskcube[i, :, :] = im_bitmask
+                    im_bitmaskcube[i] = zarray[2]
         except ValueError:
-#        except Exception:
-            im_cube[i, :, :] = np.zeros((ndim, ndim))
-            if include_error:
-                im_errorcube[i, :, :] = np.zeros((ndim, ndim))
-                if include_bitmask:
-                    im_bitmaskcube[i, :, :] = np.zeros((ndim, ndim))
+            pass
+        
         wave_i += dwave
         i += 1
 
