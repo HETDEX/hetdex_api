@@ -161,6 +161,7 @@ def main(argv=None):
         tp_array.set_attr("filename", tpfile)
     except:
         args.log.warning("Could not include %s" % tpfile)
+        tp_4540 = -1
 
     tppngfile = op.join(
         args.tpdir,
