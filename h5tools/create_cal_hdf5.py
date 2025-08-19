@@ -37,6 +37,8 @@ from astropy.table import Table
 from hetdex_api.input_utils import setup_logging
 from hetdex_api.config import HDRconfig
 
+import traceback
+
 def main(argv=None):
     """ Main Function """
     # Call initial parser from init_utils
@@ -136,6 +138,10 @@ def main(argv=None):
     datevshot = str(args.date) + "v" + str(args.observation.zfill(3))
 
     tpfile = op.join(args.detectdir, "tp", datevshot + "sedtp_f.dat")
+    if not op.exists(tpfile):
+        #try alternate location
+        tpfile = op.join(args.tpdir, "tp", datevshot + "sedtp_f.dat")
+        #if this is bad, will fail below
 
     try:
         tp_data = ascii.read(
@@ -155,6 +161,7 @@ def main(argv=None):
         tp_array.set_attr("filename", tpfile)
     except:
         args.log.warning("Could not include %s" % tpfile)
+        tp_4540 = -1
 
     tppngfile = op.join(
         args.tpdir,
@@ -188,6 +195,9 @@ def main(argv=None):
             row.update()
 
     except:
+        #temp extra logging
+        args.log.error(traceback.format_exc())
+
         if badshotflag:
             args.log.warning("Could not include cal info in shot table for %s" % datevshot)
         else:

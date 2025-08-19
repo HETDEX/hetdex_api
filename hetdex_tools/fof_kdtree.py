@@ -237,8 +237,8 @@ def process_group_list(group_lst, detectid, x, y, z, f):
    Returns
    -------
       astropy.Table of processed groups with the fields
-         ['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',\                                          
-          'a', 'b', 'pa', 'a2', 'b2', 'pa2', 'numpy array:members']
+         ['id', 'size', 'lum', 'icx', 'icy', 'icz', 'ixx', 'iyy', 'ixy', 'izz',
+         'a', 'b', 'pa', 'a2', 'b2', 'pa2', 'numpy array:members']
    """
     # create list of rows
     rows = []

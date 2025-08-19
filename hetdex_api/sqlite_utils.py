@@ -274,7 +274,7 @@ def build_elixer_report_image_db(db_name,img_dir,img_regex):
         blob_data = None
         detectid = None
         try: #assume name like <detectid><optional chars>.png
-             detectid = int(re.findall('\d+',op.basename(fn).split(".")[0])[0])
+             detectid = int(re.findall(r'\d+',op.basename(fn).split(".")[0])[0])
              with open(fn, 'rb') as file:
                  blob_data = file.read()
         except Exception as e:

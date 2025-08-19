@@ -394,7 +394,7 @@ def do_pyimfit(
     if null_ellipticity:
         expmodel.ell.setValue(0.0, fixed=True)#[0, 0.75])
     else:
-        expmodel.ell.setValue(0.0, [0, 0.75])
+        expmodel.ell.setValue(0.0, [0, 0.6])
 
     model_desc.addFunction(moffatmodel)
     model_desc.addFunction(expmodel)
@@ -1138,7 +1138,7 @@ def do_pyimfit(
         plt.imshow(masked_data2, transform=ax2.get_transform(w), cmap="RdYlBu_r")
 
         # plt.colorbar()
-
+        plt.title('detectid (peak S/N) = {}'.format(detectid_obj), fontsize=10)
         plt.text(
             0.05,
             0.88,
@@ -1209,14 +1209,14 @@ def do_pyimfit(
         plt.text(
             0.45,
             0.9,
-            r"$r_{ext}$=" + "{:3.2f} kpc".format(r_ext),
+            r"$r_{iso}$=" + "{:3.2f} kpc".format(r_ext),
             transform=ax3.transAxes,
             fontsize=11,
         )
         plt.text(
             0.45,
             0.8,
-            r"$r_{n}$=" + "{:3.2f} kpc".format(r_n),
+            r"$r_{s}$=" + "{:3.2f} kpc".format(r_n),
             transform=ax3.transAxes,
             fontsize=11,
         )
@@ -1240,8 +1240,8 @@ def do_pyimfit(
 
         try:
             # plot name based on IAU nomenclature
-            plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
-
+            # plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
+            plotname = 'HLAN'+str(name)
         except:
             plotname = name
         plt.text(
@@ -1387,6 +1387,13 @@ def main(argv=None):
     else:
         skycoord = None
 
+    if args.coords is not None and args.detectid is None:
+        #make sure shotid, wave_range exist
+        if args.shotid is None:
+            print('Please provide shotid with --coords option')
+        elif args.wave_range is None:
+            print('Please provide wave_range with --coords option')
+            
     # if op.exists("pyimfit_figs/{}.png".format(args.wave_group_id)):
     #    print('file exists')
     #    sys.exit()

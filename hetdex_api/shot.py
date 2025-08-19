@@ -102,6 +102,7 @@ class Fibers:
         add_mask=False,
         mask_version=None,
         args=None,
+        shot_h5=None
     ):
         """
         Initialize Fibers Class
@@ -131,6 +132,8 @@ class Fibers:
             This is case insensitive.
         args
             arguments passed in from external caller
+        shot_h5
+            optionally pass a specific <shot>.h5 fqfn
 
         Attributes
         ----------
@@ -151,7 +154,10 @@ class Fibers:
 
         global config
 
-        self.hdfile = open_shot_file(shot, survey=survey)
+        if shot_h5 is None:
+            self.hdfile = open_shot_file(shot, survey=survey)
+        else:
+            self.hdfile = tb.open_file(shot_h5,"r")
 
         if re.search("v", str(shot)):
             shotid = int(shot.replace("v", ""))
@@ -574,6 +580,7 @@ def get_fibers_table(
     ignore_mask=None,
     mask_in_place=False,
     mask_value=np.nan,
+    shot_h5=None
 ):
     """
     Returns fiber specta for a given shot.
@@ -619,6 +626,8 @@ def get_fibers_table(
         Set to True to apply mask to calfib, calfibe, calfib_ffsky and calfib_ffsky_rescor
     mask_value
         value to fill masked values. Default is np.nan
+    shot_h5: str
+            optionally pass a specific <shot>.h5 fqfn
 
     Returns
     -------
@@ -682,6 +691,7 @@ def get_fibers_table(
                 add_rescor=add_rescor,
                 add_mask=add_mask,
                 mask_version=mask_version,
+                shot_h5=shot_h5
             )
             
         close_F_at_end = False
@@ -703,6 +713,7 @@ def get_fibers_table(
             add_rescor=add_rescor,
             add_mask=add_mask,
             mask_version=mask_version,
+            shot_h5=shot_h5
         )
         fileh = F.hdfile
         close_F_at_end = True

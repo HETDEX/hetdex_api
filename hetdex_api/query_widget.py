@@ -46,7 +46,7 @@ try:  # using HDRconfig
     
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr2.1"
+    LATEST_HDR_NAME = "hdr5"
 
 OPEN_DET_FILE = None
 DET_HANDLE = None
@@ -96,7 +96,7 @@ class QueryWidget:
         self.imw = ImageWidget(image_width=600, image_height=600)
 
         self.survey_widget = widgets.Dropdown(
-            options=["HDR1", "HDR2", "HDR2.1", "HDR3", "HDR4"],
+            options=["HDR1", "HDR2", "HDR2.1", "HDR3", "HDR4","HDR5"],
             value=self.survey.upper(),
             layout=Layout(width="10%"),
         )

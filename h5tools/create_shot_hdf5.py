@@ -63,6 +63,15 @@ def get_files(args):
             )
         )
 
+        if len(files) == 0:
+            files = glob.glob(
+                op.join(
+                    args.rootdir,
+                    "d" + str(args.date)[0:8] + "s" + args.observation + "exp??",
+                    "d" + str(args.date)[0:8] + "s" + args.observation + "exp??_mu.tar"
+                )
+            )
+
     return files
 
 

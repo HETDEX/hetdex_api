@@ -486,6 +486,7 @@ class Extract:
                                 fiber_flux_offset=None,
                                 add_mask=False,
                                 mask_options=None,
+                                shot_h5=None
     ):
         """ 
         Grab fibers within a radius and get relevant info
@@ -523,6 +524,8 @@ class Extract:
             'BADSHOT', 'THROUGHPUT', 'BADFIB', 'SAT'
             If BITMASK appears as any element in the list, it overrides all others 
             and returns the full bitmask array.
+        shot_h5: str
+            optionally pass a specific <shot>.h5 fqfn
 
         Returns
         -------
@@ -604,7 +607,7 @@ class Extract:
                 self.fibers = Fibers(self.shot,
                                      survey=self.survey,
                                      add_rescor=ffsky_rescor,
-                                     add_mask=add_mask)
+                                     add_mask=add_mask,shot_h5=shot_h5)
 
             fib_table = get_fibers_table(
                 self.shot, coord,
@@ -617,6 +620,7 @@ class Extract:
                 add_rescor=ffsky_rescor,
                 add_mask=add_mask,
                 mask_options=mask_options,
+                shot_h5=shot_h5
             )
 
             if np.size(fib_table) < fiber_lower_limit:

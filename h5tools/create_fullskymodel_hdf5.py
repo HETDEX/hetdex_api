@@ -17,6 +17,7 @@ import tables as tb
 import argparse as ap
 import os.path as op
 import numpy as np
+import glob
 
 from astropy.table import Table
 
@@ -89,7 +90,10 @@ def main(argv=None):
     
     # store shuffle.cfg and DATEvOBS.log files
 
-    for expn in ['exp01', 'exp02', 'exp03']: 
+    fns = glob.glob(f"{args.rootdir}/d*sky.dat")
+    exps = [f"exp{str(x).zfill(2)}" for x in np.arange(1,len(fns)+1,1)]
+
+    for expn in exps: #['exp01', 'exp02', 'exp03']:
 
         skyfile = op.join(args.rootdir, 'd' + str(args.date) + 's' +
                           str(args.observation).zfill(3) + expn + 'sky.dat')

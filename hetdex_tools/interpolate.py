@@ -1,5 +1,6 @@
 import os.path as op
 import numpy as np
+import tables
 import tables as tb
 
 from astropy.coordinates import SkyCoord
@@ -23,7 +24,7 @@ try:  # using HDRconfig
 
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr4"
+    LATEST_HDR_NAME = "hdr5"
 
 OPEN_DET_FILE = None
 DET_HANDLE = None
@@ -55,6 +56,7 @@ def make_narrowband_image(
     mask_options=None,
     fill_value=0.0,
     include_grid=False,
+    shot_h5=None,
 ):
     """
     Function to make narrowband image from either a detectid or from a
@@ -122,6 +124,8 @@ def make_narrowband_image(
     include_grid: bool
         Option to include xgrid, ygrid. This is used in lya_pyimfit.py. It is an array
         containing distance from center in arcsec matched to datagrid
+    shot_h5: str
+            optionally pass a specific <shot>.h5 fqfn
 
     Returns
     -------
@@ -151,8 +155,14 @@ def make_narrowband_image(
 
     if include_bitmask and not include_error:
         print('Including bitmask and error arrays. Forcing include_error=True')
-        
-    if survey != current_hdr:
+
+    if shot_h5 is not None:  # if shot_h5 is specified, use it instead of the survey
+        if surveyh5 is not None:
+            try:
+                surveyh5.close()
+            except:
+                pass
+    elif survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
 
@@ -162,6 +172,7 @@ def make_narrowband_image(
                     surveyh5.close()
                 except:
                     pass
+
             surveyh5 = tb.open_file(config.surveyh5, "r")
         except:
             pass
@@ -215,7 +226,7 @@ def make_narrowband_image(
                 try:
                     DET_HANDLE = tb.open_file(DET_FILE, "r")
                 except:
-                    print("Could not open {}".format(self.det_file))
+                    print("Could not open {}".format(DET_FILE))
 
         detectid_obj = detectid
         det_info = DET_HANDLE.root.Detections.read_where("detectid == detectid_obj")[0]
@@ -239,8 +250,14 @@ def make_narrowband_image(
     else:
         print("Provide a detectid or both a coords and shotid")
 
-    fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
-    pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
+    if shot_h5 is not None:
+        h5 = tables.open_file(shot_h5)
+        fwhm = h5.root.Shot.read(field="fwhm_virus")[0]
+        pa = h5.root.Shot.read(field="pa")[0]
+        h5.close()
+    else:
+        fwhm = surveyh5.root.Survey.read_where("shotid == shotid_obj")["fwhm_virus"][0]
+        pa = surveyh5.root.Survey.read_where("shotid == shotid_obj")["pa"][0]
 
     if extract_class is None:
         E = Extract()
@@ -268,6 +285,7 @@ def make_narrowband_image(
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
         mask_options=mask_options,
+        shot_h5=shot_h5
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -396,7 +414,7 @@ def make_narrowband_image(
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
-
+    
     # get rotation:
     sys_rot = 1.55
     rot = 360.0 - (90.0 + pa + sys_rot)
@@ -417,9 +435,14 @@ def make_narrowband_image(
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
     header["FFSKYRC"] = str(ffsky_rescor)
-
+        
     # Copy Shot table info
-    shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
+    if shot_h5 is not None:
+        h5 = tables.open_file(shot_h5)
+        shot_info_table = Table(h5.root.Shot.read())
+        h5.close()
+    else:
+        shot_info_table = Table(surveyh5.root.Survey.read_where("shotid == shotid_obj"))
     for col in shot_info_table.colnames:
         if col.startswith("x") or col.startswith("y"):
             continue
@@ -468,12 +491,12 @@ def make_narrowband_image(
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
             if include_grid:
-                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdux, hduy])
+                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_x, hdu_y])
             else:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
         if include_grid:
-            return fits.HDUList([hdu_primary, hdu_data, hdux, hduy])
+            return fits.HDUList([hdu_primary, hdu_data, hdu_x, hdu_y])
         else:
             return fits.HDUList([hdu_primary, hdu_data])
     
@@ -654,18 +677,31 @@ def make_data_cube(
         E = extract_class
 
     # get spatial dims:
-    ndim = int(imsize / pixscale)
-    center = int(ndim / 2)
+    #ndim = int(imsize / pixscale)
+    #center = int(ndim / 2)
 
-    # get wave dims:
-    nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
+    # updated 2025-08-18 by EMC
+    ndim = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
+    center = (ndim + 1) / 2.0   # may be half-integer if ndim is even
 
+    # get wave dims: (edited 2025-08-14 by EMC)
+    #nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
+
+    # Number of spectral bins, not edges
+    nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave)) + 1
+    wave_centers = np.linspace(wave_range[0], wave_range[1], nwave)
+    
+    # --- WCS ---
+    # Bin centers (added 2025-08-14 by EMC)
+    
     w = wcs.WCS(naxis=3)
-    w.wcs.crval = [coords.ra.deg, coords.dec.deg, wave_range[0]]
-    w.wcs.crpix = [center, center, 1]
+    w.wcs.crval = [coords.ra.deg, coords.dec.deg, float( wave_range[0])] 
+    w.wcs.crpix = [center, center, 1.0]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
-    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
-
+    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, float( dwave)]
+    #added 2025-08-14 by EMC
+    w.wcs.cunit = ["deg", "deg", "Angstrom"]
+    
     rad = imsize.to(u.arcsec).value
 
     if include_bitmask:
@@ -707,17 +743,18 @@ def make_data_cube(
     rot = 360.0 - (90.0 + pa + sys_rot)
     w.wcs.crota = [0, rot, 0]
 
-    im_cube = np.zeros((nwave, ndim, ndim))
+    im_cube = np.zeros((nwave, ndim, ndim), dtype=np.float32)
 
     if include_error:
         im_errorcube = np.zeros((nwave, ndim, ndim))
         if include_bitmask:
-            im_bitmaskcube = np.zeros((nwave, ndim, ndim))
+            im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.uint16)
     
     wave_i = wave_range[0]
     i = 0
 
-    while wave_i <= wave_range[1]:
+    for i, wave_i in enumerate(wave_centers): #updated 2025-08-19
+#    while wave_i < wave_range[1]:
         try:
             zarray = E.make_narrowband_image(
                 ifux_cen,
@@ -737,23 +774,15 @@ def make_data_cube(
                 bitmask=include_bitmask,
             )
 
-            im_slice = zarray[0]
-            im_error = zarray[1]
-            im_bitmask = zarray[2]
-
-            im_cube[i, :, :] = im_slice
+            im_cube[i] = zarray[0]
 
             if include_error:
-                im_errorcube[i, :, :] = im_error
+                im_errorcube[i] = zarray[1]
                 if include_bitmask:
-                    im_bitmaskcube[i, :, :] = im_bitmask
+                    im_bitmaskcube[i] = zarray[2]
         except ValueError:
-#        except Exception:
-            im_cube[i, :, :] = np.zeros((ndim, ndim))
-            if include_error:
-                im_errorcube[i, :, :] = np.zeros((ndim, ndim))
-                if include_bitmask:
-                    im_bitmaskcube[i, :, :] = np.zeros((ndim, ndim))
+            pass
+        
         wave_i += dwave
         i += 1
 
@@ -797,6 +826,22 @@ def make_data_cube(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
+    # convert spectral axis to Angstrom explicitly
+    lam0 = float(wave_range[0])   # 3470
+    dlam = float(dwave)           # 2.0
+
+    # enforce header cards for spectral axis
+    header["CTYPE3"] = "WAVE"
+    header["CUNIT3"] = "Angstrom"
+    header["CRVAL3"] = lam0
+    header["CDELT3"] = dlam
+    header["CRPIX3"] = 1.0
+
+    # clean out any CD/PC matrix elements for axis 3 that could override
+    for key in list(header.keys()):
+        if key.startswith("PC3_") or key.startswith("CD3_"):
+            del header[key]
+            
     # create an empty Primary HDU for 1st extension
     hdu_primary = fits.PrimaryHDU()
     hdu_data = fits.ImageHDU(im_cube.astype(np.float32), header=header, name="DATA")

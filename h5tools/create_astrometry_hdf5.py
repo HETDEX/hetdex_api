@@ -18,6 +18,7 @@ python create_astrometry_hdf5.py -d 20181111 -o 15 -of 20181111v015.h5 --append
 import glob
 import re
 import os
+import traceback
 
 import tables as tb
 import argparse as ap
@@ -237,14 +238,23 @@ def main(argv=None):
         args.log.warning('Could not include %s' % fileallmch)
 
     filenorm = op.join(shiftsdir, 'norm.dat')
+    if not op.exists(filenorm):
+        #try alternate location
+        filenorm = op.join(args.detectdir, 'norm.dat')
 
     try:
         norm = Table.read(filenorm, format='ascii.no_header')
     except:
-        args.log.warning('Could not include %s' % filenorm)
+        args.log.warning('Could not include (table) %s' % filenorm)
+        args.log.error(traceback.format_exc())
 
-    # index over dithers to gather diher specific info    
-    for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
+    fns = glob.glob(f"match_pngs/match_*.png")
+    exps = [f"exp{str(x).zfill(2)}" for x in np.arange(1,len(fns)+1,1)]
+
+
+    # index over dithers to gather diher specific info
+    for idx, expn in enumerate(exps):
+    #for idx, expn in enumerate(['exp01', 'exp02', 'exp03']):
 
         radecfile = op.join(shiftsdir, 'radec2_' + expn + '.dat')
         rowNV = tableNV.row
@@ -266,6 +276,7 @@ def main(argv=None):
             elif idx == 2:
                 rowNV['relflux_virus'] = norm['col3'][0]
         except Exception:
+            args.log.error(traceback.format_exc())
             args.log.warning('Could not include norm.dat')
         
         try:
@@ -422,21 +433,26 @@ def main(argv=None):
             shot['nstars_fit'] = tableQA.cols.nstars[:]
         except:
             if badshotflag:
-                args.log.warning('Could not include astrometry shot info for %s' % datevshot)
+                args.log.warning('Could not include astrometry shot info (cnd 1) for %s' % datevshot)
             else:
-                args.log.error('Could not include astrometry shot info for %s' % datevshot)
+                args.log.error('Could not include astrometry shot info (cnd 2) for %s' % datevshot)
+
+            args.log.warning(traceback.format_exc())
         try:
             shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
             shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
         except:
-            args.log.warning('Could not include astrometry shot info for %s' % datevshot)
+            args.log.warning('Could not include astrometry shot info (cnd 3) for %s' % datevshot)
+            args.log.warning(traceback.format_exc())
+
         try:
             shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
         except:
             if badshotflag:
-                args.log.warning('Could not include relflux_virus info for %s' % datevshot)
+                args.log.warning('Could not include relflux_virus info (cnd 1) for %s' % datevshot)
             else:
-                args.log.error('Could not include relflux_virus info for %s' % datevshot)
+                args.log.error('Could not include relflux_virus info (cnd 2) for %s' % datevshot)
+            args.log.warning(traceback.format_exc())
                 
         shot.update()
 
