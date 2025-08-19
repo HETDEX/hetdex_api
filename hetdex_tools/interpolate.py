@@ -24,7 +24,7 @@ try:  # using HDRconfig
 
 except Exception as e:
     print("Warning! Cannot find or import HDRconfig from hetdex_api!!", e)
-    LATEST_HDR_NAME = "hdr4"
+    LATEST_HDR_NAME = "hdr5"
 
 OPEN_DET_FILE = None
 DET_HANDLE = None
@@ -688,17 +688,17 @@ def make_data_cube(
     #nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
 
     # Number of spectral bins, not edges
-    nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave))
-
+    nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave)) + 1
+    wave_centers = np.linspace(wave_range[0], wave_range[1], nwave)
+    
     # --- WCS ---
     # Bin centers (added 2025-08-14 by EMC)
-    wave0 = wave_range[0] + 0.5 * dwave
-
+    
     w = wcs.WCS(naxis=3)
-    w.wcs.crval = [coords.ra.deg, coords.dec.deg, wave0] #center of first bin
+    w.wcs.crval = [coords.ra.deg, coords.dec.deg, float( wave_range[0])] 
     w.wcs.crpix = [center, center, 1.0]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
-    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, dwave]
+    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, float( dwave)]
     #added 2025-08-14 by EMC
     w.wcs.cunit = ["deg", "deg", "Angstrom"]
     
@@ -748,12 +748,13 @@ def make_data_cube(
     if include_error:
         im_errorcube = np.zeros((nwave, ndim, ndim))
         if include_bitmask:
-            im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.int)
+            im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.uint16)
     
     wave_i = wave_range[0]
     i = 0
 
-    while wave_i < wave_range[1]:
+    for i, wave_i in enumerate(wave_centers): #updated 2025-08-19
+#    while wave_i < wave_range[1]:
         try:
             zarray = E.make_narrowband_image(
                 ifux_cen,
@@ -825,6 +826,22 @@ def make_data_cube(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
+    # convert spectral axis to Angstrom explicitly
+    lam0 = float(wave_range[0])   # 3470
+    dlam = float(dwave)           # 2.0
+
+    # enforce header cards for spectral axis
+    header["CTYPE3"] = "WAVE"
+    header["CUNIT3"] = "Angstrom"
+    header["CRVAL3"] = lam0
+    header["CDELT3"] = dlam
+    header["CRPIX3"] = 1.0
+
+    # clean out any CD/PC matrix elements for axis 3 that could override
+    for key in list(header.keys()):
+        if key.startswith("PC3_") or key.startswith("CD3_"):
+            del header[key]
+            
     # create an empty Primary HDU for 1st extension
     hdu_primary = fits.PrimaryHDU()
     hdu_data = fits.ImageHDU(im_cube.astype(np.float32), header=header, name="DATA")
