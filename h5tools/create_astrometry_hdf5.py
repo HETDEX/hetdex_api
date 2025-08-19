@@ -177,8 +177,16 @@ def main(argv=None):
         shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read().encode())
         shuffle.set_attr('filename','shuffle.cfg')
         f.close()
-    except:
-        args.log.warning('Could not include %s' % fileshuffle)
+    except: #alternate location
+        shiftsdir = op.join(args.rootdir, "vdrp")
+        fileshuffle = op.join(shiftsdir, 'shuffle.cfg')
+        try:
+            f = open(fileshuffle, 'r')
+            shuffle = fileh.create_array(groupAstrometry, 'ShuffleCfg', f.read().encode())
+            shuffle.set_attr('filename', 'shuffle.cfg')
+            f.close()
+        except:
+            args.log.warning('Could not include %s' % fileshuffle)
 
     # store fplane table
 
