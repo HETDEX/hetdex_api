@@ -426,6 +426,12 @@ def make_narrowband_image(
     
     header = w.to_header()
 
+    #header info for units                                                                      
+    header["BUNIT"] = "1e-17 erg s^-1 cm^-2 arcsec^-2"
+    header["WAVEMIN"] = wave_range[0]
+    header["WAVEMAX"] = wave_range[1]
+    header["BANDWID"] = wave_range[1] - wave_range[0]
+    
     # add chosen variable info
     header["FILETIME"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     header["SURVEY"] = str(survey)
@@ -833,6 +839,10 @@ def make_data_cube(
                 header[col.upper() + "1"] = shot_info_table[col][0][0]
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
+
+    #header info for units
+    header["BUNIT"] = "1e-17 erg s^-1 cm^-2 arcsec^-2"
+    header["SPECBW"] = 2.0   # bin width in Angstrom
 
     # enforce header cards for spectral axis
     header["CTYPE3"] = "WAVE"
