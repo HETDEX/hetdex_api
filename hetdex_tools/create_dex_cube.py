@@ -61,21 +61,26 @@ def save_data_cube(
         include_bitmask=True,
         extract_class=E,
     )
+    data    = hdu[1].data.astype(np.float32, copy=False)
+    error   = hdu[2].data.astype(np.float32, copy=False)
+    bitmask = hdu[3].data.astype(np.uint16,  copy=False)
+    bitmask = bitmask.astype(np.uint16, copy=False)
 
-    SHAPE = np.shape(hdu[1].data)
-    data = hdu[1].data
-    error = hdu[2].data
-    bitmask = hdu[3].data
+    data_hdr  = hdu[1].header.copy()
+    error_hdr = hdu[2].header.copy()
+    mask_hdr = hdu[3].header.copy(); mask_hdr.pop('BUNIT', None)
 
-    # Create compressed HDUs
+    # Create compressed HDUs with TILE compression
+    TILE = (16, 32, 32)
+
     data_hdu = fits.CompImageHDU(
-        data, header=hdu[1].header, name="DATA", compression_type="RICE_1"
+        data, header=data_hdr, name="DATA", compression_type="RICE_1", tile_shape=TILE,
     )
     error_hdu = fits.CompImageHDU(
-        error, header=hdu[2].header, name="ERROR", compression_type="RICE_1"
+        error, header=error_hdr, name="ERROR", compression_type="RICE_1", tile_shape=TILE,
     )
     mask_hdu = fits.CompImageHDU(
-        bitmask, header=hdu[3].header, name="MASK", compression_type="RICE_1"
+        bitmask, header=mask_hdr, name="MASK", compression_type="RICE_1", tile_shape=TILE
     )
 
     # Create HDU list
@@ -83,7 +88,7 @@ def save_data_cube(
 
     # Write compressed FITS file
     output_filename = op.join(filepath, f"dex_cube_{shotid}_{ifuslot}.fits")
-    hdu_list.writeto(output_filename, overwrite=True)
+    hdu_list.writeto(output_filename, overwrite=True, checksum=True)
 
     return hdu_list
 
