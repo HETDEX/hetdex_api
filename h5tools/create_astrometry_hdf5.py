@@ -434,27 +434,39 @@ def main(argv=None):
                 args.log.error('Could not open %s' % radecfinalfile)
 
         try:
-            shot['xoffset'] = tableQA.cols.xoffset[:]
-            shot['yoffset'] = tableQA.cols.yoffset[:]
-            shot['xrms'] = tableQA.cols.xrms[:]
-            shot['yrms'] = tableQA.cols.yrms[:]
-            shot['nstars_fit'] = tableQA.cols.nstars[:]
+            if len(tableQA.cols.xoffset[:]) == 3: #might now be a single exposure, in which case there are no offsets
+                shot['xoffset'] = tableQA.cols.xoffset[:]
+                shot['yoffset'] = tableQA.cols.yoffset[:]
+                shot['xrms'] = tableQA.cols.xrms[:]
+                shot['yrms'] = tableQA.cols.yrms[:]
+                shot['nstars_fit'] = tableQA.cols.nstars[:]
+            else:
+                args.log.info(f'Could not include astrometry QA info (cnd 1a) for {datevshot}. Shape mismatch. '
+                                 f'len = {len(tableQA.cols.xoffset[:])}. May be single exposure?')
         except:
             if badshotflag:
-                args.log.warning('Could not include astrometry shot info (cnd 1) for %s' % datevshot)
+                args.log.warning('Could not include astrometry QA info (cnd 1) for %s' % datevshot)
             else:
                 args.log.error('Could not include astrometry shot info (cnd 2) for %s' % datevshot)
 
             args.log.warning(traceback.format_exc())
         try:
-            shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
-            shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+            if len(tableNV.cols.x_dither_pos[:]) == 3:
+                shot['xditherpos'] = tableNV.cols.x_dither_pos[:]
+                shot['yditherpos'] = tableNV.cols.y_dither_pos[:]
+            else:
+                args.log.info(f'Could not include astrometry Norm info, x & y_dither_pos (cnd 3a) for {datevshot}. Shape mismatch. '
+                                 f'len = {len(tableNV.cols.x_dither_pos[:])}. May be single exposure?')
         except:
             args.log.warning('Could not include astrometry shot info (cnd 3) for %s' % datevshot)
             args.log.warning(traceback.format_exc())
 
         try:
-            shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
+            if len(tableNV.cols.relflux_virus[:]) == 3:
+                shot['relflux_virus'] = tableNV.cols.relflux_virus[:]
+            else:
+                args.log.info(f'Could not include astrometry Norm info, relflux_virus, (cnd 3a) for {datevshot}. Shape mismatch. '
+                                 f'len = {len(tableNV.cols.relflux_virus[:])}. May be single exposure?')
         except:
             if badshotflag:
                 args.log.warning('Could not include relflux_virus info (cnd 1) for %s' % datevshot)
