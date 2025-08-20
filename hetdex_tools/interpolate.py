@@ -154,6 +154,7 @@ def make_narrowband_image(
     global DET_FILE
 
     if include_bitmask and not include_error:
+        include_error = True
         print('Including bitmask and error arrays. Forcing include_error=True')
 
     if shot_h5 is not None:  # if shot_h5 is specified, use it instead of the survey
@@ -199,7 +200,7 @@ def make_narrowband_image(
 
         if (detectid >= 2100000000) * (detectid < 2190000000):
             DET_FILE = CONFIG_HDR2.detecth5
-        elif (detectid >= 2100000000) * (detectid < 2190000000):
+        elif (detectid >= 2100000000) * (detectid < 3000000000):
             DET_FILE = CONFIG_HDR2.contsourceh5
         elif (detectid >= 3000000000) * (detectid < 3090000000):
             DET_FILE = CONFIG_HDR3.detecth5
@@ -265,9 +266,9 @@ def make_narrowband_image(
     else:
         E = extract_class
     # get spatial dims:
-    ndim = int(imsize / pixscale)
-    center = int(ndim / 2)
-
+    ndim  = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
+    center = (ndim + 1) / 2.0   # works for even/odd
+    
     rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
 
     if include_bitmask:
@@ -295,10 +296,10 @@ def make_narrowband_image(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
-    if wave_range[0] <= 3500:
-        wave_range[0] = 3500
-    if wave_range[1] >= 5500:
-        wave_range[1] = 5500
+    #clip spectra edges
+    w0, w1 = map(float, wave_range)
+    w0 = max(w0, 3500.0); w1 = min(w1, 5500.0)
+    wave_range = [w0, w1]
 
     if include_error:
         zarray = E.make_narrowband_image(
@@ -420,10 +421,9 @@ def make_narrowband_image(
     rot = 360.0 - (90.0 + pa + sys_rot)
     rrot = np.deg2rad(rot)
 
-    #    w.wcs.crota = [ 0, rot]
-
-    w.wcs.pc = [[np.cos(rrot), np.sin(rrot)], [-1.0 * np.sin(rrot), np.cos(rrot)]]
-
+    w.wcs.crota = [ 0, rot]
+    w.wcs.cunit = ["deg", "deg"]
+    
     header = w.to_header()
 
     # add chosen variable info
@@ -507,7 +507,7 @@ def make_data_cube(
     shotid=None,
     pixscale=None,
     imsize=None,
-    wave_range=[3470, 5540],
+    wave_range=None,
     dwave=2.0,
     convolve_image=False,
     ffsky=False,
@@ -608,6 +608,9 @@ def make_data_cube(
     if imsize is None:
         imsize = 30.0 * u.arcsec
 
+    if wave_range is None:
+        wave_range = [3470.0, 5540.0]
+        
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
@@ -690,7 +693,7 @@ def make_data_cube(
     # Number of spectral bins, not edges
     nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave)) + 1
     wave_centers = np.linspace(wave_range[0], wave_range[1], nwave)
-    
+
     # --- WCS ---
     # Bin centers (added 2025-08-14 by EMC)
     
@@ -741,20 +744,29 @@ def make_data_cube(
     # add in rotation
     sys_rot = 1.55
     rot = 360.0 - (90.0 + pa + sys_rot)
+
     w.wcs.crota = [0, rot, 0]
 
+    # positive magnitudes for scales
+    sx = pixscale.to(u.deg).value
+    sy = pixscale.to(u.deg).value
+    theta = np.deg2rad(rot)
+
+    lam0 = float(wave_range[0])   # 3470                                                           
+    dlam = float(dwave)           # 2.0           
+    
     im_cube = np.zeros((nwave, ndim, ndim), dtype=np.float32)
 
     if include_error:
         im_errorcube = np.zeros((nwave, ndim, ndim))
         if include_bitmask:
             im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.uint16)
-    
-    wave_i = wave_range[0]
-    i = 0
 
-    for i, wave_i in enumerate(wave_centers): #updated 2025-08-19
-#    while wave_i < wave_range[1]:
+    for i, wave_i in enumerate(wave_centers):
+        
+        half = 0.5 * dwave
+        wrange=[wave_i - half, wave_i + half]
+
         try:
             zarray = E.make_narrowband_image(
                 ifux_cen,
@@ -764,7 +776,7 @@ def make_data_cube(
                 data,
                 mask,
                 scale=pixscale.to(u.arcsec).value,
-                wrange=[wave_i, wave_i + dwave],
+                wrange=wrange,
                 seeing_fac=fwhm,
                 convolve_image=convolve_image,
                 boxsize=imsize.to(u.arcsec).value,
@@ -773,7 +785,6 @@ def make_data_cube(
                 error=error,
                 bitmask=include_bitmask,
             )
-
             im_cube[i] = zarray[0]
 
             if include_error:
@@ -782,9 +793,6 @@ def make_data_cube(
                     im_bitmaskcube[i] = zarray[2]
         except ValueError:
             pass
-        
-        wave_i += dwave
-        i += 1
 
     # CREATE HEADER
     header = w.to_header()
@@ -826,10 +834,6 @@ def make_data_cube(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
-    # convert spectral axis to Angstrom explicitly
-    lam0 = float(wave_range[0])   # 3470
-    dlam = float(dwave)           # 2.0
-
     # enforce header cards for spectral axis
     header["CTYPE3"] = "WAVE"
     header["CUNIT3"] = "Angstrom"
@@ -841,7 +845,14 @@ def make_data_cube(
     for key in list(header.keys()):
         if key.startswith("PC3_") or key.startswith("CD3_"):
             del header[key]
-            
+
+    # close extract_class if just accessing for one call
+    if extract_class is None:
+        try:
+            E.close()
+        except:
+            pass
+
     # create an empty Primary HDU for 1st extension
     hdu_primary = fits.PrimaryHDU()
     hdu_data = fits.ImageHDU(im_cube.astype(np.float32), header=header, name="DATA")
@@ -850,14 +861,10 @@ def make_data_cube(
         hdu_error = fits.ImageHDU(im_errorcube.astype(np.float32), header=header, name="ERROR")
 
         if include_bitmask:
-            hdu_bitmask = fits.ImageHDU(im_bitmaskcube.astype(np.int16), header=header, name="BITMASK")
+            hdu_bitmask = fits.ImageHDU(im_bitmaskcube.astype(np.uint16), header=header, name="BITMASK")
             return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
             return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
         return fits.HDUList([hdu_primary, hdu_data])
 
-    if extract_class is None:
-        E.close()
-
-    return hdu
