@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 install_requires = ['numpy<2', 'astropy>=4.3', 'astroquery',
                     'scipy>=1.4', 'regions','photutils<2', 'tables', 'speclite',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
-                    'nway', 'dustmaps', 'extinction']
+                    'nway', 'dustmaps', 'extinction', 'numba']
 
 extras = {'doc' : ['sphinx==5.2.2',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx-rtd-theme-1.3.0']}
