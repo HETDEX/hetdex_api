@@ -545,7 +545,11 @@ def f50_from_noise_v5_simple(noise, wave, sncut, linewidth=None):
     """
 
     # SR derived expression
-    lw = linewidth
+    if isinstance(linewidth, type(None)):
+        print("Warning assuming default linewidth (3 AA)")
+        lw = 3.0
+    else:
+        lw = linewidth
     f50 = noise*sncut*(lw + 3.961)/wave**0.2346
 
     # Post-hoc wavelength correction factor
@@ -562,7 +566,13 @@ def f50_from_noise_v5_complex(noise, wave, sncut, linewidth=None):
     The PySR derived f50 values
 
     """
-    lw = linewidth
+    # SR derived expression
+    if isinstance(linewidth, type(None)):
+        print("Warning assuming default linewidth (3 AA)")
+        lw = 3.0
+    else:
+        lw = linewidth
+ 
     f50 = (sncut + (-0.0003626381*wave + lw*0.11694929)*(-0.00011829826*sncut*wave + sncut))
     f50 = f50 * 2.3486211 * noise
     return f50
