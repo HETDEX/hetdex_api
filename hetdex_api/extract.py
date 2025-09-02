@@ -4,10 +4,11 @@ Created on Mon Mar 11 11:48:55 2019
 
 Note: this uses nway and pandas
 
-@authors: gregz, Erin Mentuch Cooper, Daneil Farrow, Dustin Davis
+@authors: gregz, Erin Mentuch Cooper, Daniel Farrow, Dustin Davis
 """
 
 import numpy as np
+from numba import jit
 
 from astropy.table import Table
 from astropy.convolution import Gaussian2DKernel, convolve
@@ -39,7 +40,7 @@ except Exception as e:
     LATEST_HDR_NAME = "hdr2.1"
     config = None
 
-
+@jit(nopython=True)
 def sclean(waves, fiber_data, fiber_error, mask,
            npix = 5, error_scale = 4.0):
     """
@@ -79,19 +80,20 @@ def sclean(waves, fiber_data, fiber_error, mask,
     fiber_data_out = np.copy(fiber_data)
     fiber_error_out = np.copy(fiber_error)
 
-    bad = (abs(fiber_data) < 1e-40) | (abs(fiber_error) < 1e-40) | np.logical_not(mask)
+    bad = (np.abs(fiber_data) < 1e-40) | (np.abs(fiber_error) < 1e-40) | np.logical_not(mask)
     good = np.logical_not(bad)
     good_indices = np.arange(len(waves))[good]
  
     # If it's all bad, give up!
-    if all(bad):
+    if np.all(bad):
         return fiber_data_out, fiber_error_out, mask, bad
 
+    mask[bad] = True
+
     for idx in np.arange(len(waves))[bad]:
-        mask[idx] = True
-        jnear = good_indices[np.argmin(abs(waves[good] - waves[idx]))]
-        arr = fiber_data[max(0, jnear - npix): jnear + npix + 1]
-        fiber_data_out[idx] = np.mean(arr[abs(arr) > 0])
+        jnear = good_indices[np.argmin(np.abs(waves[good] - waves[idx]))]
+        arr = fiber_data[np.max(np.array([0, jnear - npix])): jnear + npix + 1]
+        fiber_data_out[idx] = np.mean(arr[np.abs(arr) > 0])
         #print(np.mean(arr[arr > 0]), idx, any(np.isnan(arr)), len(arr[arr > 0]))
         fiber_error_out[idx] = error_scale*fiber_error[jnear]        
 

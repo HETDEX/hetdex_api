@@ -26,6 +26,7 @@ they are using, the "Notes" column is mainly for the reference of the developers
 |    v2      |       v1      |      2.1.1-onwards  |  KG's new scaling with wavelength     | (f50=x8\*xf50/fcor0) model with linewidth dependence|
 |    v3      |       v1      |      2.1.1-onwards  |  DJF scaling with wavelength          |                                                      |
 |    v4      |       v2      |      3.0.0-onwards  | KG scaling with wavelength            |   Preliminary model from subset of HDR3 sims         |
+|    v5\_simple      |       N/A     |      5.0.0-onwards  | Symbolic regression derived expressions |      |
 
 These are the different flux versus completeness curve versions (the `sn.use` files)
 

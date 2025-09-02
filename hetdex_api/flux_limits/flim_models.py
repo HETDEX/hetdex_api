@@ -13,6 +13,7 @@ simulation results.
 
 from glob import glob
 from os.path import join
+from scipy.special import erf
 from scipy.interpolate import (interp1d, interp2d, splrep, griddata, RectBivariateSpline,
                                NearestNDInterpolator)
 from numpy import (polyval, mean, median, loadtxt, meshgrid, savetxt, 
@@ -105,6 +106,45 @@ def linewidth_f50_scaling_v1(linewidth, sncut):
         rfit = max(1.0, rfit)
 
     return rfit
+
+def linewidth_f50_scaling_v2(linewidth, sncut):
+    """
+    Model for how the 50% completeness flux
+    changes with linewidth. Based on section 
+    3.1 of Liu et al (2022) 
+
+    Parameters
+    ----------
+    linewidth : array or float
+        linewidth in A
+    sncut : float
+        S/N cut
+
+    Returns
+    -------
+    rfit : array or float
+        scaling of 50% flux
+        with linewidth
+    """
+    
+    try:
+        linewidth = array(linewidth)
+        linewidth[linewidth > 12.0] = 12.0
+    except TypeError:
+        linewidth = max(linewidth, 12.0)
+
+    rfit=sqrt(linewidth/2.2)*(15.09 - sncut)
+    rfit = rfit*(0.098 - 0.0004 * linewidth + 0.0004 * linewith ** 2)
+
+    try:
+        rfit[rfit < 1.0] = 1.0
+    except TypeError:
+        rfit = max(1.0, rfit)
+
+    # XXX HACK
+    return 1.0
+
+
 
 
 def write_karl_file(fn, f50s, fcens, wlcens, 
@@ -498,6 +538,55 @@ class SingleSNSimulationInterpolator(object):
     #        noise = noise*polyval(params_wl, lambda_)
 
 
+def f50_from_noise_v5_simple(noise, wave, sncut, linewidth=None):
+    """
+    The PySR derived f50 values
+
+    """
+
+    # SR derived expression
+    if isinstance(linewidth, type(None)):
+        print("Warning assuming default linewidth (3 AA)")
+        lw = 3.0
+    else:
+        lw = linewidth
+    f50 = noise*sncut*(lw + 3.961)/wave**0.2346
+
+    # Post-hoc wavelength correction factor
+    coeffs = [-3.13448035, -14.71295458,
+              2.64565401, 0.48077403,
+              -0.01623683]
+    f50 = f50 / (1 - polyval( coeffs, (wave - 4500) / 4500.0 ))
+
+    return f50
+
+
+def f50_from_noise_v5_complex(noise, wave, sncut, linewidth=None):
+    """
+    The PySR derived f50 values
+
+    """
+    # SR derived expression
+    if isinstance(linewidth, type(None)):
+        print("Warning assuming default linewidth (3 AA)")
+        lw = 3.0
+    else:
+        lw = linewidth
+ 
+    f50 = (sncut + (-0.0003626381*wave + lw*0.11694929)*(-0.00011829826*sncut*wave + sncut))
+    f50 = f50 * 2.3486211 * noise
+    return f50
+
+
+def completeness_v5(flux, f50, wave, sncut):
+    """
+    The PySR derived completeness (wave and
+    sncut arguments for API back compatibility)
+
+    """
+    arg = (flux / f50)
+
+    return erf(arg) * (erf( arg ** 1.875 ) ** 2.472) 
 
 def return_flux_limit_model_old(flim_model):
     """
@@ -571,17 +660,31 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
                                 False, False,
                                 lw_scaling=linewidth_f50_scaling_v1,
                                 single_snfile=True)
-             }
+              }
 
-    default = "v4" 
+
+    default = "v5_simple" 
 
     if not flim_model:
         flim_model = default
     
-    model =  models[flim_model]
+
     if verbose:
         print("Using flim model: {:s}".format(flim_model))
  
+    if "v5_simple" in flim_model:
+       f50_from_noise = f50_from_noise_v5_simple
+       sinterp = completeness_v5
+       return f50_from_noise, sinterp, False
+    elif "v5_complex" in flim_model:
+       f50_from_noise = f50_from_noise_v5_complex
+       sinterp = completeness_v5
+       return f50_from_noise, sinterp, False
+ 
+
+    # If using old fashioned model, that is dealt with here
+    model =  models[flim_model]
+
     if flim_model_cache.cached_model == flim_model and cache_sim_interp:
         sinterp = flim_model_cache.cached_sim_interp
     else:

@@ -955,6 +955,7 @@ def get_fibers_table(
             except:
                 print("Warning! Cannot apply wd_corr")
 
+            shot = int(shot)
             if shot < 20210901000:
                 early_2019_hdr4 = np.loadtxt(
                     op.join(config.bad_dir, "hdr4_2019.shots"), dtype=int

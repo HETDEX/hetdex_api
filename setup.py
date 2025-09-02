@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 install_requires = ['numpy<2', 'astropy>=4.3', 'astroquery',
                     'scipy>=1.4', 'regions','photutils<2', 'tables', 'speclite',
                     'tables', 'ipywidgets', 'astrowidgets', 'healpy', 'regions',
-                    'nway', 'dustmaps', 'extinction']
+                    'nway', 'dustmaps', 'extinction', 'numba']
 
 extras = {'doc' : ['sphinx==5.2.2',  'sphinx-markdown-tables', 'sphinx-argparse',
                    'sphinx-rtd-theme-1.3.0']}
@@ -45,7 +45,8 @@ setup(
                         'plot_completeness = hetdex_api.flux_limits.sensitivity_cube:plot_completeness',
                         'plot_completeness_versus_wl = hetdex_api.flux_limits.sensitivity_cube:plot_completeness_versus_wl',
                         'collapse_combine_sensitivity = hetdex_api.flux_limits.collapse_cubes:collapse_datacubes_command',
-                        'biweight_fluxlims_hdf5 = hetdex_api.flux_limits.collapse_cubes:return_biwt_cmd',
+                        'biweight_fluxlims = hetdex_api.flux_limits.collapse_cubes:return_biwt_cmd',
+                        'biweight_fluxlims_hdf5 = hetdex_api.flux_limits.collapse_cubes:return_biwt_hdf_cmd',
                         'add_sensitivity_cube_to_hdf5 =  hetdex_api.flux_limits.hdf5_sensitivity_cubes:add_sensitivity_cube_to_hdf5',
                         'extract_sensitivity_cube = hetdex_api.flux_limits.hdf5_sensitivity_cubes:extract_sensitivity_cube',
                         'hetdex_get_spec = hetdex_tools.get_spec:main',

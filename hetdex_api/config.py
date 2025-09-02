@@ -29,7 +29,7 @@ class HDRconfig:
             "/corral-repl/utexas/Hobby-Eberly-Telesco",
             "/home/jovyan/Hobby-Eberly-Telesco",
             "/home/idies/workspace/HETDEX",
-            "/data/hetdex/u/dfarrow/hetdex_data"
+            "/mnt/hetdex_release/"
         ]
 
 
@@ -45,15 +45,13 @@ class HDRconfig:
 
     
     def __init__(self, survey=LATEST_HDR_NAME):
-
+        
         # a number of downstream operations use LATEST_HDR_NAME explicitly, regardless of
         # what was pssed in for survey ...
         # overwriting here should handle that _BUT_ might introduce other problems if we do actually want to
         # use the pre-defined LATEST_HDR_NAME even if a different survey was requested.
         if survey is not None:
             self.LATEST_HDR_NAME=survey
-
-        # 
 
         self.host_dir = self.find_host_directory()
 
@@ -149,8 +147,8 @@ class HDRconfig:
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
             elif op.exists('/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)):
                 self.bad_dir = '/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)
-            elif op.exists("/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)):
-                self.bad_dir = "/data/hetdex/u/dfarrow/hetdex_data/{}/{}_issues".format(survey, survey)
+            elif op.exists("/data/u/dfarrow/hetdex/code/HETDEX_API/known_issues/{}".format(survey, survey)):
+                self.bad_dir = "/data/u/dfarrow/hetdex/code/HETDEX_API/known_issues/{}".format(survey, survey)
             elif op.exists("/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)):
                 self.bad_dir = "/home/idies/workspace/HETDEX/hetdex_api/known_issues/{}".format(survey)
             else:
