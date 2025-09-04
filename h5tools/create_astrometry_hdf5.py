@@ -257,6 +257,8 @@ def main(argv=None):
         args.log.error(traceback.format_exc())
 
     fns = glob.glob(f"match_pngs/match_*.png")
+    if len(fns) == 0:
+        fns = glob.glob(f"match_pngs/match_*.pdf")
     exps = [f"exp{str(x).zfill(2)}" for x in np.arange(1,len(fns)+1,1)]
 
 
