@@ -641,7 +641,7 @@ def stats_update_shot(h5, shot_dict):
 
     #DD 20240905 This is currently out of date
     #DD 202509011 Updated to match last AmpStats table ... intended for post-HETDEX shot.h5 use
-    print("!!!!! This needs to be updated with new columns  !!!!!")
+    #print("!!!!! This needs to be updated with new columns  !!!!!")
 
     try:
         # create the AmpStats table if it does not exist
@@ -649,9 +649,10 @@ def stats_update_shot(h5, shot_dict):
         # NOTE!!! this does NOT create new columns
         _ = h5.root.__getattr__('AmpStats')
         create_tab = False
-        # print("AmpStats already exists")
+        print("AmpStats table already exists. Will update.")
     except:
         create_tab = True
+        print("AmpStats table does not exist. Will create.")
 
         # print("Creating AmpStats")
 
@@ -664,8 +665,7 @@ def stats_update_shot(h5, shot_dict):
             # shotid ... do not need shotid
             multiframe = tables.StringCol(itemsize=20, pos=0)
             expnum = tables.Int32Col(pos=1)  # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
-            status = tables.Int32Col(
-                pos=2)  # a status indicator, TBD ... could be a value or a bitmapped mask (-1 bad, 0 unchecked, 1 good?)
+            status = tables.Int32Col(pos=2)  # a status indicator, TBD ... could be a value or a bitmapped mask (-1 bad, 0 unchecked, 1 good?)
             im_median = tables.Float32Col()
             mask_fraction = tables.Float32Col()
             avg = tables.Float32Col()
