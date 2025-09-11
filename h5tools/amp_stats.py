@@ -656,11 +656,6 @@ def stats_update_shot(h5, shot_dict):
 
         # print("Creating AmpStats")
 
-
-        #'shotid','multiframe','expnum','im_median','MaskFraction','Avg','Scale',
-        #'chi2fib_med','frac_c2','frac_0','n_lo','Avg_orig','sky_sub_rms','sky_sub_rms_rel','sky_sub_rms_median',
-        # 'dither_relflux','norm','kchi','N_cont','date','flag','flag_manual','flag_manual_desc'
-
         class AmpStats(tables.IsDescription):
             # shotid ... do not need shotid
             multiframe = tables.StringCol(itemsize=20, pos=0)
@@ -684,7 +679,9 @@ def stats_update_shot(h5, shot_dict):
             kchi = tables.Float32Col()
             n_cont = tables.Int32Col()
             #date ... do not need date
-            flag = tables.Int32Col()
+            #flag = tables.Int32Col() ...No, this table is just the stats
+            #                            since this can be non-HETDEX style shots, what should be flagged
+            #                            may have different thresholds and rules
             #flag_manual ... cannot have that here
             #flag_manual_desc ... cannot have that here
 
@@ -723,7 +720,7 @@ def stats_update_shot(h5, shot_dict):
             row['norm'] = entry['norm']
             row['kchi'] = entry['kchi']
             row['n_cont'] = entry['N_cont']
-            row['flag'] = entry['flag']
+
 
             row.append()
 
@@ -762,7 +759,7 @@ def stats_update_shot(h5, shot_dict):
                 row['norm'] = entry['norm']
                 row['kchi'] = entry['kchi']
                 row['n_cont'] = entry['N_cont']
-                row['flag'] = entry['flag']
+
 
                 row.append()
             elif len(row) == 1:  # update
@@ -786,7 +783,7 @@ def stats_update_shot(h5, shot_dict):
                     row['norm'] = entry['norm']
                     row['kchi'] = entry['kchi']
                     row['n_cont'] = entry['N_cont']
-                    row['flag'] = entry['flag']
+
 
                     row.update()
             else:  # problem
