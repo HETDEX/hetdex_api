@@ -677,6 +677,7 @@ def stats_update_shot(h5, shot_dict):
             n_lo = tables.Int32Col()
             avg_orig = tables.Float32Col()
             sky_sub_rms = tables.Float32Col()
+            sky_sub_rms_rel = tables.Float32Col()
             sky_sub_rms_median = tables.Float32Col()
             dither_relflux = tables.Float32Col()
             norm = tables.Float32Col()
