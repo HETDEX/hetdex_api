@@ -640,6 +640,7 @@ def stats_update_shot(h5, shot_dict):
 
 
     #DD 20240905 This is currently out of date
+    #DD 202509011 Updated to match last AmpStats table ... intended for post-HETDEX shot.h5 use
     print("!!!!! This needs to be updated with new columns  !!!!!")
 
     try:
@@ -654,15 +655,37 @@ def stats_update_shot(h5, shot_dict):
 
         # print("Creating AmpStats")
 
+
+        #'shotid','multiframe','expnum','im_median','MaskFraction','Avg','Scale',
+        #'chi2fib_med','frac_c2','frac_0','n_lo','Avg_orig','sky_sub_rms','sky_sub_rms_rel','sky_sub_rms_median',
+        # 'dither_relflux','norm','kchi','N_cont','date','flag','flag_manual','flag_manual_desc'
+
         class AmpStats(tables.IsDescription):
+            # shotid ... do not need shotid
             multiframe = tables.StringCol(itemsize=20, pos=0)
             expnum = tables.Int32Col(pos=1)  # !! cannot be int8 as it is necessarily xlated to BOOL by fits i/o
             status = tables.Int32Col(
                 pos=2)  # a status indicator, TBD ... could be a value or a bitmapped mask (-1 bad, 0 unchecked, 1 good?)
             im_median = tables.Float32Col()
             mask_fraction = tables.Float32Col()
-            chi2fib_avg = tables.Float32Col()  # e.g. chi2fib_med, but is not a median, is a biweight
+            avg = tables.Float32Col()
+            scale = tables.Float32Col()
+            chi2fib_med = tables.Float32Col()
             frac_c2 = tables.Float32Col()
+            frac_0 = tables.Float32Col()
+
+            n_lo = tables.Int32Col()
+            avg_orig = tables.Float32Col()
+            sky_sub_rms = tables.Float32Col()
+            sky_sub_rms_median = tables.Float32Col()
+            dither_relflux = tables.Float32Col()
+            norm = tables.Float32Col()
+            kchi = tables.Float32Col()
+            n_cont = tables.Int32Col()
+            #date ... do not need date
+            flag = tables.Int32Col()
+            #flag_manual ... cannot have that here
+            #flag_manual_desc ... cannot have that here
 
         if create_tab:
             h5.create_table(
@@ -685,8 +708,21 @@ def stats_update_shot(h5, shot_dict):
             row['status'] = 0  # TBD
             row['im_median'] = entry['im_median']
             row['mask_fraction'] = entry['MaskFraction']
-            row['chi2fib_avg'] = entry['chi2fib_med']
+            row['avg'] = entry['Avg']
+            row['scale'] = entry['Scale']
+            row['chi2fib_med'] = entry['chi2fib_med']
             row['frac_c2'] = entry['frac_c2']
+            row['frac_0'] = entry['frac_0']
+            row['n_lo'] = entry['n_lo']
+            row['avg_orig'] = entry['Avg_orig']
+            row['sky_sub_rms'] = entry['sky_sub_rms']
+            row['sky_sub_rms_rel'] = entry['sky_sub_rms_rel']
+            row['sky_sub_rms_median'] = entry['sky_sub_rms_median']
+            row['dither_relflux'] = entry['dither_relflux']
+            row['norm'] = entry['norm']
+            row['kchi'] = entry['kchi']
+            row['n_cont'] = entry['N_cont']
+            row['flag'] = entry['flag']
 
             row.append()
 
@@ -711,8 +747,21 @@ def stats_update_shot(h5, shot_dict):
                 row['status'] = 0  # TBD
                 row['im_median'] = entry['im_median']
                 row['mask_fraction'] = entry['MaskFraction']
-                row['chi2fib_avg'] = entry['chi2fib_med']
+                row['avg'] = entry['Avg']
+                row['scale'] = entry['Scale']
+                row['chi2fib_med'] = entry['chi2fib_med']
                 row['frac_c2'] = entry['frac_c2']
+                row['frac_0'] = entry['frac_0']
+                row['n_lo'] = entry['n_lo']
+                row['avg_orig'] = entry['Avg_orig']
+                row['sky_sub_rms'] = entry['sky_sub_rms']
+                row['sky_sub_rms_rel'] = entry['sky_sub_rms_rel']
+                row['sky_sub_rms_median'] = entry['sky_sub_rms_median']
+                row['dither_relflux'] = entry['dither_relflux']
+                row['norm'] = entry['norm']
+                row['kchi'] = entry['kchi']
+                row['n_cont'] = entry['N_cont']
+                row['flag'] = entry['flag']
 
                 row.append()
             elif len(row) == 1:  # update
@@ -722,8 +771,21 @@ def stats_update_shot(h5, shot_dict):
                     row['status'] = 0  # TBD
                     row['im_median'] = entry['im_median']
                     row['mask_fraction'] = entry['MaskFraction']
-                    row['chi2fib_avg'] = entry['chi2fib_med']
+                    row['avg'] = entry['Avg']
+                    row['scale'] = entry['Scale']
+                    row['chi2fib_med'] = entry['chi2fib_med']
                     row['frac_c2'] = entry['frac_c2']
+                    row['frac_0'] = entry['frac_0']
+                    row['n_lo'] = entry['n_lo']
+                    row['avg_orig'] = entry['Avg_orig']
+                    row['sky_sub_rms'] = entry['sky_sub_rms']
+                    row['sky_sub_rms_rel'] = entry['sky_sub_rms_rel']
+                    row['sky_sub_rms_median'] = entry['sky_sub_rms_median']
+                    row['dither_relflux'] = entry['dither_relflux']
+                    row['norm'] = entry['norm']
+                    row['kchi'] = entry['kchi']
+                    row['n_cont'] = entry['N_cont']
+                    row['flag'] = entry['flag']
 
                     row.update()
             else:  # problem
