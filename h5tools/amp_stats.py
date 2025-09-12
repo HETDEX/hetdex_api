@@ -692,10 +692,8 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
             kchi = tables.Float32Col()
             n_cont = tables.Int32Col()
             #date ... do not need date
-            #flag = tables.Int32Col() ...No, this table is just the stats
-            #                            since this can be non-HETDEX style shots, what should be flagged
-            #                            may have different thresholds and rules
-            #flag_manual ... cannot have that here
+            flag = tables.Int32Col()
+            #flag_manual = tables.Int32Col()
             #flag_manual_desc ... cannot have that here
 
         if create_tab:
@@ -733,7 +731,10 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
             row['norm'] = entry['norm']
             row['kchi'] = entry['kchi']
             row['n_cont'] = entry['N_cont']
-
+            try:
+                row['flag'] = entry['flag']
+            except:
+                row['flag'] = -1 #unset
 
             row.append()
 
@@ -772,6 +773,10 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                 row['norm'] = entry['norm']
                 row['kchi'] = entry['kchi']
                 row['n_cont'] = entry['N_cont']
+                try:
+                    row['flag'] = entry['flag']
+                except:
+                    row['flag'] = -1  # unset
 
 
                 row.append()
@@ -796,6 +801,10 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                     row['norm'] = entry['norm']
                     row['kchi'] = entry['kchi']
                     row['n_cont'] = entry['N_cont']
+                    try:
+                        row['flag'] = entry['flag']
+                    except:
+                        row['flag'] = -1  # unset
 
 
                     row.update()
