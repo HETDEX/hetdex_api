@@ -735,6 +735,7 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                 row['flag'] = entry['flag']
             except:
                 row['flag'] = -1 #unset
+                print("stats_update_shot (1)", print(traceback.format_exc()))
 
             row.append()
 
@@ -776,6 +777,7 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                 try:
                     row['flag'] = entry['flag']
                 except:
+                    print("stats_update_shot (2)", print(traceback.format_exc()))
                     row['flag'] = -1  # unset
 
 
@@ -805,6 +807,7 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                         row['flag'] = entry['flag']
                     except:
                         row['flag'] = -1  # unset
+                        print("stats_update_shot (3)", print(traceback.format_exc()))
 
 
                     row.update()
