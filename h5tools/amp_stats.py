@@ -631,7 +631,7 @@ def load_shot_stats_pickle(shotid,path="./"):
 
 
 
-def stats_update_shot(h5, shot_dict):
+def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
     """
     Takes a stats dictionary and updates the associated shot
 
@@ -642,6 +642,19 @@ def stats_update_shot(h5, shot_dict):
     #DD 20240905 This is currently out of date
     #DD 202509011 Updated to match last AmpStats table ... intended for post-HETDEX shot.h5 use
     #print("!!!!! This needs to be updated with new columns  !!!!!")
+
+    try:
+        if shot_dict_tab is not None:
+            tab = shot_dict_tab
+        elif shot_dict is not None:
+            tab = stats_shot_dict_to_table(shot_dict)
+        else:
+            #this is a problem
+            print("Invalid parameters. Neither shot_dict nor shot_dict_tab provided.")
+            return
+    except:
+        print("Invalid parameters. Neither shot_dict nor shot_dict_tab provided.")
+        return
 
     try:
         # create the AmpStats table if it does not exist
@@ -695,7 +708,7 @@ def stats_update_shot(h5, shot_dict):
             )
 
     astb = h5.root.AmpStats
-    tab = stats_shot_dict_to_table(shot_dict)
+
 
     if create_tab:
         # all new rows
