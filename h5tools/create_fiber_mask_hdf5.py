@@ -393,7 +393,7 @@ def main(argv=None):
     if args.shot_h5 is not None:
         #add new table to h5 file
         flags = h5.create_table(
-            h5.root.Data,
+            h5.root, #put in the same spot so other callers can use the shot_h5 with the same table name resolution
             "CalfibDQ",
             Table(
                 [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
