@@ -19,6 +19,7 @@ import os
 import os.path as op
 import argparse as ap
 import numpy as np
+import tables
 import tables as tb
 
 from scipy.interpolate import interp1d
@@ -81,114 +82,198 @@ def main(argv=None):
         default="hdr5",
     )
 
+    parser.add_argument(
+        "-shot_h5",
+        "--shot_h5",
+        help="""A specific shot HDF5 file to update. If provided, only the shot HDF5 file is updated. There
+        is no change to the survey and no separate fiber mask file is created.""",
+        type=str,
+        default=None
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    shotid_obj = args.shotid
-    args.log.info("Working on {}".format(shotid_obj))
+    if args.shot_h5 is not None:
+        try:
+            h5 = tables.open_file(args.shot_h5,mode="a")
+        except:
+            args.log(f"Fatal. Could not open {args.shot_h5} for appending.")
+            sys.exit()
 
-    date = str(shotid_obj)[0:8]
-    obs = str(shotid_obj)[-3:]
-    outfilename = "m{}v{}.h5".format(date, obs)
 
-    fileh = tb.open_file(
-        outfilename,
-        "w",
-        title="{} calibrated mask model. Version={}".format(args.survey, args.version),
-    )
+        if args.shotid is None: #shot_h5 is normally like "20250828v011.h5" ... if this fails, though, we want the exception
+            args.shotid = int(os.path.basename(args.shot_h5)[:-3].replace("v",""))
 
-    config = HDRconfig(args.survey)
+        shotid_obj = args.shotid
 
-    # open bad pixel and bad fiber tables
-    badpix = Table.read(
-        config.badpix, format="ascii", names=["multiframe", "x1", "x2", "y1", "y2"]
-    )
-    
-    badshot = np.loadtxt(config.badshot, dtype=int)
+        if args.survey is None:
+            args.survey = "hdr5"
 
-    # Intiate the FiberIndex class from hetdex_api.survey:
-    F = FiberIndex(args.survey)
+        config = HDRconfig(args.survey)
 
-    # initiate rectified wavelength array
-    wave_rect = np.linspace(3470, 5540, 1036)
+        # open bad pixel and bad fiber tables
+        badpix = Table.read(
+            config.badpix, format="ascii", names=["multiframe", "x1", "x2", "y1", "y2"]
+        )
 
-    # acccess fiber data with selected columns to save memory
-    try:
-        cols_to_keep = ['fiber_id','multiframe','fibnum','calfib','calfibe', 'trace','chi2','fiber_to_fiber', 'wavelength', 'spectrum']
-        spec_tab = get_fibers_table(shotid_obj, survey=args.survey)[cols_to_keep]
-    except:
-        if shotid_obj not in badshot:
-            args.log.error("get_fibers_table failed for {}. Exiting".format(shotid_obj))
-        fileh.close()
-        F.close()
-        args.log.info('Finished {}'.format(shotid_obj))
-        sys.exit()
+        #badshot = np.loadtxt(config.badshot, dtype=int)
 
-    if len(spec_tab) == 0 or spec_tab is None:
-        # check if shotid is in badshot list                                                                                      
-        if shotid_obj not in badshot:
-            args.log.error("No fibers in {}. Exiting".format(shotid_obj))
-        fileh.close()
-        F.close()
-        args.log.info('Finished {}'.format(shotid_obj))
-        sys.exit()
-        
-    # access fiber index masks to propagate to fiber spectral masks
-    idx = F.hdfile.root.FiberIndex.get_where_list("shotid==shotid_obj")
-    fib_tab = Table(F.hdfile.root.FiberIndex.read_coordinates(idx))
-    mask_tab = Table(F.fibermaskh5.root.Flags.read_coordinates(idx))
-    fib_tab = hstack([fib_tab, mask_tab])
+        # Intiate the FiberIndex class from hetdex_api.survey:
+        #F = FiberIndex(args.survey)
 
-    del mask_tab
-    # check to see that the hstacked table has matching fiber_ids
-    for row in fib_tab:
-        if row["fiber_id_1"] != row["fiber_id_2"]:
-            args.log.error(
-                "Something wrong. Fiber id did not match up for {}:{}".format(
-                    row["fiber_id_1"], row["fiber_id_2"]
+        # initiate rectified wavelength array
+        wave_rect = np.linspace(3470, 5540, 1036)
+
+        try:
+            cols_to_keep = ['fiber_id', 'multiframe', 'fibnum', 'calfib', 'calfibe', 'trace', 'chi2', 'fiber_to_fiber',
+                            'wavelength', 'spectrum']
+            spec_tab = Table(h5.root.Data.Fibers.read())[cols_to_keep] #this is the long read
+
+            if len(spec_tab) == 0 or spec_tab is None:
+                args.log(f"Fatal. Could not read the Data.Fiber group (or is empty) in {args.shot_h5}")
+                h5.close()
+                sys.exit()
+        except:
+            #this is fatal
+            args.log(f"Fatal. Could not read the Data.Fiber group in {args.shot_h5}")
+            h5.close()
+            sys.exit()
+
+        #make a dummy (for now) mask_tab ... fiber level (not wavelength level)
+        num_fibs = len(spec_tab)
+        true_array = np.full(num_fibs,True)
+
+        #add columns to spec_tab
+        spec_tab['flag'] = true_array
+        spec_tab['flag_badamp'] = true_array
+        spec_tab['flag_badfib'] = true_array
+        spec_tab['flag_meteor'] = true_array
+        spec_tab['flag_satellite'] = true_array
+        spec_tab['flag_largegal'] = true_array
+        spec_tab['flag_shot'] = true_array
+        spec_tab['flag_throughput'] = true_array
+
+        del true_array
+        #
+        # #remember, True here means it is good
+        # mask_tab = Table([true_array,true_array,true_array,true_array,true_array,true_array,true_array,true_array],
+        #                  names=['flag', 'flag_badamp', 'flag_badfib', 'flag_meteor', 'flag_satellite',
+        #                         'flag_largegal', 'flag_shot', 'flag_thoughput'])
+        #
+        # #spec_tab is same as alternate fib_tab, but without healpix
+        # #the mask_tab is uniformly True, so don't need to match up to specific fibers
+        # fib_tab = hstack([spec_tab, mask_tab])
+        # del mask_tab
+
+        # still todo is to set the flags we can in the now fib_tab
+        # we rejoin the common processing farther below (after the else statement)
+
+    else: #standard (original HETDEX)
+        shotid_obj = args.shotid
+        args.log.info("Working on {}".format(shotid_obj))
+
+        date = str(shotid_obj)[0:8]
+        obs = str(shotid_obj)[-3:]
+        outfilename = "m{}v{}.h5".format(date, obs)
+
+        fileh = tb.open_file(
+            outfilename,
+            "w",
+            title="{} calibrated mask model. Version={}".format(args.survey, args.version),
+        )
+
+        config = HDRconfig(args.survey)
+
+        # open bad pixel and bad fiber tables
+        badpix = Table.read(
+            config.badpix, format="ascii", names=["multiframe", "x1", "x2", "y1", "y2"]
+        )
+
+        badshot = np.loadtxt(config.badshot, dtype=int)
+
+        # Intiate the FiberIndex class from hetdex_api.survey:
+        F = FiberIndex(args.survey)
+
+        # initiate rectified wavelength array
+        wave_rect = np.linspace(3470, 5540, 1036)
+
+        # acccess fiber data with selected columns to save memory
+        try:
+            cols_to_keep = ['fiber_id','multiframe','fibnum','calfib','calfibe', 'trace','chi2','fiber_to_fiber', 'wavelength', 'spectrum']
+            spec_tab = get_fibers_table(shotid_obj, survey=args.survey)[cols_to_keep]
+        except:
+            if shotid_obj not in badshot:
+                args.log.error("get_fibers_table failed for {}. Exiting".format(shotid_obj))
+            fileh.close()
+            F.close()
+            args.log.info('Finished {}'.format(shotid_obj))
+            sys.exit()
+
+        if len(spec_tab) == 0 or spec_tab is None:
+            # check if shotid is in badshot list
+            if shotid_obj not in badshot:
+                args.log.error("No fibers in {}. Exiting".format(shotid_obj))
+            fileh.close()
+            F.close()
+            args.log.info('Finished {}'.format(shotid_obj))
+            sys.exit()
+
+        # access fiber index masks to propagate to fiber spectral masks
+        idx = F.hdfile.root.FiberIndex.get_where_list("shotid==shotid_obj")
+        fib_tab = Table(F.hdfile.root.FiberIndex.read_coordinates(idx))
+        mask_tab = Table(F.fibermaskh5.root.Flags.read_coordinates(idx))
+        fib_tab = hstack([fib_tab, mask_tab])
+
+        del mask_tab
+        # check to see that the hstacked table has matching fiber_ids
+        for row in fib_tab:
+            if row["fiber_id_1"] != row["fiber_id_2"]:
+                args.log.error(
+                    "Something wrong. Fiber id did not match up for {}:{}".format(
+                        row["fiber_id_1"], row["fiber_id_2"]
+                    )
                 )
-            )
 
-    fib_tab["fiber_id"] = fib_tab["fiber_id_1"].astype(str)
-    fib_tab.remove_column("fiber_id_1")
-    fib_tab.remove_column("fiber_id_2")
+        fib_tab["fiber_id"] = fib_tab["fiber_id_1"].astype(str)
+        fib_tab.remove_column("fiber_id_1")
+        fib_tab.remove_column("fiber_id_2")
 
-    # combined fiber table and associated masking with spectra table from get_fibers_table
-    for i in np.arange(0, len(fib_tab)):
-        if fib_tab["fiber_id"][i] != spec_tab["fiber_id"][i]:
-            args.log.error(
-                "Something wrong with matching fiber_table and spec_table for {}".format(
-                    shotid_obj
+        # combined fiber table and associated masking with spectra table from get_fibers_table
+        for i in np.arange(0, len(fib_tab)):
+            if fib_tab["fiber_id"][i] != spec_tab["fiber_id"][i]:
+                args.log.error(
+                    "Something wrong with matching fiber_table and spec_table for {}".format(
+                        shotid_obj
+                    )
                 )
-            )
 
-    tab = hstack(
-        [
-            spec_tab,
-            fib_tab[
-                "fiber_id",
-                "flag",
-                "flag_badamp",
-                "flag_badfib",
-                "flag_meteor",
-                "flag_satellite",
-                "flag_largegal",
-                "flag_shot",
-                "flag_throughput",
-            ],
-        ]
-    )
+        tab = hstack(
+            [
+                spec_tab,
+                fib_tab[
+                    "fiber_id",
+                    "flag",
+                    "flag_badamp",
+                    "flag_badfib",
+                    "flag_meteor",
+                    "flag_satellite",
+                    "flag_largegal",
+                    "flag_shot",
+                    "flag_throughput",
+                ],
+            ]
+        )
 
-    tab["fiber_id"] = tab["fiber_id_1"]
-    tab.remove_column("fiber_id_1")
-    tab.remove_column("fiber_id_2")
+        tab["fiber_id"] = tab["fiber_id_1"]
+        tab.remove_column("fiber_id_1")
+        tab.remove_column("fiber_id_2")
 
-    del fib_tab
+        del fib_tab
+        spec_tab = tab
+        del tab
 
-    spec_tab = tab
-
-    del tab
-    
+#break here and recombine logic
     nfibs = np.shape(spec_tab)[0]
     wavelength = np.array(spec_tab["wavelength"])
     calfib = np.array(spec_tab["calfib"])
@@ -225,8 +310,8 @@ def main(argv=None):
         )
 
         spectrum[i] = spec_interp(wave_rect)
-        
-    # Get native pixel mask when spectrum==0, expand +/- 1 in wave dim    
+
+    # Get native pixel mask when spectrum==0, expand +/- 1 in wave dim
     pixmask = spectrum != 0
     structure = np.array([[1, 1, 1]])
     # Apply binary dilation along axis=1
@@ -256,7 +341,8 @@ def main(argv=None):
 
     sel_wave =  (wave_rect >= 3534) * (wave_rect <= 3556)
     mask_badcal[:, sel_wave] = 0
-    
+
+
     cal5200_tab = Table.read(
         config.cal5200,
         format="ascii",
@@ -269,17 +355,17 @@ def main(argv=None):
     )
 
     mfs = np.array( spec_tab['multiframe']).astype(str)
-    
+
     for	row in cal5200_tab[ cal5200_tab['shotid'] == shotid_obj]:
         sel_mf = mfs == row["multiframe"]
         if np.sum(sel_mf)>0:
             mask_badcal[sel_mf, 862:868] = False
-        
+
     for row in cal5460_tab[ cal5460_tab['shotid'] == shotid_obj]:
         sel_mf = mfs == row["multiframe"]
         mask_badcal[sel_mf, 993: 998] = 0
-        
-    # Add full fiber flags 
+
+    # Add full fiber flags
     mask_amp = np.dstack([spec_tab["flag_badamp"]] * 1036)[0]
     mask_gal = np.dstack([spec_tab["flag_largegal"]] * 1036)[0]
     mask_meteor = np.dstack([spec_tab["flag_meteor"]] * 1036)[0]
@@ -304,18 +390,33 @@ def main(argv=None):
         + CALFIB_DQ.PIXMASK * np.invert(mask_pixmask)
     )
 
-    flags = fileh.create_table(
-        fileh.root,
-        "CalfibDQ",
-        Table(
-            [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
-            names=["fiber_id", "calfib_dq"],
-        ).as_array(),
-    )
-    flags.flush()
-    fileh.close()
-    F.close()
-    args.log.info('Finished {}'.format(shotid_obj))
+    if args.shot_h5 is not None:
+        #add new table to h5 file
+        flags = h5.create_table(
+            h5.root.Data,
+            "CalfibDQ",
+            Table(
+                [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
+                names=["fiber_id", "calfib_dq"],
+            ).as_array(),
+        )
+        flags.flush()
+        h5.close()
+
+        args.log.info(f"Finished {args.shot_h5}")
+    else:
+        flags = fileh.create_table(
+            fileh.root,
+            "CalfibDQ",
+            Table(
+                [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
+                names=["fiber_id", "calfib_dq"],
+            ).as_array(),
+        )
+        flags.flush()
+        fileh.close()
+        F.close()
+        args.log.info('Finished {}'.format(shotid_obj))
 
 if __name__ == "__main__":
     main()
