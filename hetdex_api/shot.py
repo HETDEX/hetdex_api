@@ -167,41 +167,53 @@ class Fibers:
             datevobs = "{}v{}".format(str(shotid)[0:8], str(shotid)[8:11])
 
         if add_mask:
-            try:
-                if survey.lower() not in ['pdr1', 'pdr2', 'hdr3', 'hdr4', 'hdr5']:
-                    self.mask_version = None
+            self.maskh5 = None
+            if shot_h5 is not None: #if the shot h5 already has the masking in it, use it
+                try:
+                    if self.hdfile.__contains__("/CalfibDQ"):
+                        self.maskh5 = tb.open_file(shot_h5,mode='r') #But give maskh5 its OWN handle, so the
+                                                                     #legacy code behaves when it closes the handle
+                    else:
+                        self.maskh5 = None
+                except:
                     self.maskh5 = None
-                    self.mask_version = None
+
+            if self.maskh5 is None: #the shot h5 was not presented or does not have the masking in it, so use the survey
+                try:
+                    if survey.lower() not in ['pdr1', 'pdr2', 'hdr3', 'hdr4', 'hdr5']:
+                        self.mask_version = None
+                        self.maskh5 = None
+                        self.mask_version = None
+                        add_mask = False
+                        if args is not None:
+                            args.add_mask = False
+                            args.apply_mask = False
+                            #if verbose: #verbose not set for Fiber class
+                            print("Fiber masking not available for version {}.".format(survey))
+
+                    elif mask_version is not None:
+                        self.mask_version = mask_version
+                    else:
+                        self.mask_version = 'current'
+
+                    if self.mask_version is not None:
+                        # compose the file handle
+                        fmask = op.join(
+                            config.mask_dir, self.mask_version, "m{}.h5".format(datevobs)
+                        )
+                        self.maskh5 = tb.open_file(fmask, "r")
+                except:
+
+                    print(
+                        "Could not open mask h5 file for version {}.".format(
+                            self.mask_version
+                        )
+                    )
+                    self.maskh5 = None
                     add_mask = False
                     if args is not None:
                         args.add_mask = False
                         args.apply_mask = False
-                        #if verbose: #verbose not set for Fiber class
-                        print("Fiber masking not available for version {}.".format(survey))
-
-                elif mask_version is not None:
-                    self.mask_version = mask_version
-                else:
-                    self.mask_version = 'current'
-                
-                if self.mask_version is not None:
-                    # compose the file handle
-                    fmask = op.join(
-                        config.mask_dir, self.mask_version, "m{}.h5".format(datevobs)
-                    )
-                    self.maskh5 = tb.open_file(fmask, "r")
-            except:
-
-                print(
-                    "Could not open mask h5 file for version {}.".format(
-                        self.mask_version
-                    )
-                )
-                self.maskh5 = None
-                add_mask = False
-                if args is not None:
-                    args.add_mask = False
-                    args.apply_mask = False
         else:
             self.maskh5 = None
             self.mask_version = None
