@@ -53,6 +53,38 @@ class VIRUSFiberIndex(tb.IsDescription):
     dec = tb.Float32Col(pos=2)
     expnum = tb.Int32Col()
 
+#same as above but directly adds in the 8 flags
+#odering probably not necessary, but force here to match the ordering of the survey level mask file
+class VIRUSFiberIndexWithFlags(tb.IsDescription):
+    multiframe = tb.StringCol((20), pos=0)
+    ra = tb.Float32Col(pos=1)
+    dec = tb.Float32Col(pos=2)
+    fiber_id = tb.StringCol((38), pos=3)
+    healpix = tb.Int64Col(pos=4)
+    amp = tb.StringCol(2,pos=5)
+    date = tb.Int64Col(pos=6)
+    datevobs = tb.StringCol((12),pos=7)
+    expnum = tb.Int32Col(pos=8)
+    fibidx = tb.Int32Col(pos=9)
+    fibnum = tb.Int32Col(pos=10)
+    fpx = tb.Float32Col(pos=11)
+    fpy = tb.Float32Col(pos=12)
+    ifuslot = tb.StringCol(3,pos=13)
+    ifuid = tb.StringCol(3,pos=14)
+    ifux = tb.Float32Col(pos=15)
+    ifuy = tb.Float32Col(pos=16)
+    shotid = tb.Int64Col(pos=17)
+    specid = tb.StringCol(3,pos=18)
+    flag = tb.Int32Col(dflt=1,pos=19) #1 is "good"
+    flag_badamp = tb.Int8Col(dflt=1,pos=20) #1 is "good"
+    flag_badfib = tb.Int8Col(dflt=1,pos=21) #1 is "good"
+    flag_meteor = tb.Int8Col(dflt=1,pos=22) #1 is "good"
+    flag_satellite = tb.Int8Col(dflt=1,pos=23) #1 is "good"
+    flag_largegal = tb.Int8Col(dflt=1,pos=24) #1 is "good"
+    flag_shot = tb.Int8Col(dflt=1,pos=25) #1 is "good"
+    flag_throughput = tb.Int8Col(dflt=1,pos=26) #1 is "good"
+
+
 
 def main(argv=None):
     """ Main Function """
@@ -143,7 +175,7 @@ def main(argv=None):
         tableFibers = fileh.create_table(
             fileh.root,
             "FiberIndex",
-            VIRUSFiberIndex,
+            VIRUSFiberIndexWithFlags,
             "Shot Fiber Coord Info",
             expectedrows=105000,
         )
