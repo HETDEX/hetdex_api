@@ -110,7 +110,7 @@ class Survey:
                 if np.sum(sel) == 1:
                     fluxlimit.extend(flim["f1sigma_biweight"][sel])
                 elif np.sum(sel) > 1:
-                    print("Found two fluxlimits for ", datevobs)
+                    print("Found two fluxlimits for ", shotid)
                     fluxlimit.extend(flim["f1sigma_biweight"][sel][0])
                 else:
                     fluxlimit.append(np.nan)
