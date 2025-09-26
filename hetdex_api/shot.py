@@ -173,6 +173,7 @@ class Fibers:
                     if self.hdfile.__contains__("/CalfibDQ"):
                         self.maskh5 = tb.open_file(shot_h5,mode='r') #But give maskh5 its OWN handle, so the
                                                                      #legacy code behaves when it closes the handle
+                        self.mask_version = 'current' #just assume latest
                     else:
                         self.maskh5 = None
                 except:
@@ -671,7 +672,11 @@ def get_fibers_table(
                 update_F = True
 
         if mask_version is None:
-            mask_version = F.mask_version
+            try:
+                mask_version = F.mask_version
+            except:
+                F.mask_version = 'current'
+                mask_version = F.mask_version
             if verbose:
                 print('Using mask_version={}'.format(mask_version))
                                                      
