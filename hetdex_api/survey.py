@@ -350,6 +350,7 @@ class FiberIndex:
         load_fiber_table=False,
         loadall=False,
         keep_mask=True,
+        shot_h5=None
     ):
         """
         Initialize the Fiber class for a given data release
@@ -367,52 +368,70 @@ class FiberIndex:
         -------
         FiberIndex class object
         """
-        self.survey = survey
 
-        if self.survey == "hdr1":
-            print("Sorry there is no FiberIndex for hdr1")
-            return None
+        #will need to know if this is None or set
+        self.shot_h5 = shot_h5
 
-        global config
-        config = HDRconfig(survey=survey.lower())
+        if self.shot_h5 is None: #the usual HETDEX, survey level
+            self.survey = survey
 
-        self.filename = config.fiberindexh5
-        self.hdfile = tb.open_file(self.filename, mode="r")
-        self.fiber_table = None
-        self.fibermaskh5 = None
+            if self.survey == "hdr1":
+                print("Sorry there is no FiberIndex for hdr1")
+                return None
 
-        if keep_mask:
-            try:
-                self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
-            except:
-                print("Could not find fiber mask file in {}".format(config.fibermaskh5))
-                self.fibermaskh5 = None
+            global config
+            config = HDRconfig(survey=survey.lower())
 
-        if load_fiber_table:
-            self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
-            self.coords = SkyCoord(
-                self.fiber_table["ra"] * u.degree,
-                self.fiber_table["dec"] * u.degree,
-                frame="icrs",
-            )
+            self.filename = config.fiberindexh5
+            self.hdfile = tb.open_file(self.filename, mode="r")
+            self.fiber_table = None
+            self.fibermaskh5 = None
 
-            # add masking info if found
-            if self.fibermaskh5 is not None:
-                if keep_mask:
-                    self.mask_table = Table(self.fibermaskh5.root.Flags.read())
-                    self.fiber_table = hstack([self.fiber_table, self.mask_table])
+            if keep_mask:
+                try:
+                    self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
+                except:
+                    print("Could not find fiber mask file in {}".format(config.fibermaskh5))
+                    self.fibermaskh5 = None
 
-                    for row in self.fiber_table:
-                        if row["fiber_id_1"] == row["fiber_id_2"]:
-                            continue
-                        else:
-                            print(
-                                "Something is wrong. Mismatcheded fiber:{} and {}".format(
-                                    row["fiber_id_1"], row["fiber_id_2"]
+            if load_fiber_table:
+                self.fiber_table = Table(self.hdfile.root.FiberIndex.read())
+                self.coords = SkyCoord(
+                    self.fiber_table["ra"] * u.degree,
+                    self.fiber_table["dec"] * u.degree,
+                    frame="icrs",
+                )
+
+                # add masking info if found
+                if self.fibermaskh5 is not None:
+                    if keep_mask:
+                        self.mask_table = Table(self.fibermaskh5.root.Flags.read())
+                        self.fiber_table = hstack([self.fiber_table, self.mask_table])
+
+                        for row in self.fiber_table:
+                            if row["fiber_id_1"] == row["fiber_id_2"]:
+                                continue
+                            else:
+                                print(
+                                    "Something is wrong. Mismatcheded fiber:{} and {}".format(
+                                        row["fiber_id_1"], row["fiber_id_2"]
+                                    )
                                 )
-                            )
-                    self.fiber_table.rename_column("fiber_id_1", "fiber_id")
-                    self.fiber_table.remove_column("fiber_id_2")
+                        self.fiber_table.rename_column("fiber_id_1", "fiber_id")
+                        self.fiber_table.remove_column("fiber_id_2")
+
+        else: #shot_h5 was specified
+            if keep_mask:
+                try:
+                    self.fibermaskh5 = tb.open_file(self.shot_h5, "r")
+                    self.mask_table = Table(self.fibermaskh5.root.FiberIndex.read()) #the "Flags" are here
+                    self.fiber_table = self.mask_table #for compatibility, and these are now the same
+                except:
+                    print("Could not find fiber mask file in {}".format(shot_h5))
+                    self.fibermaskh5 = None
+
+            self.hdfile = tb.open_file(self.shot_h5, mode="r")
+
 
     def return_shot(self, shotid_obs, return_index=False, return_flags=True):
         """
@@ -449,9 +468,14 @@ class FiberIndex:
             if self.fibermaskh5 is None:
                 print("No fiber mask file found")
             else:
-                mask_table = Table(
-                    self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
-                )
+                if self.shot_h5 is None:
+                    mask_table = Table(
+                        self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
+                    )
+                else:
+                    mask_table = Table(
+                        self.fibermaskh5.root.FiberIndex.read_coordinates(tab_idx)
+                    )
 
             fiber_table = hstack([tab, mask_table])
 
@@ -595,9 +619,14 @@ class FiberIndex:
             if self.fibermaskh5 is None:
                 print("No fiber mask file found")
             else:
-                mask_table = Table(
-                    self.fibermaskh5.root.Flags.read_coordinates(selected_index)
-                )
+                if self.shot_h5 is None:
+                    mask_table = Table(
+                        self.fibermaskh5.root.Flags.read_coordinates(selected_index)
+                    )
+                else:
+                    mask_table = Table(
+                        self.fibermaskh5.root.FiberIndex.read_coordinates(selected_index)
+                    )
 
             fiber_table = hstack([seltab[idx], mask_table])
             # check fibers match
@@ -664,9 +693,14 @@ class FiberIndex:
             if self.fibermaskh5 is None:
                 print("No fiber mask file found")
             else:
-                mask_table = Table(
-                    self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
-                )
+                if self.shot_h5 is None:
+                    mask_table = Table(
+                        self.fibermaskh5.root.Flags.read_coordinates(tab_idx)
+                    )
+                else:
+                    mask_table = Table(
+                        self.fibermaskh5.root.FiberIndex.read_coordinates(tab_idx)
+                    )
                 # force an astropy table format
                 astropy=True
             
@@ -1076,7 +1110,10 @@ class FiberIndex:
             return None
 
         table, table_index = self.query_region(coord, return_index=True, shotid=shotid)
-        mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
+        if self.shot_h5 is None:
+            mask_table = Table(self.fibermaskh5.root.Flags.read_coordinates(table_index))
+        else:
+            mask_table = Table(self.fibermaskh5.root.FiberIndex.read_coordinates(table_index))
 
         flag_dict = {
             "flag": 1,

@@ -150,6 +150,7 @@ def merge(dict1, dict2):
 
 def get_source_spectra_single_shot(args):
     E = Extract(apply_update=args.apply_update)
+    FibIndex = FiberIndex(shot_h5=args.shot_h5)
 
     source_dict = {}
 
