@@ -105,24 +105,49 @@ def main(argv=None):
         action="store_true",
     )
 
+    parser.add_argument(
+        "-shot_h5",
+        "--shot_h5",
+        help="""A specific shot HDF5 file to update. If provided, only the shot HDF5 file is updated. There
+        is no change to the survey and no separate fiber index file is created.""",
+        type=str,
+        default=None
+    )
+
     args = parser.parse_args(argv)
     args.log = setup_logging()
 
-    fileh = tb.open_file(
-        args.outfilename, mode="w", title=args.survey.upper() + " Fiber Index file "
-    )
+    if args.shot_h5 is None: #normal, HETDEX historical mode
+        fileh = tb.open_file(
+            args.outfilename, mode="w", title=args.survey.upper() + " Fiber Index file "
+        )
 
-    shotlist = Table.read(
-        args.shotlist, format="ascii.no_header", names=["date", "obs"]
-    )
+        shotlist = Table.read(
+            args.shotlist, format="ascii.no_header", names=["date", "obs"]
+        )
 
-    tableFibers = fileh.create_table(
-        fileh.root,
-        "FiberIndex",
-        VIRUSFiberIndex,
-        "Survey Fiber Coord Info",
-        expectedrows=300000000,
-    )
+        tableFibers = fileh.create_table(
+            fileh.root,
+            "FiberIndex",
+            VIRUSFiberIndex,
+            "Survey Fiber Coord Info",
+            expectedrows=300000000,
+        )
+
+    else: #single shot h5
+        args.merge = False
+        args.month = None
+        fileh = tb.open_file(args.shot_h5,mode="a")
+        shotlist = [fileh.root.Shot.read(field="shotid")[0]]
+
+        tableFibers = fileh.create_table(
+            fileh.root,
+            "FiberIndex",
+            VIRUSFiberIndex,
+            "Shot Fiber Coord Info",
+            expectedrows=105000,
+        )
+
 
     if args.merge:
         files = glob.glob("mfi*h5")
@@ -159,14 +184,23 @@ def main(argv=None):
         shotlist = shotlist[sel_month]
 
     for shotrow in shotlist:
-        datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
-        shotid = int(str(shotrow["date"]) + str(shotrow["obs"]).zfill(3))
+        try:
+            datevshot = str(shotrow["date"]) + "v" + str(shotrow["obs"]).zfill(3)
+            shotid = int(str(shotrow["date"]) + str(shotrow["obs"]).zfill(3))
 
-        date = shotrow["date"]
+            date = shotrow["date"]
+        except: #this is the single shot version with shotids
+            datevshot = str(shotrow)[0:8] + "v" + str(shotrow)[-3:]
+            shotid = int(shotrow)
+            date = str(shotrow)[0:8]
 
         try:
             args.log.info("Ingesting %s" % datevshot)
-            file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+            if args.shot_h5 is None:
+                file_obs = tb.open_file(op.join(args.shotdir, datevshot + ".h5"), "r")
+            else:
+                file_obs = fileh #tb.open_file(args.shot_h5, mode="r")
+
             tableFibers_i = file_obs.root.Data.FiberIndex
 
             for row_i in tableFibers_i:
@@ -195,7 +229,8 @@ def main(argv=None):
                 row_main["amp"] = fiberid[32:34]
                 row_main.append()
 
-            file_obs.close()
+            if file_obs != fileh:
+                file_obs.close()
 
         except:
             if shotid in badshot:
@@ -209,7 +244,10 @@ def main(argv=None):
     tableFibers.cols.shotid.create_csindex()
     tableFibers.flush()
     fileh.close()
-    args.log.info("Completed {}".format(args.outfilename))
+    if args.shot_h5 is None:
+        args.log.info("Completed {}".format(args.outfilename))
+    else:
+        args.log.info("Completed {}".format(args.shot_h5))
 
 
 if __name__ == "__main__":
