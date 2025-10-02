@@ -391,7 +391,7 @@ def main(argv=None):
                     print(f"Could not match {row['fiber_id']}.")
                     continue
                 else:
-                    row['calfib_dq'] == spec_tab['calfib_dq'][sel][0]
+                    row['calfib_dq'] == CALFIB_NET.astype(np.int16)[sel][0] # spec_tab['calfib_dq'][sel][0]
                     row.flush()
 
         else: #create

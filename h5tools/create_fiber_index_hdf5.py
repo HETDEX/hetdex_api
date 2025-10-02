@@ -172,7 +172,9 @@ def main(argv=None):
         fileh = tb.open_file(args.shot_h5,mode="a")
         shotlist = [fileh.root.Shot.read(field="shotid")[0]]
 
-        if not fileh.__contains__("/FiberIndex"):
+        if fileh.__contains__("/FiberIndex"):
+            tableFibers = fileh.root.FiberIndex
+        else:
             tableFibers = fileh.create_table(
                 fileh.root,
                 "FiberIndex",
@@ -272,6 +274,15 @@ def main(argv=None):
                 args.log.error("could not ingest %s" % datevshot)
 
     tableFibers.flush()
+
+    try: #this could be an update, in which case, remove the old index before re-creating
+        tableFibers.cols.healpix.remove_index()
+        tableFibers.cols.ra.remove_index()
+        tableFibers.cols.shotid.remove_index()
+        tableFibers.flush()
+    except:
+        pass
+
     tableFibers.cols.healpix.create_csindex()
     tableFibers.cols.ra.create_csindex()
     tableFibers.cols.shotid.create_csindex()
