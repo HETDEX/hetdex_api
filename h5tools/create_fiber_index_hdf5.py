@@ -173,7 +173,12 @@ def main(argv=None):
         shotlist = [fileh.root.Shot.read(field="shotid")[0]]
 
         if fileh.__contains__("/FiberIndex"):
-            tableFibers = fileh.root.FiberIndex
+            #tableFibers = fileh.root.FiberIndex #
+            #already exists, DO NOT modify
+            print(f"FiberIndex already exists. Done.")
+            fileh.close()
+            exit(0)
+
         else:
             tableFibers = fileh.create_table(
                 fileh.root,
