@@ -96,9 +96,11 @@ def main(argv=None):
 
     if args.shot_h5 is not None:
         try:
-            h5 = tables.open_file(args.shot_h5,mode="a")
+            #need to start in read only mode, but will later close
+            #and open in append for the update
+            h5 = tables.open_file(args.shot_h5,mode="r")
         except:
-            args.log(f"Fatal. Could not open {args.shot_h5} for appending.")
+            args.log(f"Fatal. Could not open {args.shot_h5} for reading.")
             sys.exit()
 
 
@@ -156,6 +158,14 @@ def main(argv=None):
         spec_tab['flag'] = spec_tab['flag_badamp'] & spec_tab['flag_badfib'] & spec_tab['flag_meteor'] & \
                            spec_tab['flag_satellite'] & spec_tab['flag_largegal'] & spec_tab['flag_shot'] & \
                            spec_tab['flag_throughput']
+
+        h5.close() #reading mode is done,
+
+        try:
+            h5 = tables.open_file(args.shot_h5,mode="a")
+        except:
+            args.log(f"Fatal. Could not open {args.shot_h5} for appending.")
+            sys.exit()
 
         # we rejoin the common processing farther below (after the else statement)
 
