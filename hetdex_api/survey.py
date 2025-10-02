@@ -363,6 +363,7 @@ class FiberIndex:
         load_fiber_table : bool
             Option to read in all fibers. This takes about a minute
             and will use a lot of memory.
+        shot_h5 : str or file handle
 
         Returns
         -------
@@ -423,7 +424,10 @@ class FiberIndex:
         else: #shot_h5 was specified
             if keep_mask:
                 try:
-                    self.fibermaskh5 = tb.open_file(self.shot_h5, "r")
+                    if isinstance(self.shot_h5,tb.file.File):
+                        self.fibermaskh5 = self.shot_h5
+                    else:
+                        self.fibermaskh5 = tb.open_file(self.shot_h5, "r")
                     self.mask_table = Table(self.fibermaskh5.root.FiberIndex.read()) #the "Flags" are here
                     self.fiber_table = self.mask_table #for compatibility, and these are now the same
                     self.coords = SkyCoord(
@@ -440,7 +444,11 @@ class FiberIndex:
                 self.fiber_table = None
                 self.coords = None
 
-            self.hdfile = tb.open_file(self.shot_h5, mode="r")
+            if isinstance(self.shot_h5, tb.file.File):
+                self.hdfile = self.shot_h5
+            else:
+                self.hdfile = tb.open_file(self.shot_h5, "r")
+
 
 
     def return_shot(self, shotid_obs, return_index=False, return_flags=True):
@@ -1183,9 +1191,13 @@ class FiberIndex:
         """
         Close the hdfile when done
         """
-        self.hdfile.close()
+        if self.hdfile is not None:
+            if self.shot_h5 is None or self.shot_h5 != self.hdfile:
+                self.hdfile.close()
+
         if self.fibermaskh5 is not None:
-            self.fibermaskh5.close()
+            if self.shot_h5 is None or self.shot_h5 != self.fibermaskh5:
+                self.fibermaskh5.close()
 
 
 def create_gal_ellipse(galaxy_cat, row_index=None, pgcname=None, d25scale=3.0):
