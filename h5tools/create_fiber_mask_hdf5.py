@@ -119,8 +119,6 @@ def main(argv=None):
 
         #badshot = np.loadtxt(config.badshot, dtype=int)
 
-        # Intiate the FiberIndex class from hetdex_api.survey:
-        #F = FiberIndex(args.survey)
 
         # initiate rectified wavelength array
         wave_rect = np.linspace(3470, 5540, 1036)
@@ -140,33 +138,25 @@ def main(argv=None):
             h5.close()
             sys.exit()
 
-        #make a dummy (for now) mask_tab ... fiber level (not wavelength level)
-        num_fibs = len(spec_tab)
-        true_array = np.full(num_fibs,True)
+        # Intiate the FiberIndex class from hetdex_api.survey, but just for this shot
+        FI = FiberIndex(shot_h5=args.shot_h5)
 
         #add columns to spec_tab
-        spec_tab['flag'] = true_array
-        spec_tab['flag_badamp'] = true_array
-        spec_tab['flag_badfib'] = true_array
-        spec_tab['flag_meteor'] = true_array
-        spec_tab['flag_satellite'] = true_array
-        spec_tab['flag_largegal'] = true_array
-        spec_tab['flag_shot'] = true_array
-        spec_tab['flag_throughput'] = true_array
+        #spec_tab['flag'] = np.full(len(spec_tab),True)
+        spec_tab['flag_badamp'] = FI.get_amp_flag()
+        spec_tab['flag_badfib'] = FI.get_badfiber_flag()
+        spec_tab['flag_meteor'] = FI.get_meteor_flag()
+        spec_tab['flag_satellite'] = FI.get_satellite_flag()
+        spec_tab['flag_largegal'] = FI.get_gal_flag()
+        spec_tab['flag_shot'] = FI.get_shot_flag()
+        spec_tab['flag_throughput'] = FI.get_throughput_flag()
 
-        del true_array
-        #
-        # #remember, True here means it is good
-        # mask_tab = Table([true_array,true_array,true_array,true_array,true_array,true_array,true_array,true_array],
-        #                  names=['flag', 'flag_badamp', 'flag_badfib', 'flag_meteor', 'flag_satellite',
-        #                         'flag_largegal', 'flag_shot', 'flag_thoughput'])
-        #
-        # #spec_tab is same as alternate fib_tab, but without healpix
-        # #the mask_tab is uniformly True, so don't need to match up to specific fibers
-        # fib_tab = hstack([spec_tab, mask_tab])
-        # del mask_tab
+        #Any False should set 'flag' to False
+        # remember, True here means it is good, not that it is flagged
+        spec_tab['flag'] = spec_tab['flag_badamp'] & spec_tab['flag_badfib'] & spec_tab['flag_meteor'] & \
+                           spec_tab['flag_satellite'] & spec_tab['flag_largegal'] & spec_tab['flag_shot'] & \
+                           spec_tab['flag_throughput']
 
-        # still todo is to set the flags we can in the now fib_tab
         # we rejoin the common processing farther below (after the else statement)
 
     else: #standard (original HETDEX)
