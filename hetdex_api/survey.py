@@ -369,6 +369,9 @@ class FiberIndex:
         FiberIndex class object
         """
 
+        global config
+        config = HDRconfig(survey=survey.lower())
+
         #will need to know if this is None or set
         self.shot_h5 = shot_h5
 
@@ -378,9 +381,6 @@ class FiberIndex:
             if self.survey == "hdr1":
                 print("Sorry there is no FiberIndex for hdr1")
                 return None
-
-            global config
-            config = HDRconfig(survey=survey.lower())
 
             self.filename = config.fiberindexh5
             self.hdfile = tb.open_file(self.filename, mode="r")
@@ -426,6 +426,11 @@ class FiberIndex:
                     self.fibermaskh5 = tb.open_file(self.shot_h5, "r")
                     self.mask_table = Table(self.fibermaskh5.root.FiberIndex.read()) #the "Flags" are here
                     self.fiber_table = self.mask_table #for compatibility, and these are now the same
+                    self.coords = SkyCoord(
+                        self.fiber_table["ra"] * u.degree,
+                        self.fiber_table["dec"] * u.degree,
+                        frame="icrs",
+                    )
                 except:
                     print("Could not find fiber mask file in {}".format(shot_h5))
                     self.fibermaskh5 = None
@@ -786,6 +791,7 @@ class FiberIndex:
         amp_flag: bool
         True if fiber is on a good quality amplifier
         """
+
         global config
 
         print("Adding amplifier flags")
@@ -793,20 +799,23 @@ class FiberIndex:
 
         badamps = Table.read(config.badamp)
         self.fiber_table["row_index"] = np.arange(0, len(self.fiber_table))
+
         join_tab = join(
             self.fiber_table, badamps, keys=["shotid", "multiframe"], join_type="left"
         )
-        join_tab.rename_column("flag", "amp_flag")
-        t1 = time.time()
+        if self.shot_h5 is None:
+            join_tab.rename_column("flag", "amp_flag")
+        else: #for the shot_h5 case, both tables have a "flag" column, so you get flag_1 (fiber_table) flag_2 (badamps)
+            join_tab.rename_column("flag_2", "amp_flag")
 
         join_tab.sort("row_index")
 
         # quick check to make sure columns match
-
         for idx in np.random.random_integers(0, high=len(self.fiber_table), size=500):
             if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
                 print("Something went wrong. fiber_id columns don't match")
 
+        t1 = time.time()
         print("Done adding amplifier flags in {:4.3} minutes".format((t1 - t0) / 60))
         
         return np.array(join_tab["amp_flag"], dtype=bool)
@@ -836,6 +845,7 @@ class FiberIndex:
         for badshot in badshots:
             sel = self.fiber_table["shotid"] == badshot
             shot_flag[sel] = False
+
         t1 = time.time()
         print("Shot flags added in {:4.2f}".format((t1 - t0) / 60))
 
@@ -856,9 +866,10 @@ class FiberIndex:
 
         global config
 
-        print("Adding bad fiber flag")
 
+        print("Adding bad fiber flag")
         t0 = time.time()
+
         badfib = Table.read(config.badfib, format="ascii")
 
         badfib_transient = Table.read(
@@ -909,18 +920,23 @@ class FiberIndex:
         global config
 
         print("Adding throughput flag")
-
         t0 = time.time()
+        if self.shot_h5 is None:
+            S = Survey(self.survey)
 
-        S = Survey(self.survey)
+            sel_lowtp = S.response_4540 < throughput_threshold
 
-        sel_lowtp = S.response_4540 < throughput_threshold
+            throughput_flag = np.ones_like(self.fiber_table["fiber_id"], dtype=bool)
 
-        throughput_flag = np.ones_like(self.fiber_table["fiber_id"], dtype=bool)
+            for badshot in S.shotid[sel_lowtp]:
+                sel = self.fiber_table["shotid"] == badshot
+                throughput_flag[sel] = False
+        else:
+            if self.hdfile.root.Shot.read(field="response_4540")[0] < throughput_threshold:
+                throughput_flag = np.full(len(self.fiber_table), False)
+            else:
+                throughput_flag = np.full(len(self.fiber_table), True)
 
-        for badshot in S.shotid[sel_lowtp]:
-            sel = self.fiber_table["shotid"] == badshot
-            throughput_flag[sel] = False
         t1 = time.time()
         print("Throughput flags added in {:4.2f}".format((t1 - t0) / 60))
 
@@ -936,22 +952,29 @@ class FiberIndex:
         """
 
         global config
+
         t0 = time.time()
 
-        S = Survey(self.survey)
+        if self.shot_h5 is None:
+            S = Survey(self.survey)
+        else:
+            #this is the only shot to check
+            shots = self.hdfile.root.Shot.read(field="shotid")
+
         galaxy_cat = Table.read(config.rc3cat, format="ascii")
-
         mask = np.ones(len(self.fiber_table), dtype=bool)
-        # Loop over each galaxy
 
+        # Loop over each galaxy
         for idx in np.arange(len(galaxy_cat)):
             row = galaxy_cat[idx]
             gal_coord = SkyCoord(row["Coords"], frame="icrs")
             rlimit = 1.1 * d25scale * row["SemiMajorAxis"] * u.arcmin
 
-            shots = S.get_shotlist(gal_coord, radius=rlimit)
-            if len(shots) == 0:
-                continue
+            if self.shot_h5 is None:
+                shots = S.get_shotlist(gal_coord, radius=rlimit)
+                if len(shots) == 0:
+                    continue
+
             down_select = self.coords.separation(gal_coord) < rlimit
             if np.any(down_select):
                 galregion = create_gal_ellipse(
@@ -968,8 +991,10 @@ class FiberIndex:
 
                 mask = mask * np.invert(galflag)
 
+        if self.shot_h5 is None:
+            S.close()
+
         t1 = time.time()
-        S.close()
         print("Galaxy mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
 
         return mask
@@ -986,14 +1011,16 @@ class FiberIndex:
         t0 = time.time()
         global config
 
-        S = Survey(self.survey)
-        # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
+        if self.shot_h5 is None:
+            S = Survey(self.survey)
 
+        # meteors are found with +/- X arcsec of the line DEC=a+RA*b in this file
         met_tab = Table.read(config.meteor, format="ascii")
 
         mask = np.ones(len(self.fiber_table), dtype=bool)
 
         for row in met_tab:
+
             sel_shot = np.where(
                 (self.fiber_table["shotid"] == row["shotid"])
                 & (np.isfinite(self.fiber_table["ra"]))
@@ -1004,8 +1031,11 @@ class FiberIndex:
                 a = row["a"]
                 b = row["b"]
 
-                sel_shot_survey = S.shotid == row["shotid"]
-                shot_coords = S.coords[sel_shot_survey]
+                if self.shot_h5 is None:
+                    sel_shot_survey = S.shotid == row["shotid"]
+                    shot_coords = S.coords[sel_shot_survey]
+                else:
+                    shot_coords = self.coords
 
                 # add in special handling for vertical streak
                 if np.abs(b) < 500:
@@ -1024,7 +1054,9 @@ class FiberIndex:
                 mask_index = [sel_shot][0][idxc]
                 mask[mask_index] = False
 
-        S.close()
+        if self.shot_h5 is None:
+            S.close()
+
         t1 = time.time()
 
         print("Meteor mask array generated in {:3.2f} minutes".format((t1 - t0) / 60))
@@ -1041,9 +1073,12 @@ class FiberIndex:
             streaksize = 6.0 * u.arcsec
 
         t0 = time.time()
+
         global config
 
-        S = Survey(self.survey)
+        if self.shot_h5 is None:
+            S = Survey(self.survey)
+
         # satellites are found with +/- X arcsec of the line DEC=a+RA*b in this file
 
         sat_tab = Table.read(
@@ -1065,8 +1100,11 @@ class FiberIndex:
                 a = row["slope"]
                 b = row["intercept"]
 
-                sel_shot_survey = S.shotid == row["shotid"]
-                shot_coords = S.coords[sel_shot_survey]
+                if self.shot_h5 is None:
+                    sel_shot_survey = S.shotid == row["shotid"]
+                    shot_coords = S.coords[sel_shot_survey]
+                else:
+                    shot_coords = self.coords
 
                 ra_sat = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
                 dec_sat = (b + ra_sat.deg * a) * u.deg
