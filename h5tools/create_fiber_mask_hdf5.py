@@ -95,14 +95,12 @@ def main(argv=None):
     args.log = setup_logging()
 
     if args.shot_h5 is not None:
-        try:
-            #need to start in read only mode, but will later close
-            #and open in append for the update
-            h5 = tables.open_file(args.shot_h5,mode="r")
-        except:
-            args.log(f"Fatal. Could not open {args.shot_h5} for reading.")
-            sys.exit()
 
+        try:
+            h5 = tables.open_file(args.shot_h5,mode="a")
+        except:
+            args.log(f"Fatal. Could not open {args.shot_h5} for appending.")
+            sys.exit()
 
         if args.shotid is None: #shot_h5 is normally like "20250828v011.h5" ... if this fails, though, we want the exception
             args.shotid = int(os.path.basename(args.shot_h5)[:-3].replace("v",""))
@@ -139,7 +137,7 @@ def main(argv=None):
             sys.exit()
 
         # Intiate the FiberIndex class from hetdex_api.survey, but just for this shot
-        FI = FiberIndex(keep_mask=True,shot_h5=args.shot_h5)
+        FI = FiberIndex(keep_mask=True,shot_h5=h5)
 
         #add columns to spec_tab
         #spec_tab['flag'] = np.full(len(spec_tab),True)
@@ -157,13 +155,7 @@ def main(argv=None):
                            spec_tab['flag_satellite'] & spec_tab['flag_largegal'] & spec_tab['flag_shot'] & \
                            spec_tab['flag_throughput']
 
-        h5.close() #reading mode is done,
 
-        try:
-            h5 = tables.open_file(args.shot_h5,mode="a")
-        except:
-            args.log(f"Fatal. Could not open {args.shot_h5} for appending.")
-            sys.exit()
 
         # we rejoin the common processing farther below (after the else statement)
 
@@ -399,6 +391,7 @@ def main(argv=None):
             ).as_array(),
         )
         flags.flush()
+        #FI.close() # do not close, is using the h5 handle, so just close it explicitly in next line
         h5.close()
 
         args.log.info(f"Finished {args.shot_h5}")
