@@ -172,13 +172,14 @@ def main(argv=None):
         fileh = tb.open_file(args.shot_h5,mode="a")
         shotlist = [fileh.root.Shot.read(field="shotid")[0]]
 
-        tableFibers = fileh.create_table(
-            fileh.root,
-            "FiberIndex",
-            VIRUSFiberIndexWithFlags,
-            "Shot Fiber Coord Info",
-            expectedrows=105000,
-        )
+        if not fileh.__contains__("/FiberIndex"):
+            tableFibers = fileh.create_table(
+                fileh.root,
+                "FiberIndex",
+                VIRUSFiberIndexWithFlags,
+                "Shot Fiber Coord Info",
+                expectedrows=105000,
+            )
 
 
     if args.merge:

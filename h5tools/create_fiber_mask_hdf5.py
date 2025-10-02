@@ -382,14 +382,28 @@ def main(argv=None):
 
     if args.shot_h5 is not None:
         #add new table to h5 file
-        flags = h5.create_table(
-            h5.root, #put in the same spot so other callers can use the shot_h5 with the same table name resolution
-            "CalfibDQ",
-            Table(
-                [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
-                names=["fiber_id", "calfib_dq"],
-            ).as_array(),
-        )
+
+        if h5.__contains__("/CalfibDQ"):
+            #update
+            for row in h5.root.CalfibDQ:
+                sel = spec_tab['fiber_id'] == row['fiber_id']
+                if np.count_nonzero(sel) != 1:
+                    print(f"Could not match {row['fiber_id']}.")
+                    continue
+                else:
+                    row['calfib_dq'] == spec_tab['calfib_dq'][sel][0]
+                    row.flush()
+
+        else: #create
+            flags = h5.create_table(
+                h5.root, #put in the same spot so other callers can use the shot_h5 with the same table name resolution
+                "CalfibDQ",
+                Table(
+                    [spec_tab["fiber_id"], CALFIB_NET.astype(np.int16)],
+                    names=["fiber_id", "calfib_dq"],
+                ).as_array(),
+            )
+
         flags.flush()
         #FI.close() # do not close, is using the h5 handle, so just close it explicitly in next line
         h5.close()
