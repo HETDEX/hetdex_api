@@ -434,6 +434,11 @@ class FiberIndex:
                 except:
                     print("Could not find fiber mask file in {}".format(shot_h5))
                     self.fibermaskh5 = None
+            else:
+                self.fibermaskh5 = None
+                self.mask_table = None
+                self.fiber_table = None
+                self.coords = None
 
             self.hdfile = tb.open_file(self.shot_h5, mode="r")
 

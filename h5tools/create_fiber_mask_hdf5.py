@@ -119,8 +119,6 @@ def main(argv=None):
             config.badpix, format="ascii", names=["multiframe", "x1", "x2", "y1", "y2"]
         )
 
-        #badshot = np.loadtxt(config.badshot, dtype=int)
-
 
         # initiate rectified wavelength array
         wave_rect = np.linspace(3470, 5540, 1036)
@@ -141,7 +139,7 @@ def main(argv=None):
             sys.exit()
 
         # Intiate the FiberIndex class from hetdex_api.survey, but just for this shot
-        FI = FiberIndex(shot_h5=args.shot_h5)
+        FI = FiberIndex(keep_mask=True,shot_h5=args.shot_h5)
 
         #add columns to spec_tab
         #spec_tab['flag'] = np.full(len(spec_tab),True)
