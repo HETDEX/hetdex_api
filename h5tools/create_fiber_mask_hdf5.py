@@ -393,6 +393,7 @@ def main(argv=None):
                 else:
                     row['calfib_dq'] = CALFIB_NET.astype(np.int16)[sel][0] # spec_tab['calfib_dq'][sel][0]
                     row.update()
+            h5.root.CalfibDQ.flush()
 
         else: #create
             flags = h5.create_table(
@@ -404,7 +405,7 @@ def main(argv=None):
                 ).as_array(),
             )
 
-        flags.flush()
+            flags.flush()
         #FI.close() # do not close, is using the h5 handle, so just close it explicitly in next line
         h5.close()
 
