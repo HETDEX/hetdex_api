@@ -1122,7 +1122,9 @@ class FiberIndex:
                 mask_index = [sel_shot][0][idxc]
                 mask[mask_index] = False
 
-        S.close()
+        if self.shot_h5 is None:
+            S.close()
+
         t1 = time.time()
 
         print(
