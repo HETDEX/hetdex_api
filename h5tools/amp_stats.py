@@ -1958,7 +1958,7 @@ def stats_qc(data,extend=False,total_exp_time=None):
                     (is_masked(amp_stats['chi2fib_med']))
         else:
             max_chi2fib = 1.05 * total_exp_time/exp_time_norm #np.sqrt(total_exp_time/exp_time_norm)
-            sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.05)) | \
+            sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < max_chi2fib)) | \
                     (is_masked(amp_stats['chi2fib_med']))
 
         # Not useful (at least not compared to others ... or may be redundant with others)
