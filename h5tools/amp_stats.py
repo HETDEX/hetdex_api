@@ -1796,7 +1796,7 @@ def is_masked(x): #masked or NaN
     #return np.isnan(x) | np.array([np.ma.is_masked(y) for y in x])
     return np.array(np.isnan(x)) #| np.array([np.ma.is_masked(y) for y in x])
 
-def stats_qc(data,extend=False):
+def stats_qc(data,extend=False,total_exp_time=None):
     """
     todo: what constitutes a bad amp ...
     evaluate and set flag in the amp_dict
@@ -1812,6 +1812,8 @@ def stats_qc(data,extend=False):
 
     """
 
+    exp_time_norm = 1200.0 #seconds (20 min) ... normalization for some values or thresholds scaled to the total time
+                           #nominal HETEX is 1080 secs but can be a bit longer under poorer conditions
     single = True #used later to return a single or iterable objects
     if isinstance(data,Row):
         amp_stats = Table(data)
@@ -1883,8 +1885,13 @@ def stats_qc(data,extend=False):
         # sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
         # sel9 = sel9_hdr3 | sel9_hdr4
 
-        sel1 = ((amp_stats['Avg'].astype(float) > -5.0) *
-                (amp_stats['Avg'].astype(float) < 100.0)) | (is_masked(amp_stats['Avg']))
+        if total_exp_time is None or total_exp_time < exp_time_norm:
+            sel1 = ((amp_stats['Avg'].astype(float) > -5.0) *
+                    (amp_stats['Avg'].astype(float) < 100.0)) | (is_masked(amp_stats['Avg']))
+        else:
+            avg_max = 100.00 * np.sqrt(total_exp_time/exp_time_norm)
+            sel1 = ((amp_stats['Avg'].astype(float) > -5.0) *
+                    (amp_stats['Avg'].astype(float) < avg_max)) | (is_masked(amp_stats['Avg']))
         #down to a max of 20 to 25 helps a little
 
 
@@ -1920,14 +1927,22 @@ def stats_qc(data,extend=False):
         #if max/min is too large, there is likely something wrong. x3.0 seems to be about that spot
         sel8 = ((amp_stats['norm'] > 1.0) & (amp_stats['norm'] < 3.0)) | (np.isnan(amp_stats['norm']))
 
+        if total_exp_time is None or total_exp_time <= exp_time_norm:
+            sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
+            # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+            #sel9 for hdr4+ is pretty insensitive until you get to < 0.08 or so (that is < .1 vs < 0.5 is almost no difference)
+            sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
 
-        sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
-        # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
-        #sel9 for hdr4+ is pretty insensitive until you get to < 0.08 or so (that is < .1 vs < 0.5 is almost no difference)
-        sel9_hdr4 = ((amp_stats['frac_c2'] < 0.1) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] >= 20210901)
+        else:
+            sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (
+                        amp_stats['date'] < 20210901)
+            # next is hdr4 and ABOVE (some changes from HDR3 to HDR4 necessitate a different selection here)
+            # sel9 for hdr4+ is pretty insensitive until you get to < 0.08 or so (that is < .1 vs < 0.5 is almost no difference)
+            max_frac_c2 = 0.1 * np.sqrt(total_exp_time / exp_time_norm)
+            sel9_hdr4 = ((amp_stats['frac_c2'] < max_frac_c2) | (is_masked(amp_stats['frac_c2']))) * (
+                        amp_stats['date'] >= 20210901)
+
         sel9 = sel9_hdr3 | sel9_hdr4
-
-
 
         #for a sub selection of wavelegths and fibers, the fraction that are zero valued
         #(so frac_0 == 1.0 means ALL are zero)
@@ -1938,9 +1953,13 @@ def stats_qc(data,extend=False):
 
         #lower limit of about 0.5 seems okay, less than that maybe implies abonormally uniform data
         #upper limit somewhere 1.03 to 1.5 is good .. below 1.03  gets too aggressive
-        sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.05)) | (is_masked(amp_stats['chi2fib_med']))
-
-
+        if total_exp_time is None or total_exp_time <= exp_time_norm:
+            sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.05)) | \
+                    (is_masked(amp_stats['chi2fib_med']))
+        else:
+            max_chi2fib = 1.05 * total_exp_time/exp_time_norm #np.sqrt(total_exp_time/exp_time_norm)
+            sel12 = ((amp_stats['chi2fib_med'] > 0.5) & (amp_stats['chi2fib_med'] < 1.05)) | \
+                    (is_masked(amp_stats['chi2fib_med']))
 
         # Not useful (at least not compared to others ... or may be redundant with others)
         #n_lo does not seem to be useful ... SHOULD be a replacement for nfib_bad (sel7), but does not seem to work that way
