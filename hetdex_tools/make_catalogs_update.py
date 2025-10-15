@@ -7,7 +7,7 @@ from astropy.table import Table, join, vstack
 import tables as tb
 import joblib
 
-version = '5.0.1'
+version = '5.0.2'
 
 update_det_flags = True
 
@@ -27,7 +27,10 @@ source_table['flag_best'][mask] = 0
 
 if update_det_flags:
     print('Updating det flags')
-    detflags_tab = Table.read('/scratch/projects/hetdex/hdr5/catalogs/det_flags_{}.fits'.format(version))
+    if version == '5.0.2':
+        detflags_tab = Table.read('/scratch/projects/hetdex/hdr5/catalogs/det_flags_5.0.1.fits')
+    else:
+        detflags_tab = Table.read('/scratch/projects/hetdex/hdr5/catalogs/det_flags_{}.fits'.format(version))
 
     flag_cols = detflags_tab.colnames
 
@@ -74,8 +77,8 @@ for c in source_table.colnames:
         else:
             source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=-99.9)
                 
-clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
-    
+#clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
+clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_20251006.joblib")
 X = np.zeros(shape=( len(source_table), len( clf.columns) ))
 
 for i in range(len( clf.columns)):
@@ -84,27 +87,29 @@ for i in range(len( clf.columns)):
 p_conf = clf.predict_proba(X)[:,1]
 
 source_table['p_conf'] = 1.0
-sel_sample = (source_table['gmag']> 22) * (source_table['sn'] < 6.5) * (source_table['agn_flag']==-1)
+sel_sample = (source_table['gmag']> 22) * (source_table['agn_flag']==-1)
 source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
-clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_highsn.joblib")
-X = np.zeros(shape=( len(source_table), len( clf.columns) ))
+#clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_highsn.joblib")
+#X = np.zeros(shape=( len(source_table), len( clf.columns) ))
 
-for i in range(len( clf.columns)):
-    X[:, i]= source_table[clf.columns[i]]
+#for i in range(len( clf.columns)):
+#    X[:, i]= source_table[clf.columns[i]]
     
-p_conf = clf.predict_proba(X)[:,1]
-sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_table['agn_flag']==-1)
-source_table['p_conf'][sel_sample] = p_conf[sel_sample]
+#p_conf = clf.predict_proba(X)[:,1]
+#sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_table['agn_flag']==-1)
+#source_table['p_conf'][sel_sample] = p_conf[sel_sample]
 
 # add in Shiro's CNN Score Values
 cnn_score_lae = Table.read(
-    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0.txt', #8.0.22-k-fold updated 2025-05-17
+    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_5.0.3_lae.txt', # updated 2025-09-26, matches Karls
+#    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0.txt', #8.0.22-k-fold updated 2025-05-17
 #    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.0_dex.txt',#8.0.22_k-fold updated 2025-05-07
 #    '/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/lae_model_hdr5.0.0_lae_dex_small.txt',
     format='ascii'
 )
-cnn_score_oii = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.1_oii.txt', format='ascii')
+#cnn_score_oii = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_2D_Spectra_hdr5.0.1_oii.txt', format='ascii')
+cnn_score_oii = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/cnn_mukae/cnn_5.0.3_oii.txt', format='ascii')        
 cnn_score = vstack([cnn_score_lae, cnn_score_oii])
 
 source_table2 = join( source_table, cnn_score, join_type='left')
@@ -112,6 +117,17 @@ source_table2 = join( source_table, cnn_score, join_type='left')
 source_table = source_table2.copy()
 source_table['CNN_Score_2D_Spectra'] = source_table['CNN_Score_2D_Spectra'].filled(1)
 source_table['CNN_Score_2D_Spectra'][source_table['CNN_Score_2D_Spectra'] < 0] = 1.0
+
+# add Yuting Shen's DensFlow value
+densflow = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/densflow_yuting/predictions_all.txt',
+                      format='ascii')
+densflow["detectid"] = densflow["detectid"].astype(int)
+densflow["densflow_score"] = densflow["score"].astype(np.float32)
+
+source_table2 = join( source_table, densflow['detectid', 'densflow_score'], join_type='left')
+
+source_table = source_table2.copy()
+source_table['densflow_score'] = source_table['densflow_score'].filled(1)
 
  # remove nonsense metadata
 source_table.meta = {}
@@ -130,7 +146,11 @@ for s in [20231014013,
 source_table['field'][ source_table['field'] == 'egs'] = 'dex-spring'
 
 #add column to indicate if shot is used for cosmology
-survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
+if version=='5.0.2':
+    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format('5.0.1'), format='ascii')
+else:
+    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
+
 survey_use['flag_shot_cosmology'] = 1
 
 source_table2 = join( source_table, survey_use['shotid', 'flag_shot_cosmology'], join_type='left')
