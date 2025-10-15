@@ -15,7 +15,7 @@ import tables as tb
 import os.path as op
 
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy import units as u
 from astropy import wcs
 from astropy.stats import sigma_clipped_stats
@@ -49,6 +49,9 @@ from matplotlib.colors import LogNorm
 from astropy.visualization import ZScaleInterval
 from matplotlib import gridspec
 
+from scipy.signal import fftconvolve
+from scipy.stats import f as f_dist
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -61,16 +64,67 @@ survey = "hdr5"
 config = HDRconfig(survey)
 S = Survey(survey)
 
-D_hdr3 = Detections("hdr3")
-D_hdr4 = Detections("hdr4")
-D_hdr5 = Detections("hdr5")
+#D_hdr3 = Detections("hdr3")
+#D_hdr4 = Detections("hdr4")
+#D_hdr5 = Detections("hdr5")
+wavelya = 1215.67
 
-version = "5.0.0"
+version = "5.0.2"
 catfile = op.join(
-    config.hdr_dir["hdr3"], "catalogs", "source_catalog_" + version + ".fits"
+    config.hdr_dir["hdr5"], "catalogs", "source_catalog_" + version + ".h5"
 )
+sourceh5 = tb.open_file( catfile, 'r')
+
 source_table = None
 
+def count_effective_pixels(mask):
+    # N_eff = number of unmasked pixels actually used by imfit
+    # mask==True means masked; you created mask over DATA
+    return np.sum(~mask)
+
+def full_chi2_from_reduced(reduced, dof):
+    return reduced * dof
+
+# ---------- AICc / BIC (Gaussian) ----------
+def AICc_val(chi2, k, N):
+    aic = chi2 + 2*k
+    if (N - k - 1) > 0:
+        return aic + (2*k*(k+1)) / (N - k - 1)
+    return aic  # fallback
+
+def BIC_val(chi2, k, N):
+    return chi2 + k*np.log(N)
+
+def half_light_radius_from_image(img2d):
+    """Return half-light radius (in pixels) of a 2D PSF/kernel image."""
+    yy, xx = np.indices(img2d.shape)
+    cy, cx = np.array(img2d.shape)//2
+    r = np.hypot(xx-cx, yy-cy)
+    order = np.argsort(r.ravel())
+    r_sorted = r.ravel()[order]
+    vals = img2d.ravel()[order]
+    eef = np.cumsum(vals)
+    eef /= eef[-1] if eef[-1] != 0 else 1.0
+    return r_sorted[np.searchsorted(eef, 0.5)]
+
+def convolve_same(a, b):
+    """FFT convolution with 'same' output; works without SciPy."""
+    out = fftconvolve(a, b, mode="same")
+    
+    return out
+
+def half_light_radius_from_psf(psf2d):
+    # radial EEF from the PSF slice through the center
+    cx, cy = np.array(psf2d.shape)//2
+    yy, xx = np.indices(psf2d.shape)
+    r = np.hypot(xx-cx, yy-cy)
+    r_sorted = np.sort(r.ravel())
+    psf_sorted = psf2d.ravel()[np.argsort(r.ravel())]
+    cumsum = np.cumsum(psf_sorted)
+    cumsum /= cumsum[-1]
+    # first radius where enclosed energy >= 0.5
+    idx = np.searchsorted(cumsum, 0.5)
+    return r_sorted[idx]
 
 def do_pyimfit(
     wave_group_id=None,
@@ -96,25 +150,22 @@ def do_pyimfit(
         detectid_obj = detectid
         name = detectid
 
-        if str(detectid)[0] == "5":
-            D = D_hdr5
-        elif str(detectid)[0] == "4":
-            D = D_hdr4
-        elif str(detectid)[0] == "3":
-            D = D_hdr3
-        elif str(detectid)[0] == "2":
-            D = Detections("hdr2.1")
+        det_info = sourceh5.root.SourceCatalog.read_where('detectid == detectid_obj')[0]
+        coords_obj = SkyCoord(ra=det_info['ra'], dec=det_info['dec'], unit='deg')
 
-        det_info = D.get_detection_info(detectid)[0]
-        coords_obj = D.get_coord(detectid)
+        # get wavelength to collapse along from z_hetdex
+#        wave_obj = det_info["wave"]
+        redshift = det_info['z_hetdex']
+        wave_obj = wavelya * ( 1 + redshift)
 
-        wave_obj = det_info["wave"]
-        redshift = wave_obj / (1216) - 1
+        det_type = det_info['det_type']
         
-        flux = det_info["flux"]
-        linewidth = det_info["linewidth"]
+        if det_type == 'line':
+            linewidth = det_info["linewidth"]
+        else:
+            linewidth = 6.0
 
-        fwhm = D.get_survey_info(detectid)["fwhm_virus"][0]
+        fwhm = det_info['fwhm']
 
         shotid_obj = det_info["shotid"]
 
@@ -271,7 +322,7 @@ def do_pyimfit(
     ).value
 
     image_data = hdu['DATA'].data
-
+    
     E = Extract()
     E.load_shot(shotid_obj)
     moffat_psf = E.moffat_psf(seeing=fwhm, boxsize=imsize, scale=pixscale)
@@ -312,14 +363,6 @@ def do_pyimfit(
         mask2 = flux_cut * center
 
         mask = (image_data == 0) | mask2
-
-    # plt.figure(figsize=(15,5))
-    # plt.subplot(131)
-    # plt.imshow(image_data==0)
-    # plt.subplot(132)
-    # plt.imshow(mask2)
-    # plt.subplot(133)
-    # plt.imshow(mask)
 
     masked_data = image_data
     masked_data = np.ma.masked_where(
@@ -425,6 +468,7 @@ def do_pyimfit(
     else:
         exp_h_err = 0
 
+
     r_n = (
         exp_h
         * pixscale
@@ -489,6 +533,111 @@ def do_pyimfit(
     sb_model_im = 10**-17 * np.array(sb_model_im) / (pixscale**2)
     sb_moffat_im = 10**-17 * np.array(sb_moffat_im) / (pixscale**2)
 
+
+    N_eff = count_effective_pixels(mask)
+
+    # Set k1 and k2 (number of free parameters actually fit)
+    # In your configuration:
+    #   PSF/Moffat: x0, y0, I0 are free (PA, ell, fwhm, beta fixed) -> k1 = 3
+    #   PSF+Exp:    shared x0,y0 + I0_moffat + (I0_exp, h, PA, ell) -> k2 = 7
+    # If you use null_ellipticity=True, set k2 = 6
+    k1 = 3
+    k2 = 6 if null_ellipticity else 7
+
+    # Degrees of freedom
+    nu1 = N_eff - k1
+    nu2 = N_eff - k2
+
+    # ---------- full chi^2 from reduced ----------
+    chi2_red_psf = imfit_fitter_moffat.reducedFitStatistic
+    chi2_red_ext = imfit_fitter.reducedFitStatistic
+    chi2_psf = full_chi2_from_reduced(chi2_red_psf, nu1)
+    chi2_ext = full_chi2_from_reduced(chi2_red_ext, nu2)
+    
+
+    # ---------- F-test ----------
+    df_num = (k2 - k1)
+    F = ((chi2_psf - chi2_ext) / df_num) / (chi2_ext / nu2)
+    p_F = 1.0 - f_dist.cdf(F, df_num, nu2)
+
+    
+    aicc_psf = AICc_val(chi2_psf, k1, N_eff)
+    aicc_ext = AICc_val(chi2_ext, k2, N_eff)
+    bic_psf  = BIC_val(chi2_psf,  k1, N_eff)
+    bic_ext  = BIC_val(chi2_ext,  k2, N_eff)
+    
+    dAICc = aicc_ext - aicc_psf   # negative favors extended
+    dBIC  = bic_ext  - bic_psf    # negative favors extended
+    
+    # ---------- PSF half-light & size significance ----------
+    # ensure a nonzero uncertainty (bootstrap recommended)
+    if (nbootstrap is None) or (nbootstrap <= 0) or (exp_h_err == 0):
+        exp_h_err = np.nan  # make significance test explicit
+        
+    # --- PATCH 2: effective PSF (seeing convolved with fiber footprint) ---
+    # Normalize both kernels
+    mpsf = moffat_psf[0].astype(float)
+    mpsf /= mpsf.sum() if mpsf.sum() != 0 else 1.0
+    
+    fpsf = fiber_psf.astype(float)
+    fpsf /= fpsf.sum() if fpsf.sum() != 0 else 1.0
+
+    # Effective PSF used by the fit (what the data "sees")
+    eff_psf = convolve_same(mpsf, fpsf)
+    eff_psf /= eff_psf.sum() if eff_psf.sum() != 0 else 1.0
+
+    # Use HLR of the effective PSF
+    re_psf_pix = half_light_radius_from_image(eff_psf)
+
+    # --- PATCH 3: size logic with evidence-aware fallback ---
+    # significance if available
+    valid_err = (exp_h_err is not None) and np.isfinite(exp_h_err) and (exp_h_err > 0)
+    Sh = (exp_h / exp_h_err) if valid_err else np.nan
+    
+    # model half-light radius for exponential
+    re_model_pix = 1.678 * exp_h
+    # geometric comparisons
+    ratio_re = re_model_pix / re_psf_pix if re_psf_pix > 0 else np.inf
+    re_deconv_pix = np.sqrt(max(re_model_pix**2 - re_psf_pix**2, 0.0))
+
+    # --- evidence tiers (as before) ---
+    very_strong = (p_F < 1e-12) and (dBIC <= -50.0)
+    strong      = (p_F < 1e-6)  and (dBIC <= -10.0)
+    
+    if np.isfinite(Sh):
+        need_ratio  = 1.10
+        need_Sh     = 3.0
+        size_pass   = (Sh >= need_Sh) and (ratio_re >= need_ratio)
+        size_reason = f"Sh>={need_Sh:.1f} & re>={need_ratio:.2f}*re_psf" if size_pass else "Sh low or margin small"
+    else:
+        # ---- NEW: deconvolved-HLR–first fallback ----
+        # thresholds (pixels); convert to arcsec if you prefer
+        # deconvolved HLR is the primary geometric check when evidence is overwhelming
+        if very_strong:
+            need_re_deconv = 0.8  # px  (~0.20")
+            size_pass = (re_deconv_pix >= need_re_deconv)
+            size_reason = f"fallback very_strong: r_deconv>={need_re_deconv:.2f}px"
+        elif strong:
+            need_re_deconv = 1.0  # px  (~0.25")
+            # add a modest ratio gate for strong-but-not-very-strong
+            need_ratio = 1.05
+            size_pass = (re_deconv_pix >= need_re_deconv) and (ratio_re >= need_ratio)
+            size_reason = f"fallback strong: r_deconv>={need_re_deconv:.2f}px & ratio>={need_ratio:.2f}"
+        else:
+            # weak evidence: require a larger margin
+            need_re_deconv = 0.5  # px
+            need_ratio     = 1.25
+            size_pass = (re_deconv_pix >= need_re_deconv) and (ratio_re >= need_ratio)
+            size_reason = f"fallback weak: r_deconv>={need_re_deconv:.2f}px & ratio>={need_ratio:.2f}"
+
+    # Optional S/N guard (uncomment if desired)
+    # sn_ok = (sn_max >= 5)
+    # size_pass = size_pass and sn_ok
+    # if not sn_ok: size_reason += " (low SB S/N)"
+
+    # Final decision (same gates as before)
+    is_resolved = (p_F < 0.01) and (dBIC <= -6.0) and size_pass
+
     # calculate lya_flux at r_n and r_ext. r_n must be non-zero
     if star == False:
         r_ext_pix = r_in_array[
@@ -549,6 +698,17 @@ def do_pyimfit(
         reg = reg1 * reg2
         area_iso = np.sum(reg) * pixscale**2
 
+        # --- New: audit metrics for the 2σ isophote ---
+        # kpc per arcsec at this z (you already defined const_arcsec_to_kpc)
+        kpc_per_arcsec = const_arcsec_to_kpc
+        
+        # Isophotal area in kpc^2 (2σ threshold, same mask 'reg' you used for area_iso)
+        area_iso_kpc2 = area_iso * (kpc_per_arcsec**2)
+
+        # Surface-brightness limit at 2σ in physical units
+        # (image_data is in 1e-17 erg s^-1 cm^-2 per pixel; your SB conversion uses / pixscale^2)
+        SB_lim = (2.0 * stddev) * 1e-17 / (pixscale**2)   # erg s^-1 cm^-2 arcsec^-2
+
         # plt.figure()
         # plt.imshow(reg)
 
@@ -558,43 +718,72 @@ def do_pyimfit(
         ra_fit, dec_fit = w.wcs_pix2world([[exp_x0, exp_y0]], 0)[0]
 
         plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
-        outputs = np.array(
-            [
-                name,
-                plotname,
-                r_ext,
-                r_n,
-                r_n_err,
-                flux_lya_ext.value,
-                flux_lya_ext_err.value,
-                flux_lya_rn.value,
-                flux_lya_rn_err.value,
-                lum_rn.value,
-                lum_rn_err.value,
-                lum_ext.value,
-                lum_ext_err.value,
-                chi2,
-                chi2_moffat,
-                moffat_I0,
-                exp_x0,
-                exp_y0,
-                exp_PA,
-                exp_ell,
-                exp_I_0,
-                exp_h,
-                sn_max,
-                ra_fit,
-                dec_fit,
-                area_ext,
-                area_iso,
-            ]
-        )
-        # np.save('pyimfit_output/params_{}'.format(name), outputs)
-        Table(outputs).write(
-            "pyimfit_output/params_{}.txt".format(name),
-            format="ascii.no_header",
-            overwrite=True,
-        )
+
+    # Preferred: rich, named table (ECSV)
+    row = Table(
+        {
+            "name":        [name],
+            "plotname":    [plotname],
+            "z":           [redshift],
+            "pixscale_as": [pixscale],
+            "r_iso_kpc":   [r_ext],
+            "h_pix":       [exp_h],
+            "h_err_pix":   [exp_h_err],
+            "rn_kpc":      [r_n],
+            "rn_err_kpc":  [r_n_err],
+            "flux_ext":    [flux_lya_ext.value if not star else np.nan],
+            "flux_ext_err":[flux_lya_ext_err.value if not star else np.nan],
+            "flux_rn":     [flux_lya_rn.value if (not star and r_n>0) else np.nan],
+            "flux_rn_err": [flux_lya_rn_err.value if (not star and r_n>0) else np.nan],
+            "lum_rn":      [lum_rn.value if (not star and r_n>0) else np.nan],
+            "lum_rn_err":  [lum_rn_err.value if (not star and r_n>0) else np.nan],
+            "lum_ext":     [lum_ext.value if not star else np.nan],
+            "lum_ext_err": [lum_ext_err.value if not star else np.nan],
+            "area_ext_as2":[area_ext if not star else np.nan],
+            "area_iso_as2":[area_iso if not star else np.nan],
+                # --- New audit columns ---
+            "area_iso_kpc2": [area_iso_kpc2 if not star else np.nan],
+            "SB_lim":        [SB_lim],  # 2σ SB threshold in erg s^-1 cm^-2 arcsec^-2
+
+            # fit stats
+            "Neff":        [N_eff],
+            "k1":          [k1],
+            "k2":          [k2],
+            "nu1":         [nu1],
+            "nu2":         [nu2],
+            "chi2_psf":    [chi2_psf],
+            "chi2_ext":    [chi2_ext],
+            "F_val":       [F],
+            "p_F":         [p_F],
+            "dAICc":       [dAICc],
+            "dBIC":        [dBIC],
+
+            # size checks
+            "re_psf_pix":  [re_psf_pix],
+            "re_model_pix":[re_model_pix],
+            "Sh":          [Sh],
+            "size_pass":   [bool(size_pass)],
+            "size_reason": [size_reason],
+            
+            # params you might want later
+            "moffat_I0":   [moffat_I0],
+            "x0_pix":      [exp_x0],
+            "y0_pix":      [exp_y0],
+            "PA_rad":      [exp_PA],
+            "ell":         [exp_ell],
+            "I0_exp":      [exp_I_0],
+            
+            # summary decision
+            "is_resolved": [bool(is_resolved)],
+            "ratio_re":     [ratio_re],
+            "re_deconv_pix":[re_deconv_pix],
+            "size_reason":  [size_reason],
+            "re_deconv_as": [re_deconv_pix * pixscale],  # arcsec   
+        }
+    )
+
+    # Rich, named file (recommended going forward)
+    row.write(f"pyimfit_output/params_{name}.ecsv", format="ascii.ecsv", overwrite=True)
 
     aper_circ_bkg = CircularAnnulus(
         (moffat_x0, moffat_y0), 10 / pixscale, 12 / pixscale
@@ -1241,7 +1430,7 @@ def do_pyimfit(
         try:
             # plot name based on IAU nomenclature
             # plotname = get_source_name(ra_fit, dec_fit).replace("_", " ")
-            plotname = 'HLAN'+str(name)
+            plotname = 'HLAN '+str(name)
         except:
             plotname = name
         plt.text(
@@ -1418,6 +1607,7 @@ def main(argv=None):
         null_ellipticity=args.null_ellipticity,
     )
 
-
+    sourceh5.close()
+    
 if __name__ == "__main__":
     main()
