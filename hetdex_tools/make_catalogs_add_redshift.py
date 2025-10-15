@@ -21,6 +21,7 @@ import hetdex_tools.fof_kdtree as fof
 
 from multiprocessing import Pool
 
+
 def replace_nan_inf_mask(table, fill_value=0.0):
     for col in table.colnames:
         data = table[col]
@@ -34,8 +35,8 @@ def replace_nan_inf_mask(table, fill_value=0.0):
 
         if isinstance(table[col], astropy.table.column.MaskedColumn):
             print(f"Converting masked column: {col}")
-            table[col] = np.nan_to_num(np.array(table[col]),nan=fill_value)
-        
+            table[col] = np.nan_to_num(np.array(table[col]), nan=fill_value)
+
 
 def add_z_guess(source_id):
     global source_table, agn_tab, config
@@ -245,12 +246,12 @@ def add_z_guess(source_id):
 def zcluster_forshotid(shotid, star=False):
     global source_table
 
-    sel = (source_table["shotid"] == shotid) * (source_table['z_hetdex']>0.001)
+    sel = (source_table["shotid"] == shotid) * (source_table["z_hetdex"] > 0.001)
 
     uniq_table = unique(source_table[sel], keys=["source_id"])
 
     dz = 0.01
-    
+
     res = fof.mktree(
         np.array(uniq_table["ra_mean"]),
         np.array(uniq_table["dec_mean"]),
@@ -260,12 +261,11 @@ def zcluster_forshotid(shotid, star=False):
     )
 
     if res is None:
-        print( 'fof.mktree failed in zcluster_forshotid', shotid)
+        print("fof.mktree failed in zcluster_forshotid", shotid)
         return None
     else:
         kdtree, r = res
 
-        
     zfriend_lst = fof.frinds_of_friends(kdtree, r, Nmin=2)
 
     if len(zfriend_lst) == 0:
@@ -297,6 +297,7 @@ def zcluster_forshotid(shotid, star=False):
     zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
 
     return zdetfriend_all
+
 
 def zclusteragn_forshotid(shotid):
     global source_table
@@ -343,15 +344,20 @@ def zclusteragn_forshotid(shotid):
     zdetfriend_all = join(zdetfriend_tab, zfriend_table, keys="id")
     return zdetfriend_all
 
+
 def zclusterstars_forshotid(shotid):
     global source_table
 
-    sel = (source_table["shotid"] == shotid) * (source_table['z_hetdex'] < 0.001) * (source_table['z_hetdex']>-2)
+    sel = (
+        (source_table["shotid"] == shotid)
+        * (source_table["z_hetdex"] < 0.001)
+        * (source_table["z_hetdex"] > -2)
+    )
 
     if np.sum(sel) == 0:
-        print('No stars in', shotid)
+        print("No stars in", shotid)
         return None
-    
+
     uniq_table = unique(source_table[sel], keys=["source_id"])
 
     kdtree, r = fof.mktree(
@@ -434,19 +440,39 @@ def update_table(zdetfriend_all):
                 source_table["z_hetdex"][sid_ind] = res_tab["icz"]
 
         # update n_members
-        source_table['n_members'][sid_ind] = len(sid_ind)
-        
+        source_table["n_members"][sid_ind] = len(sid_ind)
+
         # if source_name is different then update, agn, oii first
-        if np.any( source_table['source_type'][sid_ind] == 'agn'):
-            source_table['source_type'][sid_ind] = 'agn'
-        elif np.any( source_table['source_type'][sid_ind] == 'oii'):
-            source_table['source_type'][sid_ind] = 'oii'
+        if np.any(source_table["source_type"][sid_ind] == "agn"):
+            source_table["source_type"][sid_ind] = "agn"
+        elif np.any(source_table["source_type"][sid_ind] == "oii"):
+            source_table["source_type"][sid_ind] = "oii"
         else:
             # otherwise use source_type from brightest detection
-            sel_brightest= np.argmax( source_table['gmag'][sid_ind]) 
-            source_table['source_type'][sid_ind] = source_table['source_type'][sid_ind][sel_brightest]
+            sel_brightest = np.argmax(source_table["gmag"][sid_ind])
+            source_table["source_type"][sid_ind] = source_table["source_type"][sid_ind][
+                sel_brightest
+            ]
     return
 
+def update_oii(sid):
+    global source_table
+    flag_aper = -1
+
+    sel_sid = source_table['source_id']==sid
+    oii_aper = np.max( source_table['flux_aper'][ sel_sid])
+
+    sel_oii = source_table['line_id'] == 'OII'
+    if  np.sum( sel_sid * sel_oii) == 0:
+        oii_max = -99.8
+        return -99.8, -1
+    else:
+        oii_max = np.max( source_table['flux'][sel_sid*sel_oii ])
+
+    if oii_aper > oii_max:
+        return oii_aper, 1
+    else:
+        return oii_max, 0
 
 # Enter the catalog version
 
@@ -483,7 +509,7 @@ def get_parser():
         required=False,
         action="store_true",
     )
-    
+
     return parser
 
 
@@ -508,7 +534,7 @@ def main(argv=None):
     config = HDRconfig("hdr{}".format(version[0]))
     agn_tab = Table.read(config.agncat, format="ascii")
     # agn_tab = None
-    
+
     if args.add_redshifts:
         # catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
@@ -549,8 +575,18 @@ def main(argv=None):
         )
         diagnose_tab_sa22 = Table.read(
             "/work/05350/ecooper/stampede2/redshift-tests/sa22/diagnose_sa22_lt23.fits"
-            )
-        diagnose_tab = unique( vstack([diagnose_tab_sa22, diagnose_tab_hdr3, diagnose_tab_hdr4, diagnose_tab_hdr5]), keys='detectid')
+        )
+        diagnose_tab = unique(
+            vstack(
+                [
+                    diagnose_tab_sa22,
+                    diagnose_tab_hdr3,
+                    diagnose_tab_hdr4,
+                    diagnose_tab_hdr5,
+                ]
+            ),
+            keys="detectid",
+        )
 
         diagnose_tab.rename_column("z_best", "z_diagnose")
         diagnose_tab.rename_column("classification", "cls_diagnose")
@@ -610,7 +646,7 @@ def main(argv=None):
         # Take Elixer best_z for rest
 
         elixer_assign = source_table["source_id", "z_elixer", "best_pz"][
-            sel & np.invert(sel_gmag) & (source_table['det_type'] == 'line')
+            sel & np.invert(sel_gmag) & (source_table["det_type"] == "line")
         ]
         elixer_assign.rename_column("z_elixer", "z_hetdex")
         elixer_assign.rename_column("best_pz", "z_hetdex_conf")
@@ -672,17 +708,26 @@ def main(argv=None):
         sys.exit()
 
     else:
-        catfile = "source_catalog_{}.y.fits".format(version)
-
-        source_table = Table.read(catfile)
-        z_stack = Table.read("z_stack_{}.fits".format(version))
+        if version == "5.0.2":
+            # just using everything done in 5.0.1 until this step 2025-09-25 EMC
+            catfile = "source_catalog_{}.y.fits".format("5.0.1")
+            z_stack = Table.read("z_stack_{}.fits".format("5.0.1"))
+            z_stack['source_id'] += int(1e10) #update source id to 5.0.2 version counts
+            source_table = Table.read(catfile)
+            source_table['source_id'] += int(1e10)
+        else:
+            catfile = "source_catalog_{}.y.fits".format(version)
+            z_stack = Table.read("z_stack_{}.fits".format(version))
+            source_table = Table.read(catfile)
+            
         print("Source catalog was found at {}".format(catfile))
 
     all_table = join(source_table, z_stack, join_type="left")
 
     source_table = all_table
 
-    source_table['z_hetdex'] = source_table['z_hetdex'].filled(-99.)
+    del all_table, z_stack
+    source_table["z_hetdex"] = source_table["z_hetdex"].filled(-99.0)
 
     # uncluster LAEs whose line pairings are not supported by best_z
 
@@ -691,10 +736,15 @@ def main(argv=None):
     print(
         "Updating z_hetdex to best_z for {} detectids".format(len(clustered_lae_index))
     )
-    
-    vs = version.split('.')
-    sid_index = int( vs[0]) * 10**12 + int(vs[1])*10**11 + int(vs[2])*10**10 + 3*10**9
-    #sid_index = 4010030000000
+
+    vs = version.split(".")
+    sid_index = (
+        int(vs[0]) * 10**12
+        + int(vs[1]) * 10**11
+        + int(vs[2]) * 10**10
+        + 3 * 10**9
+    )
+    # sid_index = 4010030000000
 
     for c_ind in clustered_lae_index:
         source_table["source_id"][c_ind] = sid_index
@@ -702,18 +752,167 @@ def main(argv=None):
         source_table["z_hetdex_conf"][c_ind] = source_table["best_pz"][c_ind]
         source_table["z_hetdex_src"][c_ind] = "elixer"
 
-        if source_table['z_hetdex'][c_ind] < 0.5:
-            source_table['source_type'][c_ind] = 'oii'
+        if source_table["z_hetdex"][c_ind] < 0.5:
+            source_table["source_type"][c_ind] = "oii"
         else:
-            source_table['source_type'][c_ind] = 'lae'
-            
+            source_table["source_type"][c_ind] = "lae"
+
         sid_index += 1
+        
+    # add in Lya Fluxes from Chenxu, multiple fluxes per source as they are measured for every detectid spectrum
+    agnfluxlya = Table.read('/scratch/projects/hetdex/hdr5/catalogs/hdr345_agn_v5.1_lyaflux.fits')
+    agnfluxlya.rename_column('flux_LyA','flux_LyA_cxliu')
+    
+    source_table2 = join( source_table, agnfluxlya, join_type='left')
+    source_table2['flux_LyA_cxliu'] = source_table2['flux_LyA_cxliu'].filled(-99.9)
+    source_table = source_table2.copy()
+    
+    sel_star = source_table["source_type"] == "star"
+    sel_oii = source_table["source_type"] == "oii"
+    sel_lae = source_table["source_type"] == "lae"
+    sel_agn = source_table["source_type"] == "agn"
+    sel_lzg = source_table["source_type"] == "lzg"
+
+
+    print(
+        "Before spatial OII fluxes are incorporated. There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} Low-z detections".format(
+            np.sum(sel_star),
+            np.sum(sel_oii),
+            np.sum(sel_lae),
+            np.sum(sel_agn),
+            np.sum(sel_lzg),
+        )
+    )
+
+    im_info = Table.read("/work/05350/ecooper/stampede2/oii/oii_aper_hdr5_20250930.fits")
+
+    #only keep rows with positive flux aper values
+    im_info['im_flux'] = im_info['im_flux'].filled(-1.0)
+    
+    sel_im_info = (im_info['im_flux'] > 0)
+
+    im_info = im_info[sel_im_info]
+    
+    sel_z = (source_table["z_hetdex"] < 0.5) * (
+        (source_table["source_type"] == "oii") | (source_table["source_type"] == "lzg")
+    )
+    oii_table = source_table[sel_z]
+#    oii_table.sort("gmag")
+#    uniq_oii_table = unique(oii_table, keys=["source_id", "shotid"])
+#    uniq_oii_table.sort("gmag")
+
+    col_keep = [
+        "detectid",
+        "ra",
+        "dec",
+        "catalog_name",
+        "filter_name",
+        "dist_baryctr",
+        "mag",
+        "mag_err",
+        "major",
+        "minor",
+        "theta",
+        "im_flux",
+        "im_flux_err",
+        "bkg_median",
+        "bkg_stddev",
+        "im_apcor",
+    ]
+
+    im_info = im_info[col_keep]
+
+    im_info.rename_column("ra", "ra_aper")
+    im_info.rename_column("dec", "dec_aper")
+    im_info.rename_column("mag", "mag_aper")
+    im_info.rename_column("mag_err", "mag_aper_err")
+    im_info.rename_column("dist_baryctr", "dist_aper")
+    im_info.rename_column("catalog_name", "catalog_name_aper")
+    im_info.rename_column("filter_name", "filter_name_aper")
+    im_info.rename_column("im_flux", "flux_aper_obs")
+    im_info.rename_column("im_flux_err", "flux_aper_obs_err")
+    im_info.rename_column("bkg_median", "bkg_median_aper")
+    im_info.rename_column("bkg_stddev", "bkg_stddev_aper")
+
+    source_table_oii = join(
+        source_table, im_info, keys=["detectid"], join_type="left"
+    )
+    
+    print(len(source_table_oii))
+    source_table = source_table_oii.copy()
+
+    # clear up some memory
+    del source_table_oii, im_info
+
+    # get intrinsic flux_aper and flux_LyA_cxliu by dereddening
+    import extinction
+
+    print("applying extinction to aperture fluxes")
+
+    Rv = 3.1
+    ext = []
+
+    sel_aper = source_table["flux_aper_obs"] > 0
+
+    for index in np.arange(np.size(source_table["detectid"])):
+        if source_table["flux_aper_obs"][index] > 0:
+            oii_wave = np.array(
+                [np.double(waveoii * (1.0 + source_table["z_hetdex"][index]))]
+            )
+            ext_i = extinction.fitzpatrick99(oii_wave, source_table["Av"][index], Rv)[0]
+            ext.append(ext_i)
+        elif source_table['flux_LyA_cxliu'][index] > 0:
+            lya_wave = np.array(
+                [np.double(wavelya * (1.0 + source_table["z_hetdex"][index]))]
+            )
+            ext_i = extinction.fitzpatrick99(lya_wave, source_table["Av"][index], Rv)[0]
+            ext.append(ext_i)
+
+        else:
+            ext.append(np.nan)
+
+    deredden = 10 ** (0.4 * np.array(ext))
+
+    source_table["flux_aper"] = np.nan
+    source_table["flux_aper_err"] = np.nan
+
+    source_table["flux_aper"][sel_aper] = (
+        deredden[sel_aper] * source_table["flux_aper_obs"][sel_aper]
+    )
+    source_table["flux_aper_err"][sel_aper] = (
+        deredden[sel_aper] * source_table["flux_aper_obs_err"][sel_aper]
+    )
+
+    sel_lya_cxliu = source_table['flux_LyA_cxliu'] > 0.0
+    source_table['flux_LyA_cxliu'][sel_lya_cxliu] *= deredden[sel_lya_cxliu]
+    
+
+    sel_to_switch = (source_table["source_type"] == "lzg") & (
+        source_table["flux_aper"] > 0
+    )
+    sids_to_switch = np.unique(source_table["source_id"][sel_to_switch])
+
+    print("Number of LZGs switch to OIIs is {}".format(len(sids_to_switch)))
+
+    for sid in sids_to_switch:
+        sel = source_table["source_id"] == sid
+        source_table["source_type"][sel] = "oii"
 
     sel_star = source_table["source_type"] == "star"
     sel_oii = source_table["source_type"] == "oii"
     sel_lae = source_table["source_type"] == "lae"
     sel_agn = source_table["source_type"] == "agn"
     sel_lzg = source_table["source_type"] == "lzg"
+
+    print(
+        "After spatial OII fluxes are incorporated. There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} LZG detections".format(
+            np.sum(sel_star),
+            np.sum(sel_oii),
+            np.sum(sel_lae),
+            np.sum(sel_agn),
+            np.sum(sel_lzg),
+        )
+    )
 
     # assign Line ID
     spectral_lines = Table.read(
@@ -722,8 +921,8 @@ def main(argv=None):
     )
 
     source_table["line_id"] = np.chararray(len(source_table), 20, unicode=True)
-    source_table['line_id'] = 'n/a'
-    
+    source_table["line_id"] = "n/a"
+
     source_table["dwave"] = np.zeros_like(source_table["wave"])
 
     for row in spectral_lines:
@@ -770,11 +969,15 @@ def main(argv=None):
     print("Clustering in redshift space")
     shotid_list = np.unique(source_table["shotid"])
 
+    # clear up memory
+    import gc
+    gc.collect()
+
     t0 = time.time()
-    p = Pool(16)
+    p = Pool(10) 
     res = p.map(zcluster_forshotid, shotid_list)
     p.close()
-
+    
     for r in res:
         if r is not None:
             update_table(r)
@@ -801,14 +1004,14 @@ def main(argv=None):
     sel_lzg = source_table["source_type"] == "lzg"
 
     sids_to_switch = np.unique(source_table["source_id"][sel_oii_line & sel_lzg])
-
+    print( 'Number of source_ids to switch after line matching is {}'.format( len(sids_to_switch)))
     for sid in sids_to_switch:
         sel = source_table["source_id"] == sid
         source_table["source_type"][sel] = "oii"
 
-    #update OII line list
+    # update OII line list
     sel_oii_line = source_table["line_id"] == "OII"
-    
+
     sel_star = source_table["source_type"] == "star"
     sel_oii = source_table["source_type"] == "oii"
     sel_lae = source_table["source_type"] == "lae"
@@ -816,7 +1019,7 @@ def main(argv=None):
     sel_lzg = source_table["source_type"] == "lzg"
 
     print(
-        "There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} Low-z detections".format(
+        "After OII aperture fluxes are incorporated. There are {} stars, {} OII emitters, {} LAEs, {} AGN and {} Low-z detections".format(
             np.sum(sel_star),
             np.sum(sel_oii),
             np.sum(sel_lae),
@@ -838,51 +1041,51 @@ def main(argv=None):
     uniq_obs_lae = unique(lae_tab, keys="source_id")
     uniq_obs_lae["selected_det"] = True
 
-    oii_tab = source_table[sel_oii_line & sel_oii]
-    oii_tab.sort("flux", reverse=True)
+#    oii_tab = source_table[sel_oii_line & sel_oii] # remove 5.0.2 version 2025-09-25
+#    oii_tab.sort("flux", reverse=True)
 
-    uniq_obs_oii = unique(oii_tab, keys="source_id")
-    uniq_obs_oii["selected_det"] = True
+#    uniq_obs_oii = unique(oii_tab, keys="source_id")
+#    uniq_obs_oii["selected_det"] = True
 
-    sel_agn_with_lya = (source_table["line_id"] == "Lya") & (
-        source_table["source_type"] == "agn"
-    )
+#    sel_agn_with_lya = (source_table["line_id"] == "Lya") & (
+#        source_table["source_type"] == "agn"
+#    )
+#
+#    agn_with_lya = source_table[sel_agn_with_lya]
+#    agn_with_lya.sort("flux", reverse=True)
 
-    agn_with_lya = source_table[sel_agn_with_lya]
-    agn_with_lya.sort("flux", reverse=True)
-
-    uniq_agn_with_lya = unique(agn_with_lya, keys="source_id")
-    uniq_agn_with_lya["selected_det"] = True
+#    uniq_agn_with_lya = unique(agn_with_lya, keys="source_id")
+#    uniq_agn_with_lya["selected_det"] = True
 
     sel_agn = source_table["source_type"] == "agn"
 
     # find source_ids not in above list
 
-    agn_without_lya_sid = np.setdiff1d(
-        np.unique(source_table["source_id"][sel_agn]),
-        uniq_agn_with_lya["source_id"],
-        assume_unique=True,
-    )
+#    agn_without_lya_sid = np.setdiff1d(
+#        np.unique(source_table["source_id"][sel_agn]),
+#        uniq_agn_with_lya["source_id"],
+#        assume_unique=True,
+#    )
 
-    agn_without_lya = join(
-        Table([agn_without_lya_sid], names=["source_id"]),
-        source_table,
-        join_type="left",
-    )
-    agn_without_lya.sort("gmag")
-
-    uniq_agn_without_lya = unique(agn_without_lya, keys="source_id")
-
-    uniq_agn_without_lya["selected_det"] = True
+#    agn_without_lya = join(
+#        Table([agn_without_lya_sid], names=["source_id"]),
+#        source_table,
+#        join_type="left",
+#    )
+#    agn_without_lya.sort("gmag")
+#
+#    uniq_agn_without_lya = unique(agn_without_lya, keys="source_id")
+#
+#    uniq_agn_without_lya["selected_det"] = True
 
     # now assign brightest detectid to star, lzg groups
     sel_rest = (
         (source_table["source_type"] != "lae")
-        & (source_table["source_type"] != "oii")
-        & (source_table["source_type"] != "agn")
+#        & (source_table["source_type"] != "oii") # now sorted by gmag
+#        & (source_table["source_type"] != "agn") #also sorted by gmag now
     )
 
-    # sort the rest of catalog using the brightest gmag 
+    # sort the rest of catalog using the brightest gmag
     rest_tab = source_table[sel_rest]
     rest_tab.sort("gmag")
 
@@ -890,7 +1093,8 @@ def main(argv=None):
     uniq_rest["selected_det"] = True
 
     selected_table = vstack(
-        [uniq_obs_lae, uniq_obs_oii, uniq_agn_with_lya, uniq_agn_without_lya, uniq_rest]
+        [uniq_obs_lae, uniq_rest]  
+#        [uniq_obs_lae, uniq_obs_oii, uniq_agn_with_lya, uniq_agn_without_lya, uniq_rest]
     )
 
     source_table2 = join(
@@ -899,40 +1103,28 @@ def main(argv=None):
 
     source_table = source_table2.copy()
 
-    del source_table2, oii_tab, lae_tab, rest_tab
-    del uniq_obs_oii, uniq_obs_lae, uniq_rest
+    del source_table2, lae_tab, rest_tab #oii_tab
+    del uniq_obs_lae, uniq_rest #uniq_obs_oii
 
     source_table["selected_det"] = source_table["selected_det"].filled(False)
 
-    # add luminosities
-
+    # add oii and lya fluxes and luminosities
+    source_table.add_column(Column(name="flux_lya", length=len(source_table)))
+    source_table.add_column(Column(name="flux_lya_err", length=len(source_table)))
+    source_table.add_column(Column(name="flux_oii", length=len(source_table)))
+    source_table.add_column(Column(name="flux_oii_err", length=len(source_table)))
+    
     source_table.add_column(Column(name="lum_lya", length=len(source_table)))
     source_table.add_column(Column(name="lum_lya_err", length=len(source_table)))
     source_table.add_column(Column(name="lum_oii", length=len(source_table)))
     source_table.add_column(Column(name="lum_oii_err", length=len(source_table)))
 
-    sel_oii = (source_table["selected_det"] == True) & (
-        source_table["source_type"] == "oii"
-    )
-
-    lum_dist = cosmo.luminosity_distance(source_table["z_hetdex"][sel_oii]).to(u.cm)
-    fac = 10 ** (-17) * 4.0 * np.pi * lum_dist**2
-
-    source_table["lum_oii"][sel_oii] = source_table["flux"][sel_oii] * fac
-    source_table["lum_oii_err"][sel_oii] = source_table["flux_err"][sel_oii] * fac
-
-    print("Number of OII assigned detections")
-    # print(np.sum(sel_oii), np.sum(sel_oii_aper), np.sum( (source_table['selected_det'] == True) & (source_table['source_type'] == 'oii')))
-    print(
-        np.sum(sel_oii),
-        np.sum(
-            (source_table["selected_det"] == True)
-            & (source_table["source_type"] == "oii")
-        ),
-    )
     sel_lae = (source_table["selected_det"] == True) & (
         source_table["source_type"] == "lae"
     )
+
+    source_table['flux_lya'][sel_lae] = source_table['flux'][sel_lae]
+    source_table['flux_lya_err'][sel_lae] = source_table['flux_err'][sel_lae]
 
     lum_dist = cosmo.luminosity_distance(source_table["z_hetdex"][sel_lae]).to(u.cm)
     fac = 10 ** (-17) * 4.0 * np.pi * lum_dist**2
@@ -943,16 +1135,117 @@ def main(argv=None):
     sel_agn_lya = (
         (source_table["selected_det"] == True)
         & (source_table["source_type"] == "agn")
-        & (source_table["line_id"] == "Lya")
+        & (source_table['z_hetdex']>1.88) & (source_table['z_hetdex']<3.55)
+        & (source_table["line_id"] == "Lya")                                                                                    
     )
 
+    source_table['flux_lya'][sel_agn_lya] = source_table['flux'][sel_agn_lya]
+    source_table['flux_lya_err'][sel_agn_lya] = source_table['flux_err'][sel_agn_lya]
+
+    sel_agn_lya = (
+        (source_table["selected_det"] == True)
+        & (source_table["source_type"] == "agn")
+        & (source_table['z_hetdex']>1.88) & (source_table['z_hetdex']<3.55)
+        & (source_table['flux_LyA_cxliu']>0) # use Chenxu's LyA fluxes for the selected ID if available
+    )
+    
+    source_table['flux_lya'][sel_agn_lya] = source_table['flux_LyA_cxliu'][sel_agn_lya]
+    
+    sel_agn_lya_missing_flux = (
+        (source_table["selected_det"] == True)
+        & (source_table["source_type"] == "agn")
+        & (source_table['z_hetdex']>1.88) & (source_table['z_hetdex']<3.55)
+        & (source_table['flux_lya'] == 0.0)
+    )
+
+    # for remaining AGN get flux_lya from other detectid in source group
+    print('Getting flux_lya for AGN with missing values. N={}'.format(np.sum(sel_agn_lya_missing_flux)))    
+    t0=time.time()
+    for sid in source_table['source_id'][sel_agn_lya_missing_flux]:
+        # get max flux_LyA_cxliu for sources that didn't find  a match with the initial logic
+        lya_agn = np.max( source_table['flux_LyA_cxliu'][ source_table['source_id']==sid])
+        
+        if lya_agn <= 0:
+            if np.sum( (source_table['source_id']==sid) * (source_table['line_id']=='Lya')) == 0:
+                lya_agn = -99.8
+            else:
+                lya_agn = np.max( source_table['flux'][ (source_table['source_id']==sid) * (source_table['line_id']=='Lya')])
+
+        sel_sid = (source_table['source_id']==sid) * (source_table['selected_det']==True)
+        source_table['flux_lya'][sel_sid] = lya_agn
+
+    print('Done getting updated flux_lya in {:5.3f} min'.format( (t1-t0)/60))
+    
+    sel_agn_lya = (
+        (source_table["selected_det"] == True)
+        & (source_table["source_type"] == "agn")
+        & (source_table['z_hetdex']>1.88) & (source_table['z_hetdex']<3.55)
+        )
+
+    sel_no_error = source_table['flux_lya_err'] == 0.0
+    # force 20% error on any fluxes without uncertainties
+    source_table['flux_lya_err'][sel_agn_lya*sel_no_error] = 0.2 * source_table['flux_lya'][sel_agn_lya*sel_no_error]
+    
     lum_dist = cosmo.luminosity_distance(source_table["z_hetdex"][sel_agn_lya]).to(u.cm)
     fac = 10 ** (-17) * 4.0 * np.pi * lum_dist**2
 
-    source_table["lum_lya"][sel_agn_lya] = source_table["flux"][sel_agn_lya] * fac
+    source_table["lum_lya"][sel_agn_lya] = source_table["flux_lya"][sel_agn_lya] * fac
     source_table["lum_lya_err"][sel_agn_lya] = (
-        source_table["flux_err"][sel_agn_lya] * fac
+        source_table["flux_lya_err"][sel_agn_lya] * fac
     )
+
+    # first fill all selected dets wtih the original flux value 
+    sel_oii = (source_table["selected_det"] == True) & (
+    source_table["source_type"] == "oii"
+    )
+
+    source_table["flag_aper"] = -1
+    
+    source_table['flux_oii'][sel_oii] = source_table['flux'][sel_oii]
+    source_table['flux_oii_err'][sel_oii] = source_table['flux_err'][sel_oii]
+    source_table['flag_aper'][sel_oii] = 0
+
+    # oii lum comes from flux_aper unless flux_aper is negative or **flux_aper < flux ** added for 5.0.2 catalog 2025-09-25 by EMC
+
+    sel_oii_aper = (
+        (source_table["selected_det"] == True)
+        & (source_table["source_type"] == "oii")
+        & (source_table["flux_aper"] > 0)
+        & (source_table["major"] >= 2)
+        & (source_table["flux_aper"] > source_table["flux"])
+    )
+
+    source_table['flux_oii'][sel_oii_aper] = source_table['flux_aper'][sel_oii_aper]
+    source_table['flux_oii_err'][sel_oii_aper] = source_table['flux_aper_err'][sel_oii_aper]
+    source_table["flag_aper"][sel_oii_aper] = 1
+
+    sel_oii_missing_flux = (source_table['source_type']=='oii') * (source_table['selected_det']==True) * (source_table['flux_oii']<=0) 
+
+    print('Updating OII fluxes for missing values')
+
+    t0 = time.time()
+    sids_missing_oii = source_table['source_id'][sel_oii_missing_flux]
+    P = Pool(8)
+    res = P.map( update_oii, sids_missing_oii)
+    P.close()
+
+    for sid, r in zip(sids_missing_oii, res):
+
+        try:
+            sel_sid = (source_table['source_id']==sid) * (source_table['selected_det']==True)
+            source_table['flux_oii'][sel_sid] = r[0]
+            source_table['flux_oii_err'][sel_sid] =0.2* r[0]
+            source_table['flag_aper'][sel_sid] = r[1]
+        except:
+            print('Could not assign missing OII flux for {} {} {}'.format( sid, r[0], r[1]))
+    t1=time.time()
+    print('Done updating OII fluxes in {:3.2f} min'.format( (t1-t0)/60))
+    
+    lum_dist = cosmo.luminosity_distance(source_table["z_hetdex"]).to(u.cm)
+    fac = 10 ** (-17) * 4.0 * np.pi * lum_dist**2
+
+    source_table["lum_oii"] = source_table["flux_oii"] * fac
+    source_table["lum_oii_err"] = source_table["flux_oii_err"] * fac
 
     source_table.sort("source_id")
 
@@ -965,7 +1258,7 @@ def main(argv=None):
         ),
         keys="detectid",
     )
-    
+
     dee["dee_prob"] = dee["rf_number"].filled(-1)
     sel_bad = (dee["tsne_x"] > 5) & (dee["tsne_y"] < 0)
     dee["flag_dee_tsne"] = np.invert(sel_bad).astype(int)
@@ -983,32 +1276,32 @@ def main(argv=None):
 
     # add 2D profile fits
 
-    fit_2D = Table.read(
-        "/scratch/projects/hetdex/hdr5/catalogs/fit2D_5.0.0.fits"  
-    )
-#    fit_2D.rename_column('sn_max', 'sn_moffat')
-    fit_2D.rename_column('linewidth', 'linewidth_line')
-    source_table2 = join(
-        combined, fit_2D, join_type="left"
-    )
+    fit_2D = Table.read("/scratch/projects/hetdex/hdr5/catalogs/fit2D_5.0.0.fits")
+    #    fit_2D.rename_column('sn_max', 'sn_moffat')
+    fit_2D.rename_column("linewidth", "linewidth_line")
+    source_table2 = join(combined, fit_2D, join_type="left")
 
     source_table = unique(source_table2, keys="detectid")
     # finalize flags
 
     # add in update dee_prob values
-    dee_prob_update = Table.read('/scratch/projects/hetdex/hdr5/catalogs/ml/dee_prob_257K_Mar_2025.csv')
-    dee_prob_update.rename_column('detect_id', 'detectid')
-    dee_prob_update.rename_column('rf_number','dee_prob_latest')
-    
-    source_table2 = join( source_table, dee_prob_update, keys='detectid', join_type='left')
+    dee_prob_update = Table.read(
+        "/scratch/projects/hetdex/hdr5/catalogs/ml/dee_prob_257K_Mar_2025.csv"
+    )
+    dee_prob_update.rename_column("detect_id", "detectid")
+    dee_prob_update.rename_column("rf_number", "dee_prob_latest")
+
+    source_table2 = join(
+        source_table, dee_prob_update, keys="detectid", join_type="left"
+    )
 
     # update where dee_prob_latest values exist and nothing exists for previous classifications
-    sel_update = (source_table2['dee_prob_latest'].mask == False)
-    source_table2['dee_prob'][ sel_update ] = source_table2['dee_prob_latest'][ sel_update ]
-    source_table2.remove_column('dee_prob_latest')
-    
+    sel_update = source_table2["dee_prob_latest"].mask == False
+    source_table2["dee_prob"][sel_update] = source_table2["dee_prob_latest"][sel_update]
+    source_table2.remove_column("dee_prob_latest")
+
     source_table = source_table2.copy()
-    
+
     source_table["dee_prob"] = source_table["dee_prob"].filled(-1)
     source_table["flag_dee"] = source_table["flag_dee"].filled(-1)
     source_table["flag_dee"][source_table["source_type"] == "agn"] = 1
@@ -1018,7 +1311,7 @@ def main(argv=None):
     source_table["flag_lowlw"] = (
         (source_table["linewidth"] >= 1.7) | (source_table["det_type"] == "cont")
     ).astype(int)
-    
+
     source_table["flag_apcor"] = np.invert(source_table["apcor"] < 0.45) & (
         source_table["det_type"] == "line"
     ).astype(int)
@@ -1028,8 +1321,8 @@ def main(argv=None):
     # also keep all continuum sources
     source_table["flag_apcor"][source_table["det_type"] == "cont"] = 1
 
-    source_table['flag_continuum'] = (source_table['continuum'] > -1).astype(int)
-    
+    source_table["flag_continuum"] = (source_table["continuum"] > -1).astype(int)
+
     source_table["flag_wave"] = (
         (source_table["wave"] >= 3510) * (source_table["wave"] <= 5496)
     ).astype(int)
@@ -1149,6 +1442,11 @@ def main(argv=None):
 
     source_table.add_column(Column(flag_erin, name="flag_erin_cuts", dtype=int))
 
+    sel_faint_cont = (source_table['det_type'] == 'cont') * (source_table['gmag'] > 22)
+    
+    source_table['flag_faint_cont'] = 1
+    source_table['flag_faint_cont'][sel_faint_cont] = 0
+    
     flag_best = (
         source_table["flag_badamp"]
         * source_table["flag_badfib"]
@@ -1156,7 +1454,7 @@ def main(argv=None):
         * source_table["flag_apcor"]
         * source_table["flag_wave"]
         * source_table["flag_3540"]
-        * source_table['flag_continuum']
+        * source_table["flag_continuum"]
         * source_table["flag_baddet"]
         * source_table["flag_meteor"]
         * source_table["flag_largegal"]
@@ -1164,32 +1462,37 @@ def main(argv=None):
         * source_table["flag_chi2fib"]
         * source_table["flag_pixmask"]
         * source_table["flag_lowlw"]
-        * source_table['flag_satellite']
-        * source_table['flag_cal']
+        * source_table["flag_satellite"]
+        * source_table["flag_cal"]
         * np.invert(source_table["flag_dee"] == 0)
+        * source_table['flag_faint_cont']
     )
     # update all AGN detections inspected by Chenxu to good
     flag_best[source_table["z_agn"] > 0] = 1
 
-    flag_best  = flag_best.filled(1)
-    
+    flag_best = flag_best.filled(1)
+
     source_table.add_column(Column(flag_best, name="flag_best", dtype=int), index=3)
 
-    rres_vals = Table.read('/scratch/projects/hetdex/hdr5/catalogs/all_rres_5.0.1.fits')
+    rres_vals = Table.read("/scratch/projects/hetdex/hdr5/catalogs/all_rres_5.0.1.fits")
 
-    source_table2 = join(source_table, rres_vals, join_type='left', keys='detectid')
+    source_table2 = join(source_table, rres_vals, join_type="left", keys="detectid")
 
-    print('Table sizes before and after rres join: {} {}'.format(len(source_table), len(source_table2)))
+    print(
+        "Table sizes before and after rres join: {} {}".format(
+            len(source_table), len(source_table2)
+        )
+    )
     source_table = source_table2
 
-    sel_rres = source_table['rres_line']>=1.1
-    source_table['sn_rres'] = source_table['sn']
-    source_table['sn_rres'][sel_rres] = source_table['sn'][sel_rres]/source_table['rres_line'][sel_rres]
-    source_table.write('tmp.tab', format='ascii', overwrite=True)
-
+    sel_rres = source_table["rres_line"] >= 1.1
+    source_table["sn_rres"] = source_table["sn"]
+    source_table["sn_rres"][sel_rres] = (
+        source_table["sn"][sel_rres] / source_table["rres_line"][sel_rres]
+    )
+    source_table.write("tmp.tab", format="ascii", overwrite=True)
 
     for col in source_table.columns:
-
         if source_table[col].dtype == ">f8":
             if col in ["lum_lya", "lum_lya_err", "lum_oii", "lum_oii_err"]:
                 pass
@@ -1211,7 +1514,7 @@ def main(argv=None):
                 pass
         elif source_table[col].dtype == "bool":
             continue
-        elif col in ['rres_line', 'rres_cont']:
+        elif col in ["rres_line", "rres_cont"]:
             source_table[col] = source_table.filled(1.0)
         else:
             try:
@@ -1220,57 +1523,70 @@ def main(argv=None):
                 pass
 
     import astropy
-    
+
     for c in source_table.colnames:
         if isinstance(source_table[c], astropy.table.column.MaskedColumn):
             print(f"Converting masked column: {c}")
-            
-            if 'flag' in c:
-                source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=1)
+
+            if "flag" in c:
+                source_table[c] = np.nan_to_num(np.array(source_table[c]), nan=1)
             else:
-                source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=-99.9)
+                source_table[c] = np.nan_to_num(np.array(source_table[c]), nan=-99.9)
     source_table.write("source_catalog_{}.yy.fits".format(version), overwrite=True)
 
-    import joblib 
+    import joblib
 
-    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
+    clf = joblib.load(
+        "/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib"
+    )
 
-    X = np.zeros(shape=( len(source_table), len( clf.columns) ))
+    X = np.zeros(shape=(len(source_table), len(clf.columns)))
 
-    for i in range(len( clf.columns)):
-        X[:, i]= source_table[clf.columns[i]]
-    
-    p_conf = clf.predict_proba(X)[:,1]
+    for i in range(len(clf.columns)):
+        X[:, i] = source_table[clf.columns[i]]
 
-    source_table['p_conf'] = 1.0
-    sel_sample = (source_table['gmag']> 22) * (source_table['sn'] < 6.5) * (source_table['agn_flag']==-1)
-    source_table['p_conf'][sel_sample] = p_conf[sel_sample]
+    p_conf = clf.predict_proba(X)[:, 1]
 
-    clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_highsn.joblib")
-    X = np.zeros(shape=( len(source_table), len( clf.columns) ))
+    source_table["p_conf"] = 1.0
+    sel_sample = (
+        (source_table["gmag"] > 22)
+        * (source_table["sn"] < 6.5)
+        * (source_table["agn_flag"] == -1)
+    )
+    source_table["p_conf"][sel_sample] = p_conf[sel_sample]
 
-    for i in range(len( clf.columns)):
-        X[:, i]= source_table[clf.columns[i]]
+    clf = joblib.load(
+        "/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_highsn.joblib"
+    )
+    X = np.zeros(shape=(len(source_table), len(clf.columns)))
 
-    p_real = clf.predict_proba(X)[:,1]
-    sel_sample = (source_table['gmag']> 22) * (source_table['sn'] >= 6.5) * (source_table['agn_flag']==-1)
-    source_table['p_conf'][sel_sample] = p_conf[sel_sample]
+    for i in range(len(clf.columns)):
+        X[:, i] = source_table[clf.columns[i]]
+
+    p_real = clf.predict_proba(X)[:, 1]
+    sel_sample = (
+        (source_table["gmag"] > 22)
+        * (source_table["sn"] >= 6.5)
+        * (source_table["agn_flag"] == -1)
+    )
+    source_table["p_conf"][sel_sample] = p_conf[sel_sample]
 
     # remove nonsense metadata
     source_table.meta = {}
 
-    for s in [20231014013,
-              20231017015,
-              20231104011,
-              20231104015,
-              20231108013,
-              20231204011,
-              20231206015]:
-        source_table['field'][ source_table['shotid'] == s] = "dex-fall"
+    for s in [
+        20231014013,
+        20231017015,
+        20231104011,
+        20231104015,
+        20231108013,
+        20231204011,
+        20231206015,
+    ]:
+        source_table["field"][source_table["shotid"] == s] = "dex-fall"
 
-    sel_other = source_table["field"] == "other"                                                         
-    sel_notother = np.invert(sel_other)                                                                   
-
+    sel_other = source_table["field"] == "other"
+    sel_notother = np.invert(sel_other)
 
     source_table[sel_notother].write(
         "source_catalog_{}.z.fits".format(version), overwrite=True
@@ -1281,6 +1597,7 @@ def main(argv=None):
     source_table[sel_other].write(
         "source_catalog_{}_other.fits".format(version), overwrite=True
     )
+
 
 if __name__ == "__main__":
     main()
