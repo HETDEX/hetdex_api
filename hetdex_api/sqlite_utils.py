@@ -35,6 +35,12 @@ except:
 #  xx6 = broad emission lines (still in with the xx0 detections as of hdr2.1)
 #  xx9 = continuum sources
 BASE_DICT_DB_PATHS = {
+                  #parallels all start with the 2 digit year, but are of different length, so just use '0' here
+                  0: [ "/scratch/03261/polonius/parallel/detect/image_db", #this is temporary for testing
+                       "/scratch/projects/hetdex/parallel/detect/image_db",
+                       "/home/jovyan/Hobby-Eberly-Telesco/parallel/detect/image_db",
+                       "/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/detect/image_db",
+                     ],
                  10: ["/scratch/projects/hetdex/hdr1/detect/image_db",
                       "/home/jovyan/Hobby-Eberly-Telesco/hdr1/detect/image_db",
                       "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr1/detect/image_db",
@@ -62,7 +68,7 @@ BASE_DICT_DB_PATHS = {
                       "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr4/detect/image_db",
                       "/scratch/03946/hetdex/hdr4/detect/image_db",
                       ],
-                50: ["/scratch/projects/hetdex/hdr5/detect/image_db",
+                 50: ["/scratch/projects/hetdex/hdr5/detect/image_db",
                      "/home/jovyan/Hobby-Eberly-Telesco/hdr5/detect/image_db",
                      "/corral-repl/utexas/Hobby-Eberly-Telesco/hdr5/detect/image_db",
                      "/scratch/03946/hetdex/hdr5/detect/image_db",
@@ -78,13 +84,20 @@ BASE_DICT_DB_PATHS = {
 #
 for v in BASE_DICT_DB_PATHS.keys():
     try:
-        release_number = v/10.0
-        if v % 10 == 0:
-            release_string = "hdr{:d}".format(int(release_number))
-        else:
-            release_string = "hdr{:2.1f}".format(release_number)
+        if v != 0:
+            release_number = v/10.0
+            if v % 10 == 0:
+                release_string = "hdr{:d}".format(int(release_number))
+            else:
+                release_string = "hdr{:2.1f}".format(release_number)
 
-        BASE_DICT_DB_PATHS[v].insert(0,op.join(HDRconfig(survey=release_string).elix_dir))
+            BASE_DICT_DB_PATHS[v].insert(0, op.join(HDRconfig(survey=release_string).elix_dir))
+        # else: #these are parallels beginning with two digit year (so 17 to 25 (for 2017 to 2025), so far)
+        #     #Do nothing. Keep just the paths as they are. Do not add any new paths.
+        #     release_string = "par"
+        #     release_number = 0
+
+
     except:# Exception as e:
         #print(e)
         continue
@@ -107,8 +120,15 @@ def get_elixer_report_db_path(detectid,report_type="report",extra_db_paths=[]):
     detect_prefix = None
     db_path = None
     try:
-        detect_prefix = int(np.int64(detectid) / 1e5)
-        hdr_prefix = int(np.int64(detectid)/1e8)
+
+        #could be the YYMMDDSSS##### format (14+ characters, normal is 14 but can run long if many detects)
+        if len(str(detectid)) >= 14:
+            detect_prefix = int(str(detectid)[0:4]) #YYMM ... notice since we start in (20)17, there are no leading 0's
+            hdr_prefix = 0
+        else:
+            #these are for the standard HETDEX IDs that are 9 characters long
+            detect_prefix = int(np.int64(detectid) / 1e5)
+            hdr_prefix = int(np.int64(detectid)/1e8)
 
         #keep the leading underscore
         if report_type == "report":
@@ -145,7 +165,7 @@ def get_elixer_report_db_path(detectid,report_type="report",extra_db_paths=[]):
 
 def get_db_connection(fn,readonly=True):
     """
-    return a SQLite3 databse connection object for the provide databse filename
+    return a SQLite3 databse connection object for the provided databse filename
 
     assumes file exists (will trap exception if not and return None)
     :param fn:
