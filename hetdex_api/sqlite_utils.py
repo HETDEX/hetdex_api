@@ -237,6 +237,48 @@ def fetch_elixer_report_image(conn,detectid):
 
     return None
 
+def delete_elixer_report_image(conn,detectid):
+    """
+    Delete a single image (image type (png, jpg) and report type (report, neighborhood, mini)
+    depends on the database connection
+
+    :param conn: a sqlite3.Connection object or a path to a database
+    :param detectid: HETDEX detectid (int64 or string)
+    :return: None or single image
+    """
+
+    try:
+        keep_conn_open = True
+        if type(conn) != sqlite3.Connection:
+            #could be a file
+            if op.isfile(conn):
+                conn = get_db_connection(conn,readonly=False)
+
+                if type(conn) != sqlite3.Connection:
+                    print("Invalid databse connection.")
+                    return
+                keep_conn_open = False
+            else:
+                print("Invalid database connection.")
+                return
+
+        cursor = conn.cursor()
+        sql_read_blob = """DELETE FROM report where detectid = ?"""
+
+        cursor.execute(sql_read_blob, (str(detectid),))
+        print(f"delete rows affected {cursor.rowcount}")
+
+        #get back a list of tuples (each list entry is one row, the tuple is the row, so
+        #we want the 1st entry (detectid is unique, so should be one or none, and the second column which is the image)
+        cursor.close()
+        conn.commit()
+        if not keep_conn_open:
+            conn.close()
+
+    except Error as e:
+        print(e)
+
+    return
 
 def build_elixer_report_image_db(db_name,img_dir,img_regex):
     """
@@ -481,6 +523,32 @@ class ConnMgr():
 
         return conn
 
+    def get_write_connection(self,detectid,report_type="report"): #special case, allows deletion
+        conn = None
+        try:
+            if not report_type in REPORT_TYPES:
+                return None
+
+            detect_prefix = int(np.int64(detectid) / 1e5)
+            dkey = str(detect_prefix)+report_type
+            if dkey in self.conn_dict.keys():
+                conn = self.conn_dict[dkey]
+            else:
+                try:
+                    #all ConnMgr connections are read-only (uri=True)
+                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type,
+                                                                       extra_db_paths=self.extra_db_paths),readonly=False)
+                    if type(conn) != sqlite3.Connection:
+                        conn = None
+                    else:
+                        self.conn_dict[dkey] = conn
+                except Exception as e:
+                    print(e)
+        except Exception as e:
+            print(e)
+
+        return conn
+
     def close_conns(self):
         for key in self.conn_dict.keys():
             try:
@@ -511,3 +579,25 @@ class ConnMgr():
             raise
 
         return img
+
+    def delete_image(self,detectid,report_type="report"):
+        """
+        wrapper just to make code cleaner
+
+        Note: this SHOULD fail if the actual user does not have write access to the db file
+        This would be the normal case for those under the HETDEX user ownership
+
+        :param detectid:
+        :param report_type:
+        :return:
+        """
+
+        try:
+            conn = self.get_write_connection(detectid,report_type)
+            if type(conn) == sqlite3.Connection:
+                delete_elixer_report_image(conn,detectid)
+
+        except Exception as e:
+            print(e)
+            raise
+
