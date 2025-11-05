@@ -1493,7 +1493,11 @@ class ElixerWidget:
         #     self.detectbox.value = self.detectid[idx]
         #     return
 
-        self.updateCatalog.disabled = False
+        #is this a parallel science detectid format? or rather, NOT a HETDEX ID value
+        if self.detectbox.value is not None and len(self.detectbox.value) != 10:
+            self.updateCatalog.disabled = True
+        else:
+            self.updateCatalog.disabled = False
         self.manual_update_dialog_active = False
         #if idx is not None:
         #    self.z_box.value = self.z[idx]  # -1.0
