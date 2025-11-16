@@ -162,6 +162,45 @@ def get_elixer_report_db_path(detectid,report_type="report",extra_db_paths=[]):
     return db_path
 
 
+def get_parallel_elixer_report_db_path(yymm,report_type="report", extra_db_paths=[]):
+    """
+    Return the top (first found) path to database file for parallel science shots
+
+    :param report_type: choose one of "report" (normal ELiXer report image) [default]
+                               "nei" (ELiXer neighborhood image)
+                               "mini" (ELiXer mini-report image for phone app)
+    :return: None or database filename
+
+    """
+
+    db_path = None
+    try:
+        # keep the leading underscore
+        if report_type == "report":
+            ext = ""
+        elif report_type == "nei":
+            ext = "_nei"
+        elif report_type == "mini":
+            ext = "_mini"
+        else:  # assume same as report
+            ext = ""
+
+        paths = []
+        if len(extra_db_paths) > 0:
+            paths += extra_db_paths
+
+        paths += BASE_DICT_DB_PATHS[0]
+        for p in paths:
+            if op.exists(p):
+                fqfn = op.join(p, FILENAME_PREFIX + str(yymm) + ext + ".db")
+                if op.isfile(fqfn):
+                    db_path = fqfn
+                break
+
+    except Error as e:
+        print(e)
+
+    return db_path
 
 def get_db_connection(fn,readonly=True):
     """
@@ -266,6 +305,50 @@ def delete_elixer_report_image(conn,detectid):
         sql_read_blob = """DELETE FROM report where detectid = ?"""
 
         cursor.execute(sql_read_blob, (str(detectid),))
+        print(f"delete rows affected {cursor.rowcount}")
+
+        #get back a list of tuples (each list entry is one row, the tuple is the row, so
+        #we want the 1st entry (detectid is unique, so should be one or none, and the second column which is the image)
+        cursor.close()
+        conn.commit()
+        if not keep_conn_open:
+            conn.close()
+
+    except Error as e:
+        print(e)
+
+    return
+
+def delete_all_reports_for_parallel_shot(conn,shotid):
+    """
+    Delete a single image (image type (png, jpg) and report type (report, neighborhood, mini)
+    depends on the database connection
+
+    :param conn: a sqlite3.Connection object or a path to a database
+    :param shotid: HETDEX detectid (int64 or string)
+    :return: None or single image
+    """
+
+    try:
+        keep_conn_open = True
+        if type(conn) != sqlite3.Connection:
+            #could be a file
+            if op.isfile(conn):
+                conn = get_db_connection(conn,readonly=False)
+
+                if type(conn) != sqlite3.Connection:
+                    print("Invalid databse connection.")
+                    return
+                keep_conn_open = False
+            else:
+                print("Invalid database connection.")
+                return
+
+        cursor = conn.cursor()
+        sql_read_blob = """DELETE FROM report where detectid LIKE ?"""
+        wild_match = f"{str(shotid)[2:11]}%"
+
+        cursor.execute(sql_read_blob, (wild_match,))
         print(f"delete rows affected {cursor.rowcount}")
 
         #get back a list of tuples (each list entry is one row, the tuple is the row, so
@@ -523,21 +606,53 @@ class ConnMgr():
 
         return conn
 
-    def get_write_connection(self,detectid,report_type="report"): #special case, allows deletion
+    def get_write_connection(self,shotid=None,detectid=None,report_type="report"): #special case, allows deletion
+        """
+
+        Parameters
+        ----------
+        shotid  : numeric ONLY version, should ONLY use this if a parallel shot, otherwise use a detectid
+        detectid
+        report_type
+
+        Returns
+        -------
+
+        """
         conn = None
         try:
             if not report_type in REPORT_TYPES:
                 return None
 
-            detect_prefix = int(np.int64(detectid) / 1e5)
+            detect_prefix = None
+            parallel_sci = False
+            if shotid is not None:
+                try:
+                    #strip off the leading two digits of the year
+                    #the next 4 digits are the prefix YYMM to identify the correct database
+                    detect_prefix = int(str(shotid)[2:6]) #aka the YYMM
+                    parallel_sci = True
+                except Exception as e:
+                    print(e)
+                    detect_prefix = None
+
+            if detect_prefix is None:
+                detect_prefix = int(np.int64(detectid) / 1e5)
+
             dkey = str(detect_prefix)+report_type
             if dkey in self.conn_dict.keys():
                 conn = self.conn_dict[dkey]
             else:
                 try:
                     #all ConnMgr connections are read-only (uri=True)
-                    conn = get_db_connection(get_elixer_report_db_path(detectid,report_type,
+                    if parallel_sci:
+                        conn = get_db_connection(get_parallel_elixer_report_db_path(detect_prefix,report_type,
                                                                        extra_db_paths=self.extra_db_paths),readonly=False)
+                    else:
+                        conn = get_db_connection(get_elixer_report_db_path(detect_prefix, report_type,
+                                                                           extra_db_paths=self.extra_db_paths),
+                                                                           readonly=False)
+
                     if type(conn) != sqlite3.Connection:
                         conn = None
                     else:
@@ -593,7 +708,7 @@ class ConnMgr():
         """
 
         try:
-            conn = self.get_write_connection(detectid,report_type)
+            conn = self.get_write_connection(detectid=detectid,report_type=report_type)
             if type(conn) == sqlite3.Connection:
                 delete_elixer_report_image(conn,detectid)
 
@@ -601,3 +716,27 @@ class ConnMgr():
             print(e)
             raise
 
+    def delete_parallel_shot(self,shotid,report_type="report"):
+        """
+        delete all the detections of this report type for the giving shot
+
+        ASSUMES parallel shot naming with the YYMMDDSSS prefix
+
+        Parameters
+        ----------
+        shotid
+        report_type
+
+        Returns
+        -------
+
+        """
+
+        try:
+            conn = self.get_write_connection(shotid=shotid,report_type=report_type)
+            if type(conn) == sqlite3.Connection:
+                delete_all_reports_for_parallel_shot(conn,shotid)
+
+        except Exception as e:
+            print(e)
+            raise
