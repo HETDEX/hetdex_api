@@ -23,7 +23,6 @@ from hetdex_api.config import HDRconfig
 from astropy.nddata import bitmask
 from astropy.nddata.bitmask import BitFlagNameMap
 
-WARN_RESCOR_EFFICIENCY = True #only warn once
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -651,8 +650,6 @@ def get_fibers_table(
 
     """
 
-    global WARN_RESCOR_EFFICIENCY
-
     if verbose:
         print("Grabbing fibers from {}".format(shot))
 
@@ -673,9 +670,8 @@ def get_fibers_table(
 
         if add_rescor:
             if F is not None and F.rescorh5 is None:
-                if WARN_RESCOR_EFFICIENCY:
+                if verbose:
                     print('Call preloaded Fibers class object with add_rescor=True option for best efficiency.')
-                    WARN_RESCOR_EFFICIENCY = False
                 update_F = True
 
         if mask_version is None:
