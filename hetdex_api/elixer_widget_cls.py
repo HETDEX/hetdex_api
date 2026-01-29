@@ -185,6 +185,7 @@ class ElixerWidget:
         counterpart=False,
         detect_h5=None,
         elixer_h5=None,
+        ssr_h5=None,
         cutoutpath=None,
         show_cls_buttons=ALLOW_CLASSIFICATION_BUTTONS
     ):
@@ -228,6 +229,36 @@ class ElixerWidget:
         self.manual_update_dialog_active = False
         self.line_wave_z_update_in_progress = False
 
+        self.elix_dir = None
+        self.ELIXER_H5 = None
+
+        self.ssr_h5fn = ssr_h5 #keeping the "_h5" for consistency in parameter list
+                               #but this is the filename (so assign to _h5fn
+        #single shot reduction h5 file (sort of a combination of shot h5, elixer h5 and elixer images)
+        self.ssr_h5 = None #this will be the actual h5 opened later
+
+        if self.ssr_h5fn is not None:
+            if op.exists(self.ssr_h5fn):
+                try:
+                    if self.ssr_h5 is not None:
+                        try:
+                            self.ssr_h5.close()
+                            self.ssr_h5 = None
+                        except:
+                            pass
+                    self.ssr_h5 = tables.open_file(self.ssr_h5fn,mode='r')
+
+                    if self.ssr_h5.__contains__("/Detections"): #assume this is good:
+                        self.ELIXER_H5 = self.ssr_h5
+                    self.detectid = self.ssr_h5.root.Detections.cols.detectid[:]
+                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                    self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                    self.z = np.full(np.size(self.detectid), -1.0)
+                    self.comment = np.full(np.size(self.detectid), "?", dtype="|S80").astype(str)
+                    self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+                except:
+                    print(f"Could not open ssr_h5: {self.ssr_h5fn}")
+                    self.ssr_h5 = None
 
         # try:
         #     self.HETDEX_API_CONFIG.elixerh5
@@ -264,13 +295,12 @@ class ElixerWidget:
                     print(f"Cannot open: {h5fn}")
                     self.source_catalog_h5 = None
             else:  # note: status box note created yet
-                print(f"Does not exist: {h5fn}")
+                #print(f"Does not exist: {h5fn}")
                 self.source_catalog_h5 = None
         except:
             self.source_catalog_h5 = None
 
-        self.elix_dir = None
-        self.ELIXER_H5 = None
+
         
         if img_dir is not None:
             if op.exists(img_dir):
@@ -392,29 +422,32 @@ class ElixerWidget:
             elif detectlist is None:
                 global HETDEX_DETECT_HDF5_HANDLE
 
-                if HETDEX_DETECT_HDF5_HANDLE is None:
-                    try:
-                        print( f"Reading from ({HETDEX_DETECT_HDF5_FN}). ")
-                        HETDEX_DETECT_HDF5_HANDLE = tables.open_file(
-                            HETDEX_DETECT_HDF5_FN, "r"
-                        )
-                    except:
-                        print("Could not open detections database")
-
-                if HETDEX_DETECT_HDF5_HANDLE is not None:
-                    print(f"Attempting to load all detections. This may take a while ...")
-                    #these must already be unique so no need to waste time through np.unique
-                    self.detectid = HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
-                    self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
-                    self.flag = np.zeros(np.size(self.detectid), dtype=int)
-                    self.z = np.full(np.size(self.detectid), -1.0)
-                    self.comment = np.full(
-                        np.size(self.detectid), "?", dtype="|S80"
-                    ).astype(str)
-                    self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
-
+                if self.ssr_h5fn is not None: #this is what we will use a bit later
+                    pass
                 else:
-                    self.detectid = []
+                    if HETDEX_DETECT_HDF5_HANDLE is None:
+                        try:
+                            print( f"Reading from ({HETDEX_DETECT_HDF5_FN}). ")
+                            HETDEX_DETECT_HDF5_HANDLE = tables.open_file(
+                                HETDEX_DETECT_HDF5_FN, "r"
+                            )
+                        except:
+                            print("Could not open detections database")
+
+                    if HETDEX_DETECT_HDF5_HANDLE is not None:
+                        print(f"Attempting to load all detections. This may take a while ...")
+                        #these must already be unique so no need to waste time through np.unique
+                        self.detectid = HETDEX_DETECT_HDF5_HANDLE.root.Detections.cols.detectid[:]
+                        self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
+                        self.flag = np.zeros(np.size(self.detectid), dtype=int)
+                        self.z = np.full(np.size(self.detectid), -1.0)
+                        self.comment = np.full(
+                            np.size(self.detectid), "?", dtype="|S80"
+                        ).astype(str)
+                        self.counterpart = np.full(np.size(self.detectid), -1, dtype=int)
+
+                    else:
+                        self.detectid = []
             else: #detectlist is specified
                 self.detectid = np.array(detectlist).flatten()
                 try:
@@ -634,12 +667,26 @@ class ElixerWidget:
                 # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid),detectid)))
                 # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid),detectid)))
 
-                 #added 2023-11-02 by EMC   
+                 #added 2023-11-02 by EMC
+                 #tweaked 2026-01-29 by DMD
+                got_image = False
                 if self.cutoutpath is not None:
-                    display(Image(filename=op.join(self.cutoutpath, '{}.png'.format(detectid))))
+                    img_fn = op.join(self.cutoutpath, '{}.png'.format(detectid))
+                    if op.exists(img_fn):
+                        got_image = True
+                        display(Image(filename=img_fn))
+                        self.last_good_detectid = detectid
 
-                display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
-                self.last_good_detectid = detectid
+                if not got_image:
+                    img = self.get_elixer_report_ssr(detectid)
+                    if img is not None:
+                        got_image = True
+                        display(img)
+                        self.last_good_detectid = detectid
+
+                if not got_image:
+                    display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+                    self.last_good_detectid = detectid
 
             except Exception as e:
 
@@ -676,22 +723,44 @@ class ElixerWidget:
             # pass
             # print("Cannot load ELiXer Report image: ", str(detectid))
 
+        # this is already done earlier
+        # if self.ssr_h5fn is not None:
+        #     if op.exists(self.ssr_h5fn):
+        #         try:
+        #             if self.ssr_h5 is not None:
+        #                 try:
+        #                     self.ssr_h5.close()
+        #                     self.ssr_h5 = None
+        #                 except:
+        #                     pass
+        #             self.ssr_h5 = tables.open_file(self.ssr_h5fn,mode='r')
+        #         except:
+        #             print(f"Could not open ssr_h5: {self.ssr_h5fn}")
+        #             self.ssr_h5 = None
+
         if self.ELIXER_H5 is None:
-            if self.HETDEX_ELIXER_HDF5_FN is not None and op.exists(self.HETDEX_ELIXER_HDF5_FN):
-                try:
-                    self.ELIXER_H5 = tables.open_file(self.HETDEX_ELIXER_HDF5_FN, "r")
-                except Exception as e:
-                    self.status_box.value = str(e) + "\n" + traceback.format_exc()
-                    self.ELIXER_H5 = None
+
+            if self.ssr_h5 is not None: #use it for ELIXER_H5 instead (it has the same core tables)
+                self.ELIXER_H5 = self.ssr_h5
+                #print("DEBUG: set ELIXER_H5 to ssr_H5")
             else:
-                pass
-                # print('No counterparts found in ' + self.HETDEX_ELIXER_HDF5_FN)
-                # return
+                if self.HETDEX_ELIXER_HDF5_FN is not None and op.exists(self.HETDEX_ELIXER_HDF5_FN):
+                    try:
+                        #print("DEBUG: set ELIXER_H5 to new open HETDEX_ELIXER_HDF5_FN")
+                        self.ELIXER_H5 = tables.open_file(self.HETDEX_ELIXER_HDF5_FN, "r")
+                    except Exception as e:
+                        self.status_box.value = str(e) + "\n" + traceback.format_exc()
+                        self.ELIXER_H5 = None
+                else:
+                    pass
+                    #print("DEBUG: set ELIXER_H5 exception")
+                    # print('No counterparts found in ' + self.HETDEX_ELIXER_HDF5_FN)
+                    # return
 
         # only execute the below if we have ELIXER_H5 ... the return just above exits this func otherwise
         if self.ELIXER_H5:
             detectid_i = detectid
-
+            #print(f"DEBUG: ELIXER_H5 type {type(self.ELIXER_H5)}\n{self.ELIXER_H5}")
             try:
                 self.CatalogMatch = self.ELIXER_H5.root.CatalogMatch.read_where(
                     "detectid == detectid_i"
@@ -1142,27 +1211,35 @@ class ElixerWidget:
 
         current_wavelength = -1.0
 
-        if (HETDEX_DETECT_HDF5_HANDLE is None) and (HETDEX_DETECT_HDF5_FN is not None):
-            try:
-                HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, "r")
-            except Exception as e:
-                self.status_box.value = str(e) + "\n" + traceback.format_exc()
-                # pass
+        try:
+            q_detectid = np.int64(self.detectbox.value)
+        except:
+            q_detectid = 0
+            self.status_box.value += f"Invalid entry in DetectID box"
 
-        if HETDEX_DETECT_HDF5_HANDLE:
+        if self.ssr_h5 is not None:
             try:
-                #dtb = HETDEX_DETECT_HDF5_HANDLE.root.Detections
-                try:
-                    q_detectid = np.int64(self.detectbox.value)
-                except:
-                    q_detectid = 0
-                    self.status_box.value = f"Invalid entry in DetectID box"
-
-                rows =  HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where("detectid==q_detectid", field="wave")
+                rows = self.ssr_h5.root.Detections.read_where("detectid==q_detectid", field="wavelength_obs")
                 if (rows is not None) and (rows.size == 1):
                     current_wavelength = rows[0]
             except Exception as e:
                 self.status_box.value = str(e) + "\n" + traceback.format_exc()
+
+        if current_wavelength == -1.0:
+            if (HETDEX_DETECT_HDF5_HANDLE is None) and (HETDEX_DETECT_HDF5_FN is not None):
+                try:
+                    HETDEX_DETECT_HDF5_HANDLE = tables.open_file(HETDEX_DETECT_HDF5_FN, "r")
+                except Exception as e:
+                    self.status_box.value += str(e) + "\n" + traceback.format_exc()
+                    # pass
+
+            if HETDEX_DETECT_HDF5_HANDLE:
+                try:
+                    rows = HETDEX_DETECT_HDF5_HANDLE.root.Detections.read_where("detectid==q_detectid", field="wave")
+                    if (rows is not None) and (rows.size == 1):
+                        current_wavelength = rows[0]
+                except Exception as e:
+                    self.status_box.value += str(e) + "\n" + traceback.format_exc()
 
         return current_wavelength
 
@@ -1545,7 +1622,10 @@ class ElixerWidget:
        # print("Line match after", current_wavelength,self.line_id_drop.value, self.wave_box.value,self.z_box.value)
 
         if idx is not None:
-            self.comment_box.value = self.comment[idx]
+            try:
+                self.comment_box.value = self.comment[idx]
+            except:
+                self.comment_box.value = f"No comment for idx={idx}"
 
         # print("Updated Reset idx", idx, "Current w", current_wavelength)
 
@@ -1724,16 +1804,64 @@ class ElixerWidget:
 
         ascii.write(self.output, self.outfilename, overwrite=True)
 
+
+    def get_elixer_report_ssr(self,q_detectid):
+        nei_imag = None
+        try:
+            if self.ssr_h5 is not None and self.ssr_h5.__contains__("/elixer_reports"):
+                #this has image priority if it has the imaging groups
+                row = self.ssr_h5.root.Detections.read_where("detectid==q_detectid")[0]
+                gp = self.ssr_h5.get_node(f"/elixer_reports")
+                path = gp._f_get_child(f"image_data_{row['h5_report_id']}")
+                idx = row['h5_report_idx']
+                nei_imag = PILImage.fromarray(path[idx])
+
+                if nei_imag.mode in ("RGBA", "P", "F"):
+                    nei_imag = nei_imag.convert("RGB")
+        except:
+            nei_imag = None
+
+        return nei_imag
+
+    def on_elixer_neighborhood_ssr(self,q_detectid):
+        isokay = False
+        try:
+            if self.ssr_h5 is not None and self.ssr_h5.__contains__("/elixer_neighbors"):
+                #this has image priority if it has the imaging groups
+                row = self.ssr_h5.root.Detections.read_where("detectid==q_detectid")[0]
+                gp = self.ssr_h5.get_node(f"/elixer_neighbors")
+                path = gp._f_get_child(f"image_data_{row['h5_neighbor_id']}")
+                idx = row['h5_neighbor_idx']
+                nei_imag = PILImage.fromarray(path[idx])
+
+                if nei_imag.mode in ("RGBA", "P", "F"):
+                    nei_imag = nei_imag.convert("RGB")
+
+                if nei_imag is not None:
+                    isokay = True
+                    with self.bottombox:
+                        display(nei_imag)
+        except:
+            print(f"Exception on_elixer_neightbor_ssr: {traceback.format_exc()}")
+            isokay = False
+
+        return isokay
+
     def on_elixer_neighborhood(self, b):
         detectid = np.int64(self.detectbox.value)
 
         #try:
             # display(Image(sql.fetch_elixer_report_image(sql.get_elixer_report_db_path(detectid,report_type="nei"), detectid)))
             # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
+
+
+        if self.on_elixer_neighborhood_ssr(detectid): #this worked, so, were're done
+            self.neighbor_list = []
+            return
+
         nei_imag = self.elixer_conn_mgr.fetch_image(detectid, report_type="nei")
 
         if nei_imag is not None:
-
             try:
                 pil_img = PILImage.open(io.BytesIO(nei_imag))
                 if 'Neighbors' in pil_img.info.keys():
@@ -1899,10 +2027,11 @@ class ElixerWidget:
         detectid = np.int64(self.detectbox.value)
         try:
             with self.bottombox:
-                display(
-                    Image(self.elixer_conn_mgr.fetch_image(
-                        detectid, report_type="mini"))
-                )
+                img = self.elixer_conn_mgr.fetch_image(detectid, report_type="mini")
+                if img is not None:
+                    display(Image(img))
+                else:
+                    self.status_box.value = "No Zooniverse image found.\n"
         except Exception as e:
             self.status_box.value = str(e) + "\n" + traceback.format_exc()
             print("mini not found")
@@ -1988,6 +2117,7 @@ class ElixerWidget:
         global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
         detid = np.int64(self.detectbox.value)
+        DET_HANDLE = None
         
         if (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.detecth5
@@ -2005,11 +2135,13 @@ class ElixerWidget:
             self.det_file = CONFIG_HDR5.detecth5
         elif (detid >= 5090000000) & (detid < 5100000000):
             self.det_file = CONFIG_HDR5.contsourceh5
+        else:
+            self.det_file = None
 
-        if OPEN_DET_FILE is None:
+        if OPEN_DET_FILE is None and self.det_file is not None:
             OPEN_DET_FILE = self.det_file
             DET_HANDLE = tables.open_file(self.det_file, 'r')
-        else:
+        elif self.det_file is not None:
             if self.det_file == OPEN_DET_FILE:
                 pass
             else:
@@ -2021,6 +2153,8 @@ class ElixerWidget:
                     with self.status_box:
                         print("Could not open {}".format(self.det_file))
 
+        elif self.ssr_h5 is not None:
+            DET_HANDLE = self.ssr_h5
         if DET_HANDLE is not None:
             detid = np.int64(self.detectbox.value)
             try:
@@ -2191,7 +2325,14 @@ class ElixerWidget:
                         self.sourcecat_obswave = rows['wavelength_obs'][0]
                         self.sourcecat_source_id = 0
                         self.sourcecat_class_labels = rows['classification_labels'][0]
-                        self.shotid = rows['shotid'][0]
+                        try:
+                            self.shotid = rows['shotid'][0]
+                        except:
+                            try:
+                                #might be the other type and shotid is only in the shot table
+                                self.shotid = self.ELIXER_H5.root.Shot.read(field="shotid")[0]
+                            except:
+                                self.shotid = -1
                         self.ra = rows['ra'][0]
                         self.dec = rows['dec'][0]
                         self.sourcecat_parent_detectid = rows['cluster_parent'][0]
