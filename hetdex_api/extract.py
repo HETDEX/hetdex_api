@@ -1491,6 +1491,9 @@ class Extract:
 
         scleaned = np.zeros_like(data)
 
+        data = data.astype(np.float32)
+        error = error.astype(np.float32)
+
         # Replace bad data with an average
         if sclean_bad:
             for i in range(data.shape[0]):
