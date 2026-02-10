@@ -250,7 +250,8 @@ class ElixerWidget:
 
                     if self.ssr_h5.__contains__("/Detections"): #assume this is good:
                         self.ELIXER_H5 = self.ssr_h5
-                    self.detectid = self.ssr_h5.root.Detections.cols.detectid[:]
+                    if detectlist is None and detectfile is None:
+                        self.detectid = self.ssr_h5.root.Detections.cols.detectid[:]
                     self.vis_class = np.zeros(np.size(self.detectid), dtype=int)
                     self.flag = np.zeros(np.size(self.detectid), dtype=int)
                     self.z = np.full(np.size(self.detectid), -1.0)
