@@ -392,7 +392,7 @@ class FiberIndex:
                 try:
                     self.fibermaskh5 = tb.open_file(config.fibermaskh5, "r")
                 except:
-                    print("Could not find fiber mask file in {}".format(config.fibermaskh5))
+                    print("Could not find fiber mask (1) file in {}".format(config.fibermaskh5))
                     self.fibermaskh5 = None
 
             if load_fiber_table:
@@ -436,7 +436,7 @@ class FiberIndex:
                         frame="icrs",
                     )
                 except:
-                    print("Could not find fiber mask file in {}".format(shot_h5))
+                    print("Could not find fiber mask (2) file in {}".format(shot_h5))
                     self.fibermaskh5 = None
             else:
                 self.fibermaskh5 = None

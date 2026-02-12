@@ -157,6 +157,20 @@ def add_elixer_cat_info(det_table, version):
 
         # append nearest source extracted neighbour match
         try:
+
+            # DD 20260212 NOTE: I am not making any changes at this time, but I do not think
+            # this is a correct behavior. Below, if no "selected==True" is found, then
+            # the first 'r' band dist_baryctr is used and these are NOT sorted, so it might
+            # not even be the closest or the brightest, it is just some random order.
+            #
+            # My preferences would be for the ELiXer logic. First 'r' band is fine, but
+            # it should also allow 'f606w' then. Second if there is no "selected==True"
+            # I think there should be no counterpart_dist (it should be NaN). I also prefer
+            # using the dist_curve if it is not < 0 since that means we are outside the ellipse,
+            # though that is a lesser concern.
+            # If we REALLY want a value in there, even if there is no ELiXer selected counterpart,
+            # at the very least it should be sorted to the nearest, and there should be an indication
+            # that it is not actually matched. (maybe there is, I need to check)
         
             elix_row = elixer_cat.root.ExtractedObjects.read_where(
                 "(detectid == detectid_obj) & (selected == True)"
