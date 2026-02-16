@@ -175,6 +175,20 @@ class Extract:
             e.g., 20190208v024 or 20190208024
         """
         self.shot = shot_input
+        try:
+            #some downstream calls require this be in int64, but this interface allows string or int
+            #so, if a string, go ahead and turn into an int64
+            _ = len(self.shot)
+            #string type (probably)
+            #should have a 'v' but can be 'r','d', or 's'
+            self.shot = self.shot.lower().replace('v','').replace('r','').replace('d','').replace('s','')
+            try:
+                self.shot = np.int64(self.shot)
+            except:
+                self.log.warning(f"Invalid shot passed in: {shot_input}")
+                return
+        except:
+            pass #already an int type (probably)
         self.survey = survey
 
         if fibers:
