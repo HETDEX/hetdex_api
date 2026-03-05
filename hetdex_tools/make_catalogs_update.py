@@ -24,6 +24,11 @@ mask = np.isin(source_table['detectid'], baddets)
 source_table['flag_baddet'][mask] = 0
 source_table['flag_best'][mask] = 0
 
+# if a continuum source is faint, but part of a larger group then keep it
+
+sel_faint_cont_keep = (source_table['flag_faint_cont'] == 0) * (source_table['n_members']>1)
+source_table['flag_faint_cont'][sel_faint_cont_keep] = 1
+source_table['flag_best'][sel_faint_cont_keep] = 1
 
 if update_det_flags:
     print('Updating det flags')
@@ -146,11 +151,17 @@ for s in [20231014013,
 source_table['field'][ source_table['field'] == 'egs'] = 'dex-spring'
 
 #add column to indicate if shot is used for cosmology
-if version=='5.0.2':
-    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format('5.0.1'), format='ascii')
-else:
-    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
+#if version=='5.0.2':
+#    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format('5.0.1'), format='ascii')
+#else:
+# created survey_use file on 2025-11-17 so can use it now
+survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
 
+for s in [20170621008, 20180224008, 20180805010, 20180210012]:
+    sel_shot = source_table['shotid'] == s
+    print('Removing {} detections from {}'. format(np.sum(sel_shot), s))
+    source_table = source_table[np.invert( sel_shot)]
+    
 survey_use['flag_shot_cosmology'] = 1
 
 source_table2 = join( source_table, survey_use['shotid', 'flag_shot_cosmology'], join_type='left')
