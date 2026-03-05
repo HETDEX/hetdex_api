@@ -112,8 +112,8 @@ class CubeWidget(ImageWidget):
 
         if hdu is not None:
             try:
-                self.im = hdu.data
-                self.wcs = WCS(hdu.header)
+                self.im = hdu['DATA'].data
+                self.wcs = WCS(hdu['DATA'].header)
             except AttributeError:
                 self.im = hdu[1].data
                 self.wcs = WCS(hdu[1].header)
@@ -129,8 +129,8 @@ class CubeWidget(ImageWidget):
 
         # get wave info:
 
-        self.dwave = self.wcs.wcs.cdelt[2]
-        self.wave_start = self.wcs.wcs.crval[2]
+        self.dwave = self.wcs.wcs.cdelt[2]*1.e10 # convert from m to AA
+        self.wave_start = self.wcs.wcs.crval[2]*1.e10 # convert from m to AA
         self.nwave = np.shape(self.im)[0]
         self.wave_end = self.wave_start + self.nwave * self.dwave
         self.show_rainbow = show_rainbow
