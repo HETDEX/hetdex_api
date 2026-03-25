@@ -430,6 +430,8 @@ class FiberIndex:
                         self.fibermaskh5 = tb.open_file(self.shot_h5, "r")
                     self.mask_table = Table(self.fibermaskh5.root.FiberIndex.read()) #the "Flags" are here
                     self.fiber_table = self.mask_table #for compatibility, and these are now the same
+                    #in this case, this is a single shot (as specified) so
+                    #self.coords should be an array of size 1
                     self.coords = SkyCoord(
                         self.fiber_table["ra"] * u.degree,
                         self.fiber_table["dec"] * u.degree,
@@ -1048,7 +1050,9 @@ class FiberIndex:
                     sel_shot_survey = S.shotid == row["shotid"]
                     shot_coords = S.coords[sel_shot_survey]
                 else:
-                    shot_coords = self.coords
+                    # needs to be the single coordinate for the shot center
+                    shot_coords = SkyCoord(ra=self.shot_h5.root.Shot.read(field="ra") * u.degree,
+                                           dec=self.shot_h5.root.Shot.read(field="dec") * u.degree)
 
                 # add in special handling for vertical streak
                 if np.abs(b) < 500:
@@ -1117,7 +1121,10 @@ class FiberIndex:
                     sel_shot_survey = S.shotid == row["shotid"]
                     shot_coords = S.coords[sel_shot_survey]
                 else:
-                    shot_coords = self.coords
+                    #needs to be the single coordinate for the shot center
+                    shot_coords = SkyCoord(ra=self.shot_h5.root.Shot.read(field="ra")* u.degree,
+                                           dec=self.shot_h5.root.Shot.read(field="dec")* u.degree)
+                    #shot_coords = self.coords
 
                 ra_sat = shot_coords.ra + np.arange(-1500, 1500, 0.1) * u.arcsec
                 dec_sat = (b + ra_sat.deg * a) * u.deg
