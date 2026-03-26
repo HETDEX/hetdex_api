@@ -574,7 +574,8 @@ def main(argv=None):
             "/work/05350/ecooper/stampede2/hdr5/diagnose/diagnose_5.0.0_lt23.fits"
         )
         diagnose_tab_sa22 = Table.read(
-            "/work/05350/ecooper/stampede2/redshift-tests/sa22/diagnose_sa22_lt23.fits"
+            "/work/05350/ecooper/stampede2/redshift-tests/sa22_20260326/diagnose_sa22_lt22.fits"
+#            "/work/05350/ecooper/stampede2/redshift-tests/sa22/diagnose_sa22_lt23.fits"
         )
         diagnose_tab = unique(
             vstack(
