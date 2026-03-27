@@ -987,7 +987,7 @@ def main(argv=None):
 
     shotid_list = np.unique(source_table["shotid"])
 
-    p = Pool(16)
+    p = Pool(14)
     res = p.map(zclusterstars_forshotid, shotid_list)
     p.close()
 
