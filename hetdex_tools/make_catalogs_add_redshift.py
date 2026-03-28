@@ -19,6 +19,7 @@ import hetdex_tools.fof_kdtree as fof
 
 # import hetdex_api.wave as wv
 
+BADVAL = -999.9
 from multiprocessing import Pool
 
 
@@ -464,10 +465,10 @@ def update_oii(sid):
 
     sel_oii = source_table['line_id'] == 'OII'
     if  np.sum( sel_sid * sel_oii) == 0:
-        oii_max = -99.8
-        return -99.8, -1
+        oii_max = BADVAL
+        return BADVAL, -1
     else:
-        oii_max = np.max( source_table['flux'][sel_sid*sel_oii ])
+        oii_max = np.max( source_table['flux'][sel_sid & sel_oii ])
 
     if oii_aper > oii_max:
         return oii_aper, 1
@@ -538,7 +539,10 @@ def main(argv=None):
     if args.add_redshifts:
         # catfile = op.join(config.detect_dir, 'catalogs', 'source_catalog_' + version + '.fits')
 
-        catfile = "source_catalog_{}.fits".format(version)
+        if version == '5.0.2':
+            catfile = "source_catalog_5.0.1.fits"
+        else:
+            catfile = "source_catalog_{}.fits".format(version)
 
         source_table = Table.read(catfile)
 
@@ -709,7 +713,9 @@ def main(argv=None):
         sys.exit()
 
     else:
-        if version == "5.0.2":
+        # made 5.0.2 version on 20260326 so don't do this.
+        
+        if False:#if version == "5.0.2":
             # just using everything done in 5.0.1 until this step 2025-09-25 EMC
             catfile = "source_catalog_{}.y.fits".format("5.0.1")
             z_stack = Table.read("z_stack_{}.fits".format("5.0.1"))
@@ -728,7 +734,7 @@ def main(argv=None):
     source_table = all_table
 
     del all_table, z_stack
-    source_table["z_hetdex"] = source_table["z_hetdex"].filled(-99.0)
+    source_table["z_hetdex"] = source_table["z_hetdex"].filled(BADVAL)
 
     # uncluster LAEs whose line pairings are not supported by best_z
 
@@ -765,7 +771,7 @@ def main(argv=None):
     agnfluxlya.rename_column('flux_LyA','flux_LyA_cxliu')
     
     source_table2 = join( source_table, agnfluxlya, join_type='left')
-    source_table2['flux_LyA_cxliu'] = source_table2['flux_LyA_cxliu'].filled(-99.9)
+    source_table2['flux_LyA_cxliu'] = source_table2['flux_LyA_cxliu'].filled(BADVAL)
     source_table = source_table2.copy()
     
     sel_star = source_table["source_type"] == "star"
@@ -1168,7 +1174,7 @@ def main(argv=None):
         
         if lya_agn <= 0:
             if np.sum( (source_table['source_id']==sid) * (source_table['line_id']=='Lya')) == 0:
-                lya_agn = -99.8
+                lya_agn = BADVAL
             else:
                 lya_agn = np.max( source_table['flux'][ (source_table['source_id']==sid) * (source_table['line_id']=='Lya')])
 
@@ -1500,12 +1506,12 @@ def main(argv=None):
             else:
                 source_table[col] = source_table[col].astype(np.float32)
             try:
-                source_table[col] = source_table[col].filled(-999.0)
+                source_table[col] = source_table[col].filled(BADVAL)
             except AttributeError:
                 pass
         elif source_table[col].dtype == ">f4":
             try:
-                source_table[col] = source_table[col].filled(-999.0)
+                source_table[col] = source_table[col].filled(BADVAL)
             except AttributeError:
                 pass
         elif (source_table[col].dtype == ">i4") | (source_table[col].dtype == ">i8"):
@@ -1532,7 +1538,7 @@ def main(argv=None):
             if "flag" in c:
                 source_table[c] = np.nan_to_num(np.array(source_table[c]), nan=1)
             else:
-                source_table[c] = np.nan_to_num(np.array(source_table[c]), nan=-99.9)
+                source_table[c] = np.nan_to_num(np.array(source_table[c]), nan=BADVAL)
     source_table.write("source_catalog_{}.yy.fits".format(version), overwrite=True)
 
     import joblib
