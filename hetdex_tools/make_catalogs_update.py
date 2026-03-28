@@ -139,6 +139,23 @@ if update_det_flags:
 
     #sys.exit()
 
+#fix masked bytes columns                                                                                                                     f
+
+fill_map = {
+    'classification_labels': b'n/a',
+    'zspec_catalog': b'n/a',
+    'cls_diagnose': b'n/a',
+    'stellartype': b'-',
+    'source_type': b'n/a',
+    'RAIC_Label': b'n/a',
+}
+
+for col, fillval in fill_map.items():
+    if col in source_table.colnames:
+        c = source_table[col]
+        if isinstance(c, astropy.table.MaskedColumn):
+            source_table[col] = c.filled(fillval)
+            
 for c in source_table.colnames:
     
     if isinstance(source_table[c], astropy.table.column.MaskedColumn):
@@ -147,7 +164,7 @@ for c in source_table.colnames:
         if 'flag' in c:
             source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=1)
         else:
-            source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=-99.9)
+            source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=BADVAL)
                 
 #clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
 clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_20251006.joblib")
@@ -231,9 +248,6 @@ for col in source_table.colnames:
     if col == 'selected_det':
         continue
     
-    if source_table[col].dtype.kind == 'S':  # byte strings
-        source_table[col] = source_table[col].astype(str)
-    
     if source_table[col].dtype.kind in ['U', 'S']:
         if hasattr(source_table[col], 'mask'):
             source_table[col].fill_value = BADVAL_STR
@@ -275,21 +289,6 @@ source_table['flag_shot_cosmology'] = source_table['flag_shot_cosmology'].filled
 
 sel_other = source_table["field"] == "other"
 sel_notother = np.invert(sel_other)
-
-# fix masked bytes columns                                                                                                                      
-fill_map = {
-    'classification_labels': b'n/a',
-    'zspec_catalog': b'n/a',
-    'cls_diagnose': b'n/a',
-    'stellartype': b'-',      # only 1 char allowed                                                                                             
-    'source_type': b'n/a',
-    'RAIC_Label': b'n/a',
-}
-
-for col, fillval in fill_map.items():
-    c = source_table[col]
-    if hasattr(c, 'mask'):
-        c.fill_value = fillval
 
 source_table = source_table.filled()
 
