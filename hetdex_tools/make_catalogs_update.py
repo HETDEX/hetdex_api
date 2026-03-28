@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import astropy.table
 from astropy.table import Table, join, vstack
+import astropy.units as u
+
 import tables as tb
 import joblib
 
@@ -13,6 +15,7 @@ from astropy.cosmology import Planck18 as cosmo
 version = '5.0.2'
 
 BADVAL = -999.0
+BADVAL_STR = 'n/a'
 
 update_det_flags = True
 
@@ -35,20 +38,29 @@ print('length of source table after apcor fix', len(source_table))
 
 # fix some bad OII aper fluxes
 
-sel_bad_aper = ( (source_table['flux_aper']> 1e6) | ( source_table['flux_aper'] < 0) ) 
-source_table['flux_aper'][sel_bad_aper] = BADVAL
-source_table['flux_aper_err'][sel_bad_aper] = BADVAL
+flux_aper = np.array(source_table['flux_aper'], dtype=float)
+flux_aper_err = np.array(source_table['flux_aper_err'], dtype=float)
+
+sel_bad_aper = (
+    ~np.isfinite(flux_aper) |
+    (flux_aper > 1e6) |
+    (flux_aper <= 0)
+)
+
+flux_aper[sel_bad_aper] = BADVAL
+flux_aper_err[sel_bad_aper] = BADVAL
+
+source_table['flux_aper'] = flux_aper
+source_table['flux_aper_err'] = flux_aper_err
 
 # then fix the good oiis to use pipeline flux for these
-
-
 sel_oii_update = sel_bad_aper & (source_table['source_type'] == 'oii') & (source_table['flag_aper'] == 1)
 
 print( 'Updating flux and lum values for {} OIIs'.format(np.sum(sel_oii_update)))
 
 source_table['flux_oii'][sel_oii_update] = source_table['flux'][sel_oii_update]
 source_table['flux_oii_err'][sel_oii_update] = source_table['flux_err'][sel_oii_update]
-source_table['flag_aper'][sel_oii_update] = 1
+source_table['flag_aper'][sel_oii_update] = 0
 
 lum_dist = cosmo.luminosity_distance(source_table["z_hetdex"][sel_oii_update]).to(u.cm)
 fac = 10 ** (-17) * 4.0 * np.pi * lum_dist**2
@@ -58,11 +70,16 @@ source_table["lum_oii_err"][sel_oii_update] = source_table["flux_oii_err"][sel_o
 
 # force other weird negative flux measurements to same BADVAL
 
-for col in ['flux_aper', 'flux_oii', 'flux_oii_err', 'lum_oii', 'lum_oii_err', 'lum_lya', 'lum_lya_err']:
-    sel = (source_table[col] < 0) & (source_table[col] > BADVAL)
-    print(col, np.sum(sel))
-    source_table[col][sel] = BADVAL
+for col in ['flux_aper', 'flux_oii', 'flux_oii_err', 'flux_lya', 'flux_lya_err',
+            'lum_oii', 'lum_oii_err', 'lum_lya', 'lum_lya_err']:
 
+    data = source_table[col]
+    sel = (~np.isfinite(data)) | ((data <= 0) & (data != BADVAL))
+
+    print(col, np.sum(sel))
+
+    data[sel] = BADVAL
+    
 # add in the bad qso dets
 
 baddets = np.loadtxt('/home1/05350/ecooper/hetdex_api/known_issues/hdr3/bad_qso_diagnose_check.dets', dtype=int)
@@ -204,31 +221,41 @@ for s in [20231014013,
 
 source_table['field'][ source_table['field'] == 'egs'] = 'dex-spring'
 
+# change weird 0.0 source type entries                                                                               
+source_table['source_type'] = source_table['source_type'].astype(str)
+col = source_table['source_type']
+mask = (~col.mask if hasattr(col, 'mask') else True) & (col == '0.0')
+source_table['source_type'][mask] = BADVAL_STR
+
 for col in source_table.colnames:
     if col == 'selected_det':
         continue
-    if isinstance(source_table[col][0], str):
+    
+    if source_table[col].dtype.kind == 'S':  # byte strings
         source_table[col] = source_table[col].astype(str)
-        print(col, ' is string')
-    try:
-        source_table[col] = source_table[col].filled(BADVAL)
-        #print(col)
-    except:
-        pass
+    
+    if source_table[col].dtype.kind in ['U', 'S']:
+        if hasattr(source_table[col], 'mask'):
+            source_table[col].fill_value = BADVAL_STR
     
     if col in ['sn','flux','flux_err','flux_aper','flux_aper_err','flux_lya','flux_lya_err','lum_lya','lum_lya_err','flux_oii','flux_oii_err','lum_oii','lum_oii_err']:
+        if hasattr(source_table[col], 'mask'):
+            source_table[col][source_table[col].mask] = BADVAL
+
         try:
             sel_zero = source_table[col] == 0.0
             source_table[col][sel_zero] = BADVAL
             print('zero fill', col, np.sum(sel_zero))
         except:
             pass
+    #convert float64 values to float32
 
-#add column to indicate if shot is used for cosmology
-#if version=='5.0.2':
-#    survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format('5.0.1'), format='ascii')
-#else:
-# created survey_use file on 2025-11-17 so can use it now
+    if np.issubdtype(source_table[col].dtype, np.float64):
+        if col in ['lum_lya','lum_lya_err', 'lum_oii','lum_oii_err']:
+            pass
+        else:
+            source_table[col] = source_table[col].astype(np.float32)
+
 survey_use = Table.read( '/scratch/projects/hetdex/hdr5/survey/survey_use_{}.txt'.format( version), format='ascii')
 
 for s in [20170621008, 20180224008, 20180805010, 20180210012]:
@@ -248,6 +275,23 @@ source_table['flag_shot_cosmology'] = source_table['flag_shot_cosmology'].filled
 
 sel_other = source_table["field"] == "other"
 sel_notother = np.invert(sel_other)
+
+# fix masked bytes columns                                                                                                                      
+fill_map = {
+    'classification_labels': b'n/a',
+    'zspec_catalog': b'n/a',
+    'cls_diagnose': b'n/a',
+    'stellartype': b'-',      # only 1 char allowed                                                                                             
+    'source_type': b'n/a',
+    'RAIC_Label': b'n/a',
+}
+
+for col, fillval in fill_map.items():
+    c = source_table[col]
+    if hasattr(c, 'mask'):
+        c.fill_value = fillval
+
+source_table = source_table.filled()
 
 source_table[sel_notother].write(
     "source_catalog_{}.z.fits".format(version), overwrite=True
@@ -273,3 +317,4 @@ tableMain.cols.ra.create_csindex()
 
 tableMain.flush()
 fileh.close()
+elixh5.close()
