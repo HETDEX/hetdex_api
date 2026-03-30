@@ -21,6 +21,10 @@ update_det_flags = True
 
 source_table = Table.read("source_catalog_{}.yy.fits".format(version))
 
+#convert to 502 numbers unless source_id is already 502
+mask = source_table['source_id'] < 5020000000000
+source_table['source_id'][mask] += int(1e10)
+
 # add in apcor for continuum sources
 
 elixh5 = tb.open_file('/scratch/projects/hetdex/hdr5/detect/elixer_hdr345_cluster_cat.h5', 'r')
@@ -155,16 +159,15 @@ for col, fillval in fill_map.items():
         c = source_table[col]
         if isinstance(c, astropy.table.MaskedColumn):
             source_table[col] = c.filled(fillval)
-            
+
 for c in source_table.colnames:
-    
-    if isinstance(source_table[c], astropy.table.column.MaskedColumn):
-        print(f"Converting masked column: {c}")
-        
+    col = source_table[c]
+    if isinstance(col, astropy.table.MaskedColumn) and col.dtype.kind in ['i', 'u', 'f']:
+        print(f"Converting numeric masked column: {c}")
         if 'flag' in c:
-            source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=1)
+            source_table[c] = np.nan_to_num(np.array(col), nan=1)
         else:
-            source_table[c] = np.nan_to_num(np.array(source_table[c]),nan=BADVAL)
+            source_table[c] = np.nan_to_num(np.array(col), nan=BADVAL)
                 
 #clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_3.0_20250216_lowsn.joblib")
 clf = joblib.load("/work/05350/ecooper/stampede2/cosmos/calibration/rf_clf_20251006.joblib")
@@ -235,22 +238,17 @@ for s in [20231014013,
     source_table['field'][ source_table['shotid'] == s] = "dex-fall"
 
 # call all EGS frames dex-spring
-
-source_table['field'][ source_table['field'] == 'egs'] = 'dex-spring'
+source_table['field'][source_table['field'] == b'egs'] = b'dex-spring'
 
 # change weird 0.0 source type entries                                                                               
-source_table['source_type'] = source_table['source_type'].astype(str)
 col = source_table['source_type']
-mask = (~col.mask if hasattr(col, 'mask') else True) & (col == '0.0')
-source_table['source_type'][mask] = BADVAL_STR
+good = ~col.mask if isinstance(col, astropy.table.MaskedColumn) else np.ones(len(col), dtype=bool)
+mask = good & (col == b'0.0')
+source_table['source_type'][mask] = b'n/a'
 
 for col in source_table.colnames:
     if col == 'selected_det':
         continue
-    
-    if source_table[col].dtype.kind in ['U', 'S']:
-        if hasattr(source_table[col], 'mask'):
-            source_table[col].fill_value = BADVAL_STR
     
     if col in ['sn','flux','flux_err','flux_aper','flux_aper_err','flux_lya','flux_lya_err','lum_lya','lum_lya_err','flux_oii','flux_oii_err','lum_oii','lum_oii_err']:
         if hasattr(source_table[col], 'mask'):
@@ -290,8 +288,68 @@ source_table['flag_shot_cosmology'] = source_table['flag_shot_cosmology'].filled
 sel_other = source_table["field"] == "other"
 sel_notother = np.invert(sel_other)
 
-source_table = source_table.filled()
+# Final pass: remove all remaining masks with sensible per-column fill values
 
+string_fill_overrides = {
+    'classification_labels': 'n/a',
+    'zspec_catalog': 'n/a',
+    'cls_diagnose': 'n/a',
+    'stellartype': '-',
+    'source_type': 'n/a',
+    'RAIC_Label': 'n/a',
+}
+
+for col in source_table.colnames:
+    c = source_table[col]
+
+    if isinstance(c, astropy.table.MaskedColumn):
+        nmask = np.sum(c.mask)
+        if nmask == 0:
+            # convert to plain Column anyway
+            source_table[col] = c.filled()
+            continue
+
+        kind = c.dtype.kind
+
+        if kind in ['i', 'u']:
+            fillval = -999
+
+        elif kind == 'f':
+            fillval = BADVAL
+
+        elif kind == 'b':
+            fillval = False
+
+        elif kind in ['S', 'U']:
+            if col in string_fill_overrides:
+                fillval = string_fill_overrides[col]
+            else:
+                fillval = 'n/a'
+
+            # match bytes columns if needed
+            if kind == 'S':
+                fillval = fillval.encode()
+
+        else:
+            print(f"WARNING: unhandled dtype for {col}: {c.dtype}")
+            fillval = BADVAL
+
+        print(f"Filling {col}: {nmask} masked values with {fillval!r}")
+        source_table[col] = c.filled(fillval)
+
+for col, fillval in {'source_type': b'n/a', 'RAIC_Label': b'n/a'}.items():
+    arr = np.asarray(source_table[col]).copy()
+    blank = np.char.strip(arr.astype('U')) == ''
+    print(col, 'blank strings before write =', np.sum(blank))
+    arr[blank] = fillval
+    source_table[col] = arr
+    
+for col in ['source_type', 'RAIC_Label']:
+    arr = np.asarray(source_table[col])
+    as_u = arr.astype('U')
+    blank = np.char.strip(as_u) == ''
+    print(col, 'blank strings =', np.sum(blank))
+    
 source_table[sel_notother].write(
     "source_catalog_{}.z.fits".format(version), overwrite=True
 )
@@ -317,3 +375,4 @@ tableMain.cols.ra.create_csindex()
 tableMain.flush()
 fileh.close()
 elixh5.close()
+
