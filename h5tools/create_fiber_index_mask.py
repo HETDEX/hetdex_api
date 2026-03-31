@@ -99,6 +99,16 @@ print(
 print('Saving to output file.')
 fileh = tb.open_file('fiber_mask_{}.h5'.format(mask_version), 'w')
 tableflags = fileh.create_table(fileh.root, 'Flags', flag_table.as_array() )
+
+fileh.root.Flags.cols.create_csindex()
+# set the index
+try:
+    fileh.root.Flags.cols.fiber_id.create_csindex()
+    fileh.root.Flags.flush()
+except:
+    print(f"Index fail:", exc_info=True)
+
 fileh.close()
+
 
 print('Done')

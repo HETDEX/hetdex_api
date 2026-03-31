@@ -501,8 +501,8 @@ class FiberIndex:
 
             # quick check to make sure fibers match
             for row in fiber_table[
-                np.random.random_integers(0, high=len(fiber_table), size=50)
-            ]:
+                np.random.random_integers(0, high=len(fiber_table)-1, size=50)
+            ]: #this is an index, so max can only be  len(fiber_table)-1
                 if row["fiber_id_1"] == row["fiber_id_2"]:
                     continue
                 else:
