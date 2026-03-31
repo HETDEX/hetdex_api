@@ -6,6 +6,7 @@ from astropy.table import Table, hstack
 from hetdex_api.survey import  FiberIndex, Survey
 from multiprocessing import Pool
 import time
+import traceback
 
 
 def make_ascii_fiber_table( shotid):
@@ -16,13 +17,13 @@ def make_ascii_fiber_table( shotid):
         return
 
     try:
-        fib_tab = FibIndex.return_shot( shotid)
+        fib_tab = FibIndex.return_shot(shotid)
         
-        multiname = [ "{}_{}".format( row['multiframe'], str( row['fibnum']).zfill(3)) for row in fib_tab]
+        multiname = ["{}_{}".format(row['multiframe'], str( row['fibnum']).zfill(3)) for row in fib_tab]
         
-        fib_tab.add_column( multiname, name='multiname', index=0)
+        fib_tab.add_column(multiname, name='multiname', index=0)
 
-        exp = [ "exp{}".format( str( row['expnum']).zfill(2)) for row in fib_tab]
+        exp = ["exp{}".format( str( row['expnum']).zfill(2)) for row in fib_tab]
     
         fib_tab.add_column( exp, name='exp', index=1)
     
@@ -33,7 +34,7 @@ def make_ascii_fiber_table( shotid):
         fib_tab.write('fiber_index_mask/{}/fibmask_{}_{}.txt'.format(version, fib_tab['datevobs'][0], version), format='ascii', overwrite=True)
 
     except:
-        print('Failed for {}'.format(shotid))
+        print(f'Failed for {shotid}: {traceback.format_exc()}')
         
     return
 
