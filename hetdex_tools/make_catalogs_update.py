@@ -276,12 +276,30 @@ for s in [20170621008, 20180224008, 20180805010, 20180210012]:
     print(len(source_table))
     source_table = source_table[np.invert( sel_shot)]
     print(len(source_table))
-          
+
 survey_use['flag_shot_cosmology'] = 1
 
 source_table2 = join( source_table, survey_use['shotid', 'flag_shot_cosmology'], join_type='left')
 source_table = source_table2.copy()
 source_table['flag_shot_cosmology'] = source_table['flag_shot_cosmology'].filled(0)
+
+#m101 frames to remove
+
+m101_shots = [20200430021,
+              20200430022,
+              20200517013,
+              20200517014,
+              20200517015,
+              20200521019,
+              20200521020,
+              20200523022,
+              20200528015,
+              20200622015,
+              20211101012]
+
+for s in m101_shots:
+    sel_shot = source_table['shotid'] == s
+    source_table['flag_shot_cosmology'][sel_shot] = 0
 
 # check to see if flag_best==0 and flag_seldet==1 and n_members>0
 
