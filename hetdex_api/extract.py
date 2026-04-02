@@ -1224,24 +1224,22 @@ class Extract:
         marray = np.ma.array(data[:, sel], mask=image_mask)
         image = 2.*np.ma.sum(marray, axis=1)  # multiply for 2AA bins
 
-        if error is not None:
-            marray = np.ma.array(error[:, sel], mask=image_mask)
-            error_image = np.sqrt(2.*np.ma.sum(marray**2, axis=1))
-            # multiply for 2AA bins. Add error in quadrature
         if bitmask:
             bitmask_image = np.max( mask[:, sel], axis=1 )
         
         S[:, 0] = xloc - np.mean(self.ADRx[sel])
         S[:, 1] = yloc - np.mean(self.ADRy[sel])
 
-        if np.sum( image.data[~image.mask]) == 0:
+        valid = ~np.ma.getmaskarray(image)
+        
+        if np.sum( valid) == 0:
             grid_z = np.zeros_like(xgrid)
         else:
             try:
                 grid_z = (
                     griddata(
-                        S[~image.mask],
-                        image.data[~image.mask],
+                        S[valid],
+                        image.data[valid],
                         (xgrid, ygrid),
                         method=interp_kind,
                         fill_value=0.0, # 2025-01-21 EMC fix issue where all 0s are returned
@@ -1249,41 +1247,49 @@ class Extract:
                     * scale ** 2
                     / area
                 )
+
             except Exception:
                 grid_z = np.zeros_like(xgrid)
 
         # convert back to nan
         grid_z[ grid_z==0.0] = np.nan
-                
-        # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
-        grid_mask = griddata(S, ~image.mask, (xgrid, ygrid), method='nearest').astype(bool)
-        
-        grid_z[~grid_mask] = np.nan
 
+        # propogate mask through to new grid image. Added by EMC 2024-04-16, force to be a bool
+        grid_mask = griddata(S, valid.astype(float), (xgrid, ygrid), method='nearest', fill_value=0).astype(bool)
+
+        grid_z[~grid_mask] = np.nan
+                
         if error is not None:
 
-            if np.sum( error_image.data[~error_image.mask]) == 0:
+            marray = np.ma.array(error[:, sel], mask=image_mask)
+            var_image = 4.0 * np.ma.sum(marray**2, axis=1)
+            valid_var = ~np.ma.getmaskarray(var_image)
+
+            if np.sum( valid_var) == 0:
                 grid_z_error = np.zeros_like(xgrid)
             else:
                 try:
-                    grid_z_error = (
-                        griddata(
-                            S[~error_image.mask],
-                            error_image.data[~error_image.mask],
-                            (xgrid, ygrid),
-                            method=interp_kind,
-                            fill_value=0.0, # 2025-01-21 fix issue where all 0s are returned
-                        )
-                        * scale ** 2
-                        / area
+                    #updated 2026-04-02
+                    grid_var = griddata(
+                        S[valid_var],
+                        var_image.data[valid_var],
+                        (xgrid, ygrid),
+                        method=interp_kind,
+                        fill_value=0.0,  # 2025-01-21 fix issue where all 0s are returned
                     )
+                    
+                    grid_var *= (scale**2 / area)
+
+                    grid_var[grid_var < 0.0] = 0.0
+                    
+                    grid_z_error = np.sqrt(grid_var)
                 except:
                     grid_z_error = np.zeros_like(xgrid)
-                
-            grid_z_error[ grid_z_error<=0.0] = np.nan
 
+            grid_z_error[ grid_z_error<=0.0] = np.nan
             # mask image Added by EMC 2024-04-16
             grid_z_error[~grid_mask] = np.nan
+
         if bitmask:
             grid_bitmask = (
                 griddata(
@@ -1301,13 +1307,13 @@ class Extract:
                 grid_z_error = convolve(grid_z_error, G)
 
         if error is None:
-            image = grid_z
+            image = grid_z.copy()
             #Added by EMC 2024-04-16 
             image[np.isnan(image)] = fill_value
             zarray = np.array([image, xgrid - xc, ygrid - yc])
         else:
             if bitmask:
-                image = grid_z
+                image = grid_z.copy()
 
                 image[np.isnan(image)] = fill_value
                 image_error = grid_z_error
@@ -1316,14 +1322,16 @@ class Extract:
                 zarray = np.array([image, image_error, grid_bitmask, xgrid - xc, ygrid - yc])
             else:
                 
-                image = grid_z
-                #Added by EMC 2024-04-16 
+                image = grid_z.copy()
+
+                #Added by EMC 2024-04-16
                 image[np.isnan(image)] = fill_value
+
                 image_error = grid_z_error
                 image_error[np.isnan(image_error)] = fill_value
                 
                 zarray = np.array([image, image_error, xgrid - xc, ygrid - yc])
-        
+
         return zarray
 
     def get_psf_curve_of_growth(self, psf):
