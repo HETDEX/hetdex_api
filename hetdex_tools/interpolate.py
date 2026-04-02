@@ -155,7 +155,7 @@ def make_narrowband_image(
 
     if include_bitmask and not include_error:
         include_error = True
-        print('Including bitmask and error arrays. Forcing include_error=True')
+        print("Including bitmask and error arrays. Forcing include_error=True")
 
     if shot_h5 is not None:  # if shot_h5 is specified, use it instead of the survey
         if surveyh5 is not None:
@@ -266,9 +266,9 @@ def make_narrowband_image(
     else:
         E = extract_class
     # get spatial dims:
-    ndim  = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
-    center = (ndim + 1) / 2.0   # works for even/odd
-    
+    ndim = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
+    center = (ndim + 1) / 2.0  # works for even/odd
+
     rad = imsize.to(u.arcsec).value  # convert to arcsec value, not quantity
 
     if include_bitmask:
@@ -286,7 +286,7 @@ def make_narrowband_image(
         fiber_flux_offset=fiber_flux_offset,
         add_mask=apply_mask,
         mask_options=mask_options,
-        shot_h5=shot_h5
+        shot_h5=shot_h5,
     )
 
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
@@ -296,9 +296,10 @@ def make_narrowband_image(
         ifux, ifuy, ra, dec, coords.ra.deg, coords.dec.deg
     )
 
-    #clip spectra edges
+    # clip spectra edges
     w0, w1 = map(float, wave_range)
-    w0 = max(w0, 3500.0); w1 = min(w1, 5500.0)
+    w0 = max(w0, 3500.0)
+    w1 = min(w1, 5500.0)
     wave_range = [w0, w1]
 
     if include_error:
@@ -415,23 +416,23 @@ def make_narrowband_image(
     w.wcs.crpix = [center, center]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN"]
     w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value]
-    
+
     # get rotation:
     sys_rot = 1.55
     rot = 360.0 - (90.0 + pa + sys_rot)
     rrot = np.deg2rad(rot)
 
-    w.wcs.crota = [ 0, rot]
+    w.wcs.crota = [0, rot]
     w.wcs.cunit = ["deg", "deg"]
-    
+
     header = w.to_header()
 
-    #header info for units                                                                      
+    # header info for units
     header["BUNIT"] = "1e-17 erg s^-1 cm^-2 arcsec^-2"
     header["WAVEMIN"] = wave_range[0]
     header["WAVEMAX"] = wave_range[1]
     header["BANDWID"] = wave_range[1] - wave_range[0]
-    
+
     # add chosen variable info
     header["FILETIME"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     header["SURVEY"] = str(survey)
@@ -441,7 +442,7 @@ def make_narrowband_image(
     header["SUBCONT"] = str(subcont)
     header["FFSKY"] = str(ffsky)
     header["FFSKYRC"] = str(ffsky_rescor)
-        
+
     # Copy Shot table info
     if shot_h5 is not None:
         h5 = tables.open_file(shot_h5)
@@ -480,19 +481,25 @@ def make_narrowband_image(
 
     # create an empty Primary HDU for 1st extension
     hdu_primary = fits.PrimaryHDU()
+
     hdu_data = fits.ImageHDU(imslice.astype(np.float32), header=header, name="DATA")
 
     if include_grid:
-        hdu_x = fits.ImageHDU(xgrid, header=header, name='XGRID')
-        hdu_y = fits.ImageHDU(ygrid, header=header, name='YGRID')
-        
+        hdu_x = fits.ImageHDU(xgrid, header=header, name="XGRID")
+        hdu_y = fits.ImageHDU(ygrid, header=header, name="YGRID")
+
     if include_error:
-        
-        hdu_error = fits.ImageHDU(imerror.astype(np.float32), header=header, name="ERROR")
+        hdu_error = fits.ImageHDU(
+            imerror.astype(np.float32), header=header, name="ERROR"
+        )
         if include_bitmask:
-            hdu_bitmask = fits.ImageHDU(imbitmask.astype(np.int16), header=header, name="BITMASK")
+            hdu_bitmask = fits.ImageHDU(
+                imbitmask.astype(np.int16), header=header, name="BITMASK"
+            )
             if include_grid:
-                return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask, hdu_x, hdu_y])
+                return fits.HDUList(
+                    [hdu_primary, hdu_data, hdu_error, hdu_bitmask, hdu_x, hdu_y]
+                )
             else:
                 return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
@@ -505,7 +512,7 @@ def make_narrowband_image(
             return fits.HDUList([hdu_primary, hdu_data, hdu_x, hdu_y])
         else:
             return fits.HDUList([hdu_primary, hdu_data])
-    
+
 
 def make_data_cube(
     detectid=None,
@@ -616,7 +623,7 @@ def make_data_cube(
 
     if wave_range is None:
         wave_range = [3470.0, 5540.0]
-        
+
     if survey != current_hdr:
         config = HDRconfig(survey)
         current_hdr = survey
@@ -686,15 +693,15 @@ def make_data_cube(
         E = extract_class
 
     # get spatial dims:
-    #ndim = int(imsize / pixscale)
-    #center = int(ndim / 2)
+    # ndim = int(imsize / pixscale)
+    # center = int(ndim / 2)
 
     # updated 2025-08-18 by EMC
     ndim = int(np.round((imsize / pixscale).to_value(u.dimensionless_unscaled)))
-    center = (ndim + 1) / 2.0   # may be half-integer if ndim is even
+    center = (ndim + 1) / 2.0  # may be half-integer if ndim is even
 
     # get wave dims: (edited 2025-08-14 by EMC)
-    #nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
+    # nwave = int((wave_range[1] - wave_range[0]) / dwave + 1)
 
     # Number of spectral bins, not edges
     nwave = int(np.round((wave_range[1] - wave_range[0]) / dwave)) + 1
@@ -702,15 +709,15 @@ def make_data_cube(
 
     # --- WCS ---
     # Bin centers (added 2025-08-14 by EMC)
-    
+
     w = wcs.WCS(naxis=3)
-    w.wcs.crval = [coords.ra.deg, coords.dec.deg, float( wave_range[0])] 
+    w.wcs.crval = [coords.ra.deg, coords.dec.deg, float(wave_range[0])]
     w.wcs.crpix = [center, center, 1.0]
     w.wcs.ctype = ["RA---TAN", "DEC--TAN", "WAVE"]
-    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, float( dwave)]
-    #added 2025-08-14 by EMC
+    w.wcs.cdelt = [-pixscale.to(u.deg).value, pixscale.to(u.deg).value, float(dwave)]
+    # added 2025-08-14 by EMC
     w.wcs.cunit = ["deg", "deg", "Angstrom"]
-    
+
     rad = imsize.to(u.arcsec).value
 
     if include_bitmask:
@@ -758,9 +765,9 @@ def make_data_cube(
     sy = pixscale.to(u.deg).value
     theta = np.deg2rad(rot)
 
-    lam0 = float(wave_range[0])   # 3470                                                           
-    dlam = float(dwave)           # 2.0           
-    
+    lam0 = float(wave_range[0])  # 3470
+    dlam = float(dwave)  # 2.0
+
     im_cube = np.zeros((nwave, ndim, ndim), dtype=np.float32)
 
     if include_error:
@@ -769,9 +776,8 @@ def make_data_cube(
             im_bitmaskcube = np.zeros((nwave, ndim, ndim), dtype=np.uint16)
 
     for i, wave_i in enumerate(wave_centers):
-        
         half = 0.5 * dwave
-        wrange=[wave_i - half, wave_i + half]
+        wrange = [wave_i - half, wave_i + half]
 
         try:
             zarray = E.make_narrowband_image(
@@ -795,6 +801,7 @@ def make_data_cube(
 
             if include_error:
                 im_errorcube[i] = zarray[1]
+
                 if include_bitmask:
                     im_bitmaskcube[i] = zarray[2]
         except ValueError:
@@ -840,9 +847,9 @@ def make_data_cube(
                 header[col.upper() + "2"] = shot_info_table[col][0][1]
                 header[col.upper() + "3"] = shot_info_table[col][0][2]
 
-    #header info for units
+    # header info for units
     header["BUNIT"] = "1e-17 erg s^-1 cm^-2 arcsec^-2"
-    header["SPECBW"] = 2.0   # bin width in Angstrom
+    header["SPECBW"] = 2.0  # bin width in Angstrom
 
     # enforce header cards for spectral axis
     header["CTYPE3"] = "WAVE"
@@ -868,13 +875,16 @@ def make_data_cube(
     hdu_data = fits.ImageHDU(im_cube.astype(np.float32), header=header, name="DATA")
 
     if include_error:
-        hdu_error = fits.ImageHDU(im_errorcube.astype(np.float32), header=header, name="ERROR")
+        hdu_error = fits.ImageHDU(
+            im_errorcube.astype(np.float32), header=header, name="ERROR"
+        )
 
         if include_bitmask:
-            hdu_bitmask = fits.ImageHDU(im_bitmaskcube.astype(np.uint16), header=header, name="BITMASK")
+            hdu_bitmask = fits.ImageHDU(
+                im_bitmaskcube.astype(np.uint16), header=header, name="BITMASK"
+            )
             return fits.HDUList([hdu_primary, hdu_data, hdu_error, hdu_bitmask])
         else:
             return fits.HDUList([hdu_primary, hdu_data, hdu_error])
     else:
         return fits.HDUList([hdu_primary, hdu_data])
-
