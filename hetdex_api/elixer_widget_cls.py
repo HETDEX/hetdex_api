@@ -93,7 +93,7 @@ SOURCECAT_ROOTPATHS_DICT = {"scratch":"/scratch/projects/hetdex/",
                             "cluster":"/corral-repl/utexas/Hobby-Eberly-Telesco/",
                             "hub":"/home/jovyan/Hobby-Eberly-Telesco/"}
 SOURCECAT_SUBPATH = "hdr5/catalogs/"
-SOURCECAT_FILE = "source_catalog_5.0.0.h5"
+SOURCECAT_FILE = "source_catalog_5.0.2.h5"
 HETDEX_ELIXER_SUBPATH = "hdr5/detect"
 HETDEX_ELIXER_FILE = "elixer.h5"
 
