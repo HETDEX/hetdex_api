@@ -289,6 +289,10 @@ def make_narrowband_image(
         shot_h5=shot_h5,
     )
 
+    if info_result is None:
+        print(f'Could not located coordinates in survey: {coords}')
+        return None
+
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
@@ -737,6 +741,10 @@ def make_data_cube(
         mask_options=mask_options,
     )
 
+    if info_result is None:
+        print(f'Could not located coordinates in survey: {coords}')
+        return None
+    
     ifux, ifuy, xc, yc, ra, dec, data, error, mask = info_result
 
     # get ifu center:
