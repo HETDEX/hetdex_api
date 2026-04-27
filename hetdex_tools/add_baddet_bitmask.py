@@ -80,6 +80,9 @@ def add_manual_flags_to_cube(
     input_fits = f"{pdr_dir}/datacubes/{shot_i}/dex_cube_{shot_i}_{ifuslot}.fits"
     output_fits = f"datacubes/{shot_i}/dex_cube_{shot_i}_{ifuslot}.fits"
 
+    if op.exists(output_fits):
+        return output_fits
+        
     # Make sure output directory exists
     outdir = op.dirname(output_fits)
     if outdir and not op.exists(outdir):
@@ -167,8 +170,6 @@ pdr_dir = "/corral-repl/utexas/Hobby-Eberly-Telesco/public/HETDEX/internal/pdr1"
 # pdr_dir = '/home/jovyan/Hobby-Eberly-Public/HETDEX/internal/pdr1'
 ifu_data = Table.read(op.join(pdr_dir, "ifu-index.fits"))
 
-shotlist = np.unique(ifu_data["shotid"])
-
 shot_i = int(sys.argv[1])
 print("Working on ", shot_i)
 # read source table for given shotid (its not indexed on ifuslot atm)
@@ -198,7 +199,7 @@ flag_best_baddet = (
     * source_table["flag_faint_cont"]
 )
 
-ifu_list = np.unique(source_table["ifuslot"])
+ifu_list = ifu_data['ifuslot'][ ifu_data['shotid'] == shot_i ]
 
 for ifuslot in ifu_list:
     ifu_baddets = (
