@@ -115,6 +115,9 @@ class Detections(tb.IsDescription):
     sn_3fib = tb.Float32Col()
     sn_3fib_cen = tb.Float32Col()
 
+    mc_file = tb.StringCol((32))
+    mc_file_idx = tb.Int32Col()
+
 class Spectra(tb.IsDescription):
     detectid = tb.Int64Col(pos=0)
     wave1d = tb.Float32Col(1036, pos=1)
@@ -492,6 +495,7 @@ def main(argv=None):
             # removing down selection 2021-11-18
 
             detectcat = detectcatall[selcat]
+            detectcat_idx = np.arange(0,len(selcat))[selcat]
 
             nsel_file = np.sum(selcat)
 
@@ -554,7 +558,7 @@ def main(argv=None):
 
             ndet_sel.append(nsel_file)
                 
-            for row in detectcat:
+            for row, mc_idx in zip(detectcat,detectcat_idx):
             
                 inputid_i = amp_i + '_' + str(row['src_index']).zfill(3)
                 
@@ -569,6 +573,9 @@ def main(argv=None):
                     rowMain['date'] = int(amp_i[0:8])
                     rowMain['obsid'] = int(amp_i[9:12])
                     rowMain['shotid'] = int(amp_i[0:8] + amp_i[9:12])
+
+                rowMain['mc_file'] = op.basename(catfile)
+                rowMain['mc_file_idx'] = mc_idx
 
                 # check if amp is in bad amp list
                 multiframe = row['multiname'][0:20]
