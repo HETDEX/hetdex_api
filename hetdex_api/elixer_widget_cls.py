@@ -192,6 +192,7 @@ class ElixerWidget:
         detect_h5=None,
         elixer_h5=None,
         ssr_h5=None,
+        ssr_path=None,
         cutoutpath=None,
         show_cls_buttons=ALLOW_CLASSIFICATION_BUTTONS
     ):
@@ -245,6 +246,8 @@ class ElixerWidget:
 
         self.elix_dir = None
         self.ELIXER_H5 = None
+
+        self.ssr_path = ssr_path #this is a PATH not a file (where else to look for ssr h5 files)
 
         self.ssr_h5fn = ssr_h5 #keeping the "_h5" for consistency in parameter list
                                #but this is the filename (so assign to _h5fn
@@ -1835,12 +1838,15 @@ class ElixerWidget:
                     nei_imag = nei_imag.convert("RGB")
             else: #fetch single image and close the h5
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
-                    h5fn = self.derive_ssr_filename(q_detectid)
-                    if self.jupyter_hub:
-                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'],h5fn))
-                    else:
-                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
-                    if h5.__contains__("/elixer_reports"):
+                    #h5fn = self.derive_ssr_filename(q_detectid)
+                    #if self.jupyter_hub:
+                    #    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'],h5fn))
+                    #else:
+                    #    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
+
+                    h5 = self.get_ssr_h5_handle(q_detectid)
+
+                    if h5 is not None and h5.__contains__("/elixer_reports"):
                         row = h5.root.Detections.read_where("detectid==q_detectid")[0]
                         gp = h5.get_node(f"/elixer_reports")
                         path = gp._f_get_child(f"image_data_{row['h5_report_id']}")
@@ -1875,12 +1881,15 @@ class ElixerWidget:
                         display(nei_imag)
             else:
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
-                    h5fn = self.derive_ssr_filename(q_detectid)
-                    if self.jupyter_hub:
-                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
-                    else:
-                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
-                    if h5.__contains__("/elixer_neighbors"):
+                    # h5fn = self.derive_ssr_filename(q_detectid)
+                    # if self.jupyter_hub:
+                    #     h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
+                    # else:
+                    #     h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
+
+                    h5 = self.get_ssr_h5_handle(q_detectid)
+
+                    if h5 is not None and h5.__contains__("/elixer_neighbors"):
                         # this has image priority if it has the imaging groups
                         row = h5.root.Detections.read_where("detectid==q_detectid")[0]
                         gp = h5.get_node(f"/elixer_neighbors")
@@ -2656,3 +2665,43 @@ class ElixerWidget:
             return None
 
 
+    def get_ssr_h5_handle(self,detectid):
+        """
+
+        Parameters
+        ----------
+        detectid
+
+        Returns
+        -------
+
+        """
+        handle = None
+        try:
+            #sanity check
+            if self.is_ssr_detectid(detectid):
+                paths_to_try = []
+                if self.ssr_path is not None and len(self.ssr_path) > 0:
+                    paths_to_try.append(self.ssr_path) #for now, at least, just one path
+                                                       #later, you might want to allow the user to pass in a list?
+
+                if self.jupyter_hub:
+                    paths_to_try.append(SSR_H5PATHS_DICT['hub'])
+                else:
+                    paths_to_try.append(SSR_H5PATHS_DICT['not_hub'])
+
+                h5fn = self.derive_ssr_filename(detectid)
+                for path in paths_to_try:
+                    try:
+                        handle = tables.open_file(op.join(path, h5fn))
+                        if handle.__contains__("/elixer_reports"):
+                            break #found a hit, always use user provided first then system
+                                   #and exit the loop on the first hit that has reports
+                        else:
+                            handle = None #found it, but it does not have reports in it
+                    except:
+                        continue
+        except:
+            self.status_box.value = f"Could not locate a suitable h5 file. {traceback.format_exc()}"
+
+        return handle
