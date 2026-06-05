@@ -2693,7 +2693,16 @@ class ElixerWidget:
                     if self.jupyter_hub:
                         try:
                             if self.ssr_path[0:12] != "/home/jovyan":
-                                paths_to_try.append("/home/jovyan" + self.ssr_path)
+
+                                #have to manipulate the path
+                                #this is the hub, so assume /work/<#####>/<user>
+                                toks = self.ssr_path.split("/")
+                                try:
+                                    ix = toks.index("work")
+                                except:
+                                    ix = 0
+
+                                paths_to_try.append("/home/jovyan/work/" + "/".join(toks[ix+3:]))
                             else:
                                 paths_to_try.append(self.ssr_path)
                         except:
