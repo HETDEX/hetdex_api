@@ -2685,6 +2685,10 @@ class ElixerWidget:
                 # for now, at least, just one user defined path
                 # later, you might want to allow the user to pass in a list
                 # if this is on the hub, make sure the "/home/jovyan" root dir is part of the path
+
+                self.status_box.value += f"ssr path: {self.ssr_path}"
+                print(f"ssr path: {self.ssr_path}")
+
                 if self.ssr_path is not None and len(self.ssr_path) > 0:
 
                     if self.jupyter_hub:
