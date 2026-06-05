@@ -2681,9 +2681,22 @@ class ElixerWidget:
             #sanity check
             if self.is_ssr_detectid(detectid):
                 paths_to_try = []
+
+                # for now, at least, just one user defined path
+                # later, you might want to allow the user to pass in a list
+                # if this is on the hub, make sure the "/home/jovyan" root dir is part of the path
                 if self.ssr_path is not None and len(self.ssr_path) > 0:
-                    paths_to_try.append(self.ssr_path) #for now, at least, just one path
-                                                       #later, you might want to allow the user to pass in a list?
+
+                    if self.jupyter_hub:
+                        try:
+                            if self.ssr_path[0:12] != "/home/jovyan":
+                                paths_to_try.append(op.join("/home/jovyan"),self.ssr_path)
+                            else:
+                                paths_to_try.append(self.ssr_path)
+                        except:
+                            pass
+                    else:
+                        paths_to_try.append(self.ssr_path)
 
                 if self.jupyter_hub:
                     paths_to_try.append(SSR_H5PATHS_DICT['hub'])
