@@ -2718,8 +2718,8 @@ class ElixerWidget:
                 h5fn = self.derive_ssr_filename(detectid)
                 print(f"paths to try: {paths_to_try}")
                 for path in paths_to_try:
-                    self.status_box.value += f"trying: {path}"
-                    print(f"trying: {path}")
+                    self.status_box.value += f"trying: {op.join(path, h5fn)}"
+                    print(f"trying: {op.join(path, h5fn)}")
                     try:
                         handle = tables.open_file(op.join(path, h5fn))
                         if handle.__contains__("/elixer_reports"):
