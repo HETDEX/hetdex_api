@@ -2693,7 +2693,7 @@ class ElixerWidget:
                     if self.jupyter_hub:
                         try:
                             if self.ssr_path[0:12] != "/home/jovyan":
-                                paths_to_try.append(op.join("/home/jovyan"),self.ssr_path)
+                                paths_to_try.append(op.join("/home/jovyan",self.ssr_path))
                             else:
                                 paths_to_try.append(self.ssr_path)
                         except:
