@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import os
 import os.path as op
 import traceback
+import socket
 
 import astropy.units as u
 from astropy.io import ascii
@@ -99,8 +100,7 @@ SOURCECAT_FILE = "source_catalog_5.0.2.h5"
 HETDEX_ELIXER_SUBPATH = "hdr5/detect"
 HETDEX_ELIXER_FILE = "elixer.h5"
 
-SSR_H5PATHS_DICT = {"scratch":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
-                    "cluster":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
+SSR_H5PATHS_DICT = {"not_hub":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
                     "hub":"/home/jovyan/Hobby-Eberly-Telesco/parallel/reduction/data/"}
 
 #elix_dir = None
@@ -200,6 +200,14 @@ class ElixerWidget:
         global HETDEX_DETECT_HDF5_FN, ALLOW_CLASSIFICATION_BUTTONS
 
         ALLOW_CLASSIFICATION_BUTTONS = show_cls_buttons
+        try:
+            self.hostname = socket.gethostname()
+        except:
+            self.hostname = ""
+        if 'jupyter' in self.hostname:
+            self.jupyter_hub = True
+        else:
+            self.jupyter_hub = False
 
         self.elixer_conn_mgr = sql.ConnMgr()
         self.current_idx = 0
@@ -1828,7 +1836,10 @@ class ElixerWidget:
             else: #fetch single image and close the h5
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
                     h5fn = self.derive_ssr_filename(q_detectid)
-                    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'],h5fn))
+                    if self.jupyter_hub:
+                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'],h5fn))
+                    else:
+                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
                     if h5.__contains__("/elixer_reports"):
                         row = h5.root.Detections.read_where("detectid==q_detectid")[0]
                         gp = h5.get_node(f"/elixer_reports")
@@ -1865,7 +1876,10 @@ class ElixerWidget:
             else:
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
                     h5fn = self.derive_ssr_filename(q_detectid)
-                    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
+                    if self.jupyter_hub:
+                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
+                    else:
+                        h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['not_hub'], h5fn))
                     if h5.__contains__("/elixer_neighbors"):
                         # this has image priority if it has the imaging groups
                         row = h5.root.Detections.read_where("detectid==q_detectid")[0]
