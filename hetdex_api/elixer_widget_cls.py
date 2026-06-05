@@ -1862,6 +1862,26 @@ class ElixerWidget:
                     isokay = True
                     with self.bottombox:
                         display(nei_imag)
+            else:
+                if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
+                    h5fn = self.derive_ssr_filename(q_detectid)
+                    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
+                    if h5.__contains__("/elixer_reports"):
+                        # this has image priority if it has the imaging groups
+                        row = h5.root.Detections.read_where("detectid==q_detectid")[0]
+                        gp = h5.get_node(f"/elixer_neighbors")
+                        path = gp._f_get_child(f"image_data_{row['h5_neighbor_id']}")
+                        idx = row['h5_neighbor_idx']
+                        nei_imag = PILImage.fromarray(path[idx])
+
+                        if nei_imag.mode in ("RGBA", "P", "F"):
+                            nei_imag = nei_imag.convert("RGB")
+
+                        if nei_imag is not None:
+                            isokay = True
+                            with self.bottombox:
+                                display(nei_imag)
+                    h5.close()
         except:
             print(f"Exception on_elixer_neightbor_ssr: {traceback.format_exc()}")
             isokay = False
