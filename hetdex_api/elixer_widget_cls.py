@@ -2686,9 +2686,6 @@ class ElixerWidget:
                 # later, you might want to allow the user to pass in a list
                 # if this is on the hub, make sure the "/home/jovyan" root dir is part of the path
 
-                self.status_box.value += f"ssr path: {self.ssr_path}"
-                print(f"ssr path: {self.ssr_path}")
-
                 if self.ssr_path is not None and len(self.ssr_path) > 0:
                     if self.jupyter_hub:
                         try:
@@ -2706,7 +2703,8 @@ class ElixerWidget:
                             else:
                                 paths_to_try.append(self.ssr_path)
                         except:
-                            print(f"{traceback.format_exc()}")
+                            #print(f"{traceback.format_exc()}")
+                            pass
                     else:
                         paths_to_try.append(self.ssr_path)
 
@@ -2716,25 +2714,20 @@ class ElixerWidget:
                     paths_to_try.append(SSR_H5PATHS_DICT['not_hub'])
 
                 h5fn = self.derive_ssr_filename(detectid)
-                print(f"paths to try: {paths_to_try}")
                 for path in paths_to_try:
-                    self.status_box.value += f"trying: {op.join(path, h5fn)}"
-                    print(f"trying: {op.join(path, h5fn)}")
                     try:
                         handle = tables.open_file(op.join(path, h5fn))
-                        print(f"handle: {handle}")
                         if handle.__contains__("/elixer_reports"):
                             self.status_box.value += f"found: {op.join(path, h5fn)}"
-                            print(f"found: {op.join(path, h5fn)}")
                             break #found a hit, always use user provided first then system
                                    #and exit the loop on the first hit that has reports
                         else:
-                            print(f"handle: does not have reports")
                             handle = None #found it, but it does not have reports in it
                     except:
-                        print(f"handle: exceptoin {traceback.format_exc()}")
+                        #print(f"handle: exceptoin {traceback.format_exc()}")
                         continue
         except:
-            self.status_box.value = f"Could not locate a suitable h5 file. {traceback.format_exc()}"
+            #self.status_box.value = f"Could not locate a suitable h5 file. {traceback.format_exc()}"
+            pass
 
         return handle
