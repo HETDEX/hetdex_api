@@ -2705,9 +2705,13 @@ class ElixerWidget:
 
                 h5fn = self.derive_ssr_filename(detectid)
                 for path in paths_to_try:
+                    self.status_box.value += f"trying: {path}"
+                    print(f"trying: {path}")
                     try:
                         handle = tables.open_file(op.join(path, h5fn))
                         if handle.__contains__("/elixer_reports"):
+                            self.status_box.value += f"found: {op.join(path, h5fn)}"
+                            print(f"found: {op.join(path, h5fn)}")
                             break #found a hit, always use user provided first then system
                                    #and exit the loop on the first hit that has reports
                         else:
