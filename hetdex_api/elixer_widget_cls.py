@@ -36,6 +36,8 @@ import tables
 from hetdex_tools.get_spec import get_spectra
 from hetdex_api.detections import Detections
 
+from datetime import date, datetime
+
 if ALLOW_MANUAL_CATALOG_UPDATE:
     try:
         from h5tools import source_catalog_manual_updates
@@ -63,7 +65,7 @@ except Exception as e:
     CONFIG_HDR2 = None
     CONFIG_HDR3 = None
 
-HDR_NAME_DICT = {10: "hdr1", 20: "hdr2", 21: "hdr2.1", 30: "hdr3"}
+HDR_NAME_DICT = {10: "hdr1", 20: "hdr2", 21: "hdr2.1", 30: "hdr3", 40: "hdr4", 50:"hdr5"}
 
 
 try:  # using HDRconfig
@@ -96,6 +98,10 @@ SOURCECAT_SUBPATH = "hdr5/catalogs/"
 SOURCECAT_FILE = "source_catalog_5.0.2.h5"
 HETDEX_ELIXER_SUBPATH = "hdr5/detect"
 HETDEX_ELIXER_FILE = "elixer.h5"
+
+SSR_H5PATHS_DICT = {"scratch":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
+                    "cluster":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
+                    "hub":"home/jovyan/Hobby-Eberly-Telesco/parallel/reduction/data/"}
 
 #elix_dir = None
 
@@ -1819,6 +1825,20 @@ class ElixerWidget:
 
                 if nei_imag.mode in ("RGBA", "P", "F"):
                     nei_imag = nei_imag.convert("RGB")
+            else: #fetch single image and close the h5
+                if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
+                    h5fn = self.derive_ssr_filename(q_detectid)
+                    h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'],h5fn))
+                    if h5.__contains__("/elixer_reports"):
+                        row = h5.root.Detections.read_where("detectid==q_detectid")[0]
+                        gp = h5.get_node(f"/elixer_reports")
+                        path = gp._f_get_child(f"image_data_{row['h5_report_id']}")
+                        idx = row['h5_report_idx']
+                        nei_imag = PILImage.fromarray(path[idx])
+
+                        if nei_imag.mode in ("RGBA", "P", "F"):
+                            nei_imag = nei_imag.convert("RGB")
+                    h5.close()
         except:
             nei_imag = None
 
@@ -2559,6 +2579,46 @@ class ElixerWidget:
             self.catalog_status_box.value += str(e) + "\n" + traceback.format_exc()
 
 
+    def is_ssr_detectid(self,detectid):
+        """
 
+        Parameters
+        ----------
+        detectid
+
+        Returns
+        -------
+
+        """
+
+        dstr = str(detectid)
+        current_year = int(str(date.today().year)[2:4])
+
+        try:
+            valid_date = bool(datetime.strptime("20"+dstr[0:6],"%Y%m%d"))
+        except:
+            valid_date = False
+
+        if len(dstr) == 14 and valid_date:
+            return True
+        else:
+            return False
+
+
+    def derive_ssr_filename(self,detectid):
+        """
+
+        Parameters
+        ----------
+        detectid
+
+        Returns
+        -------
+
+        """
+        try:
+            return "ssr_20" + str(detectid)[0:6] + "v" + str(detectid)[6:9] +".h5"
+        except:
+            return None
 
 
