@@ -2690,7 +2690,6 @@ class ElixerWidget:
                 print(f"ssr path: {self.ssr_path}")
 
                 if self.ssr_path is not None and len(self.ssr_path) > 0:
-
                     if self.jupyter_hub:
                         try:
                             if self.ssr_path[0:12] != "/home/jovyan":
@@ -2698,7 +2697,7 @@ class ElixerWidget:
                             else:
                                 paths_to_try.append(self.ssr_path)
                         except:
-                            pass
+                            print(f"{traceback.format_exc()}")
                     else:
                         paths_to_try.append(self.ssr_path)
 
@@ -2708,6 +2707,7 @@ class ElixerWidget:
                     paths_to_try.append(SSR_H5PATHS_DICT['not_hub'])
 
                 h5fn = self.derive_ssr_filename(detectid)
+                print(f"paths to try: {paths_to_try}")
                 for path in paths_to_try:
                     self.status_box.value += f"trying: {path}"
                     print(f"trying: {path}")
