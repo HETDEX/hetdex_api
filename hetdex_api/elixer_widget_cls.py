@@ -101,7 +101,7 @@ HETDEX_ELIXER_FILE = "elixer.h5"
 
 SSR_H5PATHS_DICT = {"scratch":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
                     "cluster":"/corral-repl/utexas/Hobby-Eberly-Telesco/parallel/reduction/data/",
-                    "hub":"home/jovyan/Hobby-Eberly-Telesco/parallel/reduction/data/"}
+                    "hub":"/home/jovyan/Hobby-Eberly-Telesco/parallel/reduction/data/"}
 
 #elix_dir = None
 
