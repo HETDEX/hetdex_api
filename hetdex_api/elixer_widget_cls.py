@@ -1866,7 +1866,7 @@ class ElixerWidget:
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
                     h5fn = self.derive_ssr_filename(q_detectid)
                     h5 = tables.open_file(op.join(SSR_H5PATHS_DICT['hub'], h5fn))
-                    if h5.__contains__("/elixer_reports"):
+                    if h5.__contains__("/elixer_neighbors"):
                         # this has image priority if it has the imaging groups
                         row = h5.root.Detections.read_where("detectid==q_detectid")[0]
                         gp = h5.get_node(f"/elixer_neighbors")
