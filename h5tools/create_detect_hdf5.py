@@ -267,7 +267,7 @@ def main(argv=None):
         "-sn_min",
         help=""" Minimum initial SNR to allow mc detection to continue""",
         type=float,
-        default=4.5,
+        default=-1.0,
         required=False
     )
 
