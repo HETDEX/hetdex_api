@@ -485,7 +485,7 @@ def main(argv=None):
                 selchi2fib = (detectcatall['chi2fib'] < 5)
                 selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
-                selSN = (detectcatall['sn'] > 4.5)
+                selSN = (detectcatall['sn'] > 3.5)
 #                selLW = (detectcatall['linewidth'] > 1.7)
 #                selchi2 = (detectcatall['chi2'] <= 5)
 #                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
