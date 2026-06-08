@@ -287,8 +287,8 @@ def main(argv=None):
     args.log = setup_logging()
 
     if args.sn_min is None or args.sn_min < 0:
-        args.sn_min = 3.5
-        print(f"***** HETDEX_API setting default sn_min =  {args.sn_min} *****")
+        args.sn_min = 4.5
+        #print(f"***** HETDEX_API setting default sn_min =  {args.sn_min} *****")
 
 
     #check if shotid is in badlist
@@ -480,7 +480,7 @@ def main(argv=None):
             ndet.append( ndet_file)
 
             if ndet_file == 0:
-                ndet_sel.append( 0)
+                ndet_sel.append(0)
                 continue
                 
             try:
@@ -500,7 +500,7 @@ def main(argv=None):
                 selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
                 selSN = (detectcatall['sn'] > args.sn_min)
-                print(f"***** HETDEX_API sn_min > {args.sn_min} *****")
+                #print(f"***** HETDEX_API sn_min > {args.sn_min} *****")
 #                selLW = (detectcatall['linewidth'] > 1.7)
 #                selchi2 = (detectcatall['chi2'] <= 5)
 #                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
