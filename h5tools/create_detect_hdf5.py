@@ -263,6 +263,15 @@ def main(argv=None):
     )
 
     parser.add_argument(
+        "--sn_min",
+        "-sn_min",
+        help=""" Minimum initial SNR to allow mc detection to continue""",
+        type=float,
+        default=4.5,
+        required=False
+    )
+
+    parser.add_argument(
         "-survey", "--survey", help="""{hdr1, hdr2, hdr2.1, hdr3, hdr4, hdr5}""",
         type=str,
         default="hdr5"
@@ -276,6 +285,11 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     args.log = setup_logging()
+
+    if args.sn_min is None or args.sn_min < 0:
+        args.sn_min = 3.5
+        print(f"***** HETDEX_API setting default sn_min =  {args.sn_min} *****")
+
 
     #check if shotid is in badlist
     config = HDRconfig(args.survey)
@@ -485,7 +499,8 @@ def main(argv=None):
                 selchi2fib = (detectcatall['chi2fib'] < 5)
                 selcat = selSN * selLW * selcont * selwave * selchi2fib
             else:
-                selSN = (detectcatall['sn'] > 3.5)
+                selSN = (detectcatall['sn'] > args.sn_min)
+                print(f"***** HETDEX_API sn_min > {args.sn_min} *****")
 #                selLW = (detectcatall['linewidth'] > 1.7)
 #                selchi2 = (detectcatall['chi2'] <= 5)
 #                selcont = (detectcatall['continuum'] >= -3) * (detectcatall['continuum'] <= 20)
