@@ -568,7 +568,7 @@ def main(argv=None):
                 fibertable = Table.read(filefiberinfo, format="ascii.no_header")
             except Exception:
                 args.log.warning('Could not ingest ' + filefiberinfo)
-                ndet_sel.append( 0)
+                ndet_sel.append(0)
                 continue
 
             ndet_sel.append(nsel_file)
@@ -661,6 +661,15 @@ def main(argv=None):
                 fibertable = Table.read(filefiberinfo, format="ascii.no_header")
 
                 selfiber = fibertable['col16'] == row['src_index']
+
+                #DD 20260609 -- apparently something weird can happen and this can be empty?
+                if np.count_nonzero(selfiber) == 0:
+                    #nothing matched?
+                    detectidx += 1 #just to keep the iterator synched
+                    args.log.info(f"Failed to find any fibers matching: fibertable[col16] == row[src_index]: "
+                                  f"{fibertable['col16']} == {row['src_index']} ")
+                    continue
+
 
                 datafiber = fibertable[selfiber]
 
