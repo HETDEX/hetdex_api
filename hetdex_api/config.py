@@ -7,6 +7,8 @@ import os.path as op
 
 
 HETDEX_API_CODE_PATH = op.dirname(op.realpath(__file__))
+#this goes to hetdex_api/hetdex_api ... we actually want one level up
+HETDEX_API_BASE_PATH = op.dirname(HETDEX_API_CODE_PATH)
 
 class HDRconfig:
 
@@ -142,8 +144,8 @@ class HDRconfig:
             self.badpix = op.join(self.bad_dir, "badpix.list")
         #if survey in ["hdr2.1",'hdr3', 'hdr4', 'hdr5', 'pdr1']:
         else:
-            if op.exists(f"{HETDEX_API_CODE_PATH}"):
-                self.bad_dir = op.join(HETDEX_API_CODE_PATH,f"known_issues/{survey}")
+            if op.exists(f"{HETDEX_API_BASE_PATH}"):
+                self.bad_dir = op.join(HETDEX_API_BASE_PATH,f"known_issues/{survey}")
             elif op.exists(f"/scratch/projects/hetdex/hdrX/software/hetdex_api"):
                 self.bad_dir = f"/scratch/projects/hetdex/hdrX/software/hetdex_api/known_issues/{survey}"
             elif op.exists(f"/corral/utexas/Hobby-Eberly-Telesco/hdrX/software/hetdex_api"):
