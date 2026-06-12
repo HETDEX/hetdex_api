@@ -6,7 +6,7 @@ import os
 import os.path as op
 
 
-
+HETDEX_API_CODE_PATH = op.dirname(op.realpath(__file__))
 
 class HDRconfig:
 
@@ -129,8 +129,7 @@ class HDRconfig:
             self.plae_poii_hetdex_gmag = op.join(
                 self.bad_dir, "plae_poii_hetdex_gmag.pickle"
             )
-
-        if survey == "hdr2":
+        elif survey == "hdr2":
             if op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/hdr2"
             else:
@@ -141,9 +140,15 @@ class HDRconfig:
             self.badshot = op.join(self.bad_dir, "badshots.list")
             self.badamp = op.join(self.bad_dir, "badamps.list")
             self.badpix = op.join(self.bad_dir, "badpix.list")
-
-        if survey in ["hdr2.1",'hdr3', 'hdr4', 'hdr5', 'pdr1']:
-            if op.exists("/home/jovyan/software/hetdex_api"):
+        #if survey in ["hdr2.1",'hdr3', 'hdr4', 'hdr5', 'pdr1']:
+        else:
+            if op.exists(f"{HETDEX_API_CODE_PATH}"):
+                self.bad_dir = op.join(HETDEX_API_CODE_PATH,f"known_issues/{survey}")
+            elif op.exists(f"/scratch/projects/hetdex/hdrX/software/hetdex_api"):
+                self.bad_dir = f"/scratch/projects/hetdex/hdrX/software/hetdex_api/known_issues/{survey}"
+            elif op.exists(f"/corral/utexas/Hobby-Eberly-Telesco/hdrX/software/hetdex_api"):
+                self.bad_dir = f"/corral/utexas/Hobby-Eberly-Telesco/hdrX/software/hetdex_api/known_issues/{survey}"
+            elif op.exists("/home/jovyan/software/hetdex_api"):
                 self.bad_dir = "/home/jovyan/software/hetdex_api/known_issues/{}".format(survey)
             elif op.exists('/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)):
                 self.bad_dir = '/home1/05350/ecooper/hetdex_api/known_issues/{}'.format(survey)
