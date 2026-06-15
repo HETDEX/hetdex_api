@@ -1875,6 +1875,15 @@ class ElixerWidget:
                 if nei_imag.mode in ("RGBA", "P", "F"):
                     nei_imag = nei_imag.convert("RGB")
 
+                if self.ssr_h5.__contains__("/elixer_neighbors/NeighborID"):
+                    try:
+                        rows = self.ssr_h5.root.elixer_neighbors.NeighborID.read_where("detectid==q_detectid",
+                                                                              field="neighborid")
+                        if len(rows) > 0:
+                            self.status_box.value = f"Neighbors: {', '.join([str(r) for r in rows])}"
+                    except:
+                        self.status_box.value = f"Exception fetching neighbor IDs"
+
                 if nei_imag is not None:
                     isokay = True
                     with self.bottombox:
@@ -1900,10 +1909,20 @@ class ElixerWidget:
                         if nei_imag.mode in ("RGBA", "P", "F"):
                             nei_imag = nei_imag.convert("RGB")
 
+                        if h5.__contains__("/elixer_neighbors/NeighborID"):
+                            try:
+                                rows = h5.root.elixer_neighbors.NeighborID.read_where("detectid==q_detectid",
+                                                                                      field="neighborid")
+                                if len(rows) > 0:
+                                    self.status_box.value = f"Neighbors: {', '.join([str(r) for r in rows])}"
+                            except:
+                                self.status_box.value = f"Exception fetching neighbor IDs"
+
                         if nei_imag is not None:
                             isokay = True
                             with self.bottombox:
                                 display(nei_imag)
+
                     h5.close()
         except:
             print(f"Exception on_elixer_neightbor_ssr: {traceback.format_exc()}")
@@ -1931,6 +1950,11 @@ class ElixerWidget:
                 if 'Neighbors' in pil_img.info.keys():
                     self.neighbor_list = pil_img.info['Neighbors']
                     if len(self.neighbor_list) > 0:
+                        try:
+                            # add a space for wrapping
+                            self.neighbor_list = self.neighbor_list.replace(",",", ")
+                        except:
+                            pass
                         self.status_box.value = f"Neighbors: {self.neighbor_list}"
                 else:
                     self.neighbor_list = []
@@ -1959,6 +1983,12 @@ class ElixerWidget:
                         if 'Neighbors' in pil_img.info.keys():
                             self.neighbor_list = pil_img.info['Neighbors']
                             if len(self.neighbor_list) > 0:
+                                try:
+                                    # add a space for wrapping
+                                    self.neighbor_list = self.neighbor_list.replace(",",", ")
+                                except:
+                                    pass
+
                                 self.status_box.value = f"Neighbors: {self.neighbor_list}"
                         else:
                             self.neighbor_list = []
