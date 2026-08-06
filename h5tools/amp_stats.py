@@ -1456,7 +1456,10 @@ def stats_amp(h5, multiframe=None, expid=None, amp_dict=None, fibers_table=None,
                         if np.any(np.isnan(dither_flux)):
                             exp_dict['norm'] = np.nan
                         else:
-                            exp_dict['norm'] = np.nanmax(dither_flux)/np.nanmin(dither_flux)
+                            if np.any(dither_flux): #could all be zero (like for a single exposure observation)
+                                exp_dict['norm'] = np.nanmax(dither_flux)/np.nanmin(dither_flux)
+                            else:
+                                exp_dict['norm'] = 1.0
                     except:
                         exp_dict['norm'] = np.nan
                         exp_dict['dither_relflux'] = np.nan
@@ -1566,9 +1569,12 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=T
             print(f"{shotid} building stats ...")
             shot_dict = stats_shot(h5,expid=None, shot_dict=None, rollup=True, fibers_table=t_fib,images_table=t_img, shot_table=t_shot)
 
-            if save and shot_dict is not None:
-                save_shot_stats_pickle(shot_dict)
-                print(f"{shotid} done.")
+            if shot_dict is not None:
+                if save:
+                    save_shot_stats_pickle(shot_dict)
+                    print(f"{shotid} done and saved.")
+                else:
+                    print(f"{shotid} done.")
             else:
                 print(f"[{shotid}] Error. Could not assemble stats dictionary.")
             h5.close()
@@ -1749,7 +1755,10 @@ def stats_shot_rollup(h5, shot_dict):
 
             x = np.nan_to_num(T['sky_sub_rms'][sel], nan=-999.0)
             data_sel = np.array(x != -999.)
-            shot_dict['sky_sub_rms_median_exp'].append(np.nanmedian(x[data_sel]))
+            if np.count_nonzero(data_sel) > 0:
+                shot_dict['sky_sub_rms_median_exp'].append(np.nanmedian(x[data_sel]))
+            else:
+                shot_dict['sky_sub_rms_median_exp'].append(np.nan)
 
         shot_dict['sky_sub_rms_median_exp'] = np.array(shot_dict['sky_sub_rms_median_exp'])
         dither_relflux_array = np.array(dither_relflux_array)
