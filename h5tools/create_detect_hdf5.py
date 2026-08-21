@@ -509,10 +509,10 @@ def main(argv=None):
                 selcat = selSN #* selLW * selchi2fib
             # removing down selection 2021-11-18
 
-            args.log.debug(f"Total detections found: {len(detectcatall)}")
+            args.log.info(f"Total detections found: {len(detectcatall)}")
             detectcat = detectcatall[selcat]
             detectcat_idx = np.arange(0,len(selcat))[selcat]
-            args.log.debug(f"Downselecting detections to: {len(detectcat)}")
+            args.log.info(f"Downselecting detections to: {len(detectcat)}")
 
             nsel_file = np.sum(selcat)
 
