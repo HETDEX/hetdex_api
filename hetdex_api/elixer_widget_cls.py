@@ -68,6 +68,7 @@ except Exception as e:
 
 HDR_NAME_DICT = {10: "hdr1", 20: "hdr2", 21: "hdr2.1", 30: "hdr3", 40: "hdr4", 50:"hdr5"}
 
+DET_HANDLE = None
 
 try:  # using HDRconfig
     HETDEX_API_CONFIG = HDRconfig(survey=LATEST_HDR_NAME)
@@ -2211,7 +2212,10 @@ class ElixerWidget:
         global CONFIG_HDR2, CONFIG_HDR3, OPEN_DET_FILE, DET_HANDLE
 
         detid = np.int64(self.detectbox.value)
-        DET_HANDLE = None
+
+        #DET_HANDLE = None #should only be None at the original intialization
+        #otherwisse this gets stepped on with the second call, set to None and never
+        #repopulated
         
         if (detid >= 2100000000) & (detid < 2190000000):
             self.det_file = CONFIG_HDR2.detecth5
@@ -2232,6 +2236,7 @@ class ElixerWidget:
         else:
             self.det_file = None
 
+
         if OPEN_DET_FILE is None and self.det_file is not None:
             OPEN_DET_FILE = self.det_file
             DET_HANDLE = tables.open_file(self.det_file, 'r')
@@ -2246,9 +2251,12 @@ class ElixerWidget:
                 except Exception:
                     with self.status_box:
                         print("Could not open {}".format(self.det_file))
+                    DET_HANDLE = None
+                    OPEN_DET_FILE = None
 
         elif self.ssr_h5 is not None:
             DET_HANDLE = self.ssr_h5
+
         if DET_HANDLE is not None:
             detid = np.int64(self.detectbox.value)
             try:
@@ -2259,6 +2267,9 @@ class ElixerWidget:
                 )
             except Exception as e:
                 self.status_box.value = str(e) + "\n" + traceback.format_exc()
+        else:
+            self.det_row = None
+            OPEN_DET_FILE = None
                             
     def det_table_button_click(self, b):
 
@@ -2282,6 +2293,10 @@ class ElixerWidget:
         self.get_det_info()
 
         url = 'https://www.legacysurvey.org/viewer?ra={:6.4f}&dec={:6.4f}&layer=ls-dr9&zoom=16'.format(self.det_row['ra'][0], self.det_row['dec'][0])
+
+
+        self.status_box.value += f"\nTrying URL:{url}"
+
         with self.bottombox:
             display(Javascript(f'window.open("{url}");'.format(url=url))) 
 
