@@ -153,7 +153,7 @@ def stats_shot_dict_to_table(shot_dict):
         #kNlo = [] #same as n_lo
         Scale = []
         Avg = []
-        Avg_orig = []
+        Avg_orig = [] #basically, the sky level (can be high, for example, if the moon is up and full)
         kchi = []
         #Frac_c2 = []
         #Frac0 = []
@@ -1934,7 +1934,12 @@ def stats_qc(data,extend=False,total_exp_time=None):
         #since norm is max(dither flux norms) / min(dither flux norms) MUST always be at least 1.0 (if the max == min)
         #though this seems unusual that max == min would be the case
         #if max/min is too large, there is likely something wrong. x3.0 seems to be about that spot
-        sel8 = ((amp_stats['norm'] > 1.0) & (amp_stats['norm'] < 3.0)) | (np.isnan(amp_stats['norm']))
+        #With non-standard 3x dither observations, this does not hold
+        num_exposures = len(np.unique(amp_stats['expnum']))
+        if num_exposures >= 3:
+            sel8 = ((amp_stats['norm'] > 1.0) & (amp_stats['norm'] < 3.0)) | (np.isnan(amp_stats['norm']))
+        else:
+            sel8 = np.full(len(amp_stats),True)
 
         if total_exp_time is None or total_exp_time <= exp_time_norm:
             sel9_hdr3 = ((amp_stats['frac_c2'] < 0.5) | (is_masked(amp_stats['frac_c2']))) * (amp_stats['date'] < 20210901)
@@ -1982,9 +1987,12 @@ def stats_qc(data,extend=False,total_exp_time=None):
         #Scale is not useful
         #sel13 =  ((amp_stats['Scale'] > 0) & (amp_stats['Scale'] < 30.0)) | (is_masked(amp_stats['Scale']))
 
-        #Avg_orig
+        #Avg_orig #bsically an average sky level ... can be high for long exposures and if the moon is up and full
+        #note than np.nan would result in False if not for the is_masked check
+        #values above 1000.0 get dodgy, at 9999 is total trash
+        #in-between is iffy and may need a second, modifying condition
         # sel14 = ((amp_stats['Avg_orig'].astype(float) > 0.0) *
-        #         (amp_stats['Avg_orig'].astype(float) < 5000.0)) | (is_masked(amp_stats['Avg_orig']))
+        #          (amp_stats['Avg_orig'].astype(float) < 5000.0)) | (is_masked(amp_stats['Avg_orig']))
 
         #basically redundant to chi2fib_med
         #sel15 = ((amp_stats['kchi'] > 0.5) & (amp_stats['kchi'] < 1.2)) | (is_masked(amp_stats['kchi']))
