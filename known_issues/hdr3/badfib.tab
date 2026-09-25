@@ -82,8 +82,9 @@ multi_419_040_046_RU 66
 multi_421_069_006_RU 81
 multi_424_039_053_RL 103
 multi_426_095_004_RL 82
-multi_02_066_7002_RU 7
-multi_02_066_7002_RU 18
+#next two must be typos, have always been this way, cannot ID the original fibers
+#multi_02_066_7002_RU 7
+#multi_02_066_7002_RU 18
 multi_504_050_018_RL 1
 multi_505_097_022_RU 93
 multi_508_059_080_RU 76
@@ -119,8 +120,6 @@ multi_306_037_057_LL 38
 multi_330_092_075_RL 112
 multi_415_048_067_LU 39
 multi_503_051_079_RU 99
-#from 202007 on
-multi_330_092_075_RL 112
 #from 202105 on
 multi_403_074_070_LU 093
 #from 202107 on
