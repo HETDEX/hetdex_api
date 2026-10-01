@@ -29,6 +29,7 @@ from ipywidgets import interact, Layout  # Style #, interactive
 
 from IPython.display import display, Image, Javascript, HTML
 from PIL import Image as PILImage
+from PIL import ImageDraw, ImageFont
 import io
 
 # from IPython.display import clear_output
@@ -1825,7 +1826,7 @@ class ElixerWidget:
 
 
     def get_elixer_report_ssr(self,q_detectid):
-        nei_imag = None
+        ssr_imag = None
         try:
             if self.ssr_h5 is not None and self.ssr_h5.__contains__("/elixer_reports"):
                 #this has image priority if it has the imaging groups
@@ -1833,10 +1834,10 @@ class ElixerWidget:
                 gp = self.ssr_h5.get_node(f"/elixer_reports")
                 path = gp._f_get_child(f"image_data_{row['h5_report_id']}")
                 idx = row['h5_report_idx']
-                nei_imag = PILImage.fromarray(path[idx])
+                ssr_imag = PILImage.fromarray(path[idx])
 
-                if nei_imag.mode in ("RGBA", "P", "F"):
-                    nei_imag = nei_imag.convert("RGB")
+                if ssr_imag.mode in ("RGBA", "P", "F"):
+                    ssr_imag = ssr_imag.convert("RGB")
             else: #fetch single image and close the h5
                 if self.ssr_h5 is None and self.is_ssr_detectid(q_detectid):
                     #h5fn = self.derive_ssr_filename(q_detectid)
@@ -1852,15 +1853,20 @@ class ElixerWidget:
                         gp = h5.get_node(f"/elixer_reports")
                         path = gp._f_get_child(f"image_data_{row['h5_report_id']}")
                         idx = row['h5_report_idx']
-                        nei_imag = PILImage.fromarray(path[idx])
+                        ssr_imag = PILImage.fromarray(path[idx])
 
-                        if nei_imag.mode in ("RGBA", "P", "F"):
-                            nei_imag = nei_imag.convert("RGB")
+                        if ssr_imag.mode in ("RGBA", "P", "F"):
+                            ssr_imag = ssr_imag.convert("RGB")
                     h5.close()
         except:
-            nei_imag = None
+            ssr_imag = None
 
-        return nei_imag
+        if ssr_imag is None:
+            ssr_imag = self.build_msg_png("No ELiXer Report available. Detection may have been excluded due to poor quality.")
+            if ssr_imag.mode in ("RGBA", "P", "F"):
+                ssr_imag = ssr_imag.convert("RGB")
+
+        return ssr_imag
 
     def on_elixer_neighborhood_ssr(self,q_detectid):
         isokay = False
@@ -1939,7 +1945,7 @@ class ElixerWidget:
             # display(Image(sql.fetch_elixer_report_image(self.elixer_conn_mgr.get_connection(detectid,report_type="nei"), detectid)))
 
 
-        if self.on_elixer_neighborhood_ssr(detectid): #this worked, so, were're done
+        if self.on_elixer_neighborhood_ssr(detectid): #this worked, so, we're done
             self.neighbor_list = []
             return
 
@@ -2776,3 +2782,49 @@ class ElixerWidget:
             pass
 
         return handle
+
+    def build_msg_png(self,text, point_size=48, image_height=1800,image_width=2700, font_path=None):
+        """Return PNG bytes of `text` centered on a white background.
+
+          text        : str; may contain newlines (lines are center-aligned)
+          point_size  : font size; at the 72 dpi Pillow assumes, 1 pt = 1 px
+          image_size  : int for a square image, or (width, height) in pixels
+          font_path   : optional path to a .ttf/.otf/.ttc file
+          """
+
+        def _load_font(point_size, font_path=None):
+            _FONT_CANDIDATES = ("DejaVuSans.ttf", "Arial.ttf", "arial.ttf",
+                                "Helvetica.ttc", "LiberationSans-Regular.ttf")
+
+            for name in ([font_path] if font_path else _FONT_CANDIDATES):
+                try:
+                    return ImageFont.truetype(name, point_size)
+                except OSError:
+                    continue
+            if font_path:
+                raise OSError(f"cannot open font: {font_path}")
+            return ImageFont.load_default(size=point_size)  # Pillow >= 10.1
+
+
+        if image_width <= 0 or image_height <= 0 or point_size <= 0:
+            raise ValueError("point_size and image dimensions must be positive")
+
+        font = ImageFont.load_default(size=point_size) #_load_font(point_size, font_path)
+        img = PILImage.new("RGB", (image_width, image_height), "white")
+        draw = ImageDraw.Draw(img)
+
+        # Measure the ink bounding box at the origin, then shift so its
+        # center lands on the image center.
+        left, top, right, bottom = draw.multiline_textbbox(
+            (0, 0), text, font=font, align="center")
+        x = (image_width - (right - left)) / 2 - left
+        y = (image_height - (bottom - top)) / 2 - top
+        draw.multiline_text((x, y), text, font=font, fill="black", align="center")
+
+        if right - left > image_width or bottom - top > image_height:
+            import warnings
+            warnings.warn(f"text ({right - left}x{bottom - top} px) exceeds "
+                          f"image ({image_width}x{image_height} px) and will be clipped")
+
+
+        return img
