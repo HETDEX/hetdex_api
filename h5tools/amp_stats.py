@@ -1556,9 +1556,10 @@ def make_stats_for_shot(shotid=None, survey=None,fqfn=None, save=True, preload=T
             h5 = stats_get_shot_h5(config=HETDEX_API_CONFIG, shotid=shotid, fqfn=None, append=False)
         else:
             h5 = stats_get_shot_h5(config=None, shotid=None, fqfn=fqfn, append=False)
-            shotid = h5.root.Shot.read(field="shotid")[0]
+
 
         if h5 is not None:
+            shotid = h5.root.Shot.read(field="shotid")[0]
 
             if preload:
                 print(f"{shotid} preload read ...")
