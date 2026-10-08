@@ -705,8 +705,24 @@ class ElixerWidget:
                         self.last_good_detectid = detectid
 
                 if not got_image:
-                    display(Image(self.elixer_conn_mgr.fetch_image(detectid)))
+                    img =Image(self.elixer_conn_mgr.fetch_image(detectid))
+
+                    if img is None:
+                        if self.ssr_h5 is None:
+                            img = self.build_msg_png(f"No ELiXer Report available. DetectID {detectid} not found.")
+                        else:
+                            img = self.build_msg_png(
+                                f"No ELiXer Report available. DetectID {detectid} not found.\n"
+                                f"Detection may have been excluded due to poor quality.")
+                        if img.mode in ("RGBA", "P", "F"):
+                            img = img.convert("RGB")
+                    else:
+                        got_image = True
+
+                if got_image:
                     self.last_good_detectid = detectid
+                display(img)
+
 
             except Exception as e:
 
@@ -1861,10 +1877,10 @@ class ElixerWidget:
         except:
             ssr_imag = None
 
-        if ssr_imag is None and self.ssr_h5 is not None:
-            ssr_imag = self.build_msg_png("No ELiXer Report available. Detection may have been excluded due to poor quality.")
-            if ssr_imag.mode in ("RGBA", "P", "F"):
-                ssr_imag = ssr_imag.convert("RGB")
+        # if ssr_imag is None and self.ssr_h5 is not None:
+        #     ssr_imag = self.build_msg_png("No ELiXer Report available. Detection may have been excluded due to poor quality.")
+        #     if ssr_imag.mode in ("RGBA", "P", "F"):
+        #         ssr_imag = ssr_imag.convert("RGB")
 
         return ssr_imag
 
