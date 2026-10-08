@@ -1861,7 +1861,7 @@ class ElixerWidget:
         except:
             ssr_imag = None
 
-        if ssr_imag is None:
+        if ssr_imag is None and self.ssr_h5 is not None:
             ssr_imag = self.build_msg_png("No ELiXer Report available. Detection may have been excluded due to poor quality.")
             if ssr_imag.mode in ("RGBA", "P", "F"):
                 ssr_imag = ssr_imag.convert("RGB")
