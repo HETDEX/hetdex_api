@@ -134,7 +134,7 @@ def linewidth_f50_scaling_v2(linewidth, sncut):
         linewidth = max(linewidth, 12.0)
 
     rfit=sqrt(linewidth/2.2)*(15.09 - sncut)
-    rfit = rfit*(0.098 - 0.0004 * linewidth + 0.0004 * linewith ** 2)
+    rfit = rfit*(0.098 - 0.0004 * linewidth + 0.0004 * linewidth ** 2)
 
     try:
         rfit[rfit < 1.0] = 1.0
@@ -730,7 +730,7 @@ def return_flux_limit_model(flim_model, cache_sim_interp = True,
             if sncut < model.snlow or sncut > model.snhigh:
                 print("WARNING: model {:s} not calibrated for this S/N range".format(flim_model))
         except ValueError:
-            if any(sncut < 4.5) or any(ncut > 7.5):
+            if any(sncut < 4.5) or any(sncut > 7.5):
                 print("WARNING: model {:s} not calibrated for this S/N range".format(flim_model))
 
         bad = noise > 998
