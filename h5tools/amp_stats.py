@@ -691,6 +691,8 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
             norm = tables.Float32Col()
             kchi = tables.Float32Col()
             n_cont = tables.Int32Col()
+            interference_snr = tables.Float32Col(dflt=-1.0) #placeholders that are populated later, by another application
+            interference_period = tables.Float32Col(dflt=-1.0) #placeholders that are populated later, by another application
             #date ... do not need date
             flag = tables.Int32Col()
             #flag_manual = tables.Int32Col()
@@ -707,6 +709,11 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
 
     astb = h5.root.AmpStats
 
+
+    if "interference_snr" in tab.columns:
+        add_interference_results = True
+    else:
+        add_interference_results = False
 
     if create_tab:
         # all new rows
@@ -731,11 +738,20 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
             row['norm'] = entry['norm']
             row['kchi'] = entry['kchi']
             row['n_cont'] = entry['N_cont']
+
+            if add_interference_results:
+                try:
+                    row['interference_snr'] = entry['interference_snr']
+                    row['interference_period'] = entry['interference_period']
+                except:
+                    row['flag'] = -1 #unset
+                    print("stats_update_shot (1a)", print(traceback.format_exc()))
+
             try:
                 row['flag'] = entry['flag']
             except:
                 row['flag'] = -1 #unset
-                print("stats_update_shot (1)", print(traceback.format_exc()))
+                print("stats_update_shot (1b)", print(traceback.format_exc()))
 
             row.append()
 
@@ -774,10 +790,19 @@ def stats_update_shot(h5, shot_dict=None, shot_dict_tab=None):
                 row['norm'] = entry['norm']
                 row['kchi'] = entry['kchi']
                 row['n_cont'] = entry['N_cont']
+
+                if add_interference_results:
+                    try:
+                        row['interference_snr'] = entry['interference_snr']
+                        row['interference_period'] = entry['interference_period']
+                    except:
+                        row['flag'] = -1  # unset
+                        print("stats_update_shot (2a)", print(traceback.format_exc()))
+
                 try:
                     row['flag'] = entry['flag']
                 except:
-                    print("stats_update_shot (2)", print(traceback.format_exc()))
+                    print("stats_update_shot (2b)", print(traceback.format_exc()))
                     row['flag'] = -1  # unset
 
 
