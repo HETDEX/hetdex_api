@@ -694,15 +694,18 @@ class ElixerWidget:
                     img_fn = op.join(self.cutoutpath, '{}.png'.format(detectid))
                     if op.exists(img_fn):
                         got_image = True
-                        display(Image(filename=img_fn))
-                        self.last_good_detectid = detectid
+                        img = Image(filename=img_fn)
+                        # displayed at the bottom of the function
+                        #display(img)
+                        #self.last_good_detectid = detectid
 
                 if not got_image:
                     img = self.get_elixer_report_ssr(detectid)
                     if img is not None:
                         got_image = True
-                        display(img)
-                        self.last_good_detectid = detectid
+                        # displayed at the bottom of the function
+                        #display(img)
+                        #self.last_good_detectid = detectid
 
                 if not got_image:
                     img =Image(self.elixer_conn_mgr.fetch_image(detectid))
