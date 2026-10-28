@@ -187,7 +187,7 @@ class VIRUSShot(tb.IsDescription):
     expnum = tb.Int32Col((3))
     exptime = tb.Float32Col((3))
     darktime = tb.Float32Col((3))
-    mjd = tb.Float32Col((3))
+    mjd = tb.Float64Col((3))
     fwhm_virus = tb.Float32Col(pos=9)
     fwhm_virus_err = tb.Float32Col(pos=10)
     nstars_fit_fwhm = tb.Int32Col()
