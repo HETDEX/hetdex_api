@@ -1107,6 +1107,7 @@ def get_image2D_amp(
     imtype="clean_image",
     expnum=1,
     survey=LATEST_HDR_NAME,
+    shot_h5=None
 ):
     """
     Returns an image from the 2D data based on
@@ -1135,7 +1136,12 @@ def get_image2D_amp(
     a 2D numpy array for the specified amp
 
     """
-    fileh = open_shot_file(shot, survey=survey)
+    #fileh = open_shot_file(shot, survey=survey)
+
+    if shot_h5 is None:
+        fileh = open_shot_file(shot, survey=survey)
+    else:
+        fileh = tb.open_file(shot_h5, "r")
 
     _expnum = expnum
 
