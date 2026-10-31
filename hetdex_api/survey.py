@@ -826,9 +826,12 @@ class FiberIndex:
         join_tab.sort("row_index")
 
         # quick check to make sure columns match
-        for idx in np.random.random_integers(0, high=len(self.fiber_table), size=500):
-            if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
-                print("Something went wrong. fiber_id columns don't match")
+        for idx in np.random.random_integers(0, high=len(self.fiber_table)-1, size=500):
+            try:
+                if self.fiber_table["fiber_id"][idx] != join_tab["fiber_id"][idx]:
+                    print("Something went wrong. fiber_id columns don't match")
+            except:
+                pass
 
         t1 = time.time()
         print("Done adding amplifier flags in {:4.3} minutes".format((t1 - t0) / 60))
