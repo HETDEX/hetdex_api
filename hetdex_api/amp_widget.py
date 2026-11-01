@@ -47,6 +47,7 @@ class AmpWidget:
         multiframe=None,
         imtype="clean_image",
         expnum=1,
+        shot_h5 = None
     ):
 
         self.survey = survey.lower()
@@ -54,13 +55,18 @@ class AmpWidget:
         self.detectid = detectid
         self.shotid = shotid
         self.multiframe = multiframe
+        self.shot_h5 = shot_h5
 
-        if self.shotid is None:
-            if self.multiframe is None:
-                if self.detectid is None:
-                    self.detectid = 4013993285 #random default LAE
-            else:
-                print('You must provide a shotid/multiframe combo or a detectid')
+        if self.shot_h5 is None:
+            if self.shotid is None:
+                if self.multiframe is None:
+                    if self.detectid is None:
+                        self.detectid = 4013993285 #random default LAE
+                else:
+                    print('You must provide a shotid/multiframe combo or a detectid')
+        else:
+            if self.detectid is None and self.multiframe is None:
+                print('You must provide a detectid or multiframe if shot_h5 is specified')
                 
         self.imtype = imtype
         self.expnum = expnum
@@ -68,7 +74,9 @@ class AmpWidget:
         self.radius = radius
         self.wave = wave
         self.detfile = None
-        
+
+        #if we have shot_h5, might not want to populate this?
+        #BUT could switch away to a HETDEX-original, I suppose, so leave as is?
         self.survey_widget = widgets.Dropdown(
                         options=["HDR1","HDR2.1", "HDR3", "HDR4", "HDR5"],
                         value=self.survey.upper(),
@@ -79,8 +87,11 @@ class AmpWidget:
         self.update_hdr_config()
 
         # initialize the image widget from astrowidgets
-        self.imw = ImageWidget()  # image_width=600, image_height=600)
+        self.imw = ImageWidget(image_width=1000, image_height=1000)  # image_width=600, image_height=600)
+        #self.imw = ImageWidget()  # image_width=600, image_height=600)
 
+        #need different bounds if shot_h5 specified ...
+        #technically, should go ahead and get the min-max detectids ...
         self.detectbox = widgets.BoundedIntText(
             value=self.detectid,
             min=2100000000,
@@ -232,6 +243,7 @@ class AmpWidget:
             imtype=self.imtype,
             expnum=self.expnum,
             survey=self.survey,
+            shot_h5=self.shot_h5
         )
         
         self.imw.load_array(self.im)
